@@ -1,0 +1,67 @@
+libipod (0.1.1-0.0.0.50.linspire0.1) marlin; urgency=low
+
+  * Autobuilder version increment (Reason(s): Source changes, Packaging changes,
+    Build dependency changes, new: doxygen (1.3.9.1-1)).
+  * Brian Thomason <brian.thomason@linspireinc.com>: 2005/12/12 15:18:32 PST
+     + files: 2 new,3 modified,4 renamed
+     + Replayed packaging changes (tos@linspire.com--2005/libipod--build-mar-
+       lin--0.1--patch-10):
+        - Patches applied:
+
+           * tos@linspire.com--2005/libipod--debian-los--0.1--patch-5
+             Moced documentation to -doc package
+  * Brian Thomason <brian.thomason@linspireinc.com>: 2005/12/12 15:06:18 PST
+     + files: 4 new,2 modified
+     + Replayed packaging changes (tos@linspire.com--2005/libipod--build-mar-
+       lin--0.1--patch-9):
+        - Patches applied:
+
+           * tos@linspire.com--2005/libipod--debian-los--0.1--patch-4
+             Adding help docs to package
+  * Duane Maxwell <duane@lindows.com>: 2005/12/09 14:02:33 PST
+     + files: 3 new,21 modified; directories: 2 new
+     + Added doxygen documentation support, fixed some bugs, added more call-
+       backs (tos@linspire.com--2005/libipod--build-marlin--0.1--patch-8):
+  * Duane Maxwell <duane@lindows.com>: 2005/12/07 15:10:12 PST
+     + files: 6 new,13 modified,30 removed
+     + Numerous bug fixes, new python wrapper class (tos@linspire.com--2005/li-
+       bipod--build-marlin--0.1--patch-7):
+  * Duane Maxwell <duane@lindows.com>: 2005/12/05 11:11:05 PST
+     + files: 10 new,25 modified
+     + Bottlenecked errors, playlist/podcast replication, more examples, some
+       bug fixes (tos@linspire.com--2005/libipod--build-marlin--0.1--patch-6):
+
+ -- Autobuilder <autobuilder@linspireinc.com>  Mon, 12 Dec 2005 15:21:37 -0800
+
+libipod (0.1.0-0.0.0.50.linspire0.2) marlin; urgency=low
+
+  * Autobuilder version increment (Reason(s): Packaging changes).
+  * Brian Thomason <brian.thomason@linspireinc.com>: 2005/11/30 14:10:46 PST
+     + files: 1 modified
+     + Replayed Linspire packaging changes (tos@linspire.com--2005/li-
+       bipod--build-marlin--0.1--patch-4):
+        - Patches applied:
+
+           * tos@linspire.com--2005/libipod--debian-los--0.1--patch-3
+             Added missing runtime dep
+
+ -- Autobuilder <autobuilder@linspireinc.com>  Wed, 30 Nov 2005 14:14:21 -0800
+
+libipod (0.1.0-0.0.0.50.linspire0.1) marlin; urgency=low
+
+  * Autobuilder version increment (Reason(s): Initial build by autobuilder).
+
+ -- Autobuilder <autobuilder@linspireinc.com>  Wed, 30 Nov 2005 14:03:45 -0800
+
+libipod (0.1.0-0) unstable; urgency=low
+
+  * Adding field for autobuilder to increment
+
+ -- Brian Thomason <brian.thomason@linspireinc.com>  Wed, 30 Nov 2005 13:19:26 -0800
+
+libipod (0.1-0) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Brian Thomason <brian.thomason@linspireinc.com>  Wed, 30 Nov 2005 12:56:03 -0800
+

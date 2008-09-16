@@ -1,0 +1,16 @@
+GNU SASL LIBRARY THANKS -- Acknowledgements.
+Copyright (C) 2002, 2003, 2004 Simon Josefsson
+See the end for copying conditions.
+
+GNU SASL uses libntlm by Grant Edwards maintained by Simon Josefsson;
+libgssapi by MIT/Heimdal; libgcrypt by Werner Koch; GSS, Libidn, and
+Shishi by Simon Josefsson.
+
+Bug reports, patches and/or suggestions were also received from or
+written by several people.  See the file THANKS in the GNU SASL
+package for the (hopefully) complete list.
+
+----------------------------------------------------------------------
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.

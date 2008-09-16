@@ -1,0 +1,265 @@
+<html>
+<head><title>Bluetooth-alsa</title></head>
+<body>
+
+<p>
+
+<h1>Bluetooth-alsa</h1>
+Bluetooth audio for Linux
+
+<p>
+
+<a href="index.html">Overview</a>
+| <a href="history.html">History</a>
+| <b>Future work</b>
+| <a href="build.html">Download & build</a>
+| <a href="credits.html">Credits</a>
+| <a href="contact.html">Contact us</a>
+
+<hr>
+
+There are still limitations in the architecture that make complete 
+desktop or handheld integration impossible. In particular, audio applications
+should not have to be individually configured back and forth between wired 
+and wireless audio. We want a VOIP call in progress to be able to be
+easily switched to and away from a headset, another complicated interaction.
+
+<h3>D-Bus</h3>
+
+The BlueZ team has recently taken the approach to integrate with the desktop 
+using the desktop bus. This allows for messages to the user to indicate
+for example when a bluetooth adapter becomes available or a new connection 
+needs to be authorized.
+
+<p>
+
+D-Bus holds a lot of promise for dynamically routing audio between
+combinations of built-in and bluetooth audio.
+
+<h3>Advanced architecture</h3>
+
+The design in progress involved merging SCO and A2DP devices from the 
+application's point of view so there is a single default system-wide 
+audio device.
+
+<p>
+
+Connection management and advanced controls like AVRCP are communicated
+using D-Bus and, optionally and to a lesser extent, the uinput device.
+
+<br><center><img src="sound-of-bluez.png"></center>
+
+<h3>D-Bus proposed API</h3>
+<pre>
+
+Audio hierarchy (experimental)
+==============================
+
+Service		org.bluez
+Interface	org.bluez.Audio
+Object path	/org/bluez
+
+Methods		array{string} ListHeadsets()
+
+			Returns list of headset object paths under /org/bluez
+
+		string FindHeadset(string pattern)
+
+			Returns object path for the specified headset. Valid
+			patterns are eg "Headset0" or "00:11:22:33:44:55" or
+			"00:11:22:33:44:55|duplex" or "00:11:22:33:44:55|HFP"
+	
+Signals		void HeadsetAdded(string path)
+
+			Parameter is object path of added headset.
+
+		void HeadsetRemoved(string path)
+
+			Parameter is object path of removed headset.
+
+
+Headset hierarchy (experimental)
+==============================
+
+Service		org.bluez
+Interface	org.bluez.Headset
+Object path	/org/bluez/{Headset0,Headset1,...}
+
+Methods		void Connect()
+
+			Opens the control connection to an audio device.
+
+		void Disconnect()
+
+			Stops audio if it was playing and closes the 
+			control connection to the audio device.
+
+		void Play()
+
+			Opens the audio stream. Called from the audio 
+			plugin or from the application if audio is 
+			routed somewhere other than the daemon (eg 
+			through PCM, direct to the DSP).
+
+		void Stop()
+
+		void Pause()
+
+		void Resume()
+
+		boolean GetDuplex()
+
+			Return true if this headset & profile support a 
+			microphone.
+
+		void SetTimeout(uint32 timeout)
+
+			Set the idle Stop for the device.
+
+			Stop the stream and emit a signal if 
+			timeout elapses without any audio being sent 
+			to the headset from an application. A value of 0 
+			indicates no idle stop; this is the default.
+
+		uint32 GetTimeout()
+
+		uint16 GetSpeakerGain()
+
+		uint16 GetMicrophoneGain()
+
+		void SetSpeakerGain(uint16 gain)
+
+			Gain is 0..15
+
+		void SetMicrophoneGain(uint16 gain)
+
+			Gain is 0..15
+
+		void Ring()
+
+			Use one ring on the headset's builtin ringer 
+			to indicate an incoming call.
+
+		void CustomRing()
+
+			Start the headset playing to indicate an 
+			incoming call.
+
+		void CancelRinging()
+
+			Cancel ringing or custom ringing incoming call.
+
+		uint16 GetDelay()
+
+			Return the delay in ms from sending audio to 
+			the set and when it is heard.
+
+		void SetDelay(uint16 delay)
+
+			Set the delay for this headset.
+
+		void AddBuiltInAudio()
+
+			Indicate that built-in audio should receive
+			the stream in addition to the headset.
+
+			The daemon only provides this state for use
+			by (eg) the alsa/gst plugin. The daemon does
+			not interact with built-in audio.
+
+		void RemoveBuiltInAudio()
+
+Signals		void Connected()
+
+		void Disconnected()
+		
+		void Playing()
+
+			Audio stream was started.
+
+		void Stopped()
+
+			Audio stream was stopped.
+
+		void Paused()
+
+			Audio stream was paused.
+
+		void Resumed()
+
+			Audio stream was resumed.
+
+		void PlayRequested()
+
+			The headset requested the stream to (re)start.
+
+		void StopRequested()
+
+			The headset requested the stream to stop.
+
+		void PauseRequested()
+
+			The headset requested a pause in the stream.
+
+		void NextTrackRequested()
+
+			The headset requested the next track.
+
+		void PreviousTrackRequested()
+
+			The headset requested the previous track.
+
+		void Ringing()
+
+			An incoming call was indicated with a ring
+			on the builtin ringer.
+
+		void CustomRinging()
+
+			An incoming call is being indicated with
+			a custom ring tone.
+
+		void Canceled()
+
+			Incoming call was canceled.
+
+		void TimeoutChanged()
+
+			Idle disconnect timeout changed.
+
+		void SpeakerGainChanged(uint16 gain)
+
+			The speaker gain changed.
+
+		void MicrophoneGainChanged(uint16 gain)
+
+			The microphone gain changed.
+
+		void VoiceCommandRequested()
+
+			The headset requested a voice-command session.
+
+		void Redialed()
+
+			The headset requested a redial.
+
+		void Answered()
+
+			User tried to answer an incoming call.
+
+		void Rejected()
+
+			User tried to rejected an incoming call.
+
+		void DelayChanged(uint16 delay)
+
+			The delay value was changed for this set.
+
+		void BuiltInAudioAdded()
+
+		void BuiltInAudioRemoved()
+
+</pre>
+
+</body>
+</html>

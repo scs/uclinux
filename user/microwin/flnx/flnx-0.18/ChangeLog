@@ -1,0 +1,67 @@
+post .015
+         - 04/25/01 Added patch (Steven Hein (ssh@sgi.com)
+           * Remove several debug messages
+           * Optimized the image draw routines (uusing pixel caching)
+
+flnx 0.15 (Microwindows Version 0.89pre6) - 16th Nov 2000 - jeffm@censoft.com
+	- Resloved Microwindows issue for not redrawing bitmaps on buttons.
+	  Submitted patch to Microwindows project.
+	- Revamped X,Y coordinate system to be more like FLTK 1.0.7. Now,
+	  widgets in many nested windows work correctly.
+	- Catching Microwindows update resize and move events.
+	- Added Fl_Window_Resize class for to catch Microwindows window 
+	  managers resize events.
+	- Implemented virtual resize_notify method so you can give application
+	  specific instructions for resizing (or you could just call the 
+	  default resize).
+	- Fluid now works under Microwindows (Now you can design apps on your
+	  PDA!)
+flnx 0.14 (Microwindows Version 0.89pre5) - 2nd Nov 2000 - jeffm@censoft.com
+	- Dialog boxes ( and other child windows ) are now correctly destroyed by nanox window managers.
+	- Fixed checkers demo ( see flnx/test/checkers.cxx)
+	- Fixed cursors to change at correct hotspots ( see flnx/test/tile.cxx )
+	- Fixed cursors to change to correct foreground and background colors ( see flnx/test/cursor.cxx ).
+	  Note: we are still working on getting all the cursor bitmaps to include. Currently we only have some
+	  default cursors.
+	- Now requests fonts by name as if they were TrueType.
+	- Now responds with font that matches most closely  
+	  the size you request in lieu of the actual TrueType font.
+	- Added TODO list concerning defects and unfinished tasks.
+	- Added INSTALL documentation. 
+flnx 0.13 (Microwindows Version 0.89pre3) - 25th Oct 2000 - jeffm@censoft.com
+	- Fixed first and third mouse button reversal problem between flnx and microwindows.
+	- Fixed Fl_Overlay.
+	- Fixed many window decorating and parenting problems inside of nanowm.
+	- Menus are no longer clipped by parent windows.
+	- Fixed file selection box.
+	- FL_ROUND_UP_BOX and FL_ROUND_DOWN_BOX look even better.
+	- Increased speed of True Type Fonts (much better!).
+	- Fixed Fl_vertex.cxx's fl_circle() ... it is now "polygon aware" (i.e. see clock demo).
+	- Fixed pop-up menu on right click.
+	
+flnx 0.12 (Microwindows Version 0.89pre3) - 18th Oct 2000 - jeffm@censoft.com 
+	- The event loop completely redone (FLNX under nanox is much faster).
+	- The event loop can now handle FL_TIMEOUT events properly (i.e. see
+  	  flnx/test/tabs)
+	- Menu Bars and Menu Buttons do not decorate inside of nanowm.
+	- Menu Bars and Menu Buttons events work correctly (i.e. draw in the
+  	  correct position).
+  	- Parts of Fl_Dial do not disappear after use.
+  	- Fl_Windows have FL_BLACK borders instead of FL_RED borders.
+  	- Window Parenting works better (i.e. see flnx/tests/tile demo).
+  	- Fl_Scroll now scrolls when other widgets are placed inside.
+  	- Double buffering works.
+  	- Fl_Box types FL_ROUND_BOX and FL_ROUND_DOWN_BOX draw correctly.
+  	- Fl_Bitmap works correctly.
+  	- Fl_Pixmap works correctly.
+  	- Fl_Image works (nanox server side draws images REALLY slow on X, it is
+  	  faster with framebuffer).
+	
+pre6 (Microwindows Version 0.88pre10) - 18th June 2000 - greg@censoft.com
+	* fixed text background output
+	* added MWFONT_DEFAULT_GUI if asked for font fails
+	* bugfixed region clipping code
+	* applied Kevin's fix for expose events, nx regions, new configure
+
+pre5 (Microwindows Version 0.88pre9) - 15th June 2000 - greg@censoft.com
+	* first Nano-X port, contributed by Tanghao

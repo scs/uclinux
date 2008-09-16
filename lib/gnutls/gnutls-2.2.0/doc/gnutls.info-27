@@ -1,0 +1,41 @@
+This is gnutls.info, produced by makeinfo version 4.11 from gnutls.texi.
+
+This manual is last updated 10 December 2007 for version 2.2.0 of GNU
+TLS.
+
+Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
+Foundation, Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.2 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, no Front-Cover Texts, and
+     no Back-Cover Texts.  A copy of the license is included in the
+     section entitled "GNU Free Documentation License".
+
+INFO-DIR-SECTION GNU Libraries
+START-INFO-DIR-ENTRY
+* libgnutls: (gnutls).		A Transport Layer Security Library.
+END-INFO-DIR-ENTRY
+
+INFO-DIR-SECTION Network Applications
+START-INFO-DIR-ENTRY
+* GnuTLS: (gnutls).			Package for Transport Layer Security.
+* certtool: (gnutls)Invoking certtool.	Manipulate certificates and keys.
+* srptool: (gnutls)Invoking srptool.	Simple SRP password tool.
+* gnutls-serv: (gnutls)Invoking gnutls-serv.	GNU TLS test server.
+* gnutls-cli: (gnutls)Invoking gnutls-cli.	GNU TLS test client.
+* gnutls-cli-debug: (gnutls)Invoking gnutls-cli-debug.	GNU TLS debug client.
+END-INFO-DIR-ENTRY
+
+[TOMSRP]
+     Tom Wu, "The Stanford SRP Authentication Project", Available at
+     `http://srp.stanford.edu/'.
+
+[WEGER]
+     Arjen Lenstra and Xiaoyun Wang and Benne de Weger, "Colliding X.509
+     Certificates", Cryptology ePrint Archive, Report 2005/067,
+     Available at `http://eprint.iacr.org/'.
+
+
+

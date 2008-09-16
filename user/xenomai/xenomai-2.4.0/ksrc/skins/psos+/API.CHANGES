@@ -1,0 +1,39 @@
+This file documents externally visible changes of the pSOS API. Make
+sure you read it carefully when upgrading versions of this software.
+
+___________________________________________________________________
+
+
+2.3.x -> 2.4-rc1
+
+	o The Xenomai-specific t_shadow() syscall has been added. It
+	moves the current thread to the Xenomai realm, by converting
+	it to a pSOS task of the lowest, non real-time priority
+	(0). In addition, assigning priority level 0 to pSOS tasks is
+	now allowed. The only way to create pSOS tasks with earlier
+	Xenomai versions would have been to call the t_create()
+	service. Note: demoting a real-time pSOS task (priority in the
+	1-255 range) to a non real-time one (0-priority) is not
+	allowed; for this reason, the behaviour of t_setpri() does not
+	change in the 0-priority case (i.e. passing 0 as the new
+	priority value still does not affect the target task, but may
+	only be used to retrieve the current priority level for that
+	task).
+
+	o The main thread of a Xenomai application in user-space is
+	now automatically converted to a pSOS task of the lowest
+	priority (0). This task will not compete for real-time
+	scheduling resources, but will be allowed to call Xenomai
+	services which require the caller to be a Xenomai thread. A
+	typical use of such service is to allow the main() thread to
+	synchronize with other pSOS tasks (e.g. calling sm_p(),
+	q_receive() and so on).
+
+	o Passing --enable-psos-auto-mlockall to the configuration
+	script makes the pSOS skin automatically issue the mlockall()
+	request for the entire application before the main() routine
+	is called.
+
+	o Round-robin scheduling is no more activated by default for
+	pSOS tasks whether they run in kernel or user-space (this was
+	unintended in the first place).

@@ -1,0 +1,92 @@
+# -*- makefile -*-
+# Generic rules for installation and distribution of documentation.
+#
+# Parameters :
+# HTML_DOCS list of html documentation directories
+# PDF_DOCS list of pdf files
+# PS_DOCS list of ps files
+#
+# HTML_DOCSDIR: where directories listed in HTML_DOCS should be taken from (this
+# can be from . or from a directory containing pre-generated versions)
+#
+# PDF_DOCSDIR & PS_DOCSDIR: same thing for pdf and ps files.
+
+docdir = $(datadir)/doc/$(PACKAGE)-$(VERSION)
+
+doc_top_distdir=$(top_builddir)/$(PACKAGE)-$(VERSION)
+GEN_DOC_DIST_ROOT=$(doc_top_distdir)/doc/generated
+
+install-htmldocs: $(HTML_DOCS:%=$(HTML_DOCSDIR)%)
+	docs="$^"; abs_builddir=$$PWD; \
+	for dir in $$docs; do \
+	    dest=$(DESTDIR)$(docdir)/html/`basename $$dir`; \
+	    $(mkinstalldirs) $$dest; \
+	    abs_dest=`cd $$dest && pwd` ; \
+            cd $$dir || exit 1; \
+	    for f in * ; do \
+	        case $$f in \
+		    *~|CVS|.svn|[mM]akefile*|GNUmakefile*);; \
+		    *) $(INSTALL_DATA) $$f $$abs_dest/$$f;; \
+	        esac; \
+	    done; cd $$abs_builddir; \
+	done
+
+install-pdfdocs: $(PDF_DOCS:%=$(PDF_DOCSDIR)%)
+	docs="$^"; dest=$(DESTDIR)$(docdir)/pdf; \
+	$(mkinstalldirs) $$dest && \
+	for f in $$docs; do \
+	    $(INSTALL_DATA) $$f $$dest; \
+	done
+
+install-psdocs: $(PS_DOCS:%=$(PS_DOCSDIR)%)
+	docs="$^"; dest=$(DESTDIR)$(docdir)/ps; \
+	$(mkinstalldirs) $$dest && \
+	for f in $$docs; do \
+	    $(INSTALL_DATA) $$f $$dest; \
+	done
+
+install-docs-local: install-htmldocs install-psdocs install-pdfdocs
+
+dist-htmldocs: $(HTML_DOCS:%=$(HTML_DOCSDIR)%)
+	docs="$^"; abs_builddir=$$PWD; \
+	for dir in $$docs; do \
+	    dest=$(GEN_DOC_DIST_ROOT)/html/`basename $$dir`; \
+	    $(mkinstalldirs) $$dest && abs_dest=`cd $$dest && pwd` && \
+            cd $$dir || exit 1; \
+	    for f in * ; do \
+		case $$f in \
+		    *~|CVS|.svn|[mM]akefile*|GNUmakefile*);; \
+		    *) $(INSTALL_DATA) $$f $$abs_dest/$$f;; \
+	        esac; \
+	    done; cd $$abs_builddir; \
+	done
+
+dist-pdfdocs: $(PDF_DOCS:%=$(PDF_DOCSDIR)%)
+	docs="$^"; dest=$(GEN_DOC_DIST_ROOT)/pdf; \
+	$(mkinstalldirs) $$dest && \
+	for f in $$docs; do \
+	    $(INSTALL_DATA) $$f $$dest; \
+	done
+
+dist-psdocs: $(PS_DOCS:%=$(PS_DOCSDIR)%)
+	docs="$^"; dest=$(GEN_DOC_DIST_ROOT)/ps; \
+	$(mkinstalldirs) $$dest && \
+	for f in $$docs; do \
+	    $(INSTALL_DATA) $$f $$dest; \
+	done
+
+dist-docs-hook: all-local dist-htmldocs dist-pdfdocs dist-psdocs
+
+
+
+# To make distcheck happy.
+uninstall-docs:
+	if test -n "$(HTML_DOCS)" -o -n "$(PDF_DOCS)" -o -n "$(PS_DOCS)"; then \
+	    targets="$(HTML_DOCS:%=$(DESTDIR)$(docdir)/html/%) \
+		$(PDF_DOCS:%=$(DESTDIR)$(docdir)/pdf/%) \
+		$(PS_DOCS:%=$(DESTDIR)$(docdir)/ps/%)"; \
+	    for t in $$targets; do \
+		if test -d $$t; then $(RM) $$t/*; $(RM) -r $$t; \
+		else $(RM) $$t; fi; \
+	    done; \
+        fi

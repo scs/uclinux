@@ -1,0 +1,26 @@
+SNAPGEAR IXP425 FLASH
+---------------------
+
+1. LOADING BOOT LOADER
+
+   Using OCdemon package, setup with appropriate .gdbinit script.
+
+   Firstly make sure you have the lp drivers loaded, and then load
+   the ocdemon/ravenpp driver:
+
+      modprobe lp
+      modprobe -f ravenpp
+      mknod /dev/ocdemonpp0 c 254 0
+      mknod /dev/ravenpp0 c 254 0
+
+   (Ignore the ravenpp load warnings - if any).
+
+   Now startup the process demon, and start gdb:
+
+      OcdLibRemote -c XSCALE-IXP &
+      /tmp/xscale-elf-gdb -nw
+
+   Now run the "flash16-boot" macro to program the flash with the
+   SnapGear boot loader. The first RealTek 8169 port is the default
+   tftp boot port.
+

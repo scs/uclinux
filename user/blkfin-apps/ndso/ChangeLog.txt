@@ -1,0 +1,20 @@
+2005-02-17  Michael Hennerich  <hennerich@blackfin.uclinux.org>
+
+        *Initail Release
+2005-03-24  Michael Hennerich  <hennerich@blackfin.uclinux.org> 
+
+        *Driver now supports new DMA-API 
+2005-04-05  Michael Hennerich  <hennerich@blackfin.uclinux.org>
+		
+        *Added Multi-User capability by using remote IP-ADDR. as session ID.
+        *Fixed negative trigger voltage bug
+        *Added error message, in case someone runs REPLOT before ACQUIRE
+        *Added full generic support  for different ADCs based on dac.h
+2005-04-06  Michael Hennerich  <hennerich@blackfin.uclinux.org>
+        
+        *Added range constrains for Plot Size Ratio
+        *Added range constrains for Plot Range [t1 != t2], [t1 < t2]
+        *Added check if higher Display Plot Range contains a corresponding sample value
+        *Added check in case  Ratio between Sample Depth and Sample Rate will exceed Timeout criteria
+        *Changed HTML page layout to be more friendly to lower display resolutions (1024x768) 
+ 

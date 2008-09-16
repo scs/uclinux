@@ -1,0 +1,50 @@
+sdlroids - an enhanced shoot-the-asteroids game.
+Copyright (C) 1991 Edward Hutchins.
+Unix/Linux port by Russell Marks, 2000.
+SDL port by David Hedbor <david@hedbor.org>
+
+
+DESCRIPTION
+-----------
+
+Hyperoid was a really cool little game for Windows 3.x. It's
+essentially an Asteroids clone, with decent game physics and
+enhancements over the original game.
+
+Once you've installed sdlroid , READ THE MAN PAGE. Some things about
+it are a bit non-obvious, and it can save time to have them pointed
+out.
+
+Some of the improvements over xhyperoid are:
+
+- Pause functionality.
+- Fullscreen mode.
+- Less flickering.
+- Nicer place area (you can see the borders) and better edge handling
+  (things just don't pop from one side to another).
+- Uses SDL, and thus supports a more platforms. Can also use the esound
+  daemon if SDL is compiled with it.
+- Added configure scripts to simplify porting to different platforms.
+
+
+LICENSE
+-------
+
+GPL. See COPYING for details.
+
+
+INSTALLATION
+------------
+
+See INSTALL for details.
+
+CONTACTING ME
+-------------
+
+My email address is david@hedbor.org. The original Unix port was done
+by Russell Marks, russell.marks@ntlworld.com. There are no known ways
+of contacting the original author, Edward Hutchins as far as I or
+Russell know.
+
+Enjoy the game.  If you have any suggestions for improvements, let me
+know.

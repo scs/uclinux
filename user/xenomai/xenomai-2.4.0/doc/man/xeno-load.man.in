@@ -1,0 +1,61 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for xeno-load
+.\"
+.\" Copyright (C) 2005, 2006 Romain Lenglet <rlenglet@users.forge.objectweb.org>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH XENO-LOAD 1 "2005-10-18" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+xeno-load \- Executes applications that use Xenomai libraries and kernel modules
+.SH SYNOPSIS
+\fBxeno-load\fP [\fB\-\-verbose\fP] [[\fIdirectory\fP\fB:\fP]\fItarget\fP] [\fB\-\-\fP] [\fIargs\fP] ...
+.br
+.B xeno-load \-\-help
+.br
+.SH DESCRIPTION
+\fBxeno-load\fP is a script that is used to load and execute an application that uses Xenomai, and load and unload the required kernel modules.
+The application is executed according to information contained in the \fB.runinfo\fP configuration file found in the specified \fIdirectory\fP.
+If no \fIdirectory\fP is specified on the command line, the current working directory is used by default to look for the \fB.runinfo\fP file.
+
+A \fB.runinfo\fP file can define several execution targets.
+The target which name is specified in \fItarget\fP is used to execute the application.
+If no \fitarget\fP name is specified, the default target is executed.
+The first target defined in the \fB.runinfo\fP file is the default target, regardless of its name.
+
+A target in a \fB.runinfo\fP file specifies modules to load / unload, and commands to execute.
+Commands may be executed as \fBroot\fP using \fBsudo\fP(8), and/or executed as background jobs, depending on target specifications.
+The optional \fIargs\fP arguments passed to \fBxeno-load\fP are passed to the executed commands (see description about \fBexec\fP and \fBspawn\fP actions in \fBruninfo\fP(5)).
+
+If \fBxeno-load\fP receives a SIGINT signal (e.g. the user typed \fBCONTROL-C\fP) while executing a target, it unloads all modules it has loaded, terminates all commands it has started (by sending SIGINT signals), and then terminates.
+
+See \fBruninfo\fP(5) for more information about the format of \fB.runinfo\fP files.
+
+.\" ********************************************************************
+.SH OPTIONS
+.TP
+.B \-\-verbose
+Outputs trace messages on the standard output, when (un)loading Xenomai's kernel modules, and when executing the application.
+.TP
+.B \-\-help
+Outputs a command-line syntax help text and exits.
+.TP
+.B \-\-
+Indicates the end of options.
+This is useful when no [\fIdirectory\fP\fB:\fP]\fItarget\fP has been specified, in order for the first argument in \fIargs\fP not to be considered as the target name.
+.SH "RETURN CODES"
+.TP
+.B 0
+Successful script execution, i.e. either the \fB\-\-help\fP option has been specified, or the application has been correctly executed.
+.TP
+.B 2
+No \fB.runinfo\fP file was found in the specified \fIdirectory\fP (or in the current directory if no \fIdirectory\fP was specified), or the \fBdefault\fP target is to be executed but no target is defined in the \fB.runinfo\fP file, or no target with the specified \fItarget\fP name can be found in the \fB.runinfo\fP file.
+.SH FILES
+\fIdirectory\fP/.runinfo
+.SH "SEE ALSO"
+.BR runinfo (5),
+.BR sudo (8)

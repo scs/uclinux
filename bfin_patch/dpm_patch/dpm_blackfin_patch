@@ -1,0 +1,4379 @@
+Index: linux-2.6/arch/blackfin/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/blackfin/Kconfig	2007-01-11 10:21:08.000000000 +0800
++++ linux-2.6/arch/blackfin/Kconfig	2007-01-11 10:59:34.000000000 +0800
+@@ -540,6 +540,7 @@
+ 
+ menu "Clock Settings"
+ 
++source "drivers/dpm/Kconfig"
+ 
+ config BFIN_KERNEL_CLOCK
+ 	bool "Re-program Clocks while Kernel boots?"
+Index: linux-2.6/arch/blackfin/mach-bf533/dpm.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/arch/blackfin/mach-bf533/dpm.c	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,259 @@
++/*
++* arch/arm/mach-bf533/pxa_dpm.c
++* Dynamic Power Mangement for bf533
++*
++* This program is free software; you can redistribute it and/or modify
++* it under the terms of the GNU General Public License as published by
++* the Free Software Foundation; either version 2 of the License, or
++* (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software
++* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++*
++* Copyright (C) 2004, xiaohe <catod@net9.org>
++*
++* Base on the dpm for T1OMAP by MontaVista
++*
++*/
++
++
++#include <linux/dpm.h>
++#include <linux/errno.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/kmod.h>
++#include <linux/module.h>
++#include <linux/proc_fs.h>
++#include <linux/stat.h>
++#include <linux/string.h>
++#include <linux/device.h>
++#include <linux/pm.h>
++#include <linux/delay.h>
++
++#include <asm/hardirq.h>
++#include <asm/page.h>
++#include <asm/processor.h>
++#include <asm/uaccess.h>
++#include <asm/io.h>
++#include <asm/dpmc.h>
++
++//CONFIG_CLKIN_HZ=11059200
++#define VCO5 (CONFIG_CLKIN_HZ*45)       /*497664000 */
++#define VCO4 (CONFIG_CLKIN_HZ*36)       /*398131200 */
++#define VCO3 (CONFIG_CLKIN_HZ*27)       /*298598400 */
++#define VCO2 (CONFIG_CLKIN_HZ*18)       /*199065600 */
++#define VCO1 (CONFIG_CLKIN_HZ*9)        /*99532800 */
++#define VCO(x) VCO##x
++
++#define FREQ(x) {VCO(x),VCO(x)/4},{VCO(x),VCO(x)/2},{VCO(x),VCO(x)}
++/* frequency */
++
++
++struct bf533_freqs{
++	unsigned int mask;
++	unsigned int freq[2];
++};
++static struct bf533_freqs valid_freqs[]={
++	{3,{VCO5,VCO5}}
++};
++#define NUM_VALID_FREQ	9
++
++#undef	DBG_DPM
++
++extern struct file_operations dpmc_fops;
++int GetCurrentMode(void)
++{
++}
++static void bf533_deep_sleep(unsigned int old_mode){
++	printk("in bf533_deep_sleep\n");	
++	/*from active to deep sleep*/
++	if(old_mode == ACTIVE){
++	}
++	/*from full on to depp sleep*/
++	if(old_mode == FULLON){
++	}
++}
++static void bf533_sleep(unsigned int old_mode)
++{
++	unsigned int x = 1;
++	printk("in bf533_sleep\n");
++	/*from active to sleep*/
++	if(old_mode == ACTIVE){
++		
++	}
++	/*from fullon to sleep*/
++	if(old_mode == FULLON){
++	}
++}
++static void bf533_active(unsigned int old_mode)
++{
++	printk("in bf533_active\n");
++	/*from deep sleep to active*/
++	if(old_mode == DEEP_SLEEP){
++	}
++	/*from sleep to active*/
++	if(old_mode == SLEEP){
++	}
++	/*from fullon to active*/
++	if(old_mode = FULLON){
++	}
++}
++static void bf533_fullon(unsigned int old_mode){
++	printk("in bf533_fullon");
++	if(old_mode == 1){
++		/*from sleep to fullon*/
++	}
++	if(old_mode == 2){
++		/*from active to fullon*/
++	}
++}
++static void bf533_setspeed(unsigned int mask,unsigned int mode)
++{
++	printk("in bf533_setspeed.%x %x\n",mask,mode);
++	dpmc_fops.ioctl(NULL, NULL, IOCTL_CHANGE_FREQUENCY, &(valid_freqs[0].freq[0]));
++}
++
++int 
++dpm_bf533_set_opt(struct dpm_opt *cur,struct dpm_opt *new){
++	printk("dpm_bf533_set_opt\n");
++	printk("mode: cur %d\t new %d\n",cur->md_opt.mode,new->md_opt.mode);
++	struct dpm_md_opt *md_cur,*md_new;
++	md_cur = &cur->md_opt;
++	md_new = &new->md_opt;
++	/*check mode*/
++	if(md_cur->mode != md_new->mode)
++	{
++		printk("new mode: %d\n",md_new->mode);
++		if(md_new->mode == 0)
++			bf533_deep_sleep(md_cur->mode);
++		if(md_new->mode == 1)
++			bf533_sleep(md_cur->mode);
++		if(md_new->mode == 2)
++			bf533_active(md_cur->mode);
++		if(md_new->mode == 3)
++			bf533_fullon(md_cur->mode);
++		if(md_new->mode >= 3)
++			bf533_setspeed(md_new->mask,md_new->mode);
++		unsigned int oldspeed=0,newspeed=0,i;
++		for(i=0;i<NUM_VALID_FREQ;i++)
++		{
++		if(md_cur->mask == valid_freqs[i].mask)
++			oldspeed = valid_freqs[i].freq[md_cur->mode];
++		if(md_new->mask == valid_freqs[i].mask)
++			newspeed = valid_freqs[i].freq[md_new->mode];	
++		}
++		long unsigned int temp = loops_per_jiffy;
++		printk("lpj temp:%lx\t%lx\n",loops_per_jiffy,temp);
++		loops_per_jiffy = (unsigned int)((temp/oldspeed)*newspeed);
++		printk("lpj old new:\t%lx\t%d\t%d\n",loops_per_jiffy,oldspeed,newspeed);
++	}
++	
++	return 0;
++}
++
++int 
++dpm_bf533_init_opt(struct dpm_opt *opt){
++	u32		mask	= opt->pp[DPM_MD_MASK];
++	unsigned int	mode	= opt->pp[DPM_MD_MODE];	
++	struct dpm_md_opt	*md_opt	= &opt->md_opt;
++	/*do some error check*/
++	/*initialize the members of the struct dpm_md_opt*/
++	md_opt->mask	= mask;
++	md_opt->mode	= mode;
++	return 0;
++}
++int 
++dpm_bf533_get_opt(struct dpm_opt *opt){
++	struct dpm_md_opt *md_opt;
++	
++	md_opt = &opt->md_opt;
++	if(md_opt == NULL)
++	{
++	printk(KERN_WARNING "opt->md_opt is NULL.\n");
++	return 1;
++	}
++	md_opt->mode = GetCurrentMode();
++	return 0;
++}
++static inline int 
++p5d(char * buf,unsigned mhz){
++	return sprintf(buf,"%5d",mhz);	/* Round */
++}
++static int 
++dpm_proc_print_opt(char *buf,struct dpm_opt *opt){
++	return sprintf(buf,"%s","only for test\n");
++}
++int
++read_proc_dpm_md_opts(char *page,char **start,off_t offset,
++			int count,int *eof,void *data){
++	dpm_proc_print_opt(page,NULL);
++	return 0;
++}
++int 
++write_proc_dpm_md_cmd (struct file *file, const char *buffer,
++		       unsigned long count, void *data){
++	char *buf, *tok, *s;
++	char *whitespace = " \t\r\n";
++	int ret = 0;
++
++	if (current->uid != 0)
++		return -EACCES;
++	if (count == 0)
++		return 0;
++	if (!(buf = kmalloc(count + 1, GFP_KERNEL)))
++		return -ENOMEM;
++	if (copy_from_user(buf, buffer, count)) {
++		kfree(buf);
++		return -EFAULT;
++	}
++	buf[count] = '\0';
++	s = buf + strspn(buf, whitespace);
++	tok = strsep(&s, whitespace);
++	
++	if (strcmp(tok, "define-me") == 0) {
++		;
++	} else {
++		ret = -EINVAL;
++	}
++	kfree(buf);
++	if (ret == 0)
++		return count;
++	else 
++		return ret;
++}
++
++static void 
++dpm_bf533_idle(void){
++}
++
++static void
++dpm_bf533_startup(void){
++}
++
++static void
++dpm_bf533_cleanup(void){
++}
++
++
++int __init
++dpm_bf533_init(void){
++	printk("Analog Inc BF533 Dynamic Power Management.\n");
++	dpm_md.init	=NULL;
++	dpm_md.init_opt	=dpm_bf533_init_opt;
++	dpm_md.set_opt	=dpm_bf533_set_opt;
++	dpm_md.get_opt	=dpm_bf533_get_opt;
++	dpm_md.check_constraint	= NULL;/*not implemented*/
++	dpm_md.idle	=dpm_bf533_idle;
++	dpm_md.startup	=dpm_bf533_startup;
++	dpm_md.cleanup	=dpm_bf533_cleanup;
++	return 0;
++}
++
++__initcall(dpm_bf533_init);
++
+Index: linux-2.6/arch/blackfin/mach-bf533/Makefile
+===================================================================
+--- linux-2.6.orig/arch/blackfin/mach-bf533/Makefile	2007-01-11 10:21:08.000000000 +0800
++++ linux-2.6/arch/blackfin/mach-bf533/Makefile	2007-01-11 11:00:21.000000000 +0800
+@@ -7,3 +7,4 @@
+ obj-y := ints-priority.o
+ 
+ obj-$(CONFIG_CPU_FREQ_BF533) += cpu.o
++obj-$(CONFIG_DPM)            += dpm.o
+Index: linux-2.6/arch/blackfin/mach-bf537/dpm.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/arch/blackfin/mach-bf537/dpm.c	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,259 @@
++/*
++* arch/arm/mach-bf533/pxa_dpm.c
++* Dynamic Power Mangement for bf533
++*
++* This program is free software; you can redistribute it and/or modify
++* it under the terms of the GNU General Public License as published by
++* the Free Software Foundation; either version 2 of the License, or
++* (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software
++* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++*
++* Copyright (C) 2004, xiaohe <catod@net9.org>
++*
++* Base on the dpm for T1OMAP by MontaVista
++*
++*/
++
++
++#include <linux/dpm.h>
++#include <linux/errno.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/kmod.h>
++#include <linux/module.h>
++#include <linux/proc_fs.h>
++#include <linux/stat.h>
++#include <linux/string.h>
++#include <linux/device.h>
++#include <linux/pm.h>
++#include <linux/delay.h>
++
++#include <asm/hardirq.h>
++#include <asm/page.h>
++#include <asm/processor.h>
++#include <asm/uaccess.h>
++#include <asm/io.h>
++#include <asm/dpmc.h>
++
++//CONFIG_CLKIN_HZ=11059200
++#define VCO5 (CONFIG_CLKIN_HZ*45)       /*497664000 */
++#define VCO4 (CONFIG_CLKIN_HZ*36)       /*398131200 */
++#define VCO3 (CONFIG_CLKIN_HZ*27)       /*298598400 */
++#define VCO2 (CONFIG_CLKIN_HZ*18)       /*199065600 */
++#define VCO1 (CONFIG_CLKIN_HZ*9)        /*99532800 */
++#define VCO(x) VCO##x
++
++#define FREQ(x) {VCO(x),VCO(x)/4},{VCO(x),VCO(x)/2},{VCO(x),VCO(x)}
++/* frequency */
++
++
++struct bf533_freqs{
++	unsigned int mask;
++	unsigned int freq[2];
++};
++static struct bf533_freqs valid_freqs[]={
++	{3,{VCO5,VCO5}}
++};
++#define NUM_VALID_FREQ	9
++
++#undef	DBG_DPM
++
++extern struct file_operations dpmc_fops;
++int GetCurrentMode(void)
++{
++}
++static void bf533_deep_sleep(unsigned int old_mode){
++	printk("in bf533_deep_sleep\n");	
++	/*from active to deep sleep*/
++	if(old_mode == ACTIVE){
++	}
++	/*from full on to depp sleep*/
++	if(old_mode == FULLON){
++	}
++}
++static void bf533_sleep(unsigned int old_mode)
++{
++	unsigned int x = 1;
++	printk("in bf533_sleep\n");
++	/*from active to sleep*/
++	if(old_mode == ACTIVE){
++		
++	}
++	/*from fullon to sleep*/
++	if(old_mode == FULLON){
++	}
++}
++static void bf533_active(unsigned int old_mode)
++{
++	printk("in bf533_active\n");
++	/*from deep sleep to active*/
++	if(old_mode == DEEP_SLEEP){
++	}
++	/*from sleep to active*/
++	if(old_mode == SLEEP){
++	}
++	/*from fullon to active*/
++	if(old_mode = FULLON){
++	}
++}
++static void bf533_fullon(unsigned int old_mode){
++	printk("in bf533_fullon");
++	if(old_mode == 1){
++		/*from sleep to fullon*/
++	}
++	if(old_mode == 2){
++		/*from active to fullon*/
++	}
++}
++static void bf533_setspeed(unsigned int mask,unsigned int mode)
++{
++	printk("in bf533_setspeed.%x %x\n",mask,mode);
++	dpmc_fops.ioctl(NULL, NULL, IOCTL_CHANGE_FREQUENCY, &(valid_freqs[0].freq[0]));
++}
++
++int 
++dpm_bf533_set_opt(struct dpm_opt *cur,struct dpm_opt *new){
++	printk("dpm_bf533_set_opt\n");
++	printk("mode: cur %d\t new %d\n",cur->md_opt.mode,new->md_opt.mode);
++	struct dpm_md_opt *md_cur,*md_new;
++	md_cur = &cur->md_opt;
++	md_new = &new->md_opt;
++	/*check mode*/
++	if(md_cur->mode != md_new->mode)
++	{
++		printk("new mode: %d\n",md_new->mode);
++		if(md_new->mode == 0)
++			bf533_deep_sleep(md_cur->mode);
++		if(md_new->mode == 1)
++			bf533_sleep(md_cur->mode);
++		if(md_new->mode == 2)
++			bf533_active(md_cur->mode);
++		if(md_new->mode == 3)
++			bf533_fullon(md_cur->mode);
++		if(md_new->mode >= 3)
++			bf533_setspeed(md_new->mask,md_new->mode);
++		unsigned int oldspeed=0,newspeed=0,i;
++		for(i=0;i<NUM_VALID_FREQ;i++)
++		{
++		if(md_cur->mask == valid_freqs[i].mask)
++			oldspeed = valid_freqs[i].freq[md_cur->mode];
++		if(md_new->mask == valid_freqs[i].mask)
++			newspeed = valid_freqs[i].freq[md_new->mode];	
++		}
++		long unsigned int temp = loops_per_jiffy;
++		printk("lpj temp:%lx\t%lx\n",loops_per_jiffy,temp);
++		loops_per_jiffy = (unsigned int)((temp/oldspeed)*newspeed);
++		printk("lpj old new:\t%lx\t%d\t%d\n",loops_per_jiffy,oldspeed,newspeed);
++	}
++	
++	return 0;
++}
++
++int 
++dpm_bf533_init_opt(struct dpm_opt *opt){
++	u32		mask	= opt->pp[DPM_MD_MASK];
++	unsigned int	mode	= opt->pp[DPM_MD_MODE];	
++	struct dpm_md_opt	*md_opt	= &opt->md_opt;
++	/*do some error check*/
++	/*initialize the members of the struct dpm_md_opt*/
++	md_opt->mask	= mask;
++	md_opt->mode	= mode;
++	return 0;
++}
++int 
++dpm_bf533_get_opt(struct dpm_opt *opt){
++	struct dpm_md_opt *md_opt;
++	
++	md_opt = &opt->md_opt;
++	if(md_opt == NULL)
++	{
++	printk(KERN_WARNING "opt->md_opt is NULL.\n");
++	return 1;
++	}
++	md_opt->mode = GetCurrentMode();
++	return 0;
++}
++static inline int 
++p5d(char * buf,unsigned mhz){
++	return sprintf(buf,"%5d",mhz);	/* Round */
++}
++static int 
++dpm_proc_print_opt(char *buf,struct dpm_opt *opt){
++	return sprintf(buf,"%s","only for test\n");
++}
++int
++read_proc_dpm_md_opts(char *page,char **start,off_t offset,
++			int count,int *eof,void *data){
++	dpm_proc_print_opt(page,NULL);
++	return 0;
++}
++int 
++write_proc_dpm_md_cmd (struct file *file, const char *buffer,
++		       unsigned long count, void *data){
++	char *buf, *tok, *s;
++	char *whitespace = " \t\r\n";
++	int ret = 0;
++
++	if (current->uid != 0)
++		return -EACCES;
++	if (count == 0)
++		return 0;
++	if (!(buf = kmalloc(count + 1, GFP_KERNEL)))
++		return -ENOMEM;
++	if (copy_from_user(buf, buffer, count)) {
++		kfree(buf);
++		return -EFAULT;
++	}
++	buf[count] = '\0';
++	s = buf + strspn(buf, whitespace);
++	tok = strsep(&s, whitespace);
++	
++	if (strcmp(tok, "define-me") == 0) {
++		;
++	} else {
++		ret = -EINVAL;
++	}
++	kfree(buf);
++	if (ret == 0)
++		return count;
++	else 
++		return ret;
++}
++
++static void 
++dpm_bf533_idle(void){
++}
++
++static void
++dpm_bf533_startup(void){
++}
++
++static void
++dpm_bf533_cleanup(void){
++}
++
++
++int __init
++dpm_bf533_init(void){
++	printk("Analog Inc BF533 Dynamic Power Management.\n");
++	dpm_md.init	=NULL;
++	dpm_md.init_opt	=dpm_bf533_init_opt;
++	dpm_md.set_opt	=dpm_bf533_set_opt;
++	dpm_md.get_opt	=dpm_bf533_get_opt;
++	dpm_md.check_constraint	= NULL;/*not implemented*/
++	dpm_md.idle	=dpm_bf533_idle;
++	dpm_md.startup	=dpm_bf533_startup;
++	dpm_md.cleanup	=dpm_bf533_cleanup;
++	return 0;
++}
++
++__initcall(dpm_bf533_init);
++
+Index: linux-2.6/drivers/dpm/dpm.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/dpm.c	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,1169 @@
++/*
++ * drivers/dpm/policy.c  Dynamic Power Management Policies
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++ *
++ * Copyright (C) 2002, International Business Machines Corporation
++ * All Rights Reserved
++ *
++ * Robert Paulsen
++ * IBM Linux Technology Center
++ * rpaulsen@us.ibm.com
++ * August, 2002
++ *
++ */
++
++/* TODO:
++
++   Rethink init/enable/disable: It may be redundant and/or unsafe
++   Fix initialization and stats
++*/
++
++#include <linux/dpm.h>
++#include <linux/init.h>
++#include <linux/interrupt.h>
++#include <linux/module.h>
++#include <linux/proc_fs.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/spinlock.h>
++#include <linux/delay.h>
++#include <asm/semaphore.h>
++#include <asm/system.h>
++#include <asm/uaccess.h>
++
++//extern function in the file drivers/base/power/power-dpm.c
++//extern int dpm_check_constraints(struct dpm_opt *);
++//extern void dpm_recheck_constraints(struct dpm_opt *);
++/*fixme,until now,check constraints is not implemented...*/
++int dpm_check_constraints(struct dpm_opt *opt){
++	return 1;
++}
++void dpm_recheck_constraints(struct dpm_opt *opt){
++	return;
++}
++
++#define TRACE
++#if defined(TRACE)
++#define trace(args...) do { printk("TRACE: "); printk(args); } while(0)
++#else
++#define trace(args...) do {} while(0)
++#endif
++
++
++
++
++
++#define DPM_PP_SIZE (DPM_PP_NBR * sizeof(dpm_md_pp_t))
++
++struct dpm_md dpm_md;
++
++unsigned long dpm_compute_lpj(unsigned long ref, u_int div, u_int mult)
++{
++	unsigned long new_jiffy_l, new_jiffy_h;
++
++	/*
++	 * Recalculate loops_per_jiffy.  We do it this way to
++	 * avoid math overflow on 32-bit machines.  Maybe we
++	 * should make this architecture dependent?  If you have
++	 * a better way of doing this, please replace!
++	 *
++	 *    new = old * mult / div
++	 */
++	new_jiffy_h = ref / div;
++	new_jiffy_l = (ref % div) / 100;
++	new_jiffy_h *= mult;
++	new_jiffy_l = new_jiffy_l * mult / div;
++
++	return new_jiffy_h + new_jiffy_l * 100;
++}
++
++/****************************************************************************
++
++DPM Synchronization and Operating Point Changes
++===============================================
++
++There are 2 aspects to synchronization in DPM: First, the usual requirement of
++serializing access to shared data structures, and second, the idea of
++synchronizing the operating point and the current operating state.  The second
++condition arises because setting an operating point may complete asynchronously
++for a number of reasons, whereas the operating state change that causes the
++operating point change succeeds immediately.
++
++Access to most of the global variables representing the current state of DPM
++and the current policy are protected by a spinlock, dpm_policy_lock.  The use
++of this lock appears in only a few critical places.
++
++Setting the operating point, reading the value of the current operating point
++or changing the current policy may only be done while holding the semaphore
++_dpm_lock.  Access to the _dpm_lock is abstracted by the dpm_lock() and
++dpm_unlock() calls as explained below.  (The semaphore should only be accessed
++this way to simplify future development).
++
++The _dpm_lock must be held (by a call to a dpm_lock function) by any caller of
++the interfaces that set the operating point, change the policy, or enable or
++disable DPM.  Note that the corresponding call to dpm_unlock() may be
++explicitly required, or implicit (see dpm_set_opt_async() below).
++
++For simplicity, the calls that create operating points and policies also use
++dpm_lock() and dpm_unlock() to protect access to the non-active policies as
++well. Since these are normally initialization calls, this should not interfere
++with the operation of the system once initialized.
++
++Three interfaces are provided for obtaining the _dpm_lock:
++
++void dpm_lock();
++int dpm_lock_interruptible();
++int dpm_trylock();
++
++dpm_lock_interruptible() returns -ERESTARTSYS if the wait for the _dpm_lock was
++interrupted, and dpm_trylock() returns -EBUSY if the semaphore is currently
++held. 
++
++Once the _dpm_lock is held, two interfaces are provided for setting the
++operating point:
++
++int dpm_set_opt_async()
++int dpm_set_opt_sync();
++
++Neither of these interfaces takes parameters since under DPM the operating
++point to select is always implied by the current policy and operating state.
++If the system is already at the correct operating point then no change is
++required or made.  To avoid deadlock, the caller must not be holding the
++dpm_policy_lock when either of these calls is made.
++
++dpm_set_opt_async() launches a change in the operating point that will
++potentially terminate asynchronously.  This interface never blocks the caller,
++thus there is no guarantee that the system is actually running at the implied
++operating point when control returns to the caller. This call is used by
++dpm_set_os() during an operating state change.  Note since this call terminates
++asynchronously, the call to dpm_unlock() is implicitly made when the operating
++point change is complete.  I.e., the caller obtains the _dpm_lock with
++dpm_lock(), calls dpm_set_opt_async(), then continues.
++
++dpm_set_opt_sync() launches a synchronous change in the operating point.  This
++call will block the caller as necessary during the call, thus it can only be
++issued from a process context.  When control returns to the caller, the caller
++can be sure that the implied operating point was set, and that the system is
++currently running at the correct operating point for the given policy and
++operating state.  This call is used by dpm_set_policy() and the device
++constraint update code to guarantee that the change to a new policy, or changes
++to operating point classes as a result of device constraits are reflected in
++the operating point.
++
++Note that regardless of whether an operating point change is synchrounous or
++asynchronous, it is still possible that the operating state may change during
++the call.  Setting the operating point is (currently) not preemptible,
++therefore at the time that the operating point change is complete, it may no
++longer be the correct operating point for the operating state.  This condition
++is always handled by the dpm_set_opt*() routines, which will launch a tasklet
++to re-synchronize the operating point to the operating state.
++
++It is possible that due to poorly designed policies and asynchronous
++termination of operating point changes that the operating point will always lag
++behind the operating state.  This is only a performance issue, not a
++correctness issue.  Since a valid policy has a valid operating point for every
++operating state, and changes to the policy and changes in devices constraints
++always use dpm_set_opt_sync(), there will never be a case where the current
++operating point does not support device constraints.
++
++****************************************************************************/
++
++/* curently installed policies and operating points */
++LIST_HEAD(dpm_policies);
++LIST_HEAD(dpm_classes);
++LIST_HEAD(dpm_opts);
++
++DECLARE_MUTEX(_dpm_lock);
++spinlock_t dpm_policy_lock = SPIN_LOCK_UNLOCKED;
++
++/* the currently active policy */
++struct dpm_policy *dpm_active_policy;
++
++/* the currently active operating state, class, and operating point */
++dpm_state_t dpm_active_state = DPM_NO_STATE;
++struct dpm_opt *dpm_active_opt;
++struct dpm_class *dpm_active_class;
++
++/* is DPM initialized and enabled? */
++int dpm_enabled;
++int dpm_initialized;
++
++struct dpm_opt *
++dpm_choose_opt(struct dpm_policy *policy, int state)
++{
++	struct dpm_opt *opt = NULL;
++
++	if (policy->classopt[state].opt) {
++		opt = policy->classopt[state].opt;
++
++		if (! dpm_check_constraints(opt))
++			opt = NULL;
++
++		dpm_active_class = NULL;
++	}
++	else {
++		int i;
++
++		for (i = 0; i < policy->classopt[state].class->nops; i++) {
++			if (dpm_check_constraints(
++				    policy->classopt[state].class->ops[i])) {
++				opt = policy->classopt[state].class->ops[i];
++				break;
++			}
++		}
++
++		dpm_active_class = policy->classopt[state].class;
++	}
++
++	return opt;
++}
++
++
++
++/*****************************************************************************
++ * dpm_next_opt() returns the operating point that needs to be activated next,
++ * or NULL if the operating point is up-to-date or the DPM system is disabled.
++ * Since this call looks at the value of the current operating point, it can
++ * only be made when the _dpm_lock is held.
++ *****************************************************************************/
++
++static inline struct dpm_opt *
++dpm_next_opt(void)
++{
++	struct dpm_opt *opt = NULL;
++	unsigned long flags;
++
++	spin_lock_irqsave(&dpm_policy_lock, flags);
++	if (dpm_enabled && dpm_active_state != DPM_NO_STATE) {
++		opt = dpm_choose_opt(dpm_active_policy,dpm_active_state);
++		if (opt == dpm_active_opt)
++			opt = NULL;
++	}
++	spin_unlock_irqrestore(&dpm_policy_lock, flags);
++	return opt;
++}
++
++/*****************************************************************************
++ * Set the operating point implied by the current DPM policy. These calls can
++ * only be made while holding _dpm_lock, and the release of
++ * _dpm_lock is implied by the call (see below).
++ *****************************************************************************/
++
++static struct dpm_opt temp_opt = { name : "[System Operating Point]" };
++
++int
++dpm_set_opt(struct dpm_opt *new, unsigned flags)
++{
++	unsigned long s;
++	struct dpm_opt *old_opt = dpm_active_opt;
++
++	/* Support for setting the operating point when DPM is not running, and
++	   setting the first operating point. */
++
++	if (!dpm_enabled || !dpm_active_opt) {
++		if (dpm_md_get_opt(&temp_opt)) {
++			printk(KERN_ERR "dpm_default_set_opt: "
++			      "DPM disabled and system "
++			      "operating point is illegal!\n");
++			return -EINVAL;
++		}
++		dpm_active_opt = &temp_opt;
++		dpm_active_class = NULL;
++	}
++
++	local_irq_save(s);
++	dpm_md.set_opt(dpm_active_opt, new);
++
++#ifdef CONFIG_DPM_OPT_STATS
++	dpm_update_stats(&new->stats, &dpm_active_opt->stats);
++#endif
++
++	dpm_active_opt = new;
++	local_irq_restore(s);
++	mb();
++
++	if (flags & DPM_UNLOCK)
++		dpm_unlock();
++
++	/*
++	 * If transitioning away from a forced operating point, see if
++	 * any devices forced off can be resumed.
++	 */	    
++
++	if (old_opt && old_opt->force)
++		dpm_recheck_constraints(new);
++
++	return 0;
++}
++
++/*****************************************************************************
++ * Set operating point asynchronously.  The _dpm_lock will be cleared whenever
++ * the change in operating point is complete.
++ *****************************************************************************/
++
++int
++dpm_set_opt_async(void)
++{
++	struct dpm_opt *opt = dpm_next_opt();
++
++	if (opt) {
++		dpm_trace(DPM_TRACE_SET_OPT_ASYNC, opt);
++		return dpm_set_opt(opt, DPM_UNLOCK);
++	} else {
++		dpm_trace(DPM_TRACE_SET_OPT_ASYNC, NULL);
++		dpm_unlock();
++		return 0;
++	}
++}
++
++/*****************************************************************************
++ * Set operating point synchronously.  The caller must clear _dpm_lock after the
++ * call returns.
++ *****************************************************************************/
++
++int
++dpm_set_opt_sync(void)
++{
++	struct dpm_opt *opt = dpm_next_opt();
++
++	if (opt) {
++		dpm_trace(DPM_TRACE_SET_OPT_SYNC, opt);
++		return dpm_set_opt(opt, DPM_SYNC);
++	} else
++		dpm_trace(DPM_TRACE_SET_OPT_SYNC, NULL);
++	return 0;
++}
++
++/*****************************************************************************
++ * Resynchronize the operating state and the operating point without
++ * blocking. If we don't get the lock it doesn't matter, since whenever the
++ * lock holder releases the lock the resynchronization will be tried again.
++ *****************************************************************************/
++
++static inline void
++dpm_resync(void)
++{
++
++	dpm_trace(DPM_TRACE_RESYNC);
++	if (!dpm_trylock())
++		dpm_set_opt_async();
++}
++
++void
++dpm_resync_task(unsigned long ignore)
++{
++	dpm_resync();
++}
++
++/*****************************************************************************
++ * unlock the DPM
++ *
++ * If the operating point and operating state are not in sync when _dpm_lock is
++ * released, a tasklet is launched to resynchronize them. A tasklet is used
++ * rather than simply calling dpm_set_op directly to avoid deep recursions.
++ * (I'm not sure this has worked, though).
++ *
++ * (The locking functions are inline in dpm_policy.h)
++ *
++ * This is not static since it needs to be called from dpm_policy.c
++ *****************************************************************************/
++
++DECLARE_TASKLET(dpm_resync_tasklet, dpm_resync_task, 0);
++
++void
++dpm_unlock(void)
++{
++	int retry;
++
++	retry = dpm_next_opt() != NULL;
++	dpm_trace(DPM_TRACE_UNLOCK, retry);
++	up(&_dpm_lock);
++	if (retry)
++		tasklet_schedule(&dpm_resync_tasklet);
++}
++
++/*****************************************************************************
++ * Enter a new operating state for statistical purposes.  Returns 1 if the new
++ * state may require a change in operating point and 0 otherwise.
++ * 
++ * The normal case that occurs during task scheduling, where we go from task
++ * state to task state, is quickly ignored, as are changes to the
++ * DPM_NO_STATE and changes when DPM is not running.  Otherwise,
++ * dpm_enter_state() has advertised that we are in a new state, and indicates
++ * whether an operating point change is required.
++ * 
++ * Note the system invariant that the operating point always eventually
++ * catches up with changes to the operating state.  This is what makes it
++ * correct here to check for common operating points.  We know
++ * that if a common operating point is not the current operating point, it
++ * will be soon.
++ *
++ * The 'quick' variant (in dpm.h) is called out separately to reduce latency
++ * for critical operating state changes where the following are known: 1) The
++ * dpm_policy_lock is held and/or interrupts are properly disabled.  2) DPM is
++ * enabled.  3) The new state is neither DPM_NO_STATE nor the same as the
++ * active state.  4) Any operating point change is being handled elsewhere.
++ *****************************************************************************/
++
++static int
++dpm_enter_state(int new_state)
++{
++	int ret = 0;
++	unsigned long flags;
++
++	spin_lock_irqsave(&dpm_policy_lock, flags);
++
++        if ((new_state == dpm_active_state) || 
++            (new_state == DPM_NO_STATE) ||
++            !dpm_enabled) {
++		spin_unlock_irqrestore(&dpm_policy_lock, flags);
++		return ret;
++        }
++
++        if ((dpm_active_policy->classopt[new_state].class !=
++             dpm_active_policy->classopt[dpm_active_state].class) ||
++            (dpm_active_policy->classopt[new_state].opt !=
++             dpm_active_policy->classopt[dpm_active_state].opt))
++                ret = 1;
++
++	dpm_quick_enter_state(new_state);
++
++        spin_unlock_irqrestore(&dpm_policy_lock, flags);
++        return ret;
++}
++
++
++/*****************************************************************************
++ * set operating state
++ *
++ * This is used by the kernel to inform the DPM that the operating state has
++ * changed and that a new operating point should (possibly) be set as a
++ * result.
++ *
++ * If an operating point change is required it is attempted. If we can't get
++ * the lock here, then the operating point change will be activated when the
++ * current lock holder releases the lock.
++ *****************************************************************************/
++
++void
++dpm_set_os(dpm_state_t new_state)
++{
++	dpm_trace(DPM_TRACE_SET_OS, new_state);
++	if (dpm_enter_state(new_state))
++		dpm_resync();
++}
++
++EXPORT_SYMBOL(dpm_set_os);
++
++/*****************************************************************************
++ * initialize the DPM
++ *****************************************************************************/
++int
++dynamicpower_init(void)
++{
++	trace("in dynamicpower_init\n");
++
++	if (dpm_initialized) {
++		trace("DPM already initialized");
++		return -EALREADY;
++	}
++
++	/* mutex-style semaphore for access to policies and opts */
++	init_MUTEX(&_dpm_lock);
++
++	dpm_active_policy = 0;	/* this leaves the DPM temporarily
++				   disabled until a policy is
++				   activated */
++	dpm_enabled = 0;
++	dpm_initialized = 1;
++	dpm_active_state = DPM_TASK_STATE;
++
++
++	trace("DPM is now initialized\n");
++
++	return 0;
++}
++
++/*****************************************************************************
++ * (temporarily) disable the DPM
++ *****************************************************************************/
++int
++dynamicpower_disable(void)
++{
++
++	trace("in dynamicpower_disable\n");
++
++	dpm_lock();
++
++	dpm_enabled = 0;
++	dpm_active_opt = NULL;
++	dpm_active_class = NULL;
++
++	dpm_unlock();
++
++	trace("DPM is now disabled\n");
++
++	return 0;
++}
++
++/*****************************************************************************
++ * re-enable the DPM
++ * dpm_enabled = 1 implies that DPM is initialized and there is an active
++ * policy. The 'enable' call is really designed to be used after a temporary
++ * 'disable'.  All that's required to start DPM is to initialize it and set a
++ * policy. 
++ *****************************************************************************/
++
++/* Need to think through enable/disable */
++
++int
++dynamicpower_enable(void)
++{
++
++	trace("in dynamicpower_enable\n");
++
++	dpm_lock();
++
++	if (dpm_active_policy) {
++		dpm_enabled = 1;
++		mb();
++		dpm_md_startup();
++		dpm_set_opt_sync();
++		trace("DPM is now enabled\n");
++	} else {
++		trace("No active policy, dpm_enable is ignored\n");
++	}
++
++	dpm_unlock();
++	return 0;
++}
++
++/*****************************************************************************
++ * Suspend/Resume DPM 
++ * The current operating point is saved and restored. This
++ * interface is designed to be used by system suspend/resume code, to safely
++ * save/restore the DPM operating point across a system power-down, where the
++ * firmware may resume the system at a random operating point.  This does not
++ * require DPM to be enabled. Note that DPM remains locked across the
++ * suspend/resume.
++ *****************************************************************************/
++
++static struct dpm_opt suspend_opt = { name : "[Suspended Op. Point]" };
++struct dpm_opt *suspended_opt;
++
++int
++dynamicpm_suspend(void)
++{
++	int err;
++
++	trace("in dpm_suspend\n");
++
++	dpm_lock();
++
++	if (dpm_enabled && dpm_active_opt) {
++		suspended_opt = dpm_active_opt;
++	} else {
++		suspended_opt = &suspend_opt;
++		if ((err = dpm_md_get_opt(suspended_opt))) {
++			printk(KERN_CRIT 
++			       "DPM can not suspend the current op. point!\n");
++			suspended_opt = NULL;
++			return err;
++		}
++	}
++	return 0;
++}
++
++void
++dynamicpm_resume(void)
++{
++	trace("in dpm_resume\n");
++
++	if (suspended_opt) {
++		dpm_active_opt = NULL;	/* Force reinitialization of DPM */
++		dpm_active_class = NULL;
++		dpm_set_opt(suspended_opt, DPM_SYNC);
++		suspended_opt = NULL;
++	}
++	dpm_unlock();
++}
++
++
++/*****************************************************************************
++ * Create a named operating point
++ * The alternate entry point can be used to create anonymous operating points
++ *****************************************************************************/
++
++int
++_dpm_create_opt(struct dpm_opt **p, const char *name, const dpm_md_pp_t * md_pp)
++{
++	struct dpm_opt *opt;
++	int ret;
++
++	/* get memory for opt */
++	if (!
++	    (opt =
++	     (struct dpm_opt *) kmalloc(sizeof (struct dpm_opt), GFP_KERNEL))) {
++		return -ENOMEM;
++	}
++	trace("%s @ 0x%08lx\n", name, (unsigned long)opt);
++	memset(opt, 0, sizeof(struct dpm_opt));
++	if (!(opt->name = (char *) kmalloc(strlen(name) + 1, GFP_KERNEL))) {
++		kfree(opt);
++		return -ENOMEM;
++	}
++
++	/* initialize and validate the opt */
++	strcpy(opt->name, name);
++	memcpy(&opt->pp, md_pp, DPM_PP_SIZE);
++	ret = dpm_md_init_opt(opt);
++	if (ret) {
++		kfree(opt->name);
++		kfree(opt);
++		return ret;
++	}
++	INIT_LIST_HEAD(&opt->list);
++	*p = opt;
++	dpm_sysfs_new_op(opt);
++	return 0;
++}
++
++int
++dpm_create_opt(const char *name, const dpm_md_pp_t * md_pp)
++{
++	int ret;
++	struct dpm_opt *opt;
++
++	trace("in dpm_create_opt for \"%s\"\n", name);
++
++	dpm_lock();
++
++	/* ensure name is unique */
++	list_find(opt, name, dpm_opts, struct dpm_opt);
++	if (opt) {
++		dpm_unlock();
++		return -EEXIST;
++	}
++
++	/* create the opt */
++	ret = _dpm_create_opt(&opt, name, md_pp);
++
++	/* add opt to our list */
++	if (!ret)
++		list_add(&opt->list, &dpm_opts);
++
++	dpm_unlock();
++	return ret;
++}
++
++/*****************************************************************************
++ * destroy an operating point
++ * Assumes _dpm_lock is held and the opt is no longer needed *anywhere*
++ *****************************************************************************/
++void
++destroy_opt(struct dpm_opt *opt)
++{
++	dpm_sysfs_destroy_op(opt);
++	list_del(&opt->list);
++	kfree(opt->name);
++	kfree(opt);
++}
++
++/*****************************************************************************
++ * create a named class of operating points (to be used to map to an operating
++ * state)
++ *****************************************************************************/
++
++int
++dpm_create_class(const char *name, char **op_names, unsigned nops)
++{
++	int i;
++	struct dpm_class *cls;
++
++	trace("in dpm_create_class for \"%s\"\n", name);
++
++	dpm_lock();
++
++	/* ensure class is not empty */
++	if (nops == 0) {
++		dpm_unlock();
++		return -EINVAL;
++	}
++
++	/* ensure name is unique */
++	list_find(cls, name, dpm_classes, struct dpm_class);
++	if (cls) {
++		dpm_unlock();
++		return -EEXIST;
++	}
++
++	/* get memory for class */
++	cls = (struct dpm_class *) kmalloc(sizeof (struct dpm_class), GFP_KERNEL);
++	if (!cls) {
++		dpm_unlock();
++		return -ENOMEM;
++	}
++	trace("%s @ 0x%08lx\n", name, (unsigned long)cls);
++	memset(cls, 0, sizeof (struct dpm_class));
++	/* get memory for array of pointers to operating points */
++	cls->ops =
++	    (struct dpm_opt **) kmalloc(nops * sizeof (struct dpm_opt *),
++					GFP_KERNEL);
++	if (!cls->ops) {
++		kfree(cls);
++		dpm_unlock();
++		return -ENOMEM;
++	}
++
++	/* get memory for class name */
++	cls->name = (char *) kmalloc(strlen(name) + 1, GFP_KERNEL);
++	if (!cls->name) {
++		kfree(cls->ops);
++		kfree(cls);
++		dpm_unlock();
++		return -ENOMEM;
++	}
++
++	/* find named op points and put their pointers in the class */
++	for (i = 0; i < nops; ++i) {
++		struct dpm_opt *opt;
++		list_find(opt, op_names[i], dpm_opts, struct dpm_opt);
++		if (!opt) {
++			kfree(cls->name);
++			kfree(cls->ops);
++			kfree(cls);
++			dpm_unlock();
++			return -ENOENT;
++		}
++		cls->ops[i] = opt;
++	}
++	strcpy(cls->name, name);
++	cls->nops = nops;
++	/* add class to our list */
++	list_add(&cls->list, &dpm_classes);
++
++	dpm_unlock();
++	dpm_sysfs_new_class(cls);
++
++	return 0;
++}
++
++/*****************************************************************************
++ * destroy a class
++ * Assumes _dpm_lock is held and the class is no longer needed *anywhere*
++ *****************************************************************************/
++void
++destroy_class(struct dpm_class *cls)
++{
++	dpm_sysfs_destroy_class(cls);
++	list_del(&cls->list);
++	kfree(cls->ops);
++	kfree(cls->name);
++	kfree(cls);
++}
++
++/*********
++ * Fill out pointer with all operating points for a policy
++ */
++
++int
++dpm_get_opts_in_policy(char *name, char **classopt_names)
++{
++        int i;
++        struct dpm_policy  *policy;
++
++        list_find(policy, name, dpm_policies, struct dpm_policy);
++        if (policy == NULL) {
++                return -EEXIST;
++        }
++
++        for(i = 0; i < DPM_STATES; i++) {
++                classopt_names[i] = dpm_classopt_name(policy,i);
++        }
++        return 0;
++}
++
++/*********
++ * Fill out pointer with all currently installed policies
++ */
++
++int
++dpm_get_all_policies(char **policies)
++{
++        int i = 0;
++	struct list_head  * p;
++
++	list_for_each(p, &dpm_policies) {
++		policies[i++] = ((struct dpm_policy *) 
++				 list_entry(p, struct dpm_policy, list))->name;
++	}
++	return i;
++}
++
++/*****************************************************************************
++ * create power policy
++ *****************************************************************************/
++int
++dpm_create_policy(const char *name, char **classopt_names)
++{
++	int i;
++	struct dpm_policy *policy;
++
++	trace("in dpm_install_policy for \"%s\" policy\n", name);
++
++	dpm_lock();
++
++	/* ensure unique name */
++	list_find(policy, name, dpm_policies, struct dpm_policy);
++	if (policy) {
++		dpm_unlock();
++		return -EEXIST;
++	}
++
++	/* get memory for policy */
++	policy =
++	    (struct dpm_policy *) kmalloc(sizeof (struct dpm_policy),
++					  GFP_KERNEL);
++	if (!policy) {
++		dpm_unlock();
++		return -ENOMEM;
++	}
++	trace("%s @ 0x%08lx\n", name, (unsigned long)policy);
++	memset(policy, 0, sizeof (struct dpm_policy));
++	/* get memory for policy name */
++	policy->name = (char *) kmalloc(strlen(name) + 1, GFP_KERNEL);
++	if (!policy->name) {
++		kfree(policy);
++		dpm_unlock();
++		return -ENOMEM;
++	}
++
++	/* initialize the policy */
++	for (i = 0; i < DPM_STATES; ++i) {
++		if (!classopt_names[i]) {
++			kfree(policy->name);
++			kfree(policy);
++			dpm_unlock();
++			return -EINVAL;
++		}
++		list_find(policy->classopt[i].opt,classopt_names[i],
++				dpm_opts, struct dpm_opt);
++
++		if(!policy->classopt[i].opt) {
++			list_find(policy->classopt[i].class,classopt_names[i],
++				  dpm_classes, struct dpm_class);
++			if(!policy->classopt[i].class) {
++				kfree(policy->name);
++				kfree(policy);
++				dpm_unlock();
++				return -ENOENT;
++			}
++		}
++	}
++	strcpy(policy->name, name);
++
++	/* add policy to our list */
++	list_add(&policy->list, &dpm_policies);
++	dpm_sysfs_new_policy(policy);
++	trace("installed \"%s\" policy\n", name);
++	dpm_unlock();
++	return 0;
++}
++
++/*****************************************************************************
++ * destroy a power policy
++ * Assumes _dpm_lock is held and the policy is no longer needed *anywhere*
++ *****************************************************************************/
++void
++destroy_policy(struct dpm_policy *policy)
++{
++	dpm_sysfs_destroy_policy(policy);
++	list_del(&policy->list);
++	kfree(policy->name);
++	kfree(policy);
++}
++
++/*****************************************************************************
++ * uninstall power policy
++ *****************************************************************************/
++int
++dpm_destroy_policy(const char *name)
++{
++	struct dpm_policy *policy;
++
++	trace("processing destroy request for \"%s\"\n", name);
++
++	dpm_lock();
++
++	/* find the named policy */
++	list_find(policy, name, dpm_policies, struct dpm_policy);
++	if (!policy) {
++		dpm_unlock();
++		return -ENOENT;
++	}
++
++	/* can't uninstall active policy */
++	if (policy == dpm_active_policy) {
++		dpm_unlock();
++		return -EBUSY;
++	}
++
++	/* remove the policy */
++	destroy_policy(policy);
++
++	dpm_unlock();
++	trace("destroyed \"%s\" policy\n", name);
++	return 0;
++}
++
++/*
++ * set active power policy
++ */
++int
++dpm_set_policy(const char *name)
++{
++	struct dpm_policy *new_p;
++
++	trace("in dpm_set_policy for \"%s\" policy\n", name);
++
++	dpm_lock();
++
++	list_find(new_p, name, dpm_policies, struct dpm_policy);
++	if (!new_p) {
++		dpm_trace(DPM_TRACE_SET_POLICY, name, -ENOENT);
++		dpm_unlock();
++		return -ENOENT;	/* invalid name */
++	}
++	if (new_p == dpm_active_policy) {
++		dpm_trace(DPM_TRACE_SET_POLICY, name, 0);
++		trace("\"%s\" policy already activated\n", name);
++		dpm_unlock();
++		return 0;
++	}
++
++#ifdef CONFIG_DPM_STATS
++	if (dpm_active_policy)
++		dpm_update_stats(&new_p->stats, &dpm_active_policy->stats);
++	else {
++		new_p->stats.start_time = dpm_md_time();
++		new_p->stats.end_time = 0;
++		new_p->stats.count++;
++	}
++#endif
++
++	dpm_active_policy = new_p;
++
++	if (! dpm_enabled) {
++		dpm_enabled = 1;
++		dpm_md_startup();
++	}
++
++	/* Start the policy synchronously */
++
++	mb();
++	dpm_trace(DPM_TRACE_SET_POLICY, name, 0);
++	dpm_set_opt_sync();
++	dpm_unlock();
++
++	return 0;
++}
++
++/*****************************************************************************
++ * set a task state
++ *****************************************************************************/
++
++int
++dpm_set_task_state(pid_t pid, dpm_state_t task_state)
++{
++	struct task_struct *p;
++
++	if (task_state == -(DPM_TASK_STATE_LIMIT + 1)) 
++		task_state = DPM_NO_STATE;
++	else if (abs(task_state) > DPM_TASK_STATE_LIMIT) {
++		dpm_trace(DPM_TRACE_SET_TASK_STATE, pid, task_state, -EINVAL);
++		return -EINVAL;
++	} else 
++		task_state += DPM_TASK_STATE;
++
++	read_lock(&tasklist_lock);
++
++	if (pid == 0)
++		p = current;
++	else
++		p = find_task_by_pid(pid);
++
++	if (!p) {
++		read_unlock(&tasklist_lock);
++		dpm_trace(DPM_TRACE_SET_TASK_STATE, pid, task_state, -ENOENT);
++		return -ENOENT;
++	}
++
++	p->dpm_state = task_state;
++	read_unlock(&tasklist_lock);
++
++	dpm_trace(DPM_TRACE_SET_TASK_STATE, pid, task_state, 0);
++
++	if (pid == 0)
++		dpm_set_os(p->dpm_state);
++	
++
++	return 0;
++}
++
++/*****************************************************************************
++ * set a raw op state
++ *****************************************************************************/
++
++int
++dpm_set_op_state(const char *name)
++{
++	int op_state;
++
++	for (op_state = 0; op_state < DPM_STATES; op_state++)
++		if (strcmp(dpm_state_names[op_state], name) == 0) {
++			dpm_set_os(op_state);
++			return 0;
++		}
++
++	return -ENOENT;
++}
++
++/*****************************************************************************
++ * get a task state
++ *****************************************************************************/
++
++int
++dpm_get_task_state(pid_t pid, dpm_state_t * task_state)
++{
++	struct task_struct *p;
++
++	read_lock(&tasklist_lock);
++
++	if (pid == 0)
++		p = current;
++	else
++		p = find_task_by_pid(pid);
++
++	if (!p) {
++		read_unlock(&tasklist_lock);
++		return -ENOENT;
++	}
++
++	if (p->dpm_state == DPM_NO_STATE)
++		*task_state = -(DPM_TASK_STATE_LIMIT + 1);
++	else
++		*task_state = p->dpm_state - DPM_TASK_STATE;
++
++	read_unlock(&tasklist_lock);
++	return 0;
++}
++
++/*****************************************************************************
++ * terminate the DPM
++ *****************************************************************************/
++int
++dynamicpower_terminate(void)
++{
++	trace("in dynamicpower_terminate\n");
++
++	if (!dpm_initialized)
++		return 0;
++
++	dpm_lock();
++
++	dpm_md_cleanup();
++
++	dpm_initialized = 0;
++	dpm_enabled = 0;
++	dpm_active_opt = NULL;
++	dpm_active_class = NULL;
++
++	/* destroy all entities */
++	while (!list_empty(&dpm_policies))
++		destroy_policy(list_entry
++			       (dpm_policies.next, struct dpm_policy, list));
++	while (!list_empty(&dpm_opts))
++		destroy_opt(list_entry(dpm_opts.next, struct dpm_opt, list));
++	while (!list_empty(&dpm_classes))
++		destroy_class(list_entry(dpm_classes.next, struct dpm_class,
++					 list));
++
++
++	mb();
++	dpm_unlock();
++
++	trace("DPM is now terminated\n");
++	printk("DPM is now terminated\n");
++
++	return 0;
++}
++
++EXPORT_SYMBOL(dynamicpower_init);
++EXPORT_SYMBOL(dynamicpower_terminate);
++EXPORT_SYMBOL(dynamicpower_disable);
++EXPORT_SYMBOL(dynamicpower_enable);
++EXPORT_SYMBOL(dpm_create_opt);
++EXPORT_SYMBOL(dpm_create_class);
++EXPORT_SYMBOL(dpm_create_policy);
++EXPORT_SYMBOL(dpm_destroy_policy);
++EXPORT_SYMBOL(dpm_set_policy);
++/* ?? Needed in kernel mode ?? EXPORT_SYMBOL(dpm_get_policy);*/
++EXPORT_SYMBOL(dpm_set_task_state);
++EXPORT_SYMBOL(dpm_get_task_state);
++
++/****************************************************************************
++ * install dynamic power policy support
++ ****************************************************************************/
++static int __init
++dpm_init_module(void)
++{
++#ifdef CONFIG_PROC_FS
++	{
++		void dpm_proc_init(void);
++		dpm_proc_init();
++	}
++#endif
++
++	trace("DPM is now installed\n");
++	return 0;
++}
++
++/****************************************************************************
++ * remove dynamic power policy support
++ ****************************************************************************/
++static void __exit
++dpm_exit_module(void)
++{
++	/* disable power management policy system */
++	dynamicpower_terminate();
++
++#ifdef CONFIG_PROC_FS
++	{
++		void dpm_proc_cleanup(void);
++		dpm_proc_cleanup();
++	}
++#endif
++	trace("DPM module is now unloaded\n");
++}
++
++module_init(dpm_init_module);
++module_exit(dpm_exit_module);
++
++/*
++ * Local variables:
++ * c-basic-offset: 8
++ * End:
++ */
+Index: linux-2.6/drivers/dpm/dpm-idle.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/dpm-idle.c	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,168 @@
++/*
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++ *
++ * Copyright (C) 2002, MontaVista Software <source@mvista.com>.
++ *
++ * Based on ibm405lp_dpm.c by Bishop Brock, Copyright (C) 2002,
++ * International Business Machines Corporation.
++ */
++
++
++#include <linux/dpm.h>
++#include <linux/errno.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/kmod.h>
++#include <linux/module.h>
++#include <linux/proc_fs.h>
++#include <linux/stat.h>
++#include <linux/string.h>
++
++#include <asm/delay.h>
++#include <asm/hardirq.h>
++#include <asm/page.h>
++#include <asm/processor.h>
++#include <asm/system.h>
++#include <asm/uaccess.h>
++
++/****************************************************************************
++ *  DPM Idle Handler
++ ****************************************************************************/
++
++/* 
++   The idle handler is one of the most important parts of DPM, as very
++   significant amounts of energy are saved by moving to a low-power idle state
++   whenever possible.  The basic coding of the core of this routine is simply:
++
++   dpm_set_os(DPM_IDLE_STATE);
++   machine-dependent-idle-routine();
++   dpm_set_os(DPM_IDLE_TASK_STATE);
++
++   The added complexity found here is introduced to avoid unnecessary work, and
++   especially to reduce the latencies associated with going in and out of idle.
++   Idle power can be greatly reduced by moving to a very low-frequency
++   operating point, but we also need to be aware of the impact on interrupt
++   latencies.  The DPM implementation of idle attempts to balance these
++   competing needs.
++
++   We support 2 "idle" states: DPM_IDLE_TASK_STATE and DPM_IDLE_STATE.  The
++   idle thread is marked as a "no-state" task, so that operating point changes
++   are not automatically made when the idle thread is scheduled. The
++   "idle-task" state is used for the majority of the idle thread.  Interrupts
++   that occur during idle are handled in this state as well. The "idle" state
++   is only entered from the idle-task state, and only for the express purpose
++   of allowing an ultra-low-power operating point.
++
++   The introduction of the idle-task state supports a stepped voltage and
++   frequency scaling at idle.  On the IBM 405LP we would not want to go from,
++   e.g., 266/133 @ 1.8 V directly to 8/8 @ 1.0 V and back.  Why not?  Because
++   we would get "stuck" at 8MHz even though we need to wake up and resume
++   useful work, e.g., we would have to set the 266/133 operating point while
++   running at 8/8.  So instead when going idle first step down to idle-task,
++   e.g., 100/50 @ 1.0 V, and then step down to e.g. 8/8 to halt.  The interrupt
++   that takes us out of idle takes us back to idle-task (100/50) for interrupt
++   processing and the potential return to 266/133.
++
++   The best policies for this implementation will be able to transition between
++   idle-task and idle without voltage scaling or driver notification. In these
++   cases the transitions are handled with minimal latency by simple frequency
++   scaling. */
++
++static inline void
++quick_idle(void)
++{
++	dpm_quick_enter_state(DPM_IDLE_STATE);
++	dpm_md_idle();
++	dpm_quick_enter_state(DPM_IDLE_TASK_STATE);
++	dpm_unlock();
++}
++
++static void
++full_idle(struct dpm_opt *idle_task_opt, struct dpm_opt *idle_opt)
++{
++	dpm_quick_enter_state(DPM_IDLE_STATE);
++#ifdef CONFIG_DPM_OPT_STATS
++	dpm_update_stats(&idle_opt->stats, &idle_task_opt->stats);
++#endif
++	dpm_set_opt(idle_opt, DPM_SYNC);
++	dpm_md_idle();
++	dpm_set_opt(idle_task_opt, DPM_SYNC);
++	dpm_quick_enter_state(DPM_IDLE_TASK_STATE);
++#ifdef CONFIG_DPM_OPT_STATS
++	dpm_update_stats(&idle_task_opt->stats, &idle_opt->stats);
++#endif
++}
++
++
++/* If DPM is currently disabled here we simply do the standard 
++   idle wait.
++
++   If we're not actually in DPM_IDLE_TASK_STATE, we need to go back and get
++   into this state.  This could happen in rare instances - an interrupt between
++   dpm_set_os() and the critical section.
++
++   If we are not yet at the idle-task operating point, or if there is no
++   difference between idle-task and idle, we can enter/exit the idle state
++   quickly since it's only for statistical purposes.  This is also true if for
++   some reason we can't get the DPM lock, since obviously an asynchronous event
++   is going to have to occur to clear the lock, and this event is going to take
++   us out of idle.
++
++   Otherwise the full idle shutdown is done. */
++
++
++void
++dpm_idle(void)
++{
++	unsigned long flags;
++	struct dpm_opt *idle_task_opt, *idle_opt;
++
++	current->dpm_state = DPM_NO_STATE;
++	dpm_set_os(DPM_IDLE_TASK_STATE);
++	local_irq_save(flags);
++
++	if (! need_resched()) {
++		if (!dpm_enabled) {
++			dpm_md_idle();
++			
++		} else if (dpm_active_state != DPM_IDLE_TASK_STATE) {
++			
++
++		} else {
++			idle_task_opt = dpm_choose_opt(dpm_active_policy,
++						       DPM_IDLE_TASK_STATE);
++			idle_opt = dpm_choose_opt(dpm_active_policy,
++						  DPM_IDLE_STATE);
++			
++			if (dpm_trylock()) {
++				dpm_md_idle();
++			} else {
++
++				if ((dpm_active_opt != idle_task_opt) ||
++				    (idle_task_opt == idle_opt)) {
++
++					quick_idle();
++					dpm_unlock();
++				} else {
++					dpm_unlock();
++					full_idle(idle_task_opt, idle_opt);
++				}
++			}
++		}
++	}
++	local_irq_restore(flags);
++}
++
+Index: linux-2.6/drivers/dpm/dpm-stats.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/dpm-stats.c	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,158 @@
++/*
++ * drivers/dpm/policy.c  Dynamic Power Management Policies
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++ *
++ * Copyright (C) 2002, International Business Machines Corporation
++ * All Rights Reserved
++ *
++ * Robert Paulsen
++ * IBM Linux Technology Center
++ * rpaulsen@us.ibm.com
++ * August, 2002
++ *
++ */
++
++/* TODO:
++
++   Rethink init/enable/disable: It may be redundant and/or unsafe
++   Fix initialization and stats
++*/
++
++#include <linux/dpm.h>
++#include <linux/init.h>
++#include <linux/interrupt.h>
++#include <linux/module.h>
++#include <linux/proc_fs.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/spinlock.h>
++#include <asm/semaphore.h>
++#include <asm/system.h>
++#include <asm/uaccess.h>
++
++#include <linux/dpm-stats.h>
++
++// debug printout
++// #define TRACE 1
++#undef TRACE
++#if defined(TRACE)
++#define trace(args...) do { printk("TRACE: "); printk(args); } while(0)
++#else
++#define trace(args...) do {} while(0)
++#endif
++
++#define DPM_PP_SIZE (DPM_PP_NBR * sizeof(dpm_md_pp_t))
++
++struct dpm_stats dpm_state_stats[DPM_STATES];
++
++dpm_md_time_t
++dpm_update_stats(struct dpm_stats *new, struct dpm_stats *old)
++{
++	dpm_md_time_t now = dpm_md_time();
++
++	old->end_time = now;
++	old->total_time += now - old->start_time;
++	new->start_time = now;
++	new->end_time = 0;
++	new->count += 1;
++
++	return now;
++}
++
++/*****************************************************************************
++ * get a policy's statistics
++ *****************************************************************************/
++
++int
++dpm_get_policy_stats(char *name, struct dpm_stats *stats)
++{
++	struct dpm_policy *policy;
++
++	dpm_lock();
++
++	/* find the named policy */
++	list_find(policy, name, dpm_policies, struct dpm_policy);
++	if (!policy) {
++		dpm_unlock();
++		return -ENOENT;
++	}
++
++	*stats = policy->stats;
++
++	dpm_unlock();
++	return 0;
++}
++
++/*****************************************************************************
++ * get a operating point's statistics
++ *****************************************************************************/
++
++int
++dpm_get_opt_stats(char *name, struct dpm_stats *stats)
++{
++	struct dpm_opt *opt;
++
++	dpm_lock();
++
++	/* find the named opt */
++	list_find(opt, name, dpm_opts, struct dpm_opt);
++	if (!opt) {
++		dpm_unlock();
++		return -ENOENT;
++	}
++
++	*stats = opt->stats;
++	stats->total_time += dpm_md_time() - stats->start_time;
++	dpm_unlock();
++	return 0;
++}
++
++/*****************************************************************************
++ * get statistics for all operating states
++ *****************************************************************************/
++
++int
++dpm_get_os_stats(struct dpm_stats *stats)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&dpm_policy_lock, flags);
++	memcpy(stats, dpm_state_stats, DPM_STATES * sizeof (struct dpm_stats));
++	stats[dpm_active_state].total_time +=
++		dpm_md_time() - stats[dpm_active_state].start_time;
++	spin_unlock_irqrestore(&dpm_policy_lock, flags);
++	return 0;
++}
++
++EXPORT_SYMBOL(dpm_get_os_stats);
++
++void
++dpm_init_stats(void) 
++{
++	memset(dpm_state_stats, 0, DPM_STATES * sizeof (struct dpm_stats));
++#ifdef CONFIG_DPM_IDLE_STATS
++	dpm_init_idle_stats();
++#endif
++}
++
++#ifdef CONFIG_DPM_IDLE_STATS
++void
++dpm_init_idle_stats(void)
++{
++	memset((void *)&idle_lats, 0, sizeof(struct dpm_idle_lats));
++}
++#endif	
++
+Index: linux-2.6/drivers/dpm/dpm-sysfs.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/dpm-sysfs.c	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,782 @@
++/*
++ * drivers/dpm/sysfs.c - sysfs entries for Dynamic Power Management
++ *
++ * (c) 2003 MontaVista Software, Inc. This file is licensed under the
++ * terms of the GNU General Public License version 2. This program is
++ * licensed "as is" without any warranty of any kind, whether express or
++ * implied.
++ */
++
++#include <linux/dpm.h>
++#include <linux/device.h>
++#include <linux/init.h>
++#include <linux/errno.h>
++
++#define MAXTOKENS 80
++
++static int 
++tokenizer(char **tbuf, const char *sysfsbuf, ssize_t n, char **tokptrs,
++	  int maxtoks)
++{
++	char *cp, *tok;
++	char *whitespace = " \t\r\n";
++	int ntoks = 0;
++
++	if (!(cp = kmalloc(n + 1, GFP_KERNEL)))
++		return -ENOMEM;
++
++	*tbuf = cp;
++	memcpy(cp, sysfsbuf, n);
++	cp[n] = '\0';
++
++	do {
++		cp = cp + strspn(cp, whitespace);
++		tok = strsep(&cp, whitespace);
++		if ((*tok == '\0') || (ntoks == maxtoks))
++			break;
++		tokptrs[ntoks++] = tok;
++	} while(cp);
++
++	return ntoks;
++}
++
++
++#define dpm_attr(_name,_prefix) \
++static struct subsys_attribute _prefix##_attr = { \
++        .attr   = {                             \
++                .name = __stringify(_name),     \
++                .mode = 0644,                   \
++        },                                      \
++        .show   = _prefix##_show,                 \
++        .store  = _prefix##_store,                \
++}
++
++
++static void dpm_kobj_release(struct kobject *kobj)
++{
++	/* 
++	 * No sysfs/kobject state to release, DPM layer will handle the
++	 * the containing object.
++	 */
++	   
++	return;
++}
++
++/*
++ * Top-level control
++ */
++
++static ssize_t dpm_control_show(struct subsystem * subsys, char * buf)
++{
++	unsigned long flags;
++	ssize_t len = 0;
++
++	if (dpm_lock_interruptible())
++		return -ERESTARTSYS;
++
++	if (!dpm_enabled) {
++		len += sprintf(buf, "disabled\n");
++	} else {
++		spin_lock_irqsave(&dpm_policy_lock, flags);
++		len += sprintf(buf,"enabled %s %d %s %s %s\n",
++			       dpm_active_policy->name, 
++			       dpm_active_state,
++			       dpm_state_names[dpm_active_state],
++			       dpm_classopt_name(dpm_active_policy,
++						 dpm_active_state),
++			       dpm_active_opt ? dpm_active_opt->name : "[none]");
++		spin_unlock_irqrestore(&dpm_policy_lock, flags);
++	}
++
++	dpm_unlock();
++	return len;
++}
++
++static ssize_t dpm_control_store(struct subsystem * subsys, const char * buf,
++				 size_t n)
++{
++	int error = 0;
++
++	if (strncmp(buf, "init", 4) == 0) {
++		error = dynamicpower_init();
++	} else if (strncmp(buf, "enable", 6) == 0) {
++		error = dynamicpower_enable();
++	} else if (strncmp(buf, "disable", 7) == 0) {
++		error = dynamicpower_disable();
++	} else if (strncmp(buf, "terminate", 9) == 0) {
++		error = dynamicpower_terminate();
++	} else 
++		error = -EINVAL;
++
++        return error ? error : n;
++}
++
++dpm_attr(control,dpm_control);
++
++static struct attribute * g[] = {
++        &dpm_control_attr.attr,
++        NULL,
++};
++
++static struct attribute_group dpm_attr_group = {
++        .attrs = g,
++};
++
++decl_subsys(dpm, NULL, NULL);
++
++/*
++ * policy
++ */
++
++struct policy_attribute {
++        struct attribute        attr;
++        ssize_t (*show)(struct kobject * kobj, char * buf);
++        ssize_t (*store)(struct kobject * kobj, const char * buf, size_t count);
++};
++
++#define to_policy(obj) container_of(obj,struct dpm_policy,kobj)
++#define to_policy_attr(_attr) container_of(_attr,struct policy_attribute,attr)
++
++static struct kobject dpm_policy_kobj = {
++	.kset = &dpm_subsys.kset,
++};
++
++static ssize_t policy_control_show(struct subsystem * subsys, char * buf)
++{
++	unsigned long flags;
++	ssize_t len = 0;
++	struct list_head  * p;
++
++	len += sprintf(buf + len, "policies: ");
++
++	list_for_each(p, &dpm_policies) {
++		len += sprintf(buf + len, "%s ", 
++			       ((struct dpm_policy *) 
++				list_entry(p, struct dpm_policy, list))->name);
++	}
++
++	len += sprintf(buf + len, "\nactive: ");
++
++	if (dpm_lock_interruptible())
++		return -ERESTARTSYS;
++
++	if (!dpm_enabled) {
++		len += sprintf(buf + len, "[none]\n");
++	} else {
++		spin_lock_irqsave(&dpm_policy_lock, flags);
++		len += sprintf(buf + len,"%s\n",
++			       dpm_active_policy->name);
++		spin_unlock_irqrestore(&dpm_policy_lock, flags);
++	}
++
++	dpm_unlock();
++	return len;
++}
++
++static ssize_t policy_control_store(struct subsystem * subsys, const char * buf,
++				   size_t n)
++{
++	int error = 0;
++	char *tbuf = NULL;
++	char *token[MAXTOKENS];
++	int ntoks = tokenizer(&tbuf, buf, n, (char **) &token, MAXTOKENS);
++	
++	if (ntoks <= 0) {
++		error = ntoks;
++		goto out;
++	}
++
++	if (strcmp(token[0],"create") == 0) {
++		if (ntoks != (DPM_STATES + 2)) 
++			printk("dpm: policy create requires 1 name and %d opt arguments\n", 
++			       DPM_STATES);
++		else 
++			error = dpm_create_policy(token[1], &token[2]);
++	} else if (strcmp(token[0],"set") == 0) {
++		if (ntoks != 2)
++			printk("dpm: policy set requires 1 policy name argument\n");
++		else
++			error = dpm_set_policy(token[1]);
++	} else
++		error = -EINVAL;
++
++ out:
++	if (tbuf)
++		kfree(tbuf);
++        return error ? error : n;
++}
++
++dpm_attr(control,policy_control);
++
++static ssize_t a_policy_control_show(struct kobject * kobj, char * buf)
++{
++	struct dpm_policy *policy = to_policy(kobj);
++	ssize_t len = 0;
++	int i;
++
++	len += sprintf(buf + len, "ops: ");
++
++	for (i = 0; i < DPM_STATES; i++)
++		len += sprintf(buf + len, "%s ", dpm_classopt_name(policy,i));
++
++	len += sprintf(buf + len, "\n");
++	return len;
++}
++
++static ssize_t a_policy_control_store(struct kobject * kobj, const char * buf,
++				      size_t n)
++{
++	struct dpm_policy *policy = to_policy(kobj);
++	int error = 0;
++	char *tbuf = NULL;
++	char *token[MAXTOKENS];
++	int ntoks = tokenizer(&tbuf, buf, n, (char **) &token, MAXTOKENS);
++	
++	if (ntoks <= 0) {
++		error = ntoks;
++		goto out;
++	}
++
++	if (strcmp(token[0],"destroy") == 0) {
++		dpm_destroy_policy(policy->name);
++	} else
++		error = -EINVAL;
++
++ out:
++	if (tbuf)
++		kfree(tbuf);
++        return error ? error : n;
++}
++
++static ssize_t
++policy_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
++{
++	struct policy_attribute * policy_attr = to_policy_attr(attr);
++	ssize_t ret = 0;
++
++	if (policy_attr->show)
++		ret = policy_attr->show(kobj,buf);
++	return ret;
++}
++
++static ssize_t
++policy_attr_store(struct kobject * kobj, struct attribute * attr, 
++		  const char * buf, size_t count)
++{
++	struct policy_attribute * policy_attr = to_policy_attr(attr);
++	ssize_t ret = 0;
++
++	if (policy_attr->store)
++		ret = policy_attr->store(kobj,buf,count);
++	return ret;
++}
++
++static struct policy_attribute a_policy_control_attr = {
++        .attr   = {
++                .name = "control",
++                .mode = 0644,
++        },
++        .show   = a_policy_control_show,
++        .store  = a_policy_control_store,
++};
++
++static struct sysfs_ops policy_sysfs_ops = {
++	.show	= policy_attr_show,
++	.store	= policy_attr_store,
++};
++
++static struct attribute * policy_default_attrs[] = {
++	&a_policy_control_attr.attr,
++	NULL,
++};
++
++static struct kobj_type ktype_policy = {
++	.release        = dpm_kobj_release,
++	.sysfs_ops	= &policy_sysfs_ops,
++	.default_attrs	= policy_default_attrs,
++};
++
++void dpm_sysfs_new_policy(struct dpm_policy *policy)
++{
++	memset(&policy->kobj, 0, sizeof(struct kobject));
++	policy->kobj.kset = &dpm_subsys.kset,
++	kobject_set_name(&policy->kobj,policy->name);
++	policy->kobj.parent = &dpm_policy_kobj;
++	policy->kobj.ktype = &ktype_policy;
++	kobject_register(&policy->kobj);
++	return;
++}
++
++void dpm_sysfs_destroy_policy(struct dpm_policy *policy)
++{
++	kobject_unregister(&policy->kobj);
++	return;
++}
++
++/*
++ * class
++ */
++
++struct dpm_class_attribute {
++        struct attribute        attr;
++        ssize_t (*show)(struct kobject * kobj, char * buf);
++        ssize_t (*store)(struct kobject * kobj, const char * buf, size_t count);
++};
++
++#define to_class(obj) container_of(obj,struct dpm_class,kobj)
++#define to_class_attr(_attr) container_of(_attr,struct dpm_class_attribute,attr)
++
++static ssize_t class_control_show(struct subsystem * subsys, char * buf)
++{
++	unsigned long flags;
++	ssize_t len = 0;
++	struct list_head  * p;
++
++	len += sprintf(buf + len, "classes: ");
++
++	list_for_each(p, &dpm_classes) {
++		len += sprintf(buf + len, "%s ", 
++			       ((struct dpm_class *) 
++				list_entry(p, struct dpm_class, list))->name);
++	}
++
++	len += sprintf(buf + len, "\nactive: %s\n", 
++		       (dpm_enabled && dpm_active_class) ? 
++		       dpm_active_class->name : "[none]");
++	return len;
++}
++
++static ssize_t class_control_store(struct subsystem * subsys, const char * buf,
++				   size_t n)
++{
++	int error = 0;
++	char *tbuf = NULL;
++	char *token[MAXTOKENS];
++	int ntoks = tokenizer(&tbuf, buf, n, (char **) &token, MAXTOKENS);
++	
++	if (ntoks <= 0) {
++		error = ntoks;
++		goto out;
++	}
++
++	if (strcmp(token[0],"create") == 0) {
++		if (ntoks < 3) 
++			printk("dpm: class create requires 1 name and at least one operating point argument\n");
++		else 
++			error = dpm_create_class(token[1], &token[2], ntoks-2);
++	} else
++		error = -EINVAL;
++
++ out:
++	if (tbuf)
++		kfree(tbuf);
++        return error ? error : n;
++}
++
++static struct kobject dpm_class_kobj = {
++	.kset = &dpm_subsys.kset,
++};
++
++dpm_attr(control,class_control);
++
++static ssize_t a_class_control_show(struct kobject * kobj, char * buf)
++{
++	ssize_t len = 0;
++	struct dpm_class *class = to_class(kobj);
++	int i;
++
++	len += sprintf(buf + len, "ops: ");
++
++	for (i = 0; i < class->nops; i++)
++		len += sprintf(buf + len, "%s ", class->ops[i]->name);
++	
++
++	len += sprintf(buf + len, "\n");
++	return len;
++}
++
++static ssize_t a_class_control_store(struct kobject * kobj, const char * buf,
++				      size_t n)
++{
++	return n;
++}
++
++static ssize_t
++class_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
++{
++	struct dpm_class_attribute * class_attr = to_class_attr(attr);
++	ssize_t ret = 0;
++
++	if (class_attr->show)
++		ret = class_attr->show(kobj,buf);
++	return ret;
++}
++
++static ssize_t
++class_attr_store(struct kobject * kobj, struct attribute * attr, 
++		 const char * buf, size_t count)
++{
++	struct dpm_class_attribute * class_attr = to_class_attr(attr);
++	ssize_t ret = 0;
++
++	if (class_attr->store)
++		ret = class_attr->store(kobj,buf,count);
++	return ret;
++}
++
++static struct dpm_class_attribute a_class_control_attr = {
++        .attr   = {
++                .name = "control",
++                .mode = 0644,
++        },
++        .show   = a_class_control_show,
++        .store  = a_class_control_store,
++};
++
++static struct sysfs_ops class_sysfs_ops = {
++	.show	= class_attr_show,
++	.store	= class_attr_store,
++};
++
++static struct attribute * class_default_attrs[] = {
++	&a_class_control_attr.attr,
++	NULL,
++};
++
++static struct kobj_type ktype_class = {
++	.release        = dpm_kobj_release,
++	.sysfs_ops	= &class_sysfs_ops,
++	.default_attrs	= class_default_attrs,
++};
++
++void dpm_sysfs_new_class(struct dpm_class *class)
++{
++	memset(&class->kobj, 0, sizeof(struct kobject));
++	class->kobj.kset = &dpm_subsys.kset,
++	kobject_set_name(&class->kobj,class->name);
++	class->kobj.parent = &dpm_class_kobj;
++	class->kobj.ktype = &ktype_class;
++	kobject_register(&class->kobj);
++	return;
++}
++
++void dpm_sysfs_destroy_class(struct dpm_class *class)
++{
++	kobject_unregister(&class->kobj);
++	return;
++}
++
++
++/*
++ * op
++ */
++
++struct dpm_op_attribute {
++        struct attribute        attr;
++        ssize_t (*show)(struct kobject * kobj, char * buf);
++        ssize_t (*store)(struct kobject * kobj, const char * buf, size_t count);
++};
++
++#define to_op(obj) container_of(obj,struct dpm_opt,kobj)
++#define to_op_attr(_attr) container_of(_attr,struct dpm_op_attribute,attr)
++
++static ssize_t op_control_show(struct subsystem * subsys, char * buf)
++{
++	unsigned long flags;
++	ssize_t len = 0;
++	struct list_head  * p;
++
++	len += sprintf(buf + len, "ops: ");
++
++	list_for_each(p, &dpm_opts) {
++		len += sprintf(buf + len, "%s ", 
++			       ((struct dpm_opt *) 
++				list_entry(p, struct dpm_opt, list))->name);
++	}
++
++	len += sprintf(buf + len, "\nactive: ");
++
++	if (dpm_lock_interruptible())
++		return -ERESTARTSYS;
++
++	if (!dpm_enabled) {
++		len += sprintf(buf + len, "[none]\n");
++	} else {
++		spin_lock_irqsave(&dpm_policy_lock, flags);
++		len += sprintf(buf + len,"%s\n",
++			       dpm_active_opt ? dpm_active_opt->name : "[none]");
++		spin_unlock_irqrestore(&dpm_policy_lock, flags);
++	}
++
++	dpm_unlock();
++
++	len += sprintf(buf + len, "params: %d\n", DPM_PP_NBR);
++	return len;
++}
++
++static ssize_t op_control_store(struct subsystem * subsys, const char * buf,
++				size_t n)
++{
++	int error = 0;
++	char *tbuf = NULL;
++	char *token[MAXTOKENS];
++	int ntoks = tokenizer(&tbuf, buf, n, (char **) &token, MAXTOKENS);
++	
++	if (ntoks <= 0) {
++		error = ntoks;
++		goto out;
++	}
++
++	if (strcmp(token[0],"create") == 0) {
++		if (ntoks != DPM_PP_NBR + 2)
++			
++			printk("dpm: op create requires name and %d parameter arguments\n",
++			       DPM_PP_NBR);
++			else {
++				dpm_md_pp_t pp[DPM_PP_NBR];
++				int i;
++			
++				for (i = 0; i < DPM_PP_NBR; i++)
++					pp[i] = simple_strtol(token[i + 2],
++							      NULL, 0);
++				error = dpm_create_opt(token[1], pp);
++			}
++	} else
++		error = -EINVAL;
++
++ out:
++	if (tbuf)
++		kfree(tbuf);
++        return error ? error : n;
++
++}
++
++static struct kobject dpm_op_kobj = {
++	.kset = &dpm_subsys.kset,
++};
++
++dpm_attr(control,op_control);
++
++static ssize_t an_op_control_show(struct kobject * kobj, char * buf)
++{
++	ssize_t len = 0;
++	struct dpm_opt *opt = to_op(kobj);
++	int i;
++
++	len += sprintf(buf + len, "params: ");
++
++	for (i = 0; i < DPM_PP_NBR; i++)
++		len += sprintf(buf + len, "%d ", opt->pp[i]);
++
++	len += sprintf(buf + len, "\n");
++	return len;
++}
++
++static ssize_t an_op_control_store(struct kobject * kobj, const char * buf,
++				   size_t n)
++{
++	return n;
++}
++
++static struct dpm_op_attribute an_op_control_attr = {
++        .attr   = {
++                .name = "control",
++                .mode = 0644,
++        },
++        .show   = an_op_control_show,
++        .store  = an_op_control_store,
++};
++
++static ssize_t op_force_show(struct kobject * kobj, char * buf)
++{
++	ssize_t len = 0;
++	struct dpm_opt *opt = to_op(kobj);
++
++	len += sprintf(buf + len, "%d\n", opt->force);
++	return len;
++}
++
++static ssize_t op_force_store(struct kobject * kobj, const char * buf,
++			      size_t n)
++{
++	struct dpm_opt *opt = to_op(kobj);
++
++	opt->force = simple_strtol(buf, NULL, 0) ? 1 : 0;
++	return n;
++}
++
++static struct dpm_op_attribute op_force_attr = {
++        .attr   = {
++                .name = "force",
++                .mode = 0644,
++        },
++        .show   = op_force_show,
++        .store  = op_force_store,
++};
++
++static ssize_t
++op_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
++{
++	struct dpm_op_attribute * op_attr = to_op_attr(attr);
++	ssize_t ret = 0;
++
++	if (op_attr->show)
++		ret = op_attr->show(kobj,buf);
++	return ret;
++}
++
++static ssize_t
++op_attr_store(struct kobject * kobj, struct attribute * attr, 
++	      const char * buf, size_t count)
++{
++	struct dpm_op_attribute * op_attr = to_op_attr(attr);
++	ssize_t ret = 0;
++
++	if (op_attr->store)
++		ret = op_attr->store(kobj,buf,count);
++	return ret;
++}
++
++static struct sysfs_ops op_sysfs_ops = {
++	.show	= op_attr_show,
++	.store	= op_attr_store,
++};
++
++static struct attribute * op_default_attrs[] = {
++	&an_op_control_attr.attr,
++	&op_force_attr.attr,
++	NULL,
++};
++
++static struct kobj_type ktype_op = {
++	.release        = dpm_kobj_release,
++	.sysfs_ops	= &op_sysfs_ops,
++	.default_attrs	= op_default_attrs,
++};
++
++void dpm_sysfs_new_op(struct dpm_opt *opt)
++{
++	memset(&opt->kobj, 0, sizeof(struct kobject));
++	opt->kobj.kset = &dpm_subsys.kset,
++	kobject_set_name(&opt->kobj,opt->name);
++	opt->kobj.parent = &dpm_op_kobj;
++	opt->kobj.ktype = &ktype_op;
++	kobject_register(&opt->kobj);
++	return;
++}
++
++void dpm_sysfs_destroy_op(struct dpm_opt *opt)
++{
++	kobject_unregister(&opt->kobj);
++	return;
++}
++
++
++/*
++ * state
++ */
++
++
++static ssize_t state_control_show(struct subsystem * subsys, char * buf)
++{
++	unsigned long flags;
++	ssize_t len = 0;
++	int i;
++
++	if (dpm_lock_interruptible())
++		return -ERESTARTSYS;
++
++	len += sprintf(buf + len, "states: ");
++
++	for (i = 0; i < DPM_STATES; i++) {
++		len += sprintf(buf + len, "%s ", dpm_state_names[i]);
++	}
++
++	len += sprintf(buf + len, "\nactive: ");
++
++	if (!dpm_enabled) {
++		len += sprintf(buf + len, "[none]\n");
++	} else {
++		spin_lock_irqsave(&dpm_policy_lock, flags);
++		len += sprintf(buf + len,"%s\n",
++			       dpm_state_names[dpm_active_state]);
++		spin_unlock_irqrestore(&dpm_policy_lock, flags);
++	}
++
++	dpm_unlock();
++
++	len += sprintf(buf + len, "task-states: min=%s norm=%s max=%s\n",
++		       dpm_state_names[DPM_TASK_STATE - DPM_TASK_STATE_LIMIT],
++		       dpm_state_names[DPM_TASK_STATE],
++		       dpm_state_names[DPM_TASK_STATE + DPM_TASK_STATE_LIMIT]);
++
++	return len;
++}
++
++static ssize_t state_control_store(struct subsystem * subsys, const char * buf,
++				   size_t n)
++{
++	int error = 0;
++	char *tbuf = NULL;
++	char *token[MAXTOKENS];
++	int ntoks = tokenizer(&tbuf, buf, n, (char **) &token, MAXTOKENS);
++	
++	if (ntoks <= 0) {
++		error = ntoks;
++		goto out;
++	}
++
++	if ((strcmp(token[0],"set") == 0) && (strcmp(token[1],"system") == 0)) {
++		if (ntoks != 3)
++			printk("dpm: set system state requires 1 state argument\n");
++		else
++			error = dpm_set_op_state(token[2]);
++	} else if ((strcmp(token[0],"set") == 0) && (strcmp(token[1],"task") == 0)) {
++		if (ntoks != 4)
++			printk("dpm: set task state requires 1 PID and 1 state argument\n");
++		else
++			error = dpm_set_task_state(simple_strtol(token[2],
++								 NULL, 0),
++						   simple_strtol(token[3],
++								 NULL, 0));
++	} else
++		error = -EINVAL;
++
++ out:
++	if (tbuf)
++		kfree(tbuf);
++        return error ? error : n;
++}
++
++static struct kobject dpm_state_kobj = {
++	.kset = &dpm_subsys.kset,
++};
++
++dpm_attr(control,state_control);
++
++static int __init dpm_sysfs_init(void)
++{
++        int error;
++
++	error = subsystem_register(&dpm_subsys);
++        if (!error)
++                error = sysfs_create_group(&dpm_subsys.kset.kobj,&dpm_attr_group);
++	if (!error) {
++		kobject_set_name(&dpm_policy_kobj, "policy");
++		kobject_register(&dpm_policy_kobj);
++		sysfs_create_file(&dpm_policy_kobj, &policy_control_attr.attr);
++		kobject_set_name(&dpm_class_kobj, "class");
++		kobject_register(&dpm_class_kobj);
++		sysfs_create_file(&dpm_class_kobj, &class_control_attr.attr);
++		kobject_set_name(&dpm_op_kobj, "op");
++		kobject_register(&dpm_op_kobj);
++		sysfs_create_file(&dpm_op_kobj, &op_control_attr.attr);
++		kobject_set_name(&dpm_state_kobj, "state");
++		kobject_register(&dpm_state_kobj);
++		sysfs_create_file(&dpm_state_kobj, &state_control_attr.attr);
++	}
++
++        return error;
++}
++
++__initcall(dpm_sysfs_init);
+Index: linux-2.6/drivers/dpm/Kconfig
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/Kconfig	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,18 @@
++#
++# Dynamic Power Management
++#
++
++menu "Dynamic Power Management"
++
++config DPM
++	bool "Dynamic Power Management"
++
++
++config DPM_STATS
++	bool "  Enable DPM Statistics Gathering"
++	depends on DPM
++	default n
++	help
++
++endmenu
++
+Index: linux-2.6/drivers/dpm/main.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/main.c	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,10 @@
++#include<stdio.h>
++#include"test.c"
++
++int 
++main(void)
++{
++	printf("will call function in another file.\n");
++	test();
++	return 0;
++}
+Index: linux-2.6/drivers/dpm/Makefile
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/Makefile	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,8 @@
++#
++# Makefile for the kernel DPM driver.
++#
++
++obj-$(CONFIG_DPM)	+= dpm.o dpm-idle.o dpm-sysfs.o
++obj-$(CONFIG_PROC_FS)	+= proc.o
++obj-$(CONFIG_DPM_STATS)	+= dpm-stats.o
++
+Index: linux-2.6/drivers/dpm/proc.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/proc.c	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,641 @@
++/*
++ * drivers/dpm/proc.c  Dynamic Power Management /proc
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++ *
++ * Copyright (C) 2002, International Business Machines Corporation
++ * All Rights Reserved
++ *
++ * Bishop Brock
++ * IBM Research, Austin Center for Low-Power Computing
++ * bcbrock@us.ibm.com
++ * September, 2002
++ *
++ */
++
++#include <linux/dpm.h>
++#include <linux/init.h>
++#include <linux/interrupt.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/proc_fs.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/spinlock.h>
++#include <asm/semaphore.h>
++#include <asm/system.h>
++#include <asm/uaccess.h>
++
++#define DEBUG
++#ifdef DEBUG
++#define DPRINT(args...) printk(KERN_CRIT args)
++#else
++#define DPRINT(args...) do {} while (0)
++#endif
++
++/* Global variables */
++
++char *dpm_state_names[DPM_STATES] = DPM_STATE_NAMES;
++
++/****************************************************************************
++ * /proc/driver/dpm interfaces
++ *
++ * NB: Some of these are borrowed from the 405LP, and may need to be made
++ * machine independent.
++ ****************************************************************************/
++
++/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ * /proc/driver/dpm/cmd (Write-Only)
++ *
++ * Writing a string to this file is equivalent to issuing a DPM command. 
++ * Currently only one command per "write" is allowed, and there is a maximum on
++ * the number of tokens that will be accepted (PAGE_SIZE / sizeof(char *)).
++ * DPM can be initialized by a linewise copy of a configuration file to this
++ * /proc file. 
++ *
++ * DPM Control
++ * -----------
++ *
++ * init          : dynamicpower_init()
++ * enable        : dynamicpower_enable()
++ * disable       : dynamicpower_disable()
++ * terminate     : dynamicpower_terminate()
++ * 
++ * Policy Control
++ * --------------
++ *
++ * set_policy <policy>          : Set the policy by name
++ * set_task_state <pid> <state> : Set the task state for a given pid, 0 = self
++ *
++ * Policy Creation
++ * ---------------
++ *
++ * create_opt <name> <pp0> ... <ppn>
++ *     Create a named operating point from DPM_PP_NBR paramaters.  All
++ *     parameters must be  given. Parameter order and meaning are machine
++ *     dependent. 
++ *
++ * create_policy <name> <opt0> [ ... <optn> ]
++ *     Create a named policy from DPM_STATES operating points.  All
++ *     operating points must be defined before the call.  The order is
++ *     machine dependent.
++ *
++ *+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
++
++static void
++pwarn(char *command, int ntoks, char *requirement, int require)
++{
++	printk(KERN_WARNING "/proc/driver/dpm/cmd: "
++	       "Command %s requires %s%d arguments - %d were given\n",
++	       command, requirement, require - 1, ntoks - 1);
++}
++
++
++static int 
++write_proc_dpm_cmd (struct file *file, const char *buffer,
++		    unsigned long count, void *data)
++{
++	char *buf, *tok, **tokptrs;
++	char *whitespace = " \t\r\n";
++	int ret = 0, ntoks;
++
++	if (current->uid != 0)
++		return -EACCES;
++	if (count == 0)
++		return 0;
++	if (!(buf = kmalloc(count + 1, GFP_KERNEL)))
++		return -ENOMEM;
++	if (copy_from_user(buf, buffer, count)) {
++		ret = -EFAULT;
++		goto out0;
++	}
++
++	buf[count] = '\0';
++
++	if (!(tokptrs = (char **)__get_free_page(GFP_KERNEL))) {
++		ret = -ENOMEM;
++		goto out1;
++	}
++
++	ret = -EINVAL;
++	ntoks = 0;
++	do {
++		buf = buf + strspn(buf, whitespace);
++		tok = strsep(&buf, whitespace);
++		if (*tok == '\0') {
++			if (ntoks == 0) {
++				ret = 0;
++				goto out1;
++			} else
++				break;
++		}
++		if (ntoks == (PAGE_SIZE / sizeof(char **)))
++			goto out1;
++		tokptrs[ntoks++] = tok;
++	} while(buf);
++
++	if (ntoks == 1) {
++		if (strcmp(tokptrs[0], "init") == 0) {
++			ret = dynamicpower_init();
++		} else if (strcmp(tokptrs[0], "enable") == 0) {
++			ret = dynamicpower_enable();
++		} else if (strcmp(tokptrs[0], "disable") == 0) {
++			ret = dynamicpower_disable();
++		} else if (strcmp(tokptrs[0], "terminate") == 0) {
++			ret = dynamicpower_terminate();
++		}
++	} else if (ntoks == 2) {
++		if (strcmp(tokptrs[0], "set_policy") == 0)
++			ret = dpm_set_policy(tokptrs[1]);
++		else if (strcmp(tokptrs[0], "set_state") == 0)
++			ret = dpm_set_op_state(tokptrs[1]);
++	} else {
++		if (strcmp(tokptrs[0], "set_task_state") == 0) {
++			if (ntoks != 3) 
++				pwarn("set_task_state", ntoks, "", 3);
++			else
++				ret = dpm_set_task_state(simple_strtol(tokptrs[1],
++								       NULL, 0),
++							 simple_strtol(tokptrs[2],
++								       NULL, 0));
++		} else if (strcmp(tokptrs[0], "create_opt") == 0) {
++			if (ntoks != DPM_PP_NBR + 2)
++				pwarn("create_opt", ntoks, 
++				      "", DPM_PP_NBR + 2);
++			else {
++				dpm_md_pp_t pp[DPM_PP_NBR];
++				int i;
++			
++				for (i = 0; i < DPM_PP_NBR; i++)
++					pp[i] = simple_strtol(tokptrs[i + 2],
++							      NULL, 0);
++				ret = dpm_create_opt(tokptrs[1], pp);
++			}
++
++		} else if (strcmp(tokptrs[0], "create_policy") == 0) {
++			if (ntoks != (DPM_STATES + 2)) 
++				pwarn("create_policy", ntoks, "", 
++				      DPM_STATES + 2);
++			else 
++				ret = dpm_create_policy(tokptrs[1],
++							&tokptrs[2]);
++		}
++	}
++out1:
++	free_page((unsigned long)tokptrs);
++out0:
++	kfree(buf);
++	if (ret == 0)
++		return count;
++	else 
++		return ret;
++}
++
++#ifdef CONFIG_DPM_STATS
++
++/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ * /proc/driver/dpm/stats (Read-Only)
++ *
++ * Reading this file produces the following line for each defined operating
++ * state:
++ * 
++ * state_name total_time count opt_name
++ * 
++ * Where:
++ *
++ * state_name = The operating state name.
++ * total_time = The 64-bit number of dpm_md_time_t ticks spent in this 
++ *              operating state.
++ * count      = The 64-bit number of times this operating state was entered.
++ * opt_name   = The name of the operating point currently assigned to this
++ *              operating state.
++ *
++ *+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
++
++static int
++sprintf_u64(char *buf, int fill, char *s, u64 ul)
++{
++	int len = 0;
++	u32 u, l;
++	
++	u = (u32)((ul >> 32) & 0xffffffffU);
++	l = (u32)(ul & 0xffffffffU);
++
++	len += sprintf(buf + len, s);
++	if (fill)
++		len += sprintf(buf + len, "0x%08x%08x", u, l);
++	else {
++		if (u)
++			len += sprintf(buf + len, "0x%x%x", u, l);
++		else
++			len += sprintf(buf + len, "0x%x", l);
++	}
++	return len;
++}
++
++static int
++read_proc_dpm_stats(char *page, char **start, off_t offset, 
++		    int count, int *eof, void *data)
++{
++	int i, len = 0;
++	struct dpm_stats stats[DPM_STATES];
++
++	if (!dpm_enabled) {
++		len += sprintf(page + len, "DPM IS DISABLED\n");
++		*eof = 1;
++		return len;
++	}
++
++	dpm_get_os_stats(stats);
++
++	for (i = 0; i < DPM_STATES; i++) {
++		len += sprintf(page + len, "%20s", dpm_state_names[i]);
++                len += sprintf_u64(page + len, 1, " ", 
++				   (u64)stats[i].total_time);
++		len += sprintf_u64(page + len, 1, " ", (u64)stats[i].count);
++		len += sprintf(page + len, " %s\n", 
++			       dpm_classopt_name(dpm_active_policy,i));
++	}
++
++	*eof = 1;
++	return len;
++}
++
++#ifdef CONFIG_DPM_OPT_STATS
++/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ * /proc/driver/dpm/opt_stats (Read-Only)
++ *
++ * Reading this file produces the following line for each defined operating
++ * point:
++ * 
++ * name total_time count
++ * 
++ * Where:
++ *
++ * name       = The operating point name.
++ * total_time = The 64-bit number of dpm_md_time_t ticks spent in this 
++ *              operating state.
++ * count      = The 64-bit number of times this operating point was entered.
++ *
++ *+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
++
++static int
++read_proc_dpm_opt_stats(char *page, char **start, off_t offset, 
++			int count, int *eof, void *data)
++{
++	int len = 0;
++	struct dpm_opt *opt;
++	struct list_head *p;
++	dpm_md_time_t total_time;
++
++	if (dpm_lock_interruptible())
++		return -ERESTARTSYS;
++
++	if (!dpm_enabled) {
++		dpm_unlock();
++		len += sprintf(page + len, "DPM IS DISABLED\n");
++		*eof = 1;
++		return len;
++	}
++
++	for (p = dpm_opts.next; p != &dpm_opts; p = p->next) {
++		opt = list_entry(p, struct dpm_opt, list);
++		len += sprintf(page + len, "%s", opt->name);
++		total_time = opt->stats.total_time;
++		if (opt == dpm_active_opt)
++			total_time += dpm_md_time() - opt->stats.start_time;
++		len += sprintf_u64(page + len, 0, " ", opt->stats.total_time);
++		len += sprintf_u64(page + len, 0, " ", opt->stats.count);
++		len += sprintf(page + len, "\n");
++	}
++
++	dpm_unlock();
++	*eof = 1;
++	return len;
++}
++
++#endif /* CONFIG_DPM_OPT_STATS */
++
++#endif /* CONFIG_DPM_STATS */
++
++/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ * /proc/driver/dpm/state (Read-Only)
++ *
++ * Reading this file produces the following:
++ * 
++ * policy_name os os_name os_opt_name opt_name hz
++ * 
++ * Where:
++ *
++ * policy_name = The name of the current policy
++ * os          = The curret operating state index
++ * os_name     = The current operating state name
++ * os_opt_name = The name of the implied operating point for the policy and
++ *               state.
++ * opt_name    = The name of the actual operating point; may be different if
++ *               the operating state and operating point are out of sync.
++ * hz          = The frequency of the statistics timer
++ *
++ * If DPM is disabled the line will appear as:
++ *
++ * N/A -1 N/A N/A N/A <hz>
++ *
++ *+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
++
++static int
++read_proc_dpm_state(char *page, char **start, off_t offset, 
++		    int count, int *eof, void *data)
++{
++	unsigned long flags;
++
++	int len = 0;
++
++	if (dpm_lock_interruptible())
++		return -ERESTARTSYS;
++
++	if (!dpm_enabled) {
++		len += sprintf(page + len, "N/A -1 N/A N/A N/A N/A %u\n",
++			       DPM_MD_HZ);
++	} else {
++
++		spin_lock_irqsave(&dpm_policy_lock, flags);
++		len += sprintf(page + len,"%s %d %s %s %s %u\n",
++			       dpm_active_policy->name, 
++			       dpm_active_state,
++			       dpm_state_names[dpm_active_state],
++			       dpm_classopt_name(dpm_active_policy,
++						 dpm_active_state),
++			       dpm_active_opt ? dpm_active_opt->name : "none",
++			       DPM_MD_HZ);
++		spin_unlock_irqrestore(&dpm_policy_lock, flags);
++	}
++
++	dpm_unlock();
++	*eof = 1;
++	return len;
++}
++
++
++/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ * /proc/driver/dpm/debug (Read-Only)
++ *
++ * Whatever it needs to be
++ *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
++
++#ifdef DEBUG
++static int
++read_proc_dpm_debug(char *page, char **start, off_t offset, 
++		    int count, int *eof, void *data)
++{
++	int len = 0;
++
++	len += sprintf(page + len, "No DEBUG info\n");
++	*eof = 1;
++	return len;
++}
++#endif /* DEBUG */
++
++/****************************************************************************
++ * /proc/driver/dpm init/cleanup
++ ****************************************************************************/
++
++static struct proc_dir_entry *proc_dpm;
++static struct proc_dir_entry *proc_dpm_cmd;
++static struct proc_dir_entry *proc_dpm_state;
++static struct proc_dir_entry *proc_dpm_md;
++
++#ifdef CONFIG_DPM_STATS
++static struct proc_dir_entry *proc_dpm_stats;
++#ifdef CONFIG_DPM_OPT_STATS
++static struct proc_dir_entry *proc_dpm_opt_stats;
++#endif
++#ifdef CONFIG_DPM_IDLE_STATS
++static struct proc_dir_entry *proc_dpm_idle_stats;
++#endif
++#endif
++
++#ifdef DEBUG
++static struct proc_dir_entry *proc_dpm_debug;
++#endif
++
++#ifdef CONFIG_DPM_TRACE
++static struct proc_dir_entry *proc_dpm_trace;
++#endif
++
++void __init
++dpm_proc_init(void)
++{
++	proc_dpm = proc_mkdir("driver/dpm", NULL);
++
++	if (proc_dpm) {
++
++		proc_dpm_cmd =
++			create_proc_entry("cmd",
++					  S_IWUSR,
++					  proc_dpm);
++		if (proc_dpm_cmd)
++			proc_dpm_cmd->write_proc = write_proc_dpm_cmd;
++
++		proc_dpm_state =
++			create_proc_read_entry("state",
++					       S_IRUGO,
++					       proc_dpm,
++					       read_proc_dpm_state, 
++					       NULL); 
++#ifdef CONFIG_DPM_STATS
++		proc_dpm_stats =
++			create_proc_read_entry("stats",
++					       S_IRUGO,
++					       proc_dpm,
++					       read_proc_dpm_stats, 
++					       NULL); 
++#ifdef CONFIG_DPM_OPT_STATS
++		proc_dpm_opt_stats =
++			create_proc_read_entry("opt_stats",
++					       S_IRUGO,
++					       proc_dpm,
++					       read_proc_dpm_opt_stats, 
++					       NULL); 
++#endif /* CONFIG_DPM_OPT_STATS  */
++
++#ifdef CONFIG_DPM_IDLE_STATS
++		proc_dpm_idle_stats =
++			create_proc_read_entry("idle_stats",
++					       S_IWUSR | S_IRUGO,
++					       proc_dpm,
++					       read_proc_dpm_idle_stats, 
++					       NULL); 
++		if (proc_dpm_idle_stats)
++			proc_dpm_idle_stats->write_proc =
++				write_proc_dpm_idle_stats;
++#endif /* CONFIG_DPM_IDLE_STATS */
++
++#endif /* CONFIG_DPM_STATS */
++
++#ifdef DEBUG
++		proc_dpm_debug =
++			create_proc_read_entry("debug",
++					       S_IRUGO,
++					       proc_dpm,
++					       read_proc_dpm_debug, 
++					       NULL); 
++#endif
++
++#ifdef CONFIG_DPM_TRACE
++		proc_dpm_trace =
++			create_proc_read_entry("trace",
++					       S_IWUSR | S_IRUGO,
++					       proc_dpm,
++					       read_proc_dpm_trace, 
++					       NULL); 
++		if (proc_dpm_trace)
++			proc_dpm_trace->write_proc = write_proc_dpm_trace;
++#endif
++
++		proc_dpm_md = proc_mkdir("md", proc_dpm);
++		dpm_generic_md_proc_init(proc_dpm_md);
++	} else {
++	  printk(KERN_ERR "Attempt to create /proc/driver/dpm failed\n");
++
++	}
++}
++
++#ifdef MODULE
++void __exit
++#else
++void 
++#endif
++dpm_proc_cleanup(void)
++{
++	if (proc_dpm_cmd) {
++		remove_proc_entry("cmd", proc_dpm);
++		proc_dpm_cmd = NULL;
++	}
++
++	if (proc_dpm_state) {
++		remove_proc_entry("state", proc_dpm);
++		proc_dpm_state = NULL;
++	}
++
++#ifdef CONFIG_DPM_STATS
++	if (proc_dpm_stats) {
++		remove_proc_entry("stats", proc_dpm);
++		proc_dpm_stats = NULL;
++	}
++
++#ifdef CONFIG_DPM_OPT_STATS
++	if (proc_dpm_opt_stats) {
++		remove_proc_entry("opt_stats", proc_dpm);
++		proc_dpm_opt_stats = NULL;
++	}
++#endif /*CONFIG_DPM_OPT_STATS  */
++
++#ifdef CONFIG_DPM_IDLE_STATS
++	if (proc_dpm_idle_stats) {
++		remove_proc_entry("idle_stats", proc_dpm);
++		proc_dpm_idle_stats = NULL;
++	}
++#endif /* CONFIG_DPM_IDLE_STATS */
++#endif /* CONFIG_DPM_STATS */
++
++#ifdef DEBUG
++	if (proc_dpm_debug) {
++		remove_proc_entry("debug", proc_dpm);
++		proc_dpm_debug = NULL;
++	}
++#endif
++
++#ifdef CONFIG_DPM_TRACE
++	if (proc_dpm_trace) {
++		remove_proc_entry("trace", proc_dpm);
++		proc_dpm_trace = NULL;
++	}
++#endif
++
++	dpm_generic_md_proc_cleanup(proc_dpm_md);
++	remove_proc_entry("md", proc_dpm);
++
++	remove_proc_entry("driver/dpm", NULL);
++}
++
++
++
++/****************************************************************************
++ * Machine-dependent /proc/driver/dpm/md entries
++ ****************************************************************************/
++
++/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ *
++ * /proc/driver/dpm/md/opts (Read-only)
++ *
++ * Reading this file will produce a dump of the current operating point, and a
++ * listing of all of the defined operating points.
++ *
++ *+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
++
++
++static struct proc_dir_entry *proc_dpm_md_opts;
++static struct proc_dir_entry *proc_dpm_md_cmd;
++
++extern int read_proc_dpm_md_opts(char *page, char **start, off_t offset,
++				 int count, int *eof, void *data);
++extern int write_proc_dpm_md_cmd (struct file *file, const char *buffer,
++				  unsigned long count, void *data);
++
++
++void __init
++dpm_generic_md_proc_init(struct proc_dir_entry *proc_dpm_md)
++{
++	proc_dpm_md_opts =
++		create_proc_read_entry("opts",
++				       S_IRUGO,
++				       proc_dpm_md,
++				       read_proc_dpm_md_opts, 
++				       NULL); 
++
++	proc_dpm_md_cmd =
++		create_proc_entry("cmd",
++				  S_IWUSR,
++				  proc_dpm_md);
++	if (proc_dpm_md_cmd)
++		proc_dpm_md_cmd->write_proc = write_proc_dpm_md_cmd;
++}
++
++
++#ifdef MODULE
++void __exit
++#else
++void
++#endif
++dpm_generic_md_proc_cleanup(struct proc_dir_entry *proc_dpm_md)
++{
++	if (proc_dpm_md_opts) {
++		remove_proc_entry("opts", proc_dpm_md);
++		proc_dpm_md_opts = NULL;
++	}
++
++	if (proc_dpm_md_cmd) {
++		remove_proc_entry("cmd", proc_dpm_md);
++		proc_dpm_md_cmd = NULL;
++	}
++}
++
++
++/*
++ * Local variables:
++ * c-basic-offset: 8
++ * End:
++ */
++
+Index: linux-2.6/drivers/Makefile
+===================================================================
+--- linux-2.6.orig/drivers/Makefile	2007-01-11 10:21:08.000000000 +0800
++++ linux-2.6/drivers/Makefile	2007-01-11 10:59:34.000000000 +0800
+@@ -74,6 +74,7 @@
+ obj-$(CONFIG_SGI_SN)		+= sn/
+ obj-y				+= firmware/
+ obj-$(CONFIG_CRYPTO)		+= crypto/
++obj-$(CONFIG_DPM)		+= dpm/
+ obj-$(CONFIG_SUPERH)		+= sh/
+ obj-$(CONFIG_GENERIC_TIME)	+= clocksource/
+ obj-$(CONFIG_DMA_ENGINE)	+= dma/
+Index: linux-2.6/include/asm-blackfin/mach-bf533/dpm.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/asm-blackfin/mach-bf533/dpm.h	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,98 @@
++/*
++*include/asm-arm/arch-pxa/pxa_dpm.h
++*DPM for pxa
++*
++*Copyright (C) 2004, xiaohe <catod@net9.org>
++*
++*Based on include/asm-arm/arch-omap/omap_dpm.h by MontaVista
++*
++*/
++
++#ifndef __ASM_PXA_DPM_H__
++#define __ASM_PXA_DPM_H__
++/*
++ * machine dependent operating state
++ *
++ * An operating state is a cpu execution state that has implications for power
++ * management. The DPM will select operating points based largely on the
++ * current operating state.
++ *
++ * DPM_STATES is the number of supported operating states. Valid operating
++ * states are from 0 to DPM_STATES-1 but when setting an operating state the
++ * kernel should only specify a state from the set of "base states" and should
++ * do so by name.  During the context switch the new operating state is simply
++ * extracted from current->dpm_state.
++ *
++ * task states:
++ *
++ * APIs that reference task states use the range -(DPM_TASK_STATE_LIMIT + 1)
++ * through +DPM_TASK_STATE_LIMIT.  This value is added to DPM_TASK_STATE to
++ * obtain the downward or upward adjusted task state value. The
++ * -(DPM_TASK_STATE_LIMIT + 1) value is interpreted specially, and equates to
++ * DPM_NO_STATE.
++ *
++ * Tasks inherit their task operating states across calls to
++ * fork(). DPM_TASK_STATE is the default operating state for all tasks, and is
++ * inherited from init.  Tasks can change (or have changed) their tasks states
++ * using the DPM_SET_TASK_STATE variant of the sys_dpm() system call. 
++ */
++
++#define DPM_IDLE_TASK_STATE  0
++#define DPM_IDLE_STATE       1
++#define DPM_SLEEP_STATE      2
++#define DPM_BASE_STATES      3
++
++#define DPM_TASK_STATE_LIMIT 4
++#define DPM_TASK_STATE       (DPM_BASE_STATES + DPM_TASK_STATE_LIMIT)
++#define DPM_STATES           (DPM_TASK_STATE + DPM_TASK_STATE_LIMIT + 1)
++#define DPM_TASK_STATES      (DPM_STATES - DPM_BASE_STATES)
++
++#define DPM_STATE_NAMES                  \
++{ "idle-task", "idle", "sleep",          \
++  "task-4", "task-3", "task-2", "task-1",\
++  "task",                                \
++  "task+1", "task+2", "task+3", "task+4" \
++}
++
++#define DPM_MD_MASK	0
++#define DPM_MD_MODE	1
++
++#define DPM_PP_NBR 2
++
++#ifdef __KERNEL__
++#ifndef __ASSEMBLER__
++
++#include <linux/types.h>
++#include <linux/proc_fs.h>
++
++
++#define DPM_MD_STATS
++typedef __u64 dpm_md_count_t;
++typedef __u64 dpm_md_time_t;
++
++#define dpm_md_time()	1 
++	
++/* mputimer 1 runs @ 6Mhz  6 ticks = 1 microsecond */
++#define DPM_MD_HZ 6 * 1000000
++
++/* Hardcode this for now. */
++
++#define tb_ticks_per_second DPM_MD_HZ   
++
++
++
++/* Instances of this structure define valid Innovator operating points for DPM.
++   Voltages are represented in mV, and frequencies are represented in KHz. */ 
++
++struct dpm_md_opt {
++	u32	 mask;		/*the value of the register PLL_DIV*/
++	unsigned int mode;	/*mode control,=0 deep sleep,=1 sleep,=2 active,=3 Full on*/
++};
++#define DEEP_SLEEP 0
++#define SLEEP 1
++#define ACTIVE 2
++#define FULLON 3
++
++#endif	/*end of __ASSEMMBLER*/
++#endif	/*end of __KERNEL__*/
++#endif	/*end of __ASM_PXA_DPM_H__*/
+Index: linux-2.6/include/asm-blackfin/mach-bf537/dpm.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/asm-blackfin/mach-bf537/dpm.h	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,98 @@
++/*
++*include/asm-arm/arch-pxa/pxa_dpm.h
++*DPM for pxa
++*
++*Copyright (C) 2004, xiaohe <catod@net9.org>
++*
++*Based on include/asm-arm/arch-omap/omap_dpm.h by MontaVista
++*
++*/
++
++#ifndef __ASM_PXA_DPM_H__
++#define __ASM_PXA_DPM_H__
++/*
++ * machine dependent operating state
++ *
++ * An operating state is a cpu execution state that has implications for power
++ * management. The DPM will select operating points based largely on the
++ * current operating state.
++ *
++ * DPM_STATES is the number of supported operating states. Valid operating
++ * states are from 0 to DPM_STATES-1 but when setting an operating state the
++ * kernel should only specify a state from the set of "base states" and should
++ * do so by name.  During the context switch the new operating state is simply
++ * extracted from current->dpm_state.
++ *
++ * task states:
++ *
++ * APIs that reference task states use the range -(DPM_TASK_STATE_LIMIT + 1)
++ * through +DPM_TASK_STATE_LIMIT.  This value is added to DPM_TASK_STATE to
++ * obtain the downward or upward adjusted task state value. The
++ * -(DPM_TASK_STATE_LIMIT + 1) value is interpreted specially, and equates to
++ * DPM_NO_STATE.
++ *
++ * Tasks inherit their task operating states across calls to
++ * fork(). DPM_TASK_STATE is the default operating state for all tasks, and is
++ * inherited from init.  Tasks can change (or have changed) their tasks states
++ * using the DPM_SET_TASK_STATE variant of the sys_dpm() system call. 
++ */
++
++#define DPM_IDLE_TASK_STATE  0
++#define DPM_IDLE_STATE       1
++#define DPM_SLEEP_STATE      2
++#define DPM_BASE_STATES      3
++
++#define DPM_TASK_STATE_LIMIT 4
++#define DPM_TASK_STATE       (DPM_BASE_STATES + DPM_TASK_STATE_LIMIT)
++#define DPM_STATES           (DPM_TASK_STATE + DPM_TASK_STATE_LIMIT + 1)
++#define DPM_TASK_STATES      (DPM_STATES - DPM_BASE_STATES)
++
++#define DPM_STATE_NAMES                  \
++{ "idle-task", "idle", "sleep",          \
++  "task-4", "task-3", "task-2", "task-1",\
++  "task",                                \
++  "task+1", "task+2", "task+3", "task+4" \
++}
++
++#define DPM_MD_MASK	0
++#define DPM_MD_MODE	1
++
++#define DPM_PP_NBR 2
++
++#ifdef __KERNEL__
++#ifndef __ASSEMBLER__
++
++#include <linux/types.h>
++#include <linux/proc_fs.h>
++
++
++#define DPM_MD_STATS
++typedef __u64 dpm_md_count_t;
++typedef __u64 dpm_md_time_t;
++
++#define dpm_md_time()	1 
++	
++/* mputimer 1 runs @ 6Mhz  6 ticks = 1 microsecond */
++#define DPM_MD_HZ 6 * 1000000
++
++/* Hardcode this for now. */
++
++#define tb_ticks_per_second DPM_MD_HZ   
++
++
++
++/* Instances of this structure define valid Innovator operating points for DPM.
++   Voltages are represented in mV, and frequencies are represented in KHz. */ 
++
++struct dpm_md_opt {
++	u32	 mask;		/*the value of the register PLL_DIV*/
++	unsigned int mode;	/*mode control,=0 deep sleep,=1 sleep,=2 active,=3 Full on*/
++};
++#define DEEP_SLEEP 0
++#define SLEEP 1
++#define ACTIVE 2
++#define FULLON 3
++
++#endif	/*end of __ASSEMMBLER*/
++#endif	/*end of __KERNEL__*/
++#endif	/*end of __ASM_PXA_DPM_H__*/
+Index: linux-2.6/include/linux/dpm.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/linux/dpm.h	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,402 @@
++/*
++ * include/linux/dpm.h  DPM policy management
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++ *
++ * Copyright (C) 2002, International Business Machines Corporation
++ * All Rights Reserved
++ *
++ * Robert Paulsen
++ * IBM Linux Technology Center
++ * rpaulsen@us.ibm.com
++ * August, 2002
++ *
++ */
++
++#ifndef __DPM_H__
++#define __DPM_H__
++
++
++#include <linux/device.h>
++
++#define DPM_NO_STATE   -1
++
++#ifndef CONFIG_DPM
++
++/* The above and following constants must always be defined for the
++   benefit of the init task and system tasks, although they are
++   otherwise ignored if DPM is not configured. */
++
++#define DPM_TASK_STATE 0
++#define dpm_set_os(task_state) do {} while (0);
++
++#else
++
++#include <asm/mach/dpm.h>
++#include <linux/errno.h>
++#include <linux/types.h>
++#include <linux/unistd.h>
++#include <linux/dpm-stats.h>
++
++/* max size of DPM names */
++enum {DPM_NAME_SIZE=256};
++
++#ifdef __KERNEL__
++
++#include <linux/dpm-trace.h>
++#include <linux/list.h>
++#include <asm/semaphore.h>
++#include <asm/atomic.h>
++
++typedef int dpm_state_t;
++typedef int dpm_md_pp_t;
++
++/* A table of processor-dependent routines, must be initialized by
++   platform-dependent boot code.  None of the entries (that will actually be
++   called) are allowed to be NULL if DPM is enabled. */
++
++struct dpm_opt;
++
++struct dpm_md {
++	void	(*init)(void);
++	int	(*init_opt)(struct dpm_opt *opt);
++	int	(*set_opt)(struct dpm_opt *cur, struct dpm_opt *new);
++	int	(*get_opt)(struct dpm_opt *opt);
++	int	(*check_constraint)(struct constraint_param *param,
++				    struct dpm_opt *opt);
++	void	(*idle)(void);
++	void	(*startup)(void);
++	void	(*cleanup)(void);
++};
++	
++
++/*****************************************************************************
++ * Search a list looking for a named entity.
++ * A pointer to the found element is put in the variable named by the
++ * "answer" argument (or it is set to zero if not found).
++ * The structure's type name is given by the "element_type" argument.
++ * The name being looked for is given by the "find_me" argument.
++ * The name of the stand-alone list_head is given by the "list_name" argument.
++ * Assumes the proper semaphore is held.
++ * Assumes the structure's list_head is named "list".
++ * Assumes the structure's name is in a field called "name"
++ *****************************************************************************/
++#define list_find(answer,find_me,list_name,element_type)        \
++        do {                                                    \
++                element_type            *elm;                   \
++                struct list_head        *scan;                  \
++                (answer)=0;                                     \
++                for(scan=list_name.next;scan!=&list_name;       \
++                                scan=scan->next) {              \
++                        elm=list_entry(scan,element_type,list); \
++                        if (strncmp((find_me),elm->name,        \
++                                        DPM_NAME_SIZE)==0) {    \
++                                (answer)=elm;                   \
++                                break;                          \
++                        }                                       \
++                }                                               \
++        } while(0)
++
++/* internal representation of an operating point */
++struct dpm_opt {
++	char			*name;          /* name */
++	struct list_head	list;		/* all installed op points */
++	dpm_md_pp_t             pp[DPM_PP_NBR]; /* initialization params */
++	struct dpm_md_opt	md_opt;         /* machine dependent part */
++	int			constrained;	/* is this opt constrained? */
++	struct kobject		kobj;		/* kobject */
++	struct dpm_stats        stats;          /* statistics */
++	int			force;		/* force if constrained */
++};
++
++/* internal representation of a class of op points (to be mapped to an
++ * operating state */
++struct dpm_class {
++	char			*name;          /* name */
++	struct list_head	list;		/* all installed classes */
++	unsigned		nops;		/* nbr ops in this class */
++	struct dpm_opt		**ops;		/* the ops in this class */
++	struct kobject		kobj;		/* kobject */
++	struct dpm_stats        stats;          /* statistics */
++};
++
++/*
++ * temporary support for policies to map operating points to either 
++ * operating pts or classes.  Only one field allowed to be set.
++ */
++
++struct dpm_classopt {
++	struct dpm_opt		*opt;
++	struct dpm_class	*class;
++};
++
++/* internal representation of an installed power policy */
++struct dpm_policy {
++	char			*name;          /* name */
++	struct list_head	list;		/* all installed policies */
++	struct dpm_classopt     classopt[DPM_STATES]; /* classes/op pts */
++	struct kobject		kobj;		/* kobject */
++	struct dpm_stats        stats;          /* statistics */
++};
++
++/*
++ * internal use utility functions for use by DPM
++ */
++
++/* DPM semaphore locking. To simplify future expansion, don't 'down' _dpm_lock
++   directly.  Also, _dpm_lock must be 'up'ed only by dpm_unlock(). */
++
++extern struct semaphore _dpm_lock;
++
++static inline void
++dpm_lock(void)
++{
++        down(&_dpm_lock);
++}
++
++static inline int
++dpm_lock_interruptible(void)
++{
++        if (down_interruptible(&_dpm_lock))
++                return -ERESTARTSYS;
++        return 0;
++}
++
++static inline int
++dpm_trylock(void)
++{
++        if (down_trylock(&_dpm_lock))
++                return -EBUSY;
++        return 0;
++}
++
++void dpm_unlock(void);
++void dpm_idle(void);
++
++/* 
++ * kernel's operating state interface
++ */
++
++/* set operating state */
++void dpm_set_os(dpm_state_t state);
++
++/*
++ * policy manager's interface
++ */
++
++extern char *dpm_state_names[DPM_STATES];
++
++/* initialize/terminate the DPM */
++int dynamicpower_init(void);
++int dynamicpower_terminate(void);
++
++/* (temporarily) disable the DPM */
++int dynamicpower_disable(void);
++
++/* re-enable the DPM */
++int dynamicpower_enable(void);
++
++/* suspend/resume DPM across a system shutdown */
++int dynamicpm_suspend(void);
++void dynamicpm_resume(void);
++
++/* create operating point */
++int _dpm_create_opt(struct dpm_opt **opt, const char *name, const dpm_md_pp_t *pp);
++int dpm_create_opt(const char *name, const dpm_md_pp_t *pp);
++
++/* create class of operating points */
++int dpm_create_class(const char *name, char **op_names, unsigned nops);
++
++/* create policy */
++int dpm_create_policy(const char *name, char **opt_names);
++
++/* destroy policy */
++int dpm_destroy_policy(const char *name);
++
++/* activate a power policy */
++int dpm_set_policy(const char *name);
++
++/* get name of active power policy */
++int dpm_get_policy(char *name);
++
++/* set a task's task-specific operating state */
++int dpm_set_task_state(pid_t pid, dpm_state_t state);
++
++/* get  a task's task-specific operting state */
++int dpm_get_task_state(pid_t pid, dpm_state_t *state);
++
++/* set a raw operating state */
++int dpm_set_op_state(const char *name);
++int dpm_set_opt(struct dpm_opt *opt, unsigned flags);
++
++/* choose unconstrained operating point from policy */
++extern struct dpm_opt *dpm_choose_opt(struct dpm_policy *policy, int state);
++
++
++/* constraints */
++int dpm_check_constraints(struct dpm_opt *opt);
++int dpm_default_check_constraint(struct constraint_param *param, 
++				 struct dpm_opt *opt);
++void dpm_recheck_constraints(struct dpm_opt *opt);
++void dpm_driver_scale(int level);
++
++/* utils */
++extern void dpm_udelay(unsigned uS);
++extern void dpm_udelay_from(u64 start, unsigned uS);
++extern unsigned long dpm_compute_lpj(unsigned long ref, u_int div, u_int mult);
++
++/*
++ * sysfs interface
++ */
++
++extern void dpm_sysfs_new_policy(struct dpm_policy *policy);
++extern void dpm_sysfs_destroy_policy(struct dpm_policy *policy);
++extern void dpm_sysfs_new_class(struct dpm_class *class);
++extern void dpm_sysfs_destroy_class(struct dpm_class *class);
++extern void dpm_sysfs_new_op(struct dpm_opt *opt);
++extern void dpm_sysfs_destroy_op(struct dpm_opt *opt);
++
++/* Machine-specific /proc interface (to be converted to sysfs) */
++
++extern void dpm_generic_md_proc_init(struct proc_dir_entry *proc_dpm_md);
++extern void dpm_generic_md_proc_cleanup(struct proc_dir_entry *proc_dpm_md);
++
++/*
++ * global data for power management system
++ */
++
++/* curently installed policies, classes and operating points */
++extern struct list_head		dpm_policies;
++extern struct list_head		dpm_classes;
++extern struct list_head		dpm_opts;
++extern struct semaphore		dpm_policy_sem;
++extern spinlock_t		dpm_policy_lock;
++
++/* the currently active policy, class, state, point */
++extern struct dpm_policy	*dpm_active_policy;
++extern struct dpm_class		*dpm_active_class;
++extern dpm_state_t		dpm_active_state;
++extern struct dpm_opt		*dpm_active_opt;
++
++/* is DPM initialized and enabled? */
++extern int			dpm_initialized;
++extern int			dpm_enabled;
++
++extern inline void
++dpm_quick_enter_state(int new_state)
++{
++#ifdef CONFIG_DPM_STATS
++	dpm_update_stats(&dpm_state_stats[new_state],
++			 &dpm_state_stats[dpm_active_state]);
++#endif
++
++        dpm_active_state = new_state;
++}
++
++/* Flags for dpm_set_opt().  By default, dpm_set_op() is guaranteed not
++   to block the caller, and will arrange to complete asynchronously if
++   necessary. 
++
++   DPM_SYNC    The operating point is guaranteed to be set when the call
++               returns. The call may block.
++
++   DPM_UNLOCK  The caller requires dpm_md_set_opt() to unlock the DPM system
++               once the operating point is set.
++*/
++
++#define DPM_SYNC      0x01
++#define DPM_UNLOCK    0x02
++
++/*
++ * Common machine-dependent and board-dependent function wrappers.
++ */
++
++extern struct dpm_md dpm_md;
++
++static inline void
++dpm_md_startup(void)
++{
++        if (dpm_md.startup)
++                dpm_md.startup();
++}
++
++
++static inline void
++dpm_md_cleanup(void)
++{
++        if (dpm_md.cleanup)
++                dpm_md.cleanup();
++}
++
++
++static inline void
++dpm_md_idle(void)
++{
++        if (dpm_md.idle)
++                dpm_md.idle();
++}
++
++
++/* Machine-dependent operating point creating/query/setting */
++
++
++static inline int
++dpm_md_init_opt(struct dpm_opt *opt)
++{
++        if (dpm_md.init_opt)
++                return dpm_md.init_opt(opt);
++        return 0;
++}
++
++static inline int
++dpm_md_set_opt(struct dpm_opt *cur, struct dpm_opt *new)
++{
++        if (dpm_md.set_opt) {
++                return dpm_md.set_opt(cur, new);
++	}
++        return 0;
++}
++
++static inline int
++dpm_md_get_opt(struct dpm_opt *opt)
++{
++        if (dpm_md.get_opt)
++                return dpm_md.get_opt(opt);
++        return 0;
++}
++
++static inline int
++dpm_md_check_constraint(struct constraint_param *param, struct dpm_opt *opt)
++{
++        return dpm_md.check_constraint ? 
++		dpm_md.check_constraint(param, opt) : 1;
++}
++
++/*
++ * Helper functions
++ */
++
++static inline char *
++dpm_classopt_name(struct dpm_policy *policy, int state)
++{
++	return policy->classopt[state].opt ?
++		policy->classopt[state].opt->name :
++		policy->classopt[state].class->name;
++}
++
++#endif /* __KERNEL__ */
++
++#endif /* CONFIG_DPM */
++#endif /*__DPM_H__*/
+Index: linux-2.6/include/linux/dpm-stats.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/linux/dpm-stats.h	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,113 @@
++/*
++ * include/linux/dpm.h  DPM policy management
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++ *
++ * Copyright (C) 2002, International Business Machines Corporation
++ * All Rights Reserved
++ *
++ * Robert Paulsen
++ * IBM Linux Technology Center
++ * rpaulsen@us.ibm.com
++ * August, 2002
++ *
++ */
++
++#ifndef __DPM_STATS_H__
++#define __DPM_STATS_H__
++
++/* Machine dependent timing/counts.  If the machine has not defined
++   DPM_MD_STATS, we use a generic routine based on gettimeofday and 64-bit
++   values.  Depending on how DPM is being used this may be really slow,
++   though. */
++
++#ifndef DPM_MD_STATS
++typedef __u64 dpm_md_time_t;
++typedef __u64 dpm_md_count_t;
++#endif
++
++/* statistics */
++struct dpm_stats {
++        dpm_md_count_t	count;
++        dpm_md_time_t	total_time;
++        dpm_md_time_t	start_time;
++        dpm_md_time_t	end_time;
++};
++
++/* Kernel-only defines */
++
++#ifdef __KERNEL__
++
++#ifndef DPM_MD_STATS
++extern inline dpm_md_time_t
++dpm_md_time()
++{
++	struct timeval tv;
++	u64 time;
++	do_gettimeofday(&tv);
++	time = ((u64)tv.tv_sec * 1000000) + tv.tv_usec;
++	return time;
++}
++	
++#define DPM_MD_HZ 1000000
++#endif /* DPM_MD_STATS */
++
++/*****************************************************************************
++ * operating state statistics
++ *****************************************************************************/
++
++extern struct dpm_stats dpm_state_stats[DPM_STATES];
++
++/* get statistics for a policy */
++int dpm_get_policy_stats(char *name, struct dpm_stats *stats);
++
++/* get statistics for a class */
++int dpm_get_class_stats(char *name, struct dpm_stats *stats);
++
++/* get statistics for an operating point */
++int dpm_get_opt_stats(char *name, struct dpm_stats *stats);
++
++/* get statistics for all operating states */
++int dpm_get_os_stats(struct dpm_stats *stats);
++
++/* update statistics structures */
++dpm_md_time_t
++dpm_update_stats(struct dpm_stats *new, struct dpm_stats *old);
++
++/* initialize operating state statistics */
++void dpm_init_stats(void);
++
++/* initialize idle state statistics */
++void dpm_init_idle_stats(void);
++
++/*
++ * idle statistics
++ */
++struct dpm_idle_lats {
++	unsigned idles;
++	unsigned idle_preemptions;
++	unsigned quick_idles;
++	unsigned full_idles;
++	unsigned inefficient_idles;
++	unsigned interrupted_idles;
++	unsigned max_latency_to_idle;
++	unsigned max_latency_to_idle_task;
++	unsigned max_cs_to_idle;
++};
++
++extern struct dpm_idle_lats idle_lats;
++
++#endif /*__KERNEL__*/
++#endif /*__DPM_STATS_H__*/
+Index: linux-2.6/include/linux/dpm-trace.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/linux/dpm-trace.h	2007-01-11 10:59:34.000000000 +0800
+@@ -0,0 +1,65 @@
++/*
++ * include/linux/dpm.h  DPM policy management
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++ *
++ * Copyright (C) 2002, International Business Machines Corporation
++ * All Rights Reserved
++ *
++ * Robert Paulsen
++ * IBM Linux Technology Center
++ * rpaulsen@us.ibm.com
++ * August, 2002
++ *
++ */
++
++#ifndef __DPM_TRACE_H_
++#define __DPM_TRACE_H_
++
++
++
++#ifdef CONFIG_DPM_TRACE
++
++#define DPM_TRACE_SET_OPT_ASYNC  0x00000001
++#define DPM_TRACE_SET_OPT_SYNC   0x00000002
++#define DPM_TRACE_RESYNC         0x00000004
++#define DPM_TRACE_UNLOCK         0x00000008
++#define DPM_TRACE_SET_OS         0x00000010
++#define DPM_TRACE_SET_POLICY     0x00000020
++#define DPM_TRACE_START          0x00000040
++#define DPM_TRACE_STOP           0x00000080
++#define DPM_TRACE_SET_TASK_STATE 0x00000100
++
++#define DPM_TRACE_ALL            0x000001ff
++
++void dpm_trace(unsigned event, ...);
++void dpm_trace_start(unsigned events);
++void dpm_trace_stop(void);
++void dpm_trace_reset(void);
++
++int
++read_proc_dpm_trace(char *page, char **start, off_t offset, 
++		    int count, int *eof, void *data);
++int 
++write_proc_dpm_trace(struct file *file, const char *buffer,
++		     unsigned long count, void *data);
++
++#else
++
++#define dpm_trace(args...) do {} while (0)
++
++#endif /* CONFIG_DPM_TRACE */
++
++#endif /*__DPM_TRACE_H_*/
+Index: linux-2.6/include/linux/sched.h
+===================================================================
+--- linux-2.6.orig/include/linux/sched.h	2006-11-30 05:57:37.000000000 +0800
++++ linux-2.6/include/linux/sched.h	2007-01-11 10:59:34.000000000 +0800
+@@ -1015,6 +1015,9 @@
+ 
+ 	atomic_t fs_excl;	/* holding fs exclusive resources */
+ 	struct rcu_head rcu;
++#ifdef CONFIG_DPM
++	int     dpm_state; /* DPM operating state to use for this task */
++#endif
+ 
+ 	/*
+ 	 * cache last used pipe for splice
+Index: linux-2.6/arch/blackfin/mach-bf537/Makefile
+===================================================================
+--- linux-2.6.orig/arch/blackfin/mach-bf537/Makefile	2007-01-11 10:21:08.000000000 +0800
++++ linux-2.6/arch/blackfin/mach-bf537/Makefile	2007-01-11 11:00:44.000000000 +0800
+@@ -7,3 +7,4 @@
+ obj-y := ints-priority.o
+ 
+ obj-$(CONFIG_CPU_FREQ)   += cpu.o
++obj-$(CONFIG_DPM)            += dpm.o

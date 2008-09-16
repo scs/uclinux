@@ -1,0 +1,51 @@
+xenomai (2.4.0-0+rc6) unstable; urgency=low
+
+  * Update prepare-patch.sh to use combined x86/i386 Xenomai tree.
+  * Split patch generation out of build-stamp so that it only gets
+    called once along with the configure.
+  * In pursuit of silencing lintian:
+    * Rename top level ChangeLog to changelog when installed.
+    * Add ldconfig to post install/remove scripts.
+    * Compress changelogs.
+
+ -- Paul Corner <paul_c@gna.org>  Wed, 14 Nov 2007 21:48:27 +0000
+
+xenomai (2.3.50-05+r2299) unstable; urgency=low
+
+  * Add top level ChangeLog and CREDITS to each package.
+  * rebuilt from SVN tag 2299
+
+ -- Paul Corner <paul_c@gna.org>  Thu, 15 Mar 2007 11:03:14 +0000
+
+xenomai (2.3.50-04) unstable; urgency=low
+
+  * Remove demo & snippets from the patches - Installed in xenomai-dev
+  * linux-patches-xenomai lists patches, architectures, & kernel version
+    in the package description meta-data.
+
+ -- Paul Corner <paul_c@gna.org>  Mon, 12 Mar 2007 17:30:00 +0000
+
+xenomai (2.3.50-03) unstable; urgency=low
+
+  * Revision 2281
+  * Fix bug in postinst script - Need to overwrite the symlink
+
+ -- Paul Corner <paul_c@gna.org>  Sun, 11 Mar 2007 20:30:00 +0000
+
+xenomai (2.3.50-02) unstable; urgency=low
+
+  * Apply patch to fix includedir bug - rules updated..
+  * debian/ contents added to EXTRA_DIST.
+
+ -- Paul Corner <paul_c@gna.org>  Wed,  7 Mar 2007 23:29:00 +0000
+
+xenomai (2.3.50-01) unstable; urgency=low
+
+  * Initial build.
+  * General notes: prepare-patch.sh generates a per-kernel/arch
+    for use with kernel-package - A single patch is needed for
+    apply/unapply steps. The scripts/prepare-kernel.sh appends a
+    few lines to some Makefiles which would cause problems on the
+    unapply stage.
+
+ -- Paul Corner <paul_c@gna.org>  Sat,  3 Mar 2007 12:00:00 +0000

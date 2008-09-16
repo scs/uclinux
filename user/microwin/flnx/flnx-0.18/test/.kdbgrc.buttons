@@ -1,0 +1,45 @@
+# KDE Config File
+[Breakpoint 0]
+Enabled=true
+Temporary=false
+File=button.cxx
+Line=49
+[Breakpoint 1]
+Enabled=true
+Temporary=false
+File=Fl_x.cxx
+Line=150
+[Watches]
+Expr0=fl_display
+Expr1=fl_window
+Expr2=damage_
+Expr3=fl_gc
+[Breakpoint 2]
+Enabled=true
+Temporary=false
+File=button.cxx
+Line=56
+[Breakpoint 3]
+Enabled=true
+Temporary=false
+File=Fl_x.cxx
+Line=1159
+[Breakpoint 4]
+Enabled=true
+Temporary=false
+File=Fl_x.cxx
+Line=547
+[Breakpoint 5]
+Enabled=true
+Temporary=false
+File=button.cxx
+Line=60
+[Breakpoint 6]
+Enabled=true
+Temporary=false
+File=Fl_x.cxx
+Line=959
+[General]
+WorkingDirectory=
+FileVersion=1
+ProgramArgs=

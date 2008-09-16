@@ -1,0 +1,57 @@
+Using these programs, you can:
+
+- test the speed of patterns in user space.
+- test whether your pattern matches random data (which is bad!).
+
+Note that these are fairly crude tests.  They are not certain to reflect
+actual network performance.
+
+Start by saying "make".
+
+************************************************************************
+
+To test the speed of the pattern in the file "foo.pat": 
+
+./timeit.sh foo.pat all <-- for random characters
+./timeit.sh foo.pat print <-- for printable characters only
+./timeit.sh foo.pat real <-- to test against a set of real data
+
+Or to test the pattern "foo|bar":                       
+
+./timeit.sh 'foo|bar' all|print|real
+
+You'll find that our regexp library has some performance quirks.  Things
+we've noticed:
+
+- Branches are very expensive.  Testing for "foo|bar" takes much
+longer than twice as long as testing for "foo".  
+
+- Parentheses aren't optimized out.  "(foo)" takes much longer than "foo".
+
+- "^(foo|bar)" is much faster than "^foo|^bar".
+
+***********************************************************************
+
+To test whether your pattern matches random data, run
+
+./test_match.sh foo.pat
+or
+./test_match.sh 'foo|bar'
+
+
+***********************************************************************
+
+___DEVELOPER INFORMATION___
+
+The data directory holds packet captures to test against.  The file name
+format is: [protocol]-[optional letter]-[number].  The protocol is the
+protocol and possibly some information about the situation.  The letter
+denotes which session the capture is from if there are several.  The
+number denotes how many packets the file contains.  (To simulate what
+l7-filter sees, the first file has only the first packet, the second has
+the first two packets, and so on.)
+
+(The ares data is a bit of a cheat.  I let these files sit around for a
+long time before putting them here, so I'm not sure what they are
+exactly, except that they are Ares data and they clearly aren't in the
+1, 1-2, 1-2-3 form described above.)

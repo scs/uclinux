@@ -1,0 +1,265 @@
+--- uClinux-dist-fresh/linux-2.6.x/drivers/mtd/chips/cfi_cmdset_0001.c	2006-03-23 07:43:54.000000000 +0100
++++ uClinux-dist/linux-2.6.x/drivers/mtd/chips/cfi_cmdset_0001.c	2007-02-18 11:09:46.000000000 +0100
+@@ -48,6 +48,26 @@
+ #define MANUFACTURER_ST         0x0020
+ #define M50LPW080       0x002F
+ 
++#ifdef CONFIG_BFIN537_BLUETECHNIX_CM
++#define SWITCH_BANKS    if (adr >= 0x200000) \
++	                  {\
++                            bfin_write_PORTFIO_SET(PF4);\
++	                    adr -= 0x200000;\
++	                    crossed = 1;\
++	                    __builtin_bfin_ssync();\
++	                  }
++#define SWITCH_BACK   	if (crossed)\
++	                {\
++	                  bfin_write_PORTFIO_CLEAR(PF4);\
++	                  adr += 0x200000;\
++	                  crossed = 0;\
++	                  __builtin_bfin_ssync();\
++	                }
++#else
++#define SWITCH_BANKS    do {} while(0)
++#define SWITCH_BACK     do {} while(0)
++#endif
++
+ static int cfi_intelext_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
+ static int cfi_intelext_write_words(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
+ static int cfi_intelext_write_buffers(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
+@@ -202,11 +222,13 @@
+ 
+ static void fixup_use_point(struct mtd_info *mtd, void *param)
+ {
++#ifndef CONFIG_BFIN537_BLUETECHNIX_CM   /* Flash on CM-BF537x cannot be mapped this way */
+ 	struct map_info *map = mtd->priv;
+ 	if (!mtd->point && map_is_linear(map)) {
+ 		mtd->point   = cfi_intelext_point;
+ 		mtd->unpoint = cfi_intelext_unpoint;
+ 	}
++#endif
+ }
+ 
+ static void fixup_use_write_buffers(struct mtd_info *mtd, void *param)
+@@ -1182,9 +1204,12 @@
+ 	unsigned long cmd_addr;
+ 	struct cfi_private *cfi = map->fldrv_priv;
+ 	int ret;
++	int crossed = 0;
+ 
+ 	adr += chip->start;
+ 
++	SWITCH_BANKS;
++
+ 	/* Ensure cmd read/writes are aligned. */
+ 	cmd_addr = adr & ~(map_bankwidth(map)-1);
+ 
+@@ -1192,6 +1217,9 @@
+ 	ret = get_chip(map, chip, cmd_addr, FL_READY);
+ 	if (ret) {
+ 		spin_unlock(chip->mutex);
++
++		SWITCH_BACK;
++
+ 		return ret;
+ 	}
+ 
+@@ -1206,6 +1234,9 @@
+ 	put_chip(map, chip, cmd_addr);
+ 
+ 	spin_unlock(chip->mutex);
++
++	SWITCH_BACK;
++
+ 	return 0;
+ }
+ 
+@@ -1457,9 +1488,13 @@
+ 	int wbufsize, z, ret=0, word_gap, words;
+ 	const struct kvec *vec;
+ 	unsigned long vec_seek;
++	int crossed = 0;
+ 
+ 	wbufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
+ 	adr += chip->start;
++
++	SWITCH_BANKS;
++
+ 	cmd_adr = adr & ~(wbufsize-1);
+ 
+ 	/* Let's determine this according to the interleave only once */
+@@ -1470,6 +1505,9 @@
+ 	ret = get_chip(map, chip, cmd_adr, FL_WRITING);
+ 	if (ret) {
+ 		spin_unlock(chip->mutex);
++
++		SWITCH_BACK;
++
+ 		return ret;
+ 	}
+ 
+@@ -1647,6 +1685,9 @@
+ 	xip_enable(map, chip, cmd_adr);
+  out:	put_chip(map, chip, cmd_adr);
+ 	spin_unlock(chip->mutex);
++
++	SWITCH_BACK;
++
+ 	return ret;
+ }
+ 
+@@ -1718,9 +1759,12 @@
+ 	int retries = 3;
+ 	DECLARE_WAITQUEUE(wait, current);
+ 	int ret = 0;
++	int crossed = 0;
+ 
+ 	adr += chip->start;
+ 
++	SWITCH_BANKS;
++
+ 	/* Let's determine this according to the interleave only once */
+ 	status_OK = CMD(0x80);
+ 
+@@ -1729,6 +1773,9 @@
+ 	ret = get_chip(map, chip, adr, FL_ERASING);
+ 	if (ret) {
+ 		spin_unlock(chip->mutex);
++
++		SWITCH_BACK;
++
+ 		return ret;
+ 	}
+ 
+@@ -1830,6 +1877,9 @@
+ 	xip_enable(map, chip, adr);
+  out:	put_chip(map, chip, adr);
+ 	spin_unlock(chip->mutex);
++
++	SWITCH_BACK;
++
+ 	return ret;
+ }
+ 
+@@ -1924,9 +1974,12 @@
+ 	map_word status, status_OK;
+ 	unsigned long timeo = jiffies + HZ;
+ 	int ret;
++	int crossed = 0;
+ 
+ 	adr += chip->start;
+ 
++	SWITCH_BANKS;
++
+ 	/* Let's determine this according to the interleave only once */
+ 	status_OK = CMD(0x80);
+ 
+@@ -1934,6 +1987,9 @@
+ 	ret = get_chip(map, chip, adr, FL_LOCKING);
+ 	if (ret) {
+ 		spin_unlock(chip->mutex);
++
++		SWITCH_BACK;
++
+ 		return ret;
+ 	}
+ 
+@@ -1976,6 +2032,9 @@
+ 			printk(KERN_ERR "%s: block unlock error: (status timeout)\n", map->name);
+ 			put_chip(map, chip, adr);
+ 			spin_unlock(chip->mutex);
++
++			SWITCH_BACK;
++
+ 			return -EIO;
+ 		}
+ 
+@@ -1988,6 +2047,9 @@
+ 	xip_enable(map, chip, adr);
+ 	put_chip(map, chip, adr);
+ 	spin_unlock(chip->mutex);
++
++	SWITCH_BACK;
++
+ 	return 0;
+ }
+ 
+@@ -2451,6 +2513,15 @@
+ 
+ static int __init cfi_intelext_init(void)
+ {
++#ifdef CONFIG_BFIN537_BLUETECHNIX_CM
++        printk(KERN_INFO "Setting up flash driver for Bluetechnix CM-BF537x board\n");
++        /* configure PF4 GPIO pin connected to flash-A21 */
++        bfin_write_PORTF_FER(bfin_read_PORTF_FER() & (~PF4));
++        bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | PF4);
++        bfin_write_PORTFIO_CLEAR(PF4);
++        __builtin_bfin_ssync();
++#endif
++
+ 	inter_module_register(im_name_0001, THIS_MODULE, &cfi_cmdset_0001);
+ 	inter_module_register(im_name_0003, THIS_MODULE, &cfi_cmdset_0001);
+ 	inter_module_register(im_name_0200, THIS_MODULE, &cfi_cmdset_0001);
+--- uClinux-dist-fresh/linux-2.6.x/drivers/mtd/maps/physmap.c	2006-03-23 07:43:55.000000000 +0100
++++ uClinux-dist/linux-2.6.x/drivers/mtd/maps/physmap.c	2007-02-18 11:18:26.000000000 +0100
+@@ -34,9 +34,35 @@
+ static struct mtd_partition *mtd_parts;
+ static int                   mtd_parts_nb;
+ 
+-static int num_physmap_partitions;
++#ifndef CONFIG_BFIN537_BLUETECHNIX_CM
+ static struct mtd_partition *physmap_partitions;
++#else
++
++/************static partition definition for Bluetechnix Coremodules ************/
++
++static int num_physmap_partitions = 3;  // set number of partitions
+ 
++static struct mtd_partition physmap_partitions[] = // set partitions
++  {
++    {
++      name: "U-boot",
++      size: 0x40000,
++      offset: 0,
++    },
++    {
++      name: "Kernel",
++      size: 0x200000,
++      offset: 0x40000,
++    },
++    {
++      name: "JFFS2",
++      size: 0x1c0000,
++      offset: 0x240000,
++    }
++};
++#endif /* CONFIG_BFIN537_BLUETECHNIX_CM */
++
++#ifndef CONFIG_BFIN537_BLUETECHNIX_CM
+ static const char *part_probes[] __initdata = {"cmdlinepart", "RedBoot", NULL};
+ 
+ void physmap_set_partitions(struct mtd_partition *parts, int num_parts)
+@@ -44,6 +70,7 @@
+ 	physmap_partitions=parts;
+ 	num_physmap_partitions=num_parts;
+ }
++#endif /* CONFIG_BFIN537_BLUETECHNIX_CM */
+ #endif /* CONFIG_MTD_PARTITIONS */
+ 
+ static int __init init_physmap(void)
+@@ -70,6 +97,7 @@
+ 		mymtd->owner = THIS_MODULE;
+ 
+ #ifdef CONFIG_MTD_PARTITIONS
++#ifndef CONFIG_BFIN537_BLUETECHNIX_CM
+ 		mtd_parts_nb = parse_mtd_partitions(mymtd, part_probes,
+ 						    &mtd_parts, 0);
+ 
+@@ -78,6 +106,7 @@
+ 			add_mtd_partitions (mymtd, mtd_parts, mtd_parts_nb);
+ 			return 0;
+ 		}
++#endif
+ 
+ 		if (num_physmap_partitions != 0)
+ 		{

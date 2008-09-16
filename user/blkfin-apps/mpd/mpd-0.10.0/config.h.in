@@ -1,0 +1,174 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define if alsa support is present */
+#undef HAVE_ALSA
+
+/* Define to play audio */
+#undef HAVE_AUDIO
+
+/* Define for audiofile support */
+#undef HAVE_AUDIOFILE
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the `dlopen' function. */
+#undef HAVE_DLOPEN
+
+/* Define to 1 if `dontUpSampleImplicitSBR' is member of
+   `faacDecConfiguration'. */
+#undef HAVE_FAACDECCONFIGURATION_DONTUPSAMPLEIMPLICITSBR
+
+/* Define to 1 if `downMatrix' is member of `faacDecConfiguration'. */
+#undef HAVE_FAACDECCONFIGURATION_DOWNMATRIX
+
+/* Define to 1 if `samplerate' is member of `faacDecFrameInfo'. */
+#undef HAVE_FAACDECFRAMEINFO_SAMPLERATE
+
+/* Define to use FAAD2 for AAC decoding */
+#undef HAVE_FAAD
+
+/* Define if FAAD2 uses buflen in function calls */
+#undef HAVE_FAAD_BUFLEN_FUNCS
+
+/* Define for FLAC support */
+#undef HAVE_FLAC
+
+/* Define for HTTP streaming */
+#undef HAVE_HTTP_INPUT
+
+/* Define to use iconv */
+#undef HAVE_ICONV
+
+/* Define to use id3tag */
+#undef HAVE_ID3TAG
+
+/* Define to 1 if you have the <id3tag.h> header file. */
+#undef HAVE_ID3TAG_H
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define if IPv6 support present */
+#undef HAVE_IPV6
+
+/* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
+#undef HAVE_LANGINFO_CODESET
+
+/* Define to 1 if you have the `FLAC' library (-lFLAC). */
+#undef HAVE_LIBFLAC
+
+/* Define if locale.h is present */
+#undef HAVE_LOCALE
+
+/* Define to 1 if you have the <machine/soundcard.h> header file. */
+#undef HAVE_MACHINE_SOUNDCARD_H
+
+/* Define to use libmad */
+#undef HAVE_MAD
+
+/* Define to 1 if you have the <mad.h> header file. */
+#undef HAVE_MAD_H
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define for mikmod support */
+#undef HAVE_MIKMOD
+
+/* Define to 1 if the system has the type `mp4AudioSpecificConfig'. */
+#undef HAVE_MP4AUDIOSPECIFICCONFIG
+
+/* Define for bundled ogg vorbis support using Tremor */
+#undef HAVE_MPD_IVORBIS
+
+/* Define for ogg vorbis support */
+#undef HAVE_OGG
+
+/* Define to output audio with OSS */
+#undef HAVE_OSS
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define if sys/inttypes.h present */
+#undef HAVE_SYS_INTTYPES_H
+
+/* Define to 1 if you have the <sys/soundcard.h> header file. */
+#undef HAVE_SYS_SOUNDCARD_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to configure for uClinux */
+#undef HAVE_UCLINUX
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to configure without debugging */
+#undef NDEBUG
+
+/* Define to disable OSS mixer support */
+#undef NO_OSS_MIXER
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* The size of a `int', as computed by sizeof. */
+#undef SIZEOF_INT
+
+/* The size of a `long', as computed by sizeof. */
+#undef SIZEOF_LONG
+
+/* The size of a `long long', as computed by sizeof. */
+#undef SIZEOF_LONG_LONG
+
+/* The size of a `short', as computed by sizeof. */
+#undef SIZEOF_SHORT
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define to use mpd flac */
+#undef USE_MPD_FLAC
+
+/* Define to use mpd libid3tag */
+#undef USE_MPD_ID3TAG
+
+/* Define to use mpd libmad */
+#undef USE_MPD_MAD
+
+/* Version number of package */
+#undef VERSION
+
+/* Define to 1 if your processor stores words with the most significant byte
+   first (like Motorola and SPARC, unlike Intel and VAX). */
+#undef WORDS_BIGENDIAN

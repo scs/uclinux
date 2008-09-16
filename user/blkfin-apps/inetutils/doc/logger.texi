@@ -1,0 +1,67 @@
+@node logger
+@chapter logger
+@cindex logger
+
+@command{logger} is a program to make entries in the system log files.
+It provides a shell command interface to the system log module.
+@xref{Syslog, , Syslog, libc, The GNU C Library Reference Manual}, for
+details.
+
+The message can contain a priority code, which should be a preceding
+decimal number in angle braces, for example, @code{<5>}.  This priority
+code should map into the priorities defined in the include file
+@code{<sys/syslog.h>}.
+
+@section Invoking
+
+The options are as follows :
+
+@table @samp
+@item -i
+@opindex -i
+Log the process ID of the logger process with each line.
+
+@item -s
+@opindex -s
+Log the message to standard error, as well as the system log.  This
+option might not be supported on all systems.
+
+@item -f FILE
+@itemx --file=FILE
+@opindex -f FILE
+@opindex --file=FILE
+Log the content of the specified file.
+
+@item -p PRIORITY
+@itemx --priority=PRIORITY
+@opindex -p PRIORITY
+@opindex --priority=PRIORITY
+Enter the message with the specified priority.  The priority may be
+specified numerically or as a @samp{facility.level} pair.  For
+example, @samp{-p local3.info} logs the message at the informational
+level in the @samp{local3} facility.  The default is
+@samp{user.notice}.
+
+The actual list of supported facilities and levels is system specific.
+
+@item -t TAG
+@itemx --tag=TAG
+@opindex -t TAG
+@opindex --tag=TAG
+Mark every line in the log with the specified tag.
+@end table
+
+The options are followed by the message which should be written to the
+log.  If not specified, and the -f flag is not provided, standard
+input is logged.
+
+The logger utility exits 0 on success, and >0 if an error occurs.
+
+The following examples illustrate the usage of the @command{logger}
+command.
+
+@example
+logger System rebooted
+
+logger -p local0.notice -t HOSTIDM -f /dev/idmc
+@end example

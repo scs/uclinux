@@ -1,0 +1,38 @@
+<html>
+<head><title>FtpPut</title></head>
+<body>
+
+<h1>FtpPut</h1>
+<p>Send a file to the remote system.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpPut(const char *input, const char *path, char mode, netbuf *nControl);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>input</b>
+<dd>Specifies the name of a local file to be transfered to the server.
+
+<dt><b>path</b>
+<dd>Specifies the name to be given to the file on the remote system.
+
+<dt><b>mode</b>
+<dd>Specifies the transfer mode as FTPLIB_ASCII or FTPLIB_IMAGE.
+
+<dt><b>nControl</b>
+<dd>A handle returned by <a href="FtpConnect.html">FtpConnect()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>FtpPut() transfers a local file to the remote system.
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if successful or 0 on error.
+
+</body>
+</html>

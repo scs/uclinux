@@ -1,0 +1,66 @@
+# Note that this is NOT a relocatable package
+%define ver      @VERSION@
+%define rel      1
+%define prefix   /usr
+
+Summary:   SDLRoids - an enhanced shoot-the-asteroids
+Name:      sdlroids
+Version:   %ver
+Release:   %rel
+Copyright: GPL
+
+Group:     Amusements/Games/
+Source0:   @PACKAGE@-%{PACKAGE_VERSION}.tar.bz2
+URL:       http://sourceforge.net/projects/sdlroids/
+BuildRoot: /tmp/@PACKAGE@-%{PACKAGE_VERSION}-root
+Packager:  David Hedbor <david@hedbor.org>
+Docdir: %{prefix}/doc
+
+%description
+SDLRoids is essentially an Asteroids clone, but with a few extra
+features, and some nice game physics.
+
+
+%prep
+rm -rf ${RPM_BUILD_ROOT}
+
+%setup -q
+
+%build
+# Needed for snapshot releases.
+if [ ! -f configure ]; then
+  CFLAGS="$RPM_OPT_FLAGS" ./autogen.sh
+else
+  CFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=%prefix
+fi
+
+if [ "$SMP" != "" ]; then
+  (make "MAKE=make -k -j $SMP"; exit 0)
+  make
+else
+  make
+fi
+
+%install
+rm -rf $RPM_BUILD_ROOT
+
+make prefix=$RPM_BUILD_ROOT%{prefix} install
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post
+
+%postun
+/sbin/ldconfig
+
+%files
+%defattr(-, root, root)
+%doc ChangeLog README README.orig README.xhyperoid COPYING
+%{prefix}/bin/sdlroids
+%{prefix}/man/man6/sdlroids*
+%{prefix}/share/sdlroids/*
+
+%changelog
+* Thu Jul  6 2000 David Hedbor <david@hedbor.org>
+- First rpm version

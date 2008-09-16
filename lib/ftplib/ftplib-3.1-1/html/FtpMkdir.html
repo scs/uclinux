@@ -1,0 +1,32 @@
+<html>
+<head><title>FtpMkdir</title></head>
+<body>
+
+<h1>FtpMkdir</h1>
+<p>Create a directory on the remote system.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpMkdir(const char *path, netbuf *nControl);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>path</b>
+<dd>Specifies the argument to mkdir on the remote system.
+
+<dt><b>nControl</b>
+<dd>A handle returned by <a href="FtpConnect.html">FtpConnect()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>FtpMkdir() sends a make directory request to the remote system.
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if successful or 0 on error.
+
+</body>
+</html>

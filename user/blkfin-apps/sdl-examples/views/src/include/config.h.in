@@ -1,0 +1,4 @@
+#undef PACKAGE
+#undef VERSION
+#undef HAVE_GETOPT_H
+#undef HAVE_WGET

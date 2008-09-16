@@ -1,0 +1,8 @@
+mainmenu_option next_comment
+comment 'Real-time sub-system'
+
+bool 'Xenomai' CONFIG_XENOMAI
+
+source kernel/xenomai/Config.in
+
+endmenu

@@ -1,0 +1,2 @@
+Only libinetutils, rsh, rcp, and rshd are ported to uClinux. Others are removed
+to save disk space and cvs checkout time.

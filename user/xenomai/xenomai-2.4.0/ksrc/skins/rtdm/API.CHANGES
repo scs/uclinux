@@ -1,0 +1,43 @@
+Scheduled modifications (unsorted):
+ o Packet pool management (generalised variant of RTnet's and RT-Firerwire's
+   buffer pools).
+ o Threaded IRQ handlers.
+ o Support for deferring IRQ line re-enabling from handler to thread context.
+ o Support for user-space drivers.
+
+Revision 6:
+ o Added profile_version field to rtdm_device.
+ o Requested IRQ lines are now enabled on return of rtdm_irq_request.
+ o Converted request argument in IOCTL handler to unsigned int to fix issues
+   on 64-bit architectures.
+ o Added custom argument to rtdm_nrtsig handler.
+ o Introduced Timer API.
+ o Introduced monotonic time base:
+    - obtainable via rtdm_clock_read_monotonic
+    - usable via new rtdm_task_sleep_abs or the timer API
+ o Deprecated rtdm_task_sleep_until, users shall migrate to
+   rtdm_task_sleep_abs(..., RTDM_TIMERMODE_REALTIME).
+
+Revision 5:
+ o Introduced generic time types nanosecs_abs_t and nanosecs_rel_t.
+ o Switched the following functions parameters from unsigned to signed
+   (uint64_t -> nanosecs_rel_t) and adopted their semantics:
+    - period in rtdm_task_init, period 0 means non-periodic
+    - period in rtdm_task_set_period, period 0 means non-periodic
+    - delay in rtdm_task_sleep, now clearly specified: delay = 0 means
+      infinite delay, delay < 0 means no delay at all
+    - delay in rtdm_task_busy_sleep, same semantics as before (delay <= 0
+      means no delay)
+  o Added rtdm_safe_copy_to/from_user.
+  o Added rtdm_iomap_to_user.
+
+Revision 4:
+ o Dropped RTDM_IRQ_PROPAGATE ISR return flag. Generic deterministic RTDM
+   drivers should not interact with standard Linux in this way.
+ o Merged RTDM_IRQ_ENABLE into RTDM_IRQ_HANDLED return code. An explicit
+   request to leave the IRQ line disabled upon return from ISR will be
+   provided in later versions via rtdm_irq_disable.
+ o Added RTDM_IRQTYPE_SHARED and RTDM_IRQTYPE_EDGE flags which indicate
+   specific handling sharable level- and edge-triggered IRQs
+ o Added rtdm_mmap_to_user and rtdm_munmap. Intended usage is the mapping of
+   driver memory like DMA buffers into the address range of a user task.

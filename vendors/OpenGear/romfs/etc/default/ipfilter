@@ -1,0 +1,67 @@
+#!/bin/sh
+
+IPTABLES=/bin/iptables
+
+# Chain names
+BLOCK=Block
+STATE=Stateful
+
+# Script paths
+CUSTOMFILE=/etc/config/filter-custom
+SERVICESFILE=/etc/config/filter-services
+TRUSTEDFILE=/etc/config/filter-trusted
+SERIALFILE=/etc/config/filter-serial
+
+# Initialise ip filtering.
+${IPTABLES} --flush
+${IPTABLES} --delete-chain
+
+# Run custom rules and exit if user script exists
+if [ -f ${CUSTOMFILE} ]; then
+	echo "Running custom firewall script: ${CUSTOMFILE}"
+	/bin/sh ${CUSTOMFILE}
+	exit 0
+fi
+
+# Set default policies for standard chains
+${IPTABLES} --policy FORWARD DROP
+${IPTABLES} --policy INPUT DROP
+${IPTABLES} --policy OUTPUT ACCEPT
+
+# Create  a logging deny rule for use by other chains (Do not log broadcast packets).
+${IPTABLES} --new-chain ${BLOCK}
+${IPTABLES} --append ${BLOCK} --destination ! 0.0.0.255/0.0.0.255 --jump LOG --log-prefix "iptables: ${BLOCK}: " --match limit
+${IPTABLES} --append ${BLOCK} --protocol tcp --jump REJECT --reject-with tcp-reset
+${IPTABLES} --append ${BLOCK} --protocol udp --jump REJECT --reject-with icmp-port-unreachable
+${IPTABLES} --append ${BLOCK} --jump DROP
+
+# Keep state around for established connections.
+${IPTABLES} --new-chain ${STATE}
+${IPTABLES} --append ${STATE} --match state --state ESTABLISHED,RELATED --jump ACCEPT
+${IPTABLES} --append INPUT --jump ${STATE}
+
+# loopback rules
+${IPTABLES} --append INPUT --in-interface lo --jump ACCEPT
+${IPTABLES} --append OUTPUT --out-interface lo --jump ACCEPT
+
+# DHCP client
+${IPTABLES} --append INPUT --protocol udp --sport 67 --dport 68 --jump ACCEPT
+
+# Explicitly allow configured system services.
+if [ -f ${SERVICESFILE} ]; then
+    /bin/sh ${SERVICESFILE}
+fi
+
+# Restrict access to explicitly configured trusted networks.
+if [ -f ${TRUSTEDFILE} ]; then
+    /bin/sh ${TRUSTEDFILE}
+fi
+
+# Explicitly allow access to serial port services.
+if [ -f ${SERIALFILE} ]; then
+    /bin/sh ${SERIALFILE}
+fi
+
+# Do not route packets or accept any explicitly allowed packets.
+${IPTABLES} --append FORWARD --jump ${BLOCK}
+${IPTABLES} --append INPUT --jump ${BLOCK}

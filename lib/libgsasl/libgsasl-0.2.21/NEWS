@@ -1,0 +1,748 @@
+GNU SASL LIBRARY NEWS -- History of user-visible changes.
+Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007 Simon Josefsson
+See the end for copying conditions.
+
+* Version 0.2.21 (released 2007-08-22)
+
+** DIGEST-MD5: Remove the extra leading, trailing, and intermediate commas.
+Patch from James Canete <jcanete01@shaw.ca>.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.20 (released 2007-08-11)
+
+** Correctly increment the shared library version.
+I forgot to increment it in the last release, to indicate that a new
+API/ABI was added.
+
+** If GSS-API and GS2 are disabled, don't bother linking to a GSS-API library.
+Reported by Maxim Britov <maxim.britov@gmail.com>.
+
+** Update gnulib files.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.19 (released 2007-07-09)
+
+** New API gsasl_free to release memory allocated by other functions.
+This is useful on Windows where libgsasl uses one CRT and the
+application uses another CRT.  Then malloc/free will not use the same
+heap.  This happens if you build libgsasl using mingw32 and the
+application with Visual Studio.  Suggested by Adam Strzelecki
+<ono@java.pl>.
+
+** Update gnulib files.
+
+** API and ABI modifications.
+gsasl_free: ADD.
+
+* Version 0.2.18 (released 2007-06-07)
+
+** Update gnulib files.
+Fixes cross-compilation to uClinux.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.17 (released 2007-06-01)
+
+** GNU SASL is now developed using Git instead of CVS.
+A public git mirror is available from <http://repo.or.cz/w/gsasl.git>.
+
+** Update gnulib files.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.16 (released 2007-04-20)
+
+** Translation updates.
+
+** Fix gsasl_check_version logic.
+
+** Now uses autoconf 2.61, automake 1.10, gettext 0.16.1.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.15 (released 2006-08-22)
+
+** Changed libgsasl shared library version.
+The shared library version was not incremented correctly in the last
+release, even though new APIs were added.
+
+* Version 0.2.14 (released 2006-08-19)
+
+** New functions to set per-session application hooks.
+Earlier only the global functions gsasl_callback_hook_set and
+gsasl_callback_hook_set were available, but with the new
+gsasl_session_hook_set and gsasl_session_hook_get, it is possible to
+store and retrieve per-session specific data.  This simplifies
+callback handling in applications.  Suggested by James Mansion.
+
+The new function supersede the gsasl_client_application_data_get,
+gsasl_client_application_data_set, gsasl_server_application_data_get,
+and gsasl_server_application_data_set functions in the obsolete API.
+
+** API and ABI modifications.
+gsasl_session_hook_get,
+gsasl_session_hook_set: ADD.
+
+* Version 0.2.13 (released 2006-06-14)
+
+** Update of gnulib files.
+Further improves portability to MinGW.
+
+** Fix memory leak in gsasl_client_listmech and gsasl_server_listmech.
+
+** Configure fixes, for portability.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.12 (released 2006-03-08)
+
+** Add -no-undefined to libtool command, to build DLL and import library on Mingw32.
+Reported by Francis Brosnan Blazquez <francis@aspl.es>.
+
+** Improved validation of received strings in the DIGEST-MD5 parser.
+
+** Enable fixed self-test of DIGEST-MD5 parser.
+
+** Update of gnulib files.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.11 (released 2006-02-07)
+
+** Ported to Windows by cross-compiling using Mingw32.
+Using Debian's mingw32 compiler, you can build it for Windows by invoking
+`./configure --host=i586-mingw32msvc --disable-gssapi'.
+
+** Fix memory leak in gsasl_simple_getpass.
+
+** Update of gnulib files.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.10 (released 2005-10-23)
+
+** Improve configure checks for libidn, libntlm, libgss and libshishi presence.
+
+** Update of gnulib files, now includes self tests.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.9 (released 2005-10-07)
+
+** Fix build error with some compilers in GSS-API mechanism.
+
+** Gnulib is now used for crypto functions, instead of Nettle in crypto/.
+Libgcrypt can still optionally be used through --with-libgcrypt.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.8 (released 2005-09-08)
+
+** The PLAIN mechanism is preferred over LOGIN when both are available.
+
+** Improved checking for libidn when the system need -R, -rpath or similar.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.7 (released 2005-08-25)
+
+** Fixed bug in GNU SASL 0.1.x.backwards compatibility code in the
+** callback for GSASL_PASSWORD.
+
+** Eliminated some compiler warnings.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.6 (released 2005-08-10)
+
+** The SASL PLAIN server now permit unassigned code points in SASLprep.
+This aligns with draft-ietf-sasl-plain-08.txt which is in last call.
+
+** Fix use of 'head -1' in configure script.
+Replaced with more portable and compliant command 'sed 1q', thanks to
+Carsten Lohrke.
+
+** The macro AX_CREATE_STDINT_H used to find uint8_t, uint32_t etc was updated.
+Should only be relevant if you use Nettle rather than libgcrypt.
+
+** The license template in files were updated with the new FSF address.
+
+** gsasl_check_version simplified and made more robust.
+
+** Update of gnulib files.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.5 (released 2005-02-08)
+
+** Strings that trigger the Unicode NFKC bug in PR#29 are now rejected.
+This is only enabled if you use Libidn 0.5.0 or later.
+
+** ANONYMOUS server reject empty and overlong tokens.
+
+** EXTERNAL client now return empty data instead of NULL for empty authzid.
+
+** Typos in gsasl_strerror() messages fixed, thanks to Clytie Siddall.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.4 (released 2005-01-01)
+
+** The CRAM-MD5 mechanism is now preferred over DIGEST-MD5.
+This decision was based on recent public research that suggest MD5 is
+broken, while HMAC-MD5 not immediately compromised, and the lack of
+public analysis on what consequences the MD5 break have for
+DIGEST-MD5.  Support for CRAM-SHA1 is under investigation, to enable
+users to avoid MD5 completely
+
+** The DIGEST-MD5 mechanism is rewritten and enabled by default.
+The implementation is written so it can be used separately from GNU
+SASL in your own product, it only uses C89 and two external symbols
+for MD5 and HMAC-MD5.  For more information, see digest-md5/README.
+
+** Improvements to the PLAIN server.
+It now prepare the incoming authid and password using SASLprep
+(unassigned code point will be rejected).  It should also reject
+invalid input better.
+
+** Improved robustness of callback backwards compatibility.
+
+** Memory leaks fixed.
+
+** New simple user database API `gsasl_simple_getpass'.
+This replaces gsasl_md5pwd_get_password.  The functionality is the
+same, only the API changed (to remove fixed size buffer restrictions).
+
+** New configure option --disable-obsolete to remove backwards compatibility.
+This is mostly intended to be used when compiling for platforms with
+constrained memory/space resources.
+
+** Gnulib files were updated.
+
+** API and ABI modifications.
+gsasl_md5pwd_get_password: DEPRECATED.  Use gsasl_simple_getpass() instead.
+gsasl_simple_getpass: ADD.  No buffer length restriction.
+GSASL_FOPEN_ERROR: DEPRECATED.  Not used any more.
+GSASL_FCLOSE_ERROR: DEPRECATED.  Not used any more.
+GSASL_NO_MORE_REALMS: DEPRECATED.  Not used any more.
+GSASL_INVALID_HANDLE: DEPRECATED.  Not used any more.
+
+* Version 0.2.3 (released 2004-12-15)
+
+** NTLM now set the 'domain' field to the GSASL_REALM property value.
+Some servers appear to need non-empty but arbitrary domain values,
+reported by Martin Lambers.
+
+** PLAIN client no longer perform NFKC on strings.
+This aligns with draft-ietf-sasl-plain-05.
+
+** LOGIN client no longer perform NFKC on strings.
+There is no specification for LOGIN, but arguable it should use
+SASLprep, but on the server side.
+
+** DIGEST-MD5 is disabled by default, pending a rewrite for the new API.
+The mechanism still work if your application is using the old callback
+API, in which case you may enable it (--enable-digest-md5) to have the
+same functionality as in older versions.
+
+** LOGIN client now uses authentication identity, not authorization identity,
+reported by Martin Lambers.
+
+** PLAIN client now work when no authorization identity is provided,
+reported by Martin Lambers.
+
+** Callback backwards compatibility improved, thanks to Sergey Poznyakoff.
+The GSASL_VALIDATE_SIMPLE and GSASL_PASSWORD are now translated into
+calls to gsasl_server_callback_validate_get() and
+gsasl_server_callback_retrieve_get(), respectively.
+
+** A crash in the new base64 code was fixed.
+
+** Use of SASLprep in CRAM-MD5 changed.
+The client now prepare authid/password as if they were query strings.
+The server prepare the password as a storage string.
+
+** The shared library version was incremented to reflect that the base64 APIs
+were added, this was forgotten in the last release.
+
+** Disabling Libidn/SASLprep should now result in a RFC 2222 compliant library.
+However, it will reject non-ASCII strings, since the handling of those
+strings was not specified in RFC 2222.
+
+** API and ABI modifications.
+gsasl_stringprep_nfkc, gsasl_stringprep_saslprep,
+gsasl_stringprep_trace: DEPRECATED.  Use gsasl_saslprep() instead.
+gsasl_saslprep: ADD.
+Gsasl_saslprep_flags: ADD.  New enum type to go with gsasl_saslprep.
+GSASL_REALM: ADD, new property.
+GSASL_UNICODE_NORMALIZATION_ERROR: DEPRECATED.  Use
+                                   GSASL_SASLPREP_ERROR instead.
+GSASL_CANNOT_VALIDATE: REMOVED.  Never used for any reasonable purpose.
+
+* Version 0.2.2 (released 2004-11-29)
+
+** Fix memory leak in server-side CRAM-MD5.
+
+** Fix read out of bound error in client-side CRAM-MD5.
+
+** Tighten the base64 decoder, will not accept white space in input.
+
+** Documentation fixes.
+
+** API and ABI modifications.
+gsasl_base64_encode, gsasl_base64_decode: DEPRECATED.
+gsasl_base64_to, gsasl_base64_from: NEW.  Allocates the output buffer.
+
+* Version 0.2.1 (released 2004-11-19)
+
+** Fix DIGEST-MD5 application data encode/decode functions.
+
+** Documentation fixes; the old callback API functions are marked as obsolete.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.2.0 (released 2004-11-07)
+
+** Important information for 0.0.x or 0.1.x users.
+The only externally visible (i.e., in the API/ABI-sense) effect of the
+internal changes made in this version is that GSASL_ENCODE and
+GSASL_DECODE have been renamed to, respectively, GSASL_ENCODE_INLINE
+and GSASL_DECODE_INLINE, and that the original functions have been
+modified to allocate the output buffer.  The GSASL_??CODE_INLINE
+functions were added to simplify upgrading existing applications.  We
+regret breaking backwards compatibility, but we felt it was necessary
+to fix this.
+
+** The EXTERNAL mechanism now support authorization identities.
+
+** Major internal overhaul.
+This was done to get rid of all fixed size buffers, and to clean up
+the callback interface.  Now, all functions that return data of
+non-fixed size will allocate the output, and the caller is responsible
+for deallocating the data.  Further, the callback interface has been
+simplified, from having one callback function per data item.  There is
+now only one callback function, that receive an enumerated integer
+type indicating the requested operation.
+
+** Update of generic crypto layer.
+
+** Now possible to add a new SASL mechanism during run-time.
+Implement the Gsasl_*_function interfaces, populate a Gsasl_mechanism
+struct with name of SASL mechanism and the function pointers, and call
+gsasl_register to register your new mechanism.  The library will now
+offer and use your mechanism.  The internal mechanisms use the same
+interface.  This is the first step toward a dynamic dl_open()
+approach.
+
+** A few memory leaks fixed.
+
+** Translation fixes.
+
+** Libtool's -export-symbols-regex is now used to only export official APIs.
+Before, applications might accidentally access internal functions.
+Note that this is not supported on all platforms, so you must still
+make sure you are not using undocumented symbols in Libgsasl.
+
+** API and ABI modifications.
+The only non-backwards compatible change is for gsasl_encode and
+gsasl_decode, see above.  The library is both source and binary
+backwards compatible otherwise, although some functions have been
+deprecated in favor of new functions.
+
+gsasl_encode, gsasl_decode: MODIFIED.  Now allocate the output parameter.
+gsasl_encode_inline, gsasl_decode_inline: ADD, DEPRECATED.
+  Same as the old gsasl_encode and gsasl_decode, to simplify conversion.
+
+gsasl_server_suggest_mechanism: DEPRECATED.  This was a thinko, there
+  is never a need for something like this function.
+
+Gsasl_callback: ADD.  New function prototype.
+gsasl_callback_set: ADD.  New functions.
+gsasl_callback: ADD.  New functions.
+GSASL_NO_CALLBACK, GSASL_NO_ANONYMOUS_TOKEN: ADD.  New error codes.
+
+Gsasl_client_callback_anonymous,
+Gsasl_client_callback_authentication_id,
+Gsasl_client_callback_authorization_id,
+Gsasl_client_callback_password,
+Gsasl_client_callback_passcode,
+Gsasl_client_callback_pin,
+Gsasl_client_callback_service,
+Gsasl_client_callback_qop,
+Gsasl_client_callback_maxbuf,
+Gsasl_client_callback_realm,
+Gsasl_server_callback_retrieve,
+Gsasl_server_callback_validate,
+Gsasl_server_callback_gssapi,
+Gsasl_server_callback_securid,
+Gsasl_server_callback_cram_md5,
+Gsasl_server_callback_digest_md5,
+Gsasl_server_callback_service,
+Gsasl_server_callback_external,
+Gsasl_server_callback_anonymous,
+Gsasl_server_callback_realm,
+Gsasl_server_callback_qop,
+Gsasl_server_callback_maxbuf,
+Gsasl_server_callback_cipher: DEPRECATED.  Old callback function prototypes.
+gsasl_client_callback_*,
+gsasl_server_callback_*: DEPRECATED.  Old callback set/get interface.
+
+Gsasl_property, GSASL_CLIENT_*, GSASL_SERVER_*: ADD.  New enumerated type.
+gsasl_property_set, gsasl_property_set_raw,
+gsasl_property_get, gsasl_property_fast: ADD.  New functions.
+
+gsasl_application_data_get, gsasl_application_data_set: DEPRECATED.
+gsasl_appinfo_get, gsasl_appinfo_set: DEPRECATED.
+gsasl_callback_hook_get, gsasl_callback_hook_set: ADD.  Replaces
+  previous functions.
+
+Gsasl_init_function, Gsasl_done_function, Gsasl_code_function,
+Gsasl_start_function, Gsasl_step_function, Gsasl_finish_function: ADD.
+Gsasl_mechanism_functions, Gsasl_mechanism: ADD.
+gsasl_register: ADD.
+
+gsasl_ctx_get: DEPRECATED.  Not useful, application callback now get both
+  library and session context.
+
+* Version 0.1.4 (released 2004-08-08)
+
+** Fix various compile time warnings.
+
+** Revamp of gnulib compatibility files.
+
+** More translations.
+French (by Michel Robitaille), Dutch (by Elros Cyriatan), Polish (by
+Jakub Bogusz), and Romanian (by Laurentiu Buzdugan).
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.1.3 (released 2004-08-04)
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.1.2 (released 2004-07-16)
+
+** Cross compile builds should work.
+It should work for any sane cross compile target, but the only tested
+platform is uClibc/uClinux on Motorola Coldfire.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.1.1 (released 2004-06-26)
+
+** gsasl_client_suggest_mechanism and gsasl_server_suggest_mechanism now work.
+Earlier they were not implemented at all.
+
+** GSS-API now support data integrity and privacy options (experimental!).
+
+** Internal crypto framework rehashed.
+Now the selection between Nettle/Libgcrypt happens inside crypto/, and
+gc.h is the generic header that is used by the rest of the package.
+
+** API and ABI modifications.
+gsasl_random: ADD.
+gsasl_nonce: ADD.
+gsasl_randomize: DEPRECATED.  Use either gsasl_random or gsasl_nonce.
+
+* Version 0.1.0 (released 2004-04-16)
+
+** The library re-licensed to LGPL and distributed as a separate package.
+This means a fork of this NEWS file, all the entries below relate to
+the combined work of earlier versions.  New entries above only
+document user visible aspects of the library ("libgsasl"); for
+information about the command line interface and other things
+("gsasl") see the NEWS file in the gsasl distribution.  To make
+matters more confusing, the "gsasl" distribution includes a copy of
+the "libgsasl" distribution.
+
+** API and ABI modifications.
+No changes since last version.
+
+* Version 0.0.14 (released 2004-01-22)
+
+** Moved all mechanism specific code into sub-directories of lib/.
+Each backend is built into its own library (e.g., libgsasl-plain.so),
+to facilitate future possible use of dlopen to dynamically load
+backends.
+
+** Moved compatibility files (getopt*) to gl/, and added more (strdup*).
+
+* Version 0.0.13 (released 2004-01-17)
+
+** Nettle (the crypto functionality, crypto/) has been updated.
+This fixes two portability issues, the new code should work on
+platforms that doesn't have inttypes.h and alloca.
+
+* Version 0.0.12 (released 2004-01-15)
+
+** Protocol line parser in 'gsasl' tool more reliable.
+Earlier it assumed two lines were sent in one packet in one place, and
+sent as two packets in another place.
+
+** Various bugfixes.
+
+* Version 0.0.11 (released 2004-01-06)
+
+** The client part of CRAM-MD5 now uses SASLprep instead of NFKC.
+This aligns with draft-ietf-sasl-crammd5-01.
+
+** The CRAM-MD5 challenge string now conform to the proper syntax.
+
+** The string preparation (SASLprep and trace) functions now work correctly.
+
+** DocBook manuals no longer included.
+The reason is that recent DocBook tools from the distribution I use
+(Debian) fails with an error.  DocBook manuals may be included in the
+future, if I can get the tools to work.
+
+** API and ABI modifications.
+GSASL_SASLPREP_ERROR: ADD.
+
+* Version 0.0.10 (released 2003-11-22)
+
+** The CRAM-MD5 server now reject invalid passwords.
+The logic flaw was introduced in 0.0.9, after blindly making code
+changes to shut up valgrind just before the release.
+
+** Various build improvements.
+Pkg-config is no longer needed.  GTK-DOC is only used if present.
+
+* Version 0.0.9 (released 2003-11-21)
+
+** Command line client can talk to SMTP servers with --smtp.
+
+** DocBook manuals in XML, PDF, PostScript, ASCII and HTML formats included.
+
+** Token parser in DIGEST-MD5 fixed, improve interoperability of DIGEST-MD5.
+
+** Libgcrypt >= 1.1.42 is used if available (for CRAM-MD5 and DIGEST-MD5).
+The previous libgcrypt API is no longer supported.
+
+** CRAM-MD5 and DIGEST-MD5 no longer require libgcrypt (but can still use it).
+If libgcrypt 1.1.42 or later is not found, it uses a minimalistic
+cryptographic library based on Nettle, from crypto/.  Currently only
+MD5 and HMAC-MD5 is needed, making a dependence on libgcrypt overkill.
+
+** Listing supported server mechanisms with gsasl_server_mechlist work.
+
+** Autoconf 2.59, Automake 1.8 beta, Libtool CVS used.
+
+** Source code for each SASL mechanism moved to its own sub-directory in lib/.
+
+** The command line interface now uses getopt instead of argp.
+The reason is portability, this also means we no longer use gnulib.
+
+** API and ABI modifications.
+gsasl_randomize: ADD.
+gsasl_md5: ADD.
+gsasl_hmac_md5: ADD.
+
+gsasl_hexdump: REMOVED.  Never intended to be exported.
+
+gsasl_step: ADD.
+gsasl_step64: ADD.
+gsasl_client_step: DEPRECATED: use gsasl_step instead.
+gsasl_server_step: DEPRECATED: use gsasl_step instead.
+gsasl_client_step_base64: DEPRECATED: use gsasl_step64 instead.
+gsasl_server_step_base64: DEPRECATED: use gsasl_step64 instead.
+
+gsasl_finish: ADD.
+gsasl_client_finish: DEPRECATED: use gsasl_finish instead.
+gsasl_server_finish: DEPRECATED: use gsasl_finish instead.
+
+gsasl_ctx_get: ADD.
+gsasl_client_ctx_get: DEPRECATED: use gsasl_ctx_get instead.
+gsasl_server_ctx_get: DEPRECATED: use gsasl_ctx_get instead.
+
+gsasl_appinfo_get: ADD.
+gsasl_appinfo_set: ADD.
+gsasl_client_application_data_get: DEPRECATED: use gsasl_appinfo_get instead.
+gsasl_client_application_data_set: DEPRECATED: use gsasl_appinfo_set instead.
+gsasl_server_application_data_get: DEPRECATED: use gsasl_appinfo_get instead.
+gsasl_server_application_data_set: DEPRECATED: use gsasl_appinfo_set instead.
+
+Gsasl: ADD.
+Gsasl_ctx: DEPRECATED: use Gsasl instead.
+Gsasl_session: ADD.
+Gsasl_session_ctx: DEPRECATED: use Gsasl_session instead.
+
+GSASL_CRYPTO_ERROR: ADD, replaces deprecated GSASL_LIBGCRYPT_ERROR.
+GSASL_LIBGCRYPT_ERROR: DEPRECATED: use GSASL_CRYPTO_ERROR instead.
+
+GSASL_KERBEROS_V5_INTERNAL_ERROR: ADD, replaces deprecated GSASL_SHISHI_ERROR.
+GSASL_SHISHI_ERROR: DEPRECATED: use GSASL_KERBEROS_V5_INTERNAL_ERROR instead.
+
+GSASL_INVALID_HANDLE: ADD.
+
+* Version 0.0.8 (released 2003-10-11)
+
+** Improved GSSAPI implementation detection.
+Auto detection should work, unless you have both MIT and Heimdal, or
+wish to override the default that prefer GSS over Heimdal over MIT.
+In that case, use --enable-gssapi=mit or --enable-gssapi=heimdal.
+
+** GNU SASL contain APIs for internationalized string processing via SASLprep.
+You no longer have to use Libidn directly.
+
+** Man pages for all public functions are included.
+
+** GNULib is used for compatibility functions.
+The directory gl/ is dedicated for GNULib functions, and replace the
+earlier ad-hoc usage of argp, memset, etc.
+
+** GNU SASL will be C89 compatible.
+The library itself (lib/*) only use C89.  The remaining parts (src/
+and tests/) can use C89 and any functionality from GNULib.  This
+decision may be revised in the future, if it turns out there are
+problems with this.
+
+** Improvements for embedded or otherwise limited systems.
+The math library (-lm) is no longer required.  All client code can be
+disabled by --disable-client, and all server code can be disabled by
+--disable-server.  The internationalized string processing library can
+be disabled by --without-stringprep.
+
+** Gettext 0.12.1 and Libtool 1.5 is used.
+
+** Libgcrypt from CVS (1.1.42) is not supported.
+Recent libgcrypt is API incompatible with earlier released versions.
+If a too recent version is installed, it will not be used.
+
+** Fix command line tool '--connect --imap' on Solaris.
+
+** Bug fixes.
+
+** API and ABI modifications.
+Gsasl_client_callback_maxbuf: CHANGED: 'int' was replaced with 'size_t'.
+Gsasl_server_callback_maxbuf: CHANGED: 'int' was replaced with 'size_t'.
+gsasl_client_mechlist: NEW.
+gsasl_server_mechlist: NEW.
+gsasl_client_listmech: DEPRECATED: use gsasl_client_mechlist instead.
+gsasl_server_listmech: DEPRECATED: use gsasl_server_mechlist instead.
+gsasl_stringprep_nfkc: NEW.
+gsasl_stringprep_saslprep: NEW.
+gsasl_stringprep_trace: NEW.
+
+* Version 0.0.7 (released 2003-06-02)
+
+** Two new GSS libraries supported for the GSS-API mechanism.
+See http://josefsson.org/gss/ for GSS, which uses Shishi for Kerberos 5.
+See http://www.pdc.kth.se/heimdal/ for Heimdal (Kerberos 5).
+
+** Bug fixes.
+
+* Version 0.0.6 (released 2003-03-17)
+
+** Gettext not included.
+Due to some conflicts between libtool and gettext, if you want i18n on
+platforms that does not already have a useful gettext implementation,
+you must install GNU gettext before building this package.  If you
+don't care about i18n, this package should work fine (except for i18n,
+of course).
+
+** Rudimentary support for KERBEROS_V5.
+Only enable if you want to write code.  This adds two new API errors;
+GSASL_KERBEROS_V5_INIT_ERROR, GSASL_SHISHI_ERROR.
+
+** Added API function: gsasl_client_callback_realm_set.
+Specifies which realm the client belongs to.
+
+** Bugfixes.
+User visible aspects includes not building the API Reference Manual
+with GTK-DOC by default, if you want it use configure parameter
+--enable-gtk-doc.
+
+* Version 0.0.5 (released 2003-01-27)
+
+** Command line application "gsasl" now supports --imap and --connect.
+The --imap parameter makes it use a IMAP-like negotiation on
+stdin/stdout.  The --connect parameter makes it connect to a host over
+TCP, and talk to it instead of stdin/stdout.  This allows it to be
+used as a simple test tool to connect to IMAP servers.  Currently
+integrity and confidentiality is not working properly, so if you use
+DIGEST-MD5 you currently have to specify --quality-of-protection=auth.
+
+** Texinfo documentation added for command line tool.
+
+** Libgcrypt initialization no longer causes a warning to be printed.
+
+** Added API reference manual in HTML format, generated using GTK-DOC.
+See doc/reference/, in particular doc/reference/html/index.html.
+
+** GNU Libidn replaces Libstringprep.
+Although it is still stored in the libstringprep/ directory for CVS
+reasons.
+
+** Bug fixes for DIGEST-MD5 and GSSAPI.
+
+* Version 0.0.4 (released 2002-12-13)
+
+** License changed to GPL.
+
+** Official GNU project.
+
+* Version 0.0.3 (released 2002-12-05)
+
+** New gsasl arguments --application-data and --no-client-first.
+
+** Bug fixes (client sends first, memory leaks, compiler warnings, more).
+
+* Version 0.0.2 (released 2002-11-07)
+
+** Includes a copy of libstringprep 0.0.2 for Unicode NFKC
+normalization and locale charset to UTF-8 string conversion, and
+preparation for the future if a SASL Stringprep profile is created.
+If libstringprep is already installed, it is used by default.  You can
+force the use of the internal version with
+--without-system-libstringprep.
+
+** Uses pkg-config instead of libgsasl.m4 + libgsasl-config.in, and
+for finding libntlm (requires libntlm 0.3.1 or later).
+
+** Self tests for several mechanisms.
+
+** The API now allows mechanisms to return data even when returning
+GSASL_OK (earlier only on GSASL_NEEDS_MORE).
+
+** Bug fixes.
+
+* Version 0.0.1 (released 2002-10-12)
+
+** APIs for integrity and confidentiality protection of application
+payload data.
+
+** DIGEST-MD5 support for integrity protection.
+
+* Version 0.0.0 (released 2002-10-07)
+
+** Initial release.
+
+----------------------------------------------------------------------
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+;;; Local Variables: ***
+;;; mode:outline ***
+;;; mode:flyspell ***
+;;; End: ***

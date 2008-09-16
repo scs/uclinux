@@ -1,0 +1,88 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for xeno-config
+.\"
+.\" Copyright (C) 2005, 2006 Romain Lenglet <rlenglet@users.forge.objectweb.org>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH XENO-CONFIG 1 "2006-03-27" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+xeno-config \- Display Xenomai libraries configuration
+.SH SYNOPSIS
+.\" The general command line
+.B xeno-config
+.br
+\fBxeno-config\fP \fB\-\-v\fP | \fB\-\-verbose\fP
+.br
+.B xeno-config \-\-help
+.br
+\fBxeno-config\fP [\fB\-\-version\fP] [\fB\-\-cc\fP] [\fB\-\-arch\fP] [\fB\-\-prefix\fP] [\fB\-\-xeno\-cflags\fP] [\fB\-\-xeno\-ldflags\fP] [\fB\-\-posix\-cflags\fP] [\fB\-\-posix\-ldflags\fP] [\fB\-\-lib*\-dir\fP|\fB\-\-library\-dir\fP|\fB\-\-libdir\fP|\fB\-\-user\-libdir\fP]
+.SH DESCRIPTION
+\fBxeno-config\fP is a script that is used to to display the compiler and linker flags that are required for building applications that use Xenomai.
+Any combination of options can be chosen (except \fB\-\-verbose\fP and \fB\-\-help\fP) to display configuration information, and options can be given in any order.
+The command output one line for each option, in the same order as the options.
+
+When \fBxeno-config \-\-verbose\fP is executed, all configuration information is displayed in a different, more human-readable format.
+
+When \fBxeno-config\fP is executed without any options, the output is equivalent to than when executing \fBxeno-config \-\-verbose\fP then \fBxeno-config \-\-help\fP.
+
+.\" ********************************************************************
+.SH OPTIONS
+.TP
+.B \-\-v, \-\-verbose
+Outputs all configuration information, in a human-readable format.
+.TP
+.B \-\-help
+Outputs the list of available command-line options.
+.TP
+.B \-\-version
+Outputs one line with the installed Xenomai version.
+.TP
+.B \-\-cc
+Outputs one line with the path to the C compiler command that was used to compiled Xenomai.
+.TP
+.B \-\-arch
+Outputs one line with the architecture to compile to, e.g. i386.
+May be different from the architecture of the currently running system, if cross-compiling.
+.TP
+.B \-\-prefix
+Outputs one line with the absolute path to the base Xenomai installation directory.
+.TP
+.B \-\-xeno\-cflags
+Outputs one line with the C compiler command-line options that are necessary to compile applications that use the Xenomai libraries.
+.TP
+.B \-\-xeno\-ldflags
+Outputs one line with the C compiler command-line options that are necessary to link applications against the Xenomai libraries.
+.TP
+.B \-\-posix\-cflags
+Outputs one line with the C compiler command-line options that are necessary to compile applications that use Xenomai's Posix-compatible layer library.
+.TP
+.B \-\-posix\-ldflags
+Outputs one line with the C compiler command-line options that are necessary to link applications against Xenomai's Posix-compatible layer library.
+.TP
+.B \-\-lib*\-dir, \-\-library\-dir, \-\-libdir, \-\-user\-libdir
+Outputs one line with the absolute path to Xenomai's libraries.
+In the \fB\-\-lib*\-dir\fP option name, the \fB*\fP is meant as a wildcard: \fB\-\-lib\-dir\fP, \fB\-\-libfoo\-dir\fP and \fB\-\-libbar\-dir\fP are all valid and synonymous options.
+.SH "ENVIRONMENT VARIABLES"
+.TP
+.B DESTDIR
+If the \fBDESTDIR\fP variable is set, its content is prepended to the Xenomai installed directories and files names output by the
+\fB\-\-prefix\fP and \fB\-\-library\-dir\fP options, and to the Xenomai installation directories in the flags output by the
+\fB\-\-xeno\-cflags\fP, \fB\-\-xeno\-ldflags\fP, \fB\-\-posix\-cflags\fP, \fB\-\-posix\-ldflags\fP
+options.
+
+If \fBDESTDIR\fP was set when compiling and installing Xenomai, e.g. for cross-compilation, \fBDESTDIR\fP must be set to the same value before calling \fBxeno-config\fP, in order to output valid directory and file names.
+.SH "RETURN CODES"
+.TP
+.B 0
+Successful script execution.
+.TP
+.B 1
+The
+.B \-\-posix\-ldflags
+option has been given but Posix support is not available in Xenomai;
+or an invalid argument has been given on the command-line.

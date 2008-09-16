@@ -1,0 +1,769 @@
+dnl Process this file with autoconf to produce a configure script.
+# Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+#    Free Software Foundation, Inc.
+#
+# Author: Nikos Mavrogiannopoulos
+#
+# This file is part of GNUTLS.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
+# USA
+
+AC_PREREQ(2.61)
+AC_INIT([GnuTLS], [2.2.0], [bug-gnutls@gnu.org])
+AC_CONFIG_AUX_DIR([build-aux])
+
+AC_CANONICAL_TARGET
+
+AM_INIT_AUTOMAKE([1.10 dist-bzip2])
+AM_CONFIG_HEADER(config.h)
+
+AB_INIT
+
+# Library code modified:                              REVISION++
+# Interfaces changed/added/removed:   CURRENT++       REVISION=0
+# Interfaces added:                             AGE++
+# Interfaces removed:                           AGE=0
+AC_SUBST(LT_CURRENT, 27)
+AC_SUBST(LT_REVISION, 1)
+AC_SUBST(LT_AGE, 1)
+ac_full=1
+
+# Used when creating the Windows libgnutls-XX.def files.
+SOVERSION=`expr ${LT_CURRENT} - ${LT_AGE}`
+AC_SUBST(SOVERSION)
+
+dnl for opencdk needs also change in the test
+GNUTLS_OPENCDK_VERSION=0.6.5
+GNUTLS_GCRYPT_VERSION=1:1.2.4
+GNUTLS_LIBTASN1_VERSION=0.3.4
+AC_DEFINE_UNQUOTED(GNUTLS_GCRYPT_VERSION, "$GNUTLS_GCRYPT_VERSION", [version of gcrypt])
+AC_DEFINE_UNQUOTED(GNUTLS_LIBTASN1_VERSION, "$GNUTLS_LIBTASN1_VERSION", [version of libtasn1])
+
+# Compute numeric versions, used in includes/gnutls/gnutls.h.in.
+AC_SUBST(MAJOR_VERSION, `echo $PACKAGE_VERSION | sed 's/\(.*\)\..*\..*/\1/g'`)
+AC_SUBST(MINOR_VERSION, `echo $PACKAGE_VERSION | sed 's/.*\.\(.*\)\..*/\1/g'`)
+AC_SUBST(PATCH_VERSION, `echo $PACKAGE_VERSION | sed 's/.*\..*\.\(.*\)/\1/g'`)
+AC_SUBST(NUMBER_VERSION, `printf "0x%02x%02x%02x" $MAJOR_VERSION $MINOR_VERSION $PATCH_VERSION`)
+
+opt_dmalloc_mode=no
+AC_MSG_CHECKING([whether in dmalloc mode])
+AC_ARG_ENABLE(dmalloc-mode,
+	AS_HELP_STRING([--enable-dmalloc-mode], [enable dmalloc mode]),
+	opt_dmalloc_mode=$enableval)
+AC_MSG_RESULT($opt_dmalloc_mode)
+
+opt_efence_mode=no
+AC_MSG_CHECKING([whether in electric fence mode])
+AC_ARG_ENABLE(efence-mode,
+	AS_HELP_STRING([--enable-efence-mode], [enable electric fence mode]),
+opt_efence_mode=$enableval)
+AC_MSG_RESULT($opt_efence_mode)
+
+opt_developer_mode=no
+AC_MSG_CHECKING([whether in developer mode])
+AC_ARG_ENABLE(developer-mode,
+	AS_HELP_STRING([--enable-developer-mode], [enable developer mode]),
+opt_developer_mode=$enableval)
+AC_MSG_RESULT($opt_developer_mode)
+
+opt_profiler_mode=no
+AC_MSG_CHECKING([whether in profile mode])
+AC_ARG_ENABLE(profile-mode,
+	AS_HELP_STRING([--enable-profile-mode], [enable profiler]),
+opt_profiler_mode=$enableval)
+AC_MSG_RESULT($opt_profiler_mode)
+
+AC_MSG_RESULT([***
+*** Checking for compilation programs...
+])
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_LN_S
+GTK_DOC_CHECK(1.1)
+AC_PATH_PROG([GAA], [gaa])
+if test "x$GAA" = "x"; then
+   AC_MSG_WARN([[***
+*** GAA was not found.  It is only needed if you wish to modify
+*** the source code or command-line description files.  In this case,
+*** you may want to get it from http://gaa.sourceforge.net/
+***]])
+fi
+AM_CONDITIONAL(HAVE_GCC,   test "x$GCC" = "xyes")
+
+
+AC_MSG_RESULT([***
+*** Detecting compiler options...
+])
+
+gl_EARLY
+lgl_EARLY
+AC_C_CONST
+AC_C_INLINE
+
+AM_GNU_GETTEXT([external])
+AM_GNU_GETTEXT_VERSION([0.17])
+
+dnl In order to use the reentrant libc functions.
+dnl I hope it is portable enough.
+CFLAGS="${CFLAGS} -D_REENTRANT -D_THREAD_SAFE"
+AM_CFLAGS="${CFLAGS}"
+
+AC_ARG_ENABLE(cxx,
+       AS_HELP_STRING([--disable-cxx],
+               [unconditionally disable the C++ library]),
+       use_cxx=$enableval, use_cxx=yes)
+if test "$use_cxx" != "no"; then
+  AC_LANG_PUSH(C++)
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])], use_cxx=yes, use_cxx=no)
+  AC_LANG_POP(C++)
+fi
+AM_CONDITIONAL(ENABLE_CXX, test "$use_cxx" != "no")
+AC_MSG_CHECKING([whether to build C++ library])
+AC_MSG_RESULT($use_cxx)
+
+AC_MSG_CHECKING([whether C99 macros are supported])
+AC_TRY_COMPILE(,[ 
+#define test_mac(...) 
+int z,y,x;
+test_mac(x,y,z);
+return 0;
+], 
+	dnl ***** OK
+	AC_DEFINE(C99_MACROS, 1, [C99 macros are supported])
+	AC_MSG_RESULT(yes),
+	dnl ***** NOT FOUND
+	AC_MSG_RESULT(no)
+	AC_MSG_WARN([C99 macros not supported. This may affect compiling.]))
+
+if test $ac_cv_c_compiler_gnu != no; then
+	if test x$opt_developer_mode = xyes; then
+	  AM_CFLAGS="${AM_CFLAGS} -g -Wall -Wcast-align -W -Wpointer-arith -Wchar-subscripts -Wformat-security -Wno-format-y2k -Wmissing-braces -Winline -Wstrict-prototypes -Wno-unused-parameter"
+#	  AM_CFLAGS="${AM_CFLAGS} -g -W -Wall -Wcast-align -Wpointer-arith -Wchar-subscripts -Wformat-security -Wno-format-y2k -Wmissing-braces -Winline -Wstrict-prototypes -Wshadow -Wno-unused-parameter -Wimplicit -fno-common -Wno-sign-compare -Wbad-function-cast -Wendif-labels -Wmissing-declarations -Wno-missing-format-attribute -Wmissing-prototypes -Wnested-externs -Wpointer-arith -pedantic -Wlong-long -Wcast-qual -Wcast-align -Winline -Wredundant-decls -Wstrict-prototypes -Wwrite-strings -Wparentheses -Wsequence-point -Wpacked -Waggregate-return -Wfloat-equal -Wmultichar -Wunknown-pragmas -Wtrigraphs -Wswitch -Wreturn-type -Wmain -Wchar-subscripts -Wcomment -Wno-missing-noreturn"
+	fi
+
+	AC_MSG_CHECKING([if gcc supports -Wno-pointer-sign])
+	_gcc_cflags_save=$CFLAGS
+	CFLAGS="${CFLAGS} -Wno-pointer-sign"
+	AC_COMPILE_IFELSE(AC_LANG_PROGRAM([]),_gcc_psign=yes,_gcc_psign=no)
+	AC_MSG_RESULT($_gcc_psign)
+	if test x"$_gcc_psign" != xyes ; then
+	  CFLAGS=$_gcc_cflags_save;
+	fi
+
+	AC_MSG_CHECKING([if gcc/ld supports -Wl,--output-def])
+	_gcc_ldflags_save=$LDFLAGS
+	LDFLAGS="-Wl,--output-def,foo.def"
+	AC_LINK_IFELSE(AC_LANG_PROGRAM([]),output_def=yes,output_def=no)
+	AC_MSG_RESULT($output_def)
+	LDFLAGS="$_gcc_ldflags_save"
+
+	if test x$opt_dmalloc_mode = xyes; then
+	  AC_CHECK_LIB(dmalloc, main)
+	  AC_DEFINE(USE_DMALLOC, 1, [enable the use of dmalloc])
+	else
+		if test x$opt_efence_mode = xyes; then
+		  AC_CHECK_LIB(efence, main)
+		  AC_DEFINE(USE_EFENCE, 1, [use electric fence])
+		fi
+	fi
+
+	AC_MSG_CHECKING([whether we have GNU assembler])
+	GAS=`as --version < /dev/null 2>/dev/null | grep GNU`
+	if test "$GAS"; then
+	  AM_CFLAGS="${AM_CFLAGS} -pipe"
+	  AC_MSG_RESULT(yes)
+	else
+	  AC_MSG_RESULT(no)
+	fi
+fi
+
+# Needs to be called outside of 'if' clause.
+AM_CONDITIONAL(HAVE_LD_OUTPUT_DEF, test "$output_def" = "yes")
+
+AC_MSG_RESULT([***
+*** Detecting C library capabilities...
+])
+
+AC_HEADER_STDC
+AC_CHECK_HEADERS(strings.h alloca.h)
+AC_CHECK_HEADERS(errno.h)
+AC_CHECK_HEADERS(math.h limits.h float.h stdarg.h ctype.h)
+dnl opencdk
+AC_CHECK_HEADERS(netdb.h)
+AC_CHECK_FUNCS(umask vasprintf isascii fork,,)
+AC_FUNC_ALLOCA
+
+# No fork on MinGW, disable some self-tests until we fix them.
+AM_CONDITIONAL(HAVE_FORK, test "$ac_cv_func_fork" != "no")
+
+AC_MSG_RESULT([***
+*** Detecting system's parameters...
+])
+
+# Run self-tests under valgrind?
+if test "$cross_compiling" = no; then
+  AC_CHECK_PROGS(VALGRIND, valgrind)
+fi
+if test -n "$VALGRIND" && $VALGRIND true > /dev/null 2>&1; then
+  opt_valgrind_tests=yes
+else
+  opt_valgrind_tests=no
+  VALGRIND=
+fi 
+AC_MSG_CHECKING([whether self tests are run under valgrind])
+AC_ARG_ENABLE(valgrind-tests,
+	AS_HELP_STRING([--enable-valgrind-tests],
+                       [run self tests under valgrind]),
+  opt_valgrind_tests=$enableval)
+AC_MSG_RESULT($opt_valgrind_tests)
+
+# For minitasn1.
+AC_CHECK_SIZEOF(unsigned long, 4)
+AC_CHECK_SIZEOF(unsigned int, 4)
+
+# For storing integers in pointers without warnings
+# http://developer.gnome.org/doc/API/2.0/glib/glib-Type-Conversion-Macros.html#desc
+AC_CHECK_SIZEOF(void *)
+AC_CHECK_SIZEOF(long)
+AC_CHECK_SIZEOF(int)
+case $ac_cv_sizeof_void_p in
+  $ac_cv_sizeof_long)
+    AC_DEFINE(GNUTLS_POINTER_TO_INT_CAST, [(long)],
+              [Additional cast to bring void* to a type castable to int.])
+    ;;
+  *)
+    AC_DEFINE(GNUTLS_POINTER_TO_INT_CAST, [])
+    ;;
+esac
+
+# For some systems we know that we have ld_version scripts.
+# Use it then as default.
+have_ld_version_script=no
+case "${host}" in
+    *-*-linux*)
+        have_ld_version_script=yes
+        ;;
+    *-*-gnu*)
+        have_ld_version_script=yes
+        ;;
+esac
+AC_ARG_ENABLE([ld-version-script],
+              AC_HELP_STRING([--enable-ld-version-script],
+                             [enable/disable use of linker version script.
+                              (default is system dependent)]),
+              [have_ld_version_script=$enableval],
+              [ : ] )
+AM_CONDITIONAL(HAVE_LD_VERSION_SCRIPT, test "$have_ld_version_script" = "yes")
+
+AC_CHECK_TYPES(uint,,, [
+# include <sys/types.h>
+])
+
+# Check for and replace ssize_t.
+AC_CHECK_TYPE(ssize_t,
+	[DEFINE_SSIZE_T="#include <sys/types.h>"
+	AC_SUBST(DEFINE_SSIZE_T)],
+	[AC_DEFINE(NO_SSIZE_T, 1, [no ssize_t type was found])
+	DEFINE_SSIZE_T="typedef int ssize_t;"
+	AC_SUBST(DEFINE_SSIZE_T)],
+	[#include <sys/types.h>])
+
+AC_C_BIGENDIAN
+
+AC_MSG_RESULT([***
+*** Checking for external libraries...
+])
+
+# For Guile bindings.
+
+opt_guile_bindings=yes
+AC_MSG_CHECKING([whether building Guile bindings])
+AC_ARG_ENABLE(guile,
+	AS_HELP_STRING([--enable-guile], [build GNU Guile bindings]),
+opt_guile_bindings=$enableval)
+AC_MSG_RESULT($opt_guile_bindings)
+
+AC_ARG_WITH([--with-guile-site-dir],
+  [AS_HELP_STRING([--with-guile-site-dir],
+     [use the given directory as the Guile site (use with care)])])
+
+if test "x$opt_guile_bindings" = "xyes"; then
+   AC_MSG_RESULT([***
+*** Detecting GNU Guile...
+])
+
+   AC_PATH_PROG([guile_snarf], [guile-snarf])
+   if test "x$guile_snarf" = "x"; then
+      AC_MSG_WARN([`guile-snarf' from Guile 1.8 not found.  Guile bindings not built.])
+      opt_guile_bindings=no
+   else
+      GUILE_PROGS
+      GUILE_FLAGS
+
+      save_CFLAGS="$CFLAGS"
+      save_LIBS="$LIBS"
+      CFLAGS="$CFLAGS $GUILE_CFLAGS"
+      LIBS="$LIBS $GUILE_LDFLAGS"
+      AC_MSG_CHECKING([whether GNU Guile is recent enough])
+      AC_LINK_IFELSE(AC_LANG_CALL([], [scm_from_locale_string]),
+        [], [opt_guile_bindings=no])
+      CFLAGS="$save_CFLAGS"
+      LIBS="$save_LIBS"
+
+      if test "x$opt_guile_bindings" = "xyes"; then
+        AC_MSG_RESULT([yes])
+	case "x$with_guile_site_dir" in 
+	     xno)
+		# Use the default $(GUILE_SITE).
+		GUILE_SITE_DIR
+		;;
+	     x|xyes)
+		# Automatically derive $(GUILE_SITE) from $(pkgdatadir).  This
+		# hack is used to allow `distcheck' to work (see
+		# `DISTCHECK_CONFIGURE_FLAGS' in the top-level `Makefile.am').
+		GUILE_SITE="\$(datadir)/guile/site"
+		AC_SUBST(GUILE_SITE)
+		;;
+	     *)
+		# Use the user-specified directory as $(GUILE_SITE).
+		GUILE_SITE="$with_guile_site_dir"
+		AC_SUBST(GUILE_SITE)
+		;;
+	esac
+      else
+        AC_MSG_RESULT([no])
+        AC_MSG_WARN([A sufficiently recent GNU Guile not found.  Guile bindings not built.])
+        opt_guile_bindings=no
+      fi
+   fi
+fi
+AM_CONDITIONAL(HAVE_GUILE, test "x$opt_guile_bindings" = "xyes")
+
+AM_PATH_LIBGCRYPT($GNUTLS_GCRYPT_VERSION,,
+dnl Can't disable - gnutls depends on gcrypt
+ 	AC_MSG_ERROR([[
+***  
+*** libgcrypt was not found. You may want to get it from
+*** ftp://ftp.gnupg.org/gcrypt/libgcrypt/
+***
+]]))
+libgcrypt=yes
+
+# Hard-wire the gl/m4/gc.m4 test.
+AC_ARG_WITH(builtin-crypto,
+	AS_HELP_STRING([--with-builtin-crypto],
+		[use internal crypto instead of libgcrypt (EXPERIMENTAL)]),
+	ac_cv_libgcrypt=no,
+	ac_cv_libgcrypt=yes)
+LTLIBGCRYPT=$LIBGCRYPT_LIBS
+
+AC_MSG_CHECKING([whether to enable Opaque PRF input support])
+AC_ARG_ENABLE(opaque-prf-input,
+	AS_HELP_STRING([--enable-opaque-prf-input=DD],
+		[enable Opaque PRF input using DD as extension type]),
+	ac_opaque_prf_input=$enableval, ac_opaque_prf_input=no)
+if test "$ac_opaque_prf_input" != "no"; then
+  if ! echo $ac_opaque_prf_input | egrep -q '^[[0-9]]+$'; then
+    ac_opaque_prf_input=no
+    AC_MSG_WARN([[
+*** Could not parse Opaque PRF Input extension type.
+*** Use --enable-opaque-prf-input=XX where XX is decimal, for example
+*** to use extension value 42 use --enable-opqaue-prf-input=42]])
+  fi
+fi
+if test "$ac_opaque_prf_input" != "no"; then
+ AC_MSG_RESULT([yes (extension value $ac_opaque_prf_input)])
+ AC_DEFINE_UNQUOTED(ENABLE_OPRFI, $ac_opaque_prf_input,
+                    [enable Opaque PRF Input])
+else
+ AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(ENABLE_OPRFI, test "$ac_opaque_prf_input" != "no")
+
+AC_MSG_CHECKING([whether to disable SRP authentication support])
+AC_ARG_ENABLE(srp-authentication,
+	AS_HELP_STRING([--disable-srp-authentication],
+		[disable the SRP authentication support]),
+	ac_enable_srp=no)
+if test x$ac_enable_srp != xno; then
+ AC_MSG_RESULT(no)
+ AC_DEFINE(ENABLE_SRP, 1, [enable SRP authentication])
+else
+ ac_full=0
+ AC_MSG_RESULT(yes)
+fi
+AM_CONDITIONAL(ENABLE_SRP, test "$ac_enable_srp" != "no")
+
+AC_MSG_CHECKING([whether to disable PSK authentication support])
+AC_ARG_ENABLE(psk-authentication,
+       AS_HELP_STRING([--disable-psk-authentication],
+               [disable the PSK authentication support]),
+       ac_enable_psk=no)
+if test x$ac_enable_psk != xno; then
+ AC_MSG_RESULT(no)
+ AC_DEFINE(ENABLE_PSK, 1, [enable PSK authentication])
+else
+ ac_full=0
+ AC_MSG_RESULT(yes)
+fi
+
+AC_MSG_CHECKING([whether to disable anonymous authentication support])
+AC_ARG_ENABLE(anon-authentication,
+	AS_HELP_STRING([--disable-anon-authentication],
+		[disable the anonymous authentication support]),
+	ac_enable_anon=no)
+if test x$ac_enable_anon != xno; then
+ AC_MSG_RESULT(no)
+ AC_DEFINE(ENABLE_ANON, 1, [enable anonymous authentication])
+else
+ ac_full=0
+ AC_MSG_RESULT(yes)
+fi
+AM_CONDITIONAL(ENABLE_ANON, test "$ac_enable_anon" != "no")
+
+dnl Check for Camellia support
+dnl
+AC_ARG_ENABLE(camellia,
+	AS_HELP_STRING([--disable-camellia], [disable Camellia cipher]),
+	ac_enable_camellia=no)
+if test "$ac_enable_camellia" != "no"; then
+  AC_MSG_CHECKING([for Camellia support in libgcrypt])
+  if test -n "`$LIBGCRYPT_CONFIG --algorithms | grep -i camellia`"; then
+    AC_MSG_RESULT([yes])
+    ac_enable_camellia=yes
+  else
+    AC_MSG_RESULT([no])
+    ac_enable_camellia=no
+  fi
+fi
+AC_MSG_CHECKING([whether to disable Camellia cipher])
+if test "$ac_enable_camellia" = "yes"; then
+ AC_MSG_RESULT([no])
+ AC_DEFINE(ENABLE_CAMELLIA, 1, [enable camellia block cipher])
+else
+ AC_MSG_RESULT([yes])
+fi
+
+AC_MSG_CHECKING([whether to disable extra PKI stuff])
+AC_ARG_ENABLE(extra-pki,
+	AS_HELP_STRING([--disable-extra-pki],
+		[only enable the basic PKI stuff]),
+	disable_pki=$enableval, disable_pki=no)
+if test "$disable_pki" != "no"; then
+ ac_full=0
+ AC_MSG_RESULT(yes)
+else
+ AC_MSG_RESULT(no)
+ AC_DEFINE(ENABLE_PKI, 1, [whether to include all the PKCS/PKI stuff])
+fi
+AM_CONDITIONAL(ENABLE_PKI, test "$disable_pki" = "no")
+
+dnl Check whether to disable OpenPGP authentication completely
+dnl from libgnutls-extra.
+
+ac_enable_openpgp=yes
+AC_MSG_CHECKING([whether to disable OpenPGP Certificate authentication support])
+AC_ARG_ENABLE(openpgp-authentication,
+	AS_HELP_STRING([--disable-openpgp-authentication],
+		[disable the OpenPGP authentication support]),
+	ac_enable_openpgp=no)
+if test x$ac_enable_openpgp = xno; then
+ AC_MSG_RESULT(yes)
+ ac_full=0
+else
+ AC_DEFINE(ENABLE_OPENPGP, 1, [use openpgp authentication])
+ AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(ENABLE_OPENPGP, test "$ac_enable_openpgp" = "yes")
+
+dnl Test whether to use the included opencdk library
+dnl 
+if test x$ac_enable_openpgp = xyes; then
+ AC_ARG_WITH(included-opencdk,
+	AS_HELP_STRING([--with-included-opencdk], [use the included opencdk]),
+		ac_enable_included_opencdk=$withval, 
+		ac_enable_included_opencdk=no)
+ if test x$ac_enable_included_opencdk = xno;then 
+  AC_LIB_HAVE_LINKFLAGS(opencdk,, [
+#include <opencdk.h>], [
+#if OPENCDK_VERSION_MINOR < 6 || OPENCDK_VERSION_PATCH < 5
+# error "OpenCDK 0.6.5 is required"
+#else
+cdk_check_version( NULL);
+#endif
+])
+  if test "$ac_cv_libopencdk" != yes; then
+   ac_enable_included_opencdk=yes
+   AC_MSG_WARN([[
+***
+*** libopencdk was not found. You may want to get it from
+*** ftp://ftp.gnutls.org/pub/gnutls/opencdk/
+***
+*** Will use the included opencdk.
+***
+]])
+  fi
+  AC_MSG_CHECKING([whether to use the included opencdk])
+  AC_MSG_RESULT($ac_enable_included_opencdk)
+ fi
+fi
+
+AM_CONDITIONAL(ENABLE_INCLUDED_OPENCDK, test "$ac_enable_included_opencdk" = "yes")
+
+AC_MSG_CHECKING([whether to disable OpenSSL compatibility layer])
+AC_ARG_ENABLE(openssl-compatibility,
+	AS_HELP_STRING([--disable-openssl-compatibility],
+		[disable the OpenSSL compatibility support]),
+	ac_enable_openssl=$withval,
+	ac_enable_openssl=yes)
+if test x$ac_enable_openssl != xno; then
+ AC_MSG_RESULT(no)
+else
+ AC_MSG_RESULT(yes)
+fi
+
+AM_CONDITIONAL(ENABLE_OPENSSL, test "$ac_enable_openssl" = "yes")
+
+
+AC_ARG_WITH(included-libtasn1,
+	AS_HELP_STRING([--with-included-libtasn1],
+		[use the included libtasn1]),
+	minitasn1_enabled=$withval,
+	minitasn1_enabled=no)
+
+if test x$minitasn1_enabled = xno; then
+AM_PATH_LIBTASN1($GNUTLS_LIBTASN1_VERSION,,
+ minitasn1_enabled=yes
+ AC_MSG_WARN([[
+*** 
+*** LibtASN1 ${GNUTLS_LIBTASN1_VERSION} was not found. Will use the included one.
+]]))
+fi
+
+AC_MSG_CHECKING([whether to use the included minitasn1])
+AC_MSG_RESULT($minitasn1_enabled)
+
+AM_CONDITIONAL(ENABLE_MINITASN1, test "$minitasn1_enabled" = "yes")
+
+dnl Check for libcfg+
+
+SAVED_LIBS=$LIBS
+AC_ARG_WITH(included-libcfg,
+	AS_HELP_STRING([--with-included-libcfg],
+		[use the included libcfg+ (certtool only)]),
+	libcfg_enabled=$withval, 
+	libcfg_enabled=no
+dnl We search for libcfg+ which is used by certtool
+dnl
+	AC_CHECK_LIB(cfg+, cfg_get_context,:,
+                     libcfg_enabled=yes
+                     AC_MSG_WARN([[
+*** 
+*** Libcfg+ was not found. Will use the included one.]])))
+
+AM_CONDITIONAL(HAVE_LIBCFG, test "$libcfg_enabled" = "no")
+LIBS=$SAVED_LIBS
+
+AC_MSG_CHECKING([whether to use the included libcfg])
+AC_MSG_RESULT($libcfg_enabled)
+
+
+dnl CHECK FOR ZLIB SUPPORT
+dnl
+
+AC_MSG_CHECKING([whether to include zlib compression support])
+
+AC_ARG_WITH(zlib,
+	AS_HELP_STRING([--without-zlib], [disable zlib compression support]),
+	ac_zlib=$withval,
+	ac_zlib=yes)
+
+if test x$ac_zlib != xno; then
+ AC_MSG_RESULT(yes)
+ AC_LIB_HAVE_LINKFLAGS(z,, [#include <zlib.h>], [compress (0, 0, 0, 0);])
+ if test "$ac_cv_libz" != yes; then
+   AC_MSG_WARN(
+*** 
+*** ZLIB was not found. You will not be able to use ZLIB compression.)
+ fi
+else
+ AC_MSG_RESULT(no)
+fi
+
+
+
+dnl CHECK FOR LZO SUPPORT (whether to use the included one)
+dnl
+
+minilzo_enabled=no
+use_lzo=yes
+AC_ARG_WITH(lzo,
+	AS_HELP_STRING([--without-lzo], [do not use lzo compression]),
+	use_lzo=$withval,
+	use_lzo=yes)
+
+AC_MSG_CHECKING([whether to include lzo compression support])
+AC_MSG_RESULT($use_lzo)
+
+if test x$use_lzo = xyes; then
+  AC_DEFINE(USE_LZO, 1, [whether to use the lzo compression])
+
+  AC_ARG_WITH(included-lzo,
+	AS_HELP_STRING([--with-included-lzo],
+		[include minilzo in libgnutls-extra]),
+	minilzo_enabled=$withval,
+	minilzo_enabled=no)
+
+  AC_MSG_CHECKING([whether to use the included lzo compression library])
+  AC_MSG_RESULT($minilzo_enabled)
+
+  LZO_LIBS=
+  if test "$minilzo_enabled" != "yes"; then
+    AC_CHECK_LIB(lzo2, lzo1x_1_compress, LZO_LIBS=-llzo2)
+    if test "$LZO_LIBS" = ""; then
+      AC_CHECK_LIB(lzo, lzo1x_1_compress, LZO_LIBS=-llzo, [
+        minilzo_enabled=yes
+        AC_MSG_WARN(
+***
+*** Could not find liblzo or liblzo2. Will use the included minilzo.
+)
+      ])
+    fi
+  fi
+  AC_SUBST(LZO_LIBS)
+
+  if test "$LZO_LIBS" = "-llzo"; then
+    AC_CHECK_HEADERS(lzo1x.h)
+  elif test "$LZO_LIBS" = "-llzo2"; then
+    AC_CHECK_HEADERS(lzo/lzo1x.h)
+  fi
+
+  if test "$minilzo_enabled" = "yes"; then
+    AC_DEFINE(USE_MINILZO, 1, [whether to use the included minilzo])
+  fi
+fi
+
+AM_CONDITIONAL(USE_LZO, test "$use_lzo" = "yes")
+AM_CONDITIONAL(ENABLE_INCLUDED_LZO, test "$minilzo_enabled" = "yes")
+
+if test "$minilzo_enabled" = "yes"; then
+  # See libextra/minilzo/README.LZO
+  AC_CHECK_TYPE(ptrdiff_t,long)
+  AC_TYPE_SIZE_T
+  AC_CHECK_SIZEOF(short)
+  AC_CHECK_SIZEOF(int)
+  AC_CHECK_SIZEOF(long)
+  AC_CHECK_SIZEOF(long long)
+  AC_CHECK_SIZEOF(__int64)
+  AC_CHECK_SIZEOF(void *)
+  AC_CHECK_SIZEOF(size_t)
+  AC_CHECK_SIZEOF(ptrdiff_t)
+  AC_C_CONST
+  AC_CHECK_FUNCS(memcmp memcpy memmove memset)
+fi
+
+AC_MSG_RESULT([***
+*** Setting up gnulib compatibility files...
+])
+gl_INIT
+lgl_INIT
+
+AC_TRY_LINK([#include <winsock2.h>], [
+  WORD wVersionRequested = MAKEWORD(2, 2);
+  WSADATA wsaData;
+  int err = WSAStartup(wVersionRequested, &wsaData);
+  WSACleanup ();], wsastartup=yes, wsastartup=no)
+if test x$wsastartup = xyes; then
+  AC_DEFINE(HAVE_WINSOCK, 1, [Call WSAStartup in gnutls_global_init])
+fi
+AC_MSG_CHECKING([if we have Windows sockets and WSAStartup/WSACleanup])
+AC_MSG_RESULT($wsastartup)
+
+AC_MSG_RESULT([***
+*** Detecting options for shared libraries...
+])
+AC_LIBTOOL_WIN32_DLL
+AC_PROG_LIBTOOL
+
+LIBGNUTLS_LIBS="-L${libdir} -lgnutls $LIBTASN1_LIBS $LIBGCRYPT_LIBS $LIBS"
+LIBGNUTLS_CFLAGS="$LIBGCRYPT_CFLAGS $LIBTASN1_CFLAGS -I${includedir}"
+AC_SUBST(LIBGNUTLS_LIBS)
+AC_SUBST(LIBGNUTLS_CFLAGS)
+
+LIBGNUTLS_EXTRA_LIBS="-L${libdir} -lgnutls-extra $LTLIBOPENCDK $LZO_LIBS $LIBGNUTLS_LIBS"
+LIBGNUTLS_EXTRA_CFLAGS="$INCOPENCDK -I${includedir}"
+AC_SUBST(LIBGNUTLS_EXTRA_LIBS)
+AC_SUBST(LIBGNUTLS_EXTRA_CFLAGS)
+export ac_full
+
+AM_CFLAGS="${AM_CFLAGS} ${LIBGCRYPT_CFLAGS}"
+
+if test $ac_cv_c_compiler_gnu != no; then
+	if test x$opt_profiler_mode = xyes; then
+	  AC_CHECK_PROG(FC_OK, fc-config, yes, no)
+	  if test x$FC_OK = xyes; then
+   	        AM_CFLAGS="${AM_CFLAGS} `fc-config --cflags`"
+		LIBS="$LIBS `fc-config --libs`"
+	  else
+AC_MSG_WARN(***
+*** You must install libfc in order to enable profiling. http://www710.univ-lyon1.fr/~yperret/fnccheck/profiler.html
+)
+	  fi
+	fi
+fi
+
+if test $ac_full -eq 0; then
+  AC_SUBST(POSSIBLY_WARN_ABOUT_MISSING_FEATURES, [[
+#ifdef __GNUC__
+#warning This is not the official GnuTLS library. Several features were disabled at compilation.
+#endif /* __GNUC__ */]])
+fi
+
+AC_SUBST(AM_CFLAGS)
+
+AC_CONFIG_COMMANDS([chmod-config],[[
+ chmod +x lib/libgnutls-config
+ chmod +x libextra/libgnutls-extra-config
+]],[[]])
+
+AC_CONFIG_FILES([Makefile po/Makefile.in \
+	doc/Makefile doc/examples/Makefile doc/scripts/Makefile \
+	doc/manpages/Makefile doc/reference/Makefile \
+	doc/credentials/Makefile doc/credentials/x509/Makefile \
+	doc/credentials/srp/Makefile doc/credentials/openpgp/Makefile \
+	gl/Makefile lgl/Makefile \
+	tests/Makefile tests/rsa-md5-collision/Makefile tests/userid/Makefile \
+	tests/pkcs1-padding/Makefile tests/pkcs8-decode/Makefile \
+	tests/pkcs12-decode/Makefile tests/pathlen/Makefile \
+	tests/key-id/Makefile tests/sha2/Makefile \
+	tests/hostname-check/Makefile \
+	includes/Makefile includes/gnutls/gnutls.h \
+	lib/Makefile lib/minitasn1/Makefile lib/x509/Makefile \
+	libextra/Makefile libextra/openpgp/Makefile libextra/opencdk/Makefile \
+	libextra/minilzo/Makefile tests/openpgp/Makefile \
+	src/Makefile \
+	src/cfg/Makefile src/cfg/platon/Makefile src/cfg/platon/str/Makefile \
+	lib/libgnutls-config libextra/libgnutls-extra-config \
+	lib/gnutls.pc libextra/gnutls-extra.pc
+	guile/Makefile guile/modules/Makefile
+	guile/src/Makefile guile/tests/Makefile])
+
+AC_CONFIG_FILES([guile/pre-inst-guile], [chmod +x guile/pre-inst-guile])
+
+
+AC_OUTPUT

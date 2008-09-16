@@ -1,0 +1,53 @@
+                       Music Player Daemon (MPD) - UPGRADING
+
+Upgrading to 0.11.0
+-------------------
+
+The database format has changed a little bit, but in a backward compatible way.
+This means that if you upgrade to 0.11.0 from 0.10.x, you do not need to make
+any changes.  However, if you downgrade back to 0.10.x, then you will need
+to recreate your db.
+
+The default port for MPD is now 6600, so update your mpd and client
+configurations appropriatly.
+
+Upgrading to 0.10.0
+-------------------
+
+All information is now stored in the db in UTF-8 format, and the character
+set used for the filesystem is stored in the db.  Thus, it is highly
+recommended that you recreate the db.  To do so, run mpd with the 
+"--create-db" command line option.  Also, note that the filesystem
+character set will be determined from your current locale settings.
+If your locale settings are not the same as those used for the filesystem,
+then use the config file parameter "filesystem_charset" to specify the
+correct character set (this maybe neccessary if you create the db with root).
+
+Upgrading to 0.9.3
+------------------
+
+Wave support was added, so to have your wave files added, update the db (mpc
+update).  
+
+Also, song lengths are now stored in the db.  To get this stuff
+added to the db, you will need to recreate the db from scratch.  To do this,
+run mpd with the "--create-db" commandline option. 
+
+Upgrading to 0.9.0
+------------------
+
+The "stop_on_error" config parameter was removed, so be sure to remove this
+parameter from your config file.
+
+Upgrading to 0.8.x
+------------------
+
+If you have FLACs, then to have them added to your list of available music,
+just use "update".
+
+Upgrading from 0.5.x to 0.6.x
+-----------------------------
+If you have not compiled MPD with "make ogg", then nothing is needed.
+
+If you compiled with "make ogg", just use "update" (available via the phpMp
+interface) to add your OGGs to MPD's list of available music.

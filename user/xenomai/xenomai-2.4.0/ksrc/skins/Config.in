@@ -1,0 +1,17 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+if [ "$CONFIG_XENOMAI" = "y" -a "$CONFIG_XENO_OPT_NUCLEUS" != "n" ]; then
+mainmenu_option next_comment
+comment 'Interfaces'
+source kernel/xenomai/skins/native/Config.in
+source kernel/xenomai/skins/posix/Config.in
+source kernel/xenomai/skins/rtdm/Config.in
+source kernel/xenomai/skins/psos+/Config.in
+source kernel/xenomai/skins/vxworks/Config.in
+source kernel/xenomai/skins/vrtx/Config.in
+source kernel/xenomai/skins/uitron/Config.in
+source kernel/xenomai/skins/rtai/Config.in
+endmenu
+fi

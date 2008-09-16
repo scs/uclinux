@@ -1,0 +1,288 @@
+<html>
+<head><title>Bluetooth-alsa</title></head>
+<body>
+
+<p>
+
+<h1>Bluetooth-alsa</h1>
+Bluetooth audio for Linux
+
+<p>
+
+<a href="index.html">Overview</a>
+| <a href="history.html">History</a>
+| <a href="future.html">Future work</a>
+| <b>Download & build</b>
+| <a href="credits.html">Credits</a>
+| <a href="contact.html">Contact us</a>
+
+<hr>
+
+Things are changing rapidly, so while we occasionally release
+snapshots of the software, the best route to go is to use the current
+version from cvs.
+
+<h3>Required packages</h3>
+
+These differ from distro to distro, but for Ubuntu, the required
+packages include:
+
+<ul>
+<li>build-essential 
+<li>libbluetooth2-dev 
+<li>automake 
+<li>autoconf 
+<li>cvs 
+<li>libtool 
+<li>libasound2-dev 
+<li>xmms
+</ul>
+
+<h3>Download and build</h3>
+
+install libsbc:
+
+<p>Note: When asking for a password simply press Enter.
+
+<p><pre>cvs -d:pserver:anonymous@sbc.cvs.sourceforge.net:/cvsroot/sbc login 
+cvs -d:pserver:anonymous@sbc.cvs.sourceforge.net:/cvsroot/sbc co sbc
+cd sbc
+./bootstrap
+./configure --prefix=/usr
+make
+sudo make install
+</pre>
+
+install btsco:
+
+<p><pre>cvs -d:pserver:anonymous@bluetooth-alsa.cvs.sourceforge.net:/cvsroot/bluetooth-alsa login 
+cvs -d:pserver:anonymous@bluetooth-alsa.cvs.sourceforge.net:/cvsroot/bluetooth-alsa co btsco
+cd btsco
+./bootstrap
+./configure --prefix=/usr --enable-alsaplugin
+make
+sudo make install
+</pre>
+
+<h3>Configure A2DP Driver</h3>
+
+This driver allows audio to be sent from an alsa client to a stereo bluetooth headset. The audio is one-way to the set.
+
+<p>
+
+Discover the headset's address by doing a bluetooth scan. The headset may need to be in pairing mode for this address to appear:
+
+<p><tt>hcitool scan</tt>
+
+<p>The address will look something like 00:14:CF:03:17:8C
+
+<p><tt>cp alsa-plugins/sample.a2dprc ~/.a2dprc</tt>
+
+<p>edit ~/.a2dprc to contain the address of your headset on the address= line.
+
+<p>create ~/.asoundrc with simply:
+
+<p><pre>
+      pcm.a2dpd {
+            type a2dpd
+      }
+</pre>
+
+<p>and run a2dpd (it's not advised to run it as root). You'll have to arrange for this to be started up subsequently.
+
+<p>You can also have the SDP records for A2DP and AVRCP activated at boot time; this may allow you in some setups to have the headset initiate the connection to a2dpd to start up a stream.
+
+   <p><pre>
+      sdptool add A2SRC
+      sdptool add AVRTG
+</pre>
+
+<h3>Configure xmms</h3>
+
+run xmms, go to prefs (control-p), change output to alsa, click configure, change device from default to a2dpd and select [use software volume control].
+
+<p>If this is a combo headset, turn off your phone first! (Otherwise, the headset will be complicating things by trying to connect to two devices at once)
+
+<p>Turn the headset on in pair mode and hit play in xmms. On the first connect, you should get a popup asking for the pin. Then audio should start.
+
+<p>If your set can do AVRCP, it will be set up to do track advance/pause/stop/play through xmms command-line control. To make AVRCP work with different clients, you'll need to customize ~/.a2dprc.
+
+<h3>Configure vlc</h3>
+
+This is the only video player I've been able to use with a2dp. You have to edit ~/.vlc/vlcrc and enable the line
+
+<p><tt>      alsadev=a2dpd</tt>
+
+<p>For some reason the GUI will not allow you to set this device. Also set "Audio Desynchronization Compensation" in the gui to a value between -200 and -600, depending on your headset's latency, to improve audio/video sync.
+
+<h3>Configure Kaffeine</h3>
+
+If you are using KDE (ex: Kubuntu) you could also use kaffeine to play your multimedia files. In order to do so you need to edit the .kde/share/apps/kaffeine/xine-config file in your home directory. Find the 'audio.driver' parameter and change it to 'alsa'. You also need to change the 'audio.device.alsa_front_device' parameter and change it to 'a2dpd'.
+
+<p>There's a bit of delay between the picture and the voice but it's bearable for me.
+
+<h3>Configure SCO (aka mono, aka voice) Driver</h3>
+
+This driver will let you do 2-way audio to and from a mono headset. It's called SCO because the transport is Synchronous Connection-Oriented to guarantee low latency.
+
+<p>The old method involves a kernel module and the btsco daemon. See below for the details for this method.
+
+<p>The preferred method uses an outstanding alsa plugin written by Fabien Chevalier instead and requires no kernel patches nor modules. The plugin was installed when you performed the btsco install above.
+
+<p>If you base your .asoundrc on the example alsa-plugins/asound.conf from cvs, you can edit it and add your SCO headset address. Then change the alsa device in xmms to headset and run /usr/bin/headsetd. You should be able to use the headset at this point.
+
+<p>If you subsequently change your .asoundrc, you will have to restart xmms but I don't think you need to restart headsetd.
+
+<p>You will have to set your applications to use the alsa device headset similar to what we did above with a2dpd. Unfortunately some applications won't let you choose this device because they won't let you type in the name of the device and they don't use the extended alsa api for finding alsa plugin devices. At least in the case of vlc, you can edit its configuration directly to get around this.
+
+<p>You will occasionally get static and might even crash if you don't
+have a kernel patch applied to keep tighter controls on the audio
+stream. Get the patch here: <a
+href="http://bluetooth-alsa.sf.net/bluez-sco-flowcontrol-mh7.patch">bluez-sco-flowcontrol-mh7.patch</a>.
+
+<h3>Troubleshooting</h3>
+
+If you get all kinds of connection refused errors from a2dpd, install bluez-passkey-gnome and reboot so the passkey stuff is working (for some reason it's being left out of some distros).
+
+<p>If that still doesn't help or if you're using KDE, there may be an equivalent kde app or you could try changing pin_helper in /etc/bluetooth/hcid.conf:
+
+<p><tt>      pin_helper /usr/bin/bluez-pin;</tt>
+
+<p>and restart bluetooth.
+
+<p>If audio is choppy, try putting
+
+<p><tt>         lm accept,master;</tt>
+
+<p>in hcid.conf. Also note that other bluetooth connections (like getting internet through a cellphone) at the same time you're trying to play music will probably create problems. 
+
+<h3><a name="legacy"><h3>Legacy drivers</a></h3>
+
+For the old kernel mod + btsco architecture, you need a kernel with
+the emu10k1 driver selected (this is one of the drivers that forces
+the inclusion of the implementation of "snd_hwdep_new"). Build the
+kernel module:
+
+<pre>
+	cd kernel
+	make
+	make install
+	depmod -e
+	make clean
+</pre>
+
+<ol>
+<li>insert the module (or better, set up the alsa configuration to load it)
+<pre>
+	modprobe snd_bt_sco
+</pre>
+<li>stop the esound controller if it's running via 
+<pre>
+	esdctl stop
+</pre>
+
+<li>run
+<pre>
+        hciconfig hci0 voice 0x0060
+</pre>
+
+<li>turn on the headset (you may need to prepare the headset to be
+paired the computer, usually by turning on the headset and holding the
+on button until it beeps; make sure the headset has not connected to
+your cell--this would block the computer's connection.)
+
+<li>run the handler (let it keep running if you run in the foreground)
+<pre>
+	btsco <i>bdaddress</i>
+</pre>
+
+<li>You probably need to enter the passkey if it's the first time 'round
+
+<li>send and receive audio from the headset (usually using /dev/dsp1)
+or via the alsa device with something like
+
+<pre>
+	aplay -B 1000000 -D plughw:Headset sound.wav
+</pre>
+
+</ol>
+
+Right now the daemon interaction is somewhat limited:
+
+<ul>
+
+<li> Put alternating lines of regexes and shell commands in ~/.btscorc
+ and when something that the headset sends matches these regexes, the
+ shell command is run (with any back references \0 \1 etc replaced
+ from the regexp, \s replaced by the link state and \p replaced by the
+ daemon's pid).  This, of course, is primarily intended to "do stuff"
+ when the headset button(s) are pressed.
+
+<li>Send SIGHUP to the userspace program to make it re-read the config file.
+<li>Send SIGUSR1 to the userspace program to make the headset ring.
+<li>Send SIGUSR2 to the userspace program to force a headset reconnect.
+</ul>
+
+Andreas Beck contributed a .btscorc and skype script for making the
+headset button answer an incoming call. It's in our contrib/ dir and
+he may have updates <a
+href="http://www.acs.uni-duesseldorf.de/~becka/download/skype/">here</a>.
+
+<h3>Stereo (A2DP) Testing</h3>
+
+<i>Only developers should need to use this testing code. The A2DP
+plugin work is mature enough to use directly.</i>
+
+<p>
+
+A2DP provides a way to send stereo high-quality audio to some of the
+newer headsets. On all the headsets I've seen so far, this is one-way
+audio, so if you were expecting to get something like a gaming headset
+(talking to other players, getting stereo sound back from the game),
+you should wait for the next generation of headsets to get 2-way A2DP.
+
+<p>
+
+To test stereo audio without installing the alsa plugin, you can run:
+
+<pre>
+	mpg123 --au - file.mp3 | ./a2play 00:0D:3C:30:32:AD
+</pre>
+
+Where you replace file.mp3 with a good mp3 file and bdaddr with the
+address of your headset. You can send live audio from line-in etc
+using a command like:
+
+<pre>
+	./a2play -s -d -r 44100 00:0D:3C:30:32:AD /dev/dsp
+</pre>
+
+Don't be surprised to get a delay. It's probably under 500ms but not much under that.
+
+<p>
+
+The A2DP sink code receives a stream from another device. Run it with:
+
+<pre>
+        hciconfig hci0 class 0x200404
+	sdptool add A2SNK
+	./a2recv
+</pre>
+
+It will try to bind to the bluetooth adapter and send audio out to /dev/dsp.
+
+<p>
+
+<h3>Embedded status</h3>
+
+The status of work on gumstix/xscale is on its <a href="embed.html">own page</a>.
+
+<h3>Links</h3>
+
+<ul>
+<li><a href="http://sourceforge.net/tracker/?group_id=116589&atid=678258">Bug list</a> at sourceforge
+<li><a href="http://www.bluez.org">Bluez</a> main page
+</ul>
+
+</body>
+</html>

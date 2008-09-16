@@ -1,0 +1,1824 @@
+commit d2549dbf79c8104055af38102cbf3729c5f4a7f2
+Author: Denis Oliver Kropp <dok@shizo.directfb.home>
+Date:   Fri Dec 28 23:10:42 2007 +0100
+
+    Replace D_HEAVYDEBUG by D_DEBUG.
+
+commit a1956271e2c8d2242f1d6d7a1e3095c71573d30e
+Author: Denis Oliver Kropp <dok@shizo.directfb.home>
+Date:   Wed Dec 26 04:53:40 2007 +0100
+
+    DF_DOK: Added "--dump", "--aa", "--matrix", "--smooth" and "--load-image <file>".
+
+commit 69766dff934b24e257ff65e623bde5514dbb710c
+Author: Denis Oliver Kropp <dok@shizo.directfb.home>
+Date:   Thu Dec 6 16:52:13 2007 +0100
+
+    DF_MATRIX: Added more objects, scale down, rotate faster.
+    
+    http://www.directfb.org/images/tests/df_matrix/index.html
+
+commit f88bb1084bcd610cf07a1a9a64a761d18a64506c
+Author: Denis Oliver Kropp <dok@shizo.directfb.home>
+Date:   Thu Dec 6 14:07:49 2007 +0100
+
+    DF_MATRIX: Also show anti-aliasing.
+
+commit 3b7cff73d953b111ff2e1ebf2b9b9386d57f8ce6
+Author: Denis Oliver Kropp <dok@shizo.directfb.home>
+Date:   Thu Dec 6 14:07:05 2007 +0100
+
+    Fixed Makefile.
+
+commit 5c28304a0963f74aacad664c6cd52b97803f57e9
+Author: Denis Oliver Kropp <dok@shizo.directfb.home>
+Date:   Wed Dec 5 16:34:50 2007 +0100
+
+    MATRIX: Added test program for IDirectFBSurface::SetMatrix().
+    
+    Initial version, based on Cairo matrix code, just rotating a
+    few objects around the screen center at the moment.
+
+commit c8d0f1e7b183d8ca95dd3bafc6d0a03c19812b84
+Author: Denis Oliver Kropp <dok@shizo.directfb.home>
+Date:   Tue Nov 20 05:15:08 2007 +0100
+
+    DF_DOK: Changed accuracy of load output to 0.1% steps.
+
+commit 9ac4263910ba0bd77b9ed12bfb1a6b6725b1a2a3
+Author: Denis Oliver Kropp <dok@shizo.zion.home>
+Date:   Mon Oct 8 23:46:54 2007 +0200
+
+    ignore files
+
+commit 09ea98d1902222947ca5c1050d4f7e7683499fbe
+Author: Denis Oliver Kropp <dok@shizo.zion.home>
+Date:   Mon Oct 8 23:46:24 2007 +0200
+
+    Added image loading benchmarks to df_dok.
+    
+    Use --load-dfiff, --load-gif, --load-jpeg and/or --load-png.
+    
+    The surface is created once, but the provider is released
+    and recreated for each RenderTo().
+
+commit 9acf0bfb941ba4d1d1c8b038993dd2984179bfce
+Author: Denis Oliver Kropp <dok@shizo.zion.home>
+Date:   Thu Oct 4 17:41:20 2007 +0200
+
+    Use DSCAPS_SHARED when creating the background image surface.
+
+commit 7757dce716819d57229cb9d3abad9ad3da084893
+Author: Denis Oliver Kropp <dok@shizo.zion.home>
+Date:   Tue Sep 25 10:30:46 2007 +0200
+
+    Added DSBLIT_ROTATE180 benchmark.
+
+commit 1cb4db7627150377d0b5d85bcd07e1249300efa3
+Author: Denis Oliver Kropp <dok@shizo.zion.home>
+Date:   Fri Sep 21 02:43:48 2007 +0200
+
+    Added Flip() to see result screen on always-flipping-systems.
+
+commit 20843763d6f718205b437fbeaabb8a0e2883b5f8
+Author: Denis Oliver Kropp <dok@shizo.zion.home>
+Date:   Fri Sep 21 00:28:09 2007 +0200
+
+    Measure CPU load per benchmark.
+
+commit 8b26f46486b3e5091f6789b27cf783ac760cebe3
+Author: Denis Oliver Kropp <dok@shizo.(none)>
+Date:   Fri Sep 7 13:34:39 2007 +0200
+
+    Fixed warning.
+
+commit 39f00e2eb44d04da407a51741b400d5ac1bba10c
+Author: Denis Oliver Kropp <dok@shizo.zion.home>
+Date:   Thu Aug 9 23:47:20 2007 +0200
+
+    Added a Flip() for showing the "Preparing..." screen.
+
+commit 01ffb616e61e5de8e28e840b0ce338131048e56e
+Author: Denis Oliver Kropp <dok@shizo.zion.home>
+Date:   Thu Jul 5 15:26:11 2007 +0200
+
+    Added scaling benchmark from indexed source.
+    
+    Flip the destination at least after every benchmark to see
+    the output on non-direct systems like SDL or X11.
+
+commit 2abc2713a0b73e03f8ca7fd0826ee5e1fd214091
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Mar 7 15:01:50 2007 +0000
+
+    1.0.0
+
+commit dc3f21403c002b32552300b4e45a40c4610b7f08
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Feb 21 23:07:57 2007 +0000
+
+    Added option "--accelonly", guess what it does :)
+
+commit dedd0a4abe2f347f5a2dd6d90afc1d305549cefc
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jan 29 00:33:39 2007 +0000
+
+    Fix version check for automake.
+
+commit 9df88c0c19581ffd0eb6d4616abe17727e449b94
+Author: Ville Syrjala <syrjala@directfb.org>
+Date:   Wed Jan 10 22:44:21 2007 +0000
+
+    Add --pixelformat command line option.
+
+commit a9b55a434f4db58074655f86e00edfe63c50a53a
+Author: Ville Syrjala <syrjala@directfb.org>
+Date:   Wed Jan 10 22:41:49 2007 +0000
+
+    Force offscreen test surface into video memory.
+
+commit ade781b6f2fbbfe7ade4cd0a7714c3c7b833725e
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Thu Nov 23 13:54:44 2006 +0000
+
+    Release font on exit.
+
+commit ec4c2a67b86e59e171cd3371987e18190e547f3c
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Oct 23 09:20:24 2006 +0000
+
+    Release the font.
+
+commit 2c0691fff994820516dbc2246f9375fc79c20c32
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Oct 16 12:42:23 2006 +0000
+
+    Use u32 instead of __u32 etc.
+
+commit 9bf0d7f0a6437d16a84a39a9f77bfc1ce90d5561
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Oct 1 19:41:49 2006 +0000
+
+    Added AC_CHECK_HEADERS(stdbool.h).
+
+commit 2cb85685e485a059a44fbbd09ca7c3e1d225b47d
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Thu Aug 3 09:12:52 2006 +0000
+
+    Fixed FrameCallback type.
+
+commit 26d2e1ae06ded1d0017a73148f4fbbb665fb35d4
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Fri Jun 30 06:53:03 2006 +0000
+
+    Disabled YCbCr StretchBlit demo by default.
+
+commit be81ab9f91a4d77a523b288fc1bf5b4b1c480700
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Thu Jun 29 14:52:33 2006 +0000
+
+    Added YCbrCr StretchBlit demo.
+
+commit 9fe5c0869fd5652912065d425340fcf3202738fb
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Thu Jun 29 14:51:36 2006 +0000
+
+    Show recently added rules.
+
+commit c1d9763d03b75027c2857da7b88e6eabf1b7b04c
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Thu Jun 29 14:50:57 2006 +0000
+
+    Fixed image callback type.
+
+commit 2ef1b26699f209571b4655c4828dcf1a57e541da
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat May 20 07:41:36 2006 +0000
+
+    0.9.26 required
+
+commit fddacbf65e44376ca4fc4ed04aefc955cbdd860a
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat May 20 07:26:00 2006 +0000
+
+    updated
+
+commit d45a50e55499a2246b8d355fe4fe96b2cebb5abf
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun May 7 00:01:51 2006 +0000
+
+    Print list of encodings when the font is loaded for the first time.
+
+commit 3d7e7a331c94659792e3c16969c3f719c6ce44bd
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Mar 26 18:56:06 2006 +0000
+
+    Fix autoconf version detection.
+
+commit 1a40381f50314174f51fd6c40df7e79513d97951
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Mon Jan 16 10:06:49 2006 +0000
+
+    Removed an unnecessary memory allocation.
+
+commit 3143be781d6c905ba00ef3f3abc1bd7720260e99
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Mon Jan 16 10:04:56 2006 +0000
+
+    Raise the limit of data in the buffer to 64 Kb.
+
+commit 9faa1d10979e52393920a05ff71533e3000a9de6
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Dec 18 12:39:07 2005 +0000
+
+    Show button and axis events for non-mouse/joystick devices, too.
+
+commit f076cf361d1ae61aab329fb7cc8c64db2ec60628
+Author: Ville Syrjala <syrjala@directfb.org>
+Date:   Thu Dec 1 19:20:46 2005 +0000
+
+    Alpha modulation can now be turned on/off.
+
+commit 57b0744d812a3d6390dc5578a4046d6e6a5ceb0b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Oct 29 02:42:30 2005 +0000
+
+    Fixed warnings.
+
+commit 0d04057bafa1e5abf6733fc6867e698f6e7548d4
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Oct 18 10:45:51 2005 +0000
+
+    Use CreateInputEventBuffer().
+
+commit b47e4e4f8bd11958c9fc88452b27c90a379ba74c
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Mon Sep 26 10:44:02 2005 +0000
+
+    Call IDirectFBDataBuffer::Finish() when the end-of-file has been reached.
+
+commit 6b3f289632f62e8d0d3361da808804ad53d8aa5f
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Sat Sep 24 14:15:12 2005 +0000
+
+    Limit the amount of bytes in the streamed databuffer to 8192 bytes.
+
+commit 975318b940de5e66b5a71c463241f0bc83ed32f3
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Fri Sep 23 09:54:50 2005 +0000
+
+    Do not force texture format to RGB16.
+
+commit af887be4d11684700dab60c494aca769e01a220f
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Fri Sep 23 09:53:56 2005 +0000
+
+    Try both IDirectFBDataBuffer::CreateImageProvider() and IDirectFBDataBuffer::CreateVideoProvider().
+
+commit c98633fbe9dc20bb71bc9c3d562fed41df344d22
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Apr 6 20:55:53 2005 +0000
+
+    0.9.23
+
+commit e38c977b6080831085940504ecd918da6f3cd8ab
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Apr 6 20:55:22 2005 +0000
+
+    Follow API change.
+
+commit 348782cef32038bef717e71aad1db93e687d32a5
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Mar 31 21:43:06 2005 +0000
+
+    Create premultiplied primary and premultiplied temporary ARGB surface.
+    
+    Blit a slightly dimmed background image to the primary.
+    
+    Render drawings to temporary surface and use SRC_OVER to compose with primary.
+    
+    Better layout, colors etc.
+
+commit 6aabac20d858ab9d39a69900df86c79afe7a4a63
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Mar 18 16:21:48 2005 +0000
+
+    Use triple buffering if available.
+    
+    Use floats instead of doubles. Should be converted to integer only.
+
+commit f20900cb4f983f496efeeb9545d880a56cdc86e8
+Author: Claudio Ciccani <klan@directfb.org>
+Date:   Fri Mar 18 16:19:55 2005 +0000
+
+    Allow to select the net interface on command line (for example: df_netload ppp0).
+
+commit 6248af22f036d7950d13125435eaa1e99d12c996
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Mar 18 14:10:52 2005 +0000
+
+    Added colorizing benchmarks.
+
+commit c4a3f6ab87472836e9d1bcf1128e1d2d9ca3264d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Mar 18 11:30:24 2005 +0000
+
+    Added option --noaccel to usage information.
+
+commit a8675ca8d46809d3883f358243b842ea74e837a4
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Feb 28 11:15:19 2005 +0000
+
+    Added "--noaccel" option for testing IDirectFBSurface::DisableAcceleration().
+
+commit 0e4b6553222af8e2727d40af9845292446c1776d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Feb 24 15:55:16 2005 +0000
+
+    0.9.22
+
+commit 7ba96fb8d0134b91671af39e6a81e8fff104aee0
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Feb 18 15:21:13 2005 +0000
+
+    The DrawString() benchmark didn't use 36 characters
+    as the speed calculation formula supposed ;-(
+    
+    Added "!!!" at the end of the test string to fix that...
+
+commit 10f938cba0c4da56d6b1059c00fe5a47d31baf07
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Feb 18 15:18:50 2005 +0000
+
+    Added FillRectangles() benchmark.
+    
+    All benchmarks fit onto screen again.
+
+commit b6a137b74f6d95a9704f91307650f4dd2cdb3e72
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Feb 18 14:29:20 2005 +0000
+
+    Cope with failing IDirectFBSurface::Lock() instead of segfaulting.
+
+commit 930c8e394be0f611a94ef2ace88883a368ac4d8e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Feb 15 07:37:30 2005 +0000
+
+    Ignore df_bltload.
+
+commit d46208593a6410a7d81ddb0da0a07ff6de533831
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Mon Feb 14 19:27:07 2005 +0000
+
+    - removed legacy ;)
+
+commit 66ceaace11a8a847cd9e13499096c8427c974f25
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jan 17 19:31:43 2005 +0000
+
+    Fix stack overflow caused by too many penguins.
+
+commit cbf5286853d07362c7ffc7738ec4d54983a3b98a
+Author: Ville Syrjala <syrjala@directfb.org>
+Date:   Mon Jan 17 11:22:43 2005 +0000
+
+    Display acceleration status also in the graphical results.
+
+commit 01117a53312fec5ddc0d77c3d278025d1f0766d4
+Author: Ville Syrjala <syrjala@directfb.org>
+Date:   Mon Jan 17 11:12:34 2005 +0000
+
+    Create the primary surface before the background surface to guarantee that
+    both surface will have the same pixelformat.
+
+commit 8b27b0d21b551358c9d565b0041f7a1b31d703bf
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Nov 23 17:39:28 2004 +0000
+
+    Added "df_bltload" which reads information from /proc/bltstat ;)
+    
+    Use DWCAPS_NODECORATION.
+
+commit 620911913fcbafc821e25a1b58a6dc29f6ffc625
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 19 06:13:19 2004 +0000
+
+    Fixes to last changes.
+
+commit 9e766247eae414d7d6f2b84b9bc5d7110a672190
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 19 05:57:54 2004 +0000
+
+    Use BatchBlit()   :-)
+
+commit 89de2b801ef5bf871c3a657175292d627551f7db
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 19 05:32:57 2004 +0000
+
+    Try to use DSCAPS_TRIPLE with DSFLIP_ONSYNC.
+
+commit f18ad7b1c966805853759a2beb6be3c57a198878
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 19 04:43:11 2004 +0000
+
+    Use DSFLIP_WAITFORSYNC.
+
+commit 412871a01dac650f78a73b329173b2372116d74b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Nov 7 09:48:13 2004 +0000
+
+    Minor cleanup.
+
+commit 2fb244e9c0f8e3cb9b7aa03b71576ac7386d37cc
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Nov 7 03:17:58 2004 +0000
+
+    Added FPS display.
+    
+    Made globals static.
+
+commit 5dece7fa91528d03b00ebbee1b76d48d08941ca7
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Nov 7 03:17:17 2004 +0000
+
+    Fixed warnings.
+
+commit f08bd0634437597c208202223effb7ec81712813
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Nov 7 02:37:13 2004 +0000
+
+    Slightly reduced number of triangles.
+
+commit de030ca1f21ae561d19c77df86c2d4e5ffcb632e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Oct 15 09:11:14 2004 +0000
+
+    Use an ^4 function for the alpha values, ^3 for red (entries 0-47).
+
+commit 2a100e117447112687f95a3ba3046b29f9d1f88a
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Oct 15 05:20:32 2004 +0000
+
+    More enhancements.
+
+commit 1a25d8756f19c70eed4b31f9cdbcf4bda3f31f97
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Oct 15 04:21:55 2004 +0000
+
+    cleanups
+
+commit 1aa7e8a2c95347620cc84761503f18195f3dea64
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Oct 15 04:05:29 2004 +0000
+
+    Use DFB_COLOR_BITS_PER_PIXEL instead of DFB_BITS_PER_PIXEL.
+
+commit 03dc62548f6828ba8bd4875635eb95785e943fc4
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Sep 6 04:44:03 2004 +0000
+
+    For FillSpans() test without blending use alpha 0xff for visibility on ARGB1555.
+
+commit d956b4cb755bb0b63ffbb73c25ef91a075a9d2b4
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Sep 6 01:49:37 2004 +0000
+
+    Changed all translucent palette alpha entries from 0x77 to 0x80
+    to get a reasonable result for non-blended blitting to ARGB1555.
+
+commit 40eff3a355d590904cb8c377efe913e451f4bf08
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Sep 6 00:59:47 2004 +0000
+
+    Attach the event buffer earlier to receive the initial focus event.
+
+commit 1984aba4a05d4ec2a1590c9c3446c4b787e45be4
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Aug 13 11:10:08 2004 +0000
+
+    Added blended span filling.
+
+commit 968413d365d6343724b744d7c7d0f99da5962775
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Aug 9 18:31:24 2004 +0000
+
+    Fixed true/false mixup for default benchmark selection.
+
+commit 92d878dbff4c23b654f90f3dcfe6ed984f4a949e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Aug 9 16:24:20 2004 +0000
+
+    Added a FillSpan() test showing quite good results on my P3 800 with G450:
+    
+    Fill Rectangles       3.001 secs (* 777.434 MPixel/sec)
+    Fill Spans            3.003 secs (* 560.864 MPixel/sec)
+    
+    For each span the driver function FillRectangle() is called,
+    i.e. in this test case the number of driver calls is 256 times higher!
+
+commit d50913ccb602ab848206ac7e51ec23e303d0481b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Jun 4 15:20:10 2004 +0000
+
+    Fixed warnings.
+
+commit c73ff0c4f48af51a0150845b598b773f3077f171
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu May 27 08:43:37 2004 +0000
+
+    Implemented clipping of all vertices against the view volume including
+    all necessary stuff like splitting a triangle into two or more.
+    
+    It's now possible to render a full 3D scene around the viewer.
+    
+    Cleaned up code and added lots of comments to the vector engine header.
+
+commit c68531c3ec03d96f048cd038e0e5a839d9f17a95
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed May 26 02:23:07 2004 +0000
+
+    Reduced number of vertices.
+
+commit af9bb24f06e2863b3b288a1d7d2fc3b977424973
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed May 26 01:51:27 2004 +0000
+
+    Added VE_QUAD_STRIP to VePrimitiveType for vertex buffers.
+    
+    df_texture shows a waving flag now.
+
+commit 40c991ed32b1837821d69c834a179b6300e92b3e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue May 25 22:28:55 2004 +0000
+
+    Added FPS measurement utilities.
+    
+    Cleaned up and structured code of df_texture a bit, added lots of comments.
+
+commit 5c35797bdb3c70be2bb048f58c9048024c70ae97
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue May 25 21:49:28 2004 +0000
+
+    Write to DFBVertex directly in veTransform().
+    
+    Added initial version of vertex buffer functions a la
+    vbNew(), vbAdd(), vbClear(), vbExec() and vbDestroy().
+
+commit 8d90b86ce1559cef53aef953c9be9eac209e9003
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue May 25 16:33:40 2004 +0000
+
+    Number of vertices now depends on the screen size.
+    
+    Added "-D_GNU_SOURCE".
+
+commit a7ebb621e3f2a2a367be77870fc8bd320e029aa2
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue May 25 15:14:50 2004 +0000
+
+    Use DSBLIT_BLEND_ALPHACHANNEL only if the window surface has alpha.
+
+commit c7c3dd2ed5e42a3f07f7d92bd956b0f649763d65
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue May 25 15:05:16 2004 +0000
+
+    Added FPS counter.
+
+commit 05708d5a9c4a691aa3c003f488f8a1bb09b2fe82
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue May 25 12:58:40 2004 +0000
+
+    Added vector and matrix stuff with a simplified OpenGL like API based on Mesa.
+    
+    It provides functions like veFrustum(), veOrtho(), vePerspective(),
+    veViewport(), vePushMatrix(), veRotate(), veLoadIdentity() etc.
+    
+    Use veTransform() to calculate DFBVertex values from object coordinates.
+    
+    Increased the number vertices from 36 to 128 in df_texture and
+    added dynamic mesh generation with a small animation.
+
+commit 749117dbe9ca58208b038ed65f936ef93997321e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri May 21 09:34:07 2004 +0000
+
+    Use DSCAPS_DEPTH.
+
+commit 5b3a780ef1585d6c2113347c9b143d6977e051c7
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed May 19 17:00:42 2004 +0000
+
+    Use 36 vertices and calculate a shell like mesh.
+    Rotation requires pressing the middle mouse button now.
+
+commit 91fcbc90d0e00d64794ab738c5c7764e2920020e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed May 19 12:05:06 2004 +0000
+
+    You specify a window id on the command line to use the surface of an existing
+    window as the texture ;)
+    
+    Try "df_texture <ID> --dfb:force-windowed,pixelformat=ARGB"!
+    
+    You will get a transformed version of the window next to the original one,
+    both with live updates, the 3d window can be rotated with the mouse.
+    
+    IDs are shown by "dfbdump".
+
+commit adbf5c21838208597b3e4cea1631a93f8a3b2d95
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed May 19 03:57:00 2004 +0000
+
+    Added a cool texture (made with Gimp).
+    
+    The object can be rotated with the mouse now!
+
+commit eddc6e73b58a4a6d360fdaa6f357c3f8dd7e2f25
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue May 18 22:44:06 2004 +0000
+
+    Fixed vertex generation.
+
+commit 00ba40c6ed8c62524b22707204235879f07c859b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue May 11 03:51:59 2004 +0000
+
+    Query DFXL_DRAWSTRING to show if font rendering is accelerated.
+
+commit 8ed68bf01ba2471e53fdf9d2d1caae52d42b9fc0
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue May 11 01:47:59 2004 +0000
+
+    Reflect acceleration in the printed results.
+
+commit 8516602c3c74556663da571579824d405b4ff67b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed May 5 20:59:31 2004 +0000
+
+    No need for GetCursorPosition().
+
+commit 933697bd745a26ec00f60c8ae03a2a21bbf04eaa
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Apr 29 23:14:21 2004 +0000
+
+    Removed unused layer interface.
+
+commit 69a6530dcfabaa1402dd7bf507179f54efb2b628
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Apr 29 10:01:21 2004 +0000
+
+    Removed obsolete/unused stuff.
+
+commit f0e67bd0d73ab184fd0afa9322c1d2854c3e67d8
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Wed Apr 21 17:21:14 2004 +0000
+
+    joystick icon
+
+commit 8567d3e7653f7ca396299315dc7936eec2fa08ad
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Wed Apr 21 17:20:51 2004 +0000
+
+    - add support for joysticks, draws 6 axis for now
+
+commit 438c5e90249a769cb50bd3653fdde694bda85401
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Wed Apr 14 17:15:37 2004 +0000
+
+    - added benchmark for destination colorkeying.
+    (this feature is not yet mplemented in the software driver)
+
+commit 8c4e660d65a643303c2d1801c8a2a5f60dddbe95
+Author: Ville Syrjala <syrjala@directfb.org>
+Date:   Tue Feb 24 09:35:27 2004 +0000
+
+    Renamed DSCALS_FLIPPING to DSCAPS_DOUBLE.
+
+commit 56a301eea533a491ab211be59a6bb83bd1c7e64e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jan 19 18:16:22 2004 +0000
+
+    Don't wait for user input.
+
+commit 8e479413c645e22b14051f14953bccd1a0919364
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jan 19 14:13:24 2004 +0000
+
+    Added df_texture.
+
+commit 95f3d5b5b06b9119ece2984eadf4dd308168235d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jan 19 14:12:19 2004 +0000
+
+    Use a video texture if e.g. "/dev/video" is specified on the command line.
+
+commit 1915f7d37b70dd1faafcdc345127518b57aff7fa
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jan 19 12:47:20 2004 +0000
+
+    Show hardware key code, too.
+
+commit 3568160969c04d46a5e3a39b13e64b8bb870ae45
+Author: Michael Natterer <mitch@directfb.org>
+Date:   Thu Jan 15 11:02:01 2004 +0000
+
+    Added df_drivertest.
+
+commit 4d8e8b5332447fd92895b1eb40860ef5b81d6336
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Fri Jan 9 17:52:20 2004 +0000
+
+    require DirectFB >=0.9.21
+
+commit 766df3dc760aa6ddcbd66b0de686c01ea6648554
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Jan 8 19:53:42 2004 +0000
+
+    My first TextureTriangles() example.
+
+commit b1f001136abef81cf917e02a71da7ecb2a43dfba
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Dec 16 05:52:15 2003 +0000
+
+    Fixed new smoothing formula.
+
+commit 80e7765d130ab6d2d440870978831a73020da888
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Dec 16 05:03:42 2003 +0000
+
+    Take additional values in /proc/stat into account (for 2.6 kernel).
+    Smoothing uses 1/4 old + 3/4 new value now.
+    Removed floating point.
+
+commit aa03efd9cd212b883f7e22fb2d57fad5199edf62
+Author: Andreas Kotes <count@directfb.org>
+Date:   Wed Dec 10 16:00:34 2003 +0000
+
+    Added DIKS_EXIT ('Exit' on remote control) for quitting.
+
+commit 44134c268a18aa51d1e44d432bd9994af3bfb2e9
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Dec 10 15:57:11 2003 +0000
+
+    Show PRESS and RELEASE.
+
+commit 725dd4d26729bdcaaedd7a1b6476642804ad2688
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Thu Nov 6 21:56:38 2003 +0000
+
+    - added DrawRectangle (press d)
+
+commit ba1ab5d30ad25fe2f6a6f388dbb0c0d414e118b9
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Oct 29 17:53:42 2003 +0000
+
+    Use custom (fast) rand().
+
+commit 811e50ed3a7bf6f12e3b4aa3b07f5ef56fc9e7e4
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Oct 29 17:51:39 2003 +0000
+
+    Fixed anti aliased fonts.
+
+commit bf22c22872308c76b2e9fad099f1b8d5df56aa8c
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Tue Oct 14 11:52:25 2003 +0000
+
+    fix image file name
+
+commit 8f69f24b875760b91c94e6fbf2eed18e4330a25f
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Wed Oct 8 17:06:14 2003 +0000
+
+    added df_drivertest, a small tool to check drivers for bugs and accuracy,
+    more checks should be added.
+
+commit b55feb397b1a7a1807cc8ad6f6b0bd6d3eb8faaf
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Sep 26 21:01:56 2003 +0000
+
+    Added option "--mono" which disables anti aliased fonts.
+
+commit c80d8d408044da49d1bce28b86dc31943c70a620
+Author: Andreas Kotes <count@directfb.org>
+Date:   Fri Sep 19 13:48:51 2003 +0000
+
+    separate rx/tx
+
+commit d840f52ee5c0d665dc62cb6836e9d37d4a478373
+Author: Andreas Kotes <count@directfb.org>
+Date:   Fri Sep 19 13:44:21 2003 +0000
+
+    s/df_ideload/df_dioload/
+
+commit a4d5bda02a1b85ae9204ac7c9655aa776b288f79
+Author: Andreas Kotes <count@directfb.org>
+Date:   Thu Sep 18 13:39:10 2003 +0000
+
+    whoops
+
+commit 75d7b99a6231e1605d48dcf479612d7d7aa28bc8
+Author: Andreas Kotes <count@directfb.org>
+Date:   Thu Sep 18 13:37:48 2003 +0000
+
+    - inferior support interrupt counter /proc/interrupts removed
+    - using disk_io from /proc/stat (spans ALL disk devices)
+    - separate gauges for read/write
+
+commit aa77b6d59c49700cbb06b6e324adf4ee4c8838cd
+Author: Andreas Kotes <count@directfb.org>
+Date:   Fri Sep 12 12:04:01 2003 +0000
+
+    added df_ideload, fixed grabbing key by removing it altogether.
+
+commit c52513d14a1192f9de00fc5f8d3a141e659cbfbc
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Aug 11 11:08:39 2003 +0000
+
+    Applied patch from ad <ad@fischlustig.de> reducing float usage, thanks.
+
+commit ee8e7d9b3ec793befe8c30cd65c0048704c2d6db
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Tue Jul 29 13:05:54 2003 +0000
+
+    version 0.9.19+0.9.20WIP-1
+
+commit 7c98bf97f35929e778e5e16ede776915c77fab58
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sun Jul 27 12:27:24 2003 +0000
+
+    Added df_netload (next to df_cpuload). Currently hardcoded to eth0, autoscaling.
+
+commit c321472a178fce3c5acab0f5d044c500196dcf61
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jul 21 13:04:44 2003 +0000
+
+    Updated ChangeLogs.
+
+commit 0b3ef1fe7eeb520d2f3b56fa6e200f27c3d7c315
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Fri Jun 27 23:49:03 2003 +0000
+
+    changed package version to 0.9.18+0.9.19WIP-1
+
+commit ee5247c8ee2b00249eba888628fe90a6e79b0e62
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Jun 27 12:36:47 2003 +0000
+
+    Fixed -Werror-implicit-function-declaration[s] <- removed this character
+
+commit 1e6f8166fd07f99e4a310bf1d361e3fcd34aa2f6
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jun 2 18:02:59 2003 +0000
+
+    Bumbed version to 0.9.18.
+
+commit 8597d87995a6ada292aea173e52c0480ec6d1168
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Sun May 18 20:37:39 2003 +0000
+
+    package fix
+
+commit 04a48adeaeb043ac0503ddc66237a7119067954d
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Tue Apr 22 09:22:19 2003 +0000
+
+    debianized
+
+commit a4ebad4ae3ca51c48e663e207c2ecba45f2e1d5e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Apr 17 18:11:47 2003 +0000
+
+    Added -Werror-implicit-function-declarations.
+
+commit cdb8f089de8257988cf8180c769ff56ecfbb452d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Apr 17 11:23:56 2003 +0000
+
+    CFLAGS cleanup, prerequire autoconf 2.52.
+
+commit c231fca2c54512046c3ed6008d9eba5ff02f2252
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Apr 16 14:49:39 2003 +0000
+
+    Be able to configure even if CFLAGS is exported containing "-Werror".
+
+commit 7bd08875706686091c6c407575b17b7113553ca9
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Apr 16 14:25:46 2003 +0000
+
+    Signed/unsigned fixes.
+
+commit 490c7a9e02c4a879f2dace057696324305935867
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Apr 16 11:35:09 2003 +0000
+
+    Removed "no-cursor".
+
+commit b1f1dfd8b47cfc4ac2963a165e740db1b40b50e6
+Author: Ville Syrjala <syrjala@directfb.org>
+Date:   Sun Apr 6 15:16:01 2003 +0000
+
+    Added draw_string_blend() benchmark.
+
+commit 25abcc7ec04dab813f9f0743bb17987a0fe4f51e
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Feb 28 20:36:04 2003 +0000
+
+    Updated.
+
+commit 3791945269f6709414781565bbbef2ebe1a557a2
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Feb 18 17:30:47 2003 +0000
+
+    Added missing SetCooperativeLevel() calls.
+
+commit 0753b18efd50af1c773d44881cfee6c616b0fd37
+Author: Sven Neumann <neo@directfb.org>
+Date:   Wed Jan 29 14:12:48 2003 +0000
+
+    Added a missing call to Clear().
+
+commit 742eba34979e49bc9fbe3235fb7ee7b8c823aaec
+Author: Sven Neumann <neo@directfb.org>
+Date:   Wed Jan 29 14:08:51 2003 +0000
+
+    Display the device name for each event.
+    Requires DirectFB >= 0.9.17.
+
+commit b2d7095dea62469f63373c8ab618cd023333000f
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Dec 19 17:25:31 2002 +0000
+
+    Reverted change that I accidently committed some time ago.
+
+commit 2ea1d0f03e3860f978c7978db58de32c80daa69d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Dec 5 18:00:26 2002 +0000
+
+    Fixed matrox_rotate() for Z-axis. Some simplifications.
+
+commit 32bade80a2e40916f973a174d31277659b345afb
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Dec 5 17:57:44 2002 +0000
+
+    Use IDirectFBWindow::GrabKey() for the exit hot key (Ctrl-Alt-F12).
+
+commit 611733b3f25f1d14e54e76a80b90825dff8ff29b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 29 20:31:11 2002 +0000
+
+    Added raw Flip() benchmark (RPC fbdev panning done by slaves seems to be
+    1/4 as fast as directly within the master).
+
+commit f4ed9b08796241a51c87f9538a8e1e9b85ff40cf
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 29 20:14:34 2002 +0000
+
+    Removed "sched_yield()" hack because palette changes on the framebuffer
+    are implemented via synchronous RPC.
+
+commit e3987ccb320667591bcec10914fef326a00ea137
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 29 14:15:40 2002 +0000
+
+    Added cpu load meter as a "ghost" window, a window which never gets the focus
+    and passes through clicks (output only window).
+    Only makes sense in usage with the multi app core, close with Ctrl-Alt-F12.
+
+commit ec491ed81c3e9d5523b2614bb45fe3db612f4678
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Nov 21 22:08:06 2002 +0000
+
+    Looks much smoother.
+
+commit 2d2f26e044aab1b0742f51b402e3e3d26f9e756b
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Nov 21 18:32:39 2002 +0000
+
+    added keybindings: H for help, M for monochrome rendering
+
+commit 7a0d211a6a3b33e37cba067a5e332b7a3b5f73e8
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Nov 21 15:35:51 2002 +0000
+
+    Set the font to the destination surface once, not for each glyph.
+
+commit 9ac642342ff9d0345a1488b1c66cea4dd8de516d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Nov 14 02:36:22 2002 +0000
+
+    Create video provider a bit earlier.
+
+commit f7ba059d2fa4dd14ee1dc50e505637b890d27268
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Nov 14 00:49:12 2002 +0000
+
+    Allow resolutions with height < 256.
+
+commit 68578a71c15880bb9966d9422aee91ac36e21529
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Nov 13 21:11:04 2002 +0000
+
+    Added sched_yield() workaround that avoids flooding the palette reactor.
+    
+    Clear after setting the palette in df_fire.
+
+commit a3bea6e4cef39c1cebc80c855aa84d8363181555
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Nov 13 01:26:21 2002 +0000
+
+    Added *.diff.
+
+commit 63c4f505868d6dcd29492200584e67344168918f
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Nov 13 00:21:11 2002 +0000
+
+    regenerated
+
+commit 304b0499ab3d4361131d711d82db1abce9e93843
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Nov 9 00:20:06 2002 +0000
+
+    Minor fixes.
+
+commit aabb16d22795e794a05f9e9e3867ee62bc612940
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Nov 9 00:14:40 2002 +0000
+
+    Always clear with 50% transparent black.
+
+commit f51d7b7cdf73608ea5851dc9aa2d0d4ddb30dfe8
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 8 21:39:18 2002 +0000
+
+    Added blitting from LUT8 (with and without alpha blending).
+    
+    df_dok layouts the screen (font size etc.) depending on the screen resolution.
+
+commit 92110cccb47a522367164913a5abaee694463351
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Nov 5 23:34:57 2002 +0000
+
+    Bumped version number to 0.9.15.
+    Show the size used to load the font in df_fonts.
+
+commit 1604e9f23c3578eaac08100d62733d3add1a86e0
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Nov 5 23:07:48 2002 +0000
+
+    Don't exit if cooperative level couldn't be set.
+
+commit 33e1646f0e376e2e010ffa20c0aa5d553f4ca28b
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Nov 4 18:31:50 2002 +0000
+
+    cosmetics, no changes
+
+commit d7748952aba6b4de7c8e063ea8f04213c27b7c43
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 1 23:07:24 2002 +0000
+
+    Follow API changes.
+
+commit 2aa34a9cf50992bbbf906813102eea4e3774a6e5
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Oct 29 15:35:19 2002 +0000
+
+    Updated for the 0.9.14 release.
+
+commit 681ea96c13d4477c48a624bfd8cd394d4c5139c4
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Oct 29 15:17:13 2002 +0000
+
+    No reason to bail out if setting the cooperative level failed.
+    The user might have used --dfb:force-windowed.
+
+commit b991f47d46e5344c03f8b681aa5862fa5c7f8af2
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Oct 28 20:00:41 2002 +0000
+
+    Only redraw if an update is needed.
+
+commit 71bd182675b6136c163f5c99c8bebab59106f573
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Oct 28 19:14:51 2002 +0000
+
+    Use key symbols instead of key identifiers.
+
+commit 105d57b977e10404ab20ef408c56b416ddb017d5
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Oct 28 17:58:14 2002 +0000
+
+    Exit on escape instead on any key.
+
+commit 10cc2eb3bf8b3c6b9cf23cddcf23c0fe4522fc0b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Oct 28 17:54:27 2002 +0000
+
+    Allow to run windowed.
+
+commit 9bbb77b86b3eab41a429500e158e2b87568cf281
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Oct 28 16:00:24 2002 +0000
+
+    Allow windowed mode.
+
+commit 0b6968e7d4e303c1740338a5ffae9cc6bd380ac9
+Author: Sven Neumann <neo@directfb.org>
+Date:   Sun Oct 27 11:22:17 2002 +0000
+
+    Applied a patch from Andreas Oberritter <obi@tuxbox.org> that fixes
+    the wrong use of CFLAGS in our Makefiles.
+
+commit 4a20273bf9c0c8f8e7fbe940fc2ef6154ca91709
+Author: Sven Neumann <neo@directfb.org>
+Date:   Sat Oct 26 19:10:15 2002 +0000
+
+    Bumped version number to 0.9.14.
+
+commit 5466380588fb016de563d15b5680175b489b457e
+Author: Sven Neumann <neo@directfb.org>
+Date:   Sat Oct 26 19:09:22 2002 +0000
+
+    converted to DirectFB coding style
+
+commit 284c51b85543ed6211b9d2e8cc073c38c94b3b48
+Author: Sven Neumann <neo@directfb.org>
+Date:   Sat Oct 26 13:16:31 2002 +0000
+
+    Quit df_input when ESC is pressed twice.
+
+commit 0df91001ee8f6860631872c1668b72c8f4c2fc6f
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Oct 25 16:21:55 2002 +0000
+
+    Allow running in a window.
+
+commit 2a4ce74a199c7e98b671ddfbf49b8e4d817a6b88
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Oct 23 16:11:22 2002 +0000
+
+    Updated cvsignore files for automake 1.6.
+
+commit ebc66d945a8758d217175e60579e2c7cc3233a35
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Oct 21 22:08:35 2002 +0000
+
+    minor cleanup
+
+commit 950aff7bffde9e11718041fd81d0e7ee991fef7d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Oct 10 15:45:44 2002 +0000
+
+    Don't restart on any key press.
+
+commit ac139ec9b579460db7440d315eb27a288278b50d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Sep 25 09:50:41 2002 +0000
+
+    Use surface caps provided by the video provider when creating the window.
+
+commit 9c50352fe6508c7e73aed7c8c2b5ef43c5983de9
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Mon Sep 23 16:05:37 2002 +0000
+
+    do not include <malloc.h> and <asm/types.h>, fixes problems on darwin and FreeBSD
+
+commit 65b43c331dcea3b343d6ba73bbf07421fc02bb51
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Aug 22 23:33:30 2002 +0000
+
+    regenerated
+
+commit 197f92561af463e45f57c71b5d3ba876e2483ada
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Aug 22 21:17:51 2002 +0000
+
+    Disable cursor and background for df_fire.
+
+commit 7a5fd026d0b4deaffbe742911a2cc18a2c93a4e1
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Aug 22 20:36:52 2002 +0000
+
+    Added fade out via palette.
+
+commit cc109970b520f794ecc4ddfee9d50d13fc111bbe
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Aug 13 19:11:03 2002 +0000
+
+    Made df_window robust against out-of-order focus events.
+
+commit 246228d1669ede2c0c4f1e417e9078f88c060e09
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Aug 12 17:20:24 2002 +0000
+
+    Added streaming databuffer example.
+    
+    Fixed many warnings.
+
+commit 091b12c600ebd4cef759ae26821bc190e793f210
+Author: Sven Neumann <neo@directfb.org>
+Date:   Fri Aug 9 16:05:45 2002 +0000
+
+    Mention df_databuffer in the README.
+    Add copyright notice to df_fonts.c.
+
+commit 251b973e7b3197c2c106ba45b7da6a0e985f5f20
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Aug 7 15:53:23 2002 +0000
+
+    added a test for streamed data buffer
+
+commit 33687fe83c109438c023bdd0b09cb47067137cd4
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Aug 6 16:17:13 2002 +0000
+
+    Added data buffer example demonstrating file based and memory based usage.
+
+commit f6803cb01f6a1edd8b847a153d0648f6d04bbff3
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Jul 26 14:19:45 2002 +0000
+
+    Removed hack for clearing the indexed primary surface.
+
+commit c3da816fdfc37843828ced1c685020e503f234c7
+Author: holger <holger>
+Date:   Fri Jul 26 10:33:33 2002 +0000
+
+    press 'U' to switch between Unicode charmap/Raw glyph indices
+
+commit 820c3d07b68b05e8f6d1f642bcf6cd9cf5f0c0eb
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Jul 26 10:05:55 2002 +0000
+
+    Rewrote df_fire in 8 bit palette mode.
+
+commit 991694d39917b0a7c354acd511eac2939ba1dfd7
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Jul 25 18:37:25 2002 +0000
+
+    Also display axis motion for axes different from X and Y.
+
+commit ce2561b8d643bafd618c33b1e97adb15133aa700
+Author: holger <holger>
+Date:   Thu Jul 25 15:58:04 2002 +0000
+
+    usage + some changes in surface initialisation
+
+commit 323eb10c34ef2ab99655f8c767ccad86b69f0e94
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Jul 25 15:53:55 2002 +0000
+
+    Mention df_fonts in the README.
+
+commit 9663543ae0681e6fbe61446801914353510b2722
+Author: holger <holger>
+Date:   Thu Jul 25 15:21:34 2002 +0000
+
+    a simple font viewer
+
+commit 39ae089c5abb5e9ce07859e2de2e8f3a83a78793
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Jul 25 14:54:48 2002 +0000
+
+    Follow API changes.
+
+commit 4c31048b6a42308d54cb45fbda0f7ee33bc688a6
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Jul 25 08:41:24 2002 +0000
+
+    Mention the fact that one needs to run 'make install' before most of
+    the demos work.
+
+commit 689766de429671532e15e7790e93417466ff8137
+Author: Sven Neumann <neo@directfb.org>
+Date:   Wed Jul 24 08:50:04 2002 +0000
+
+    Yet another file that still had the old LGPL header.
+    Updated the email addresses in the AUTHORS file.
+
+commit f841f42963668604de25bd9e0f15d8dab811e3ed
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Jul 23 20:08:04 2002 +0000
+
+    Relicensed under the MIT license. Actually we just forgot to change
+    these two files when the whole package was relicensed in April.
+
+commit d182a1bda02f1b0367f47758c6168a6528337be6
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Jul 23 10:58:32 2002 +0000
+
+    Bumped version number to 0.9.13, updated README and added the proper
+    license file (the examples are provided under the terms of the MIT
+    license).
+    
+    Quit df_input if no event was received after 10 seconds so that it
+    doesn't block forever if no input devices are available.
+
+commit 68c1fec714b4b253df6d35f51c604a1964e76aad
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Jul 23 10:34:37 2002 +0000
+
+    Added proper command-line parsing to df_input and output usage
+    information on when --help is specified.
+    Minor code cleanup in df_dok.
+
+commit a9a251bc4672fdd27dd2555cc7bade84490f3832
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Jul 18 15:54:27 2002 +0000
+
+    Show device type (via icon) and device ID for each event.
+
+commit b8dbfbb03beeb96b5df13dbeed22317c8f6e7477
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Jul 18 10:52:43 2002 +0000
+
+    Display the number of the pressed mouse button.
+
+commit da21a0e9fd25f6ef6d8f0c4c2b054fc002c228f8
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Jul 16 14:24:03 2002 +0000
+
+    Show number of key_repeats instead of displaying the event_type.
+    Show something for mouse events.
+
+commit 45eec1f6bc47e19417afbc7c69220267202bffd1
+Author: holger <holger>
+Date:   Tue Jul 9 13:16:55 2002 +0000
+
+    follow changes in directfb_keyboard.h
+
+commit 51d7303a3216bb07190db0f26d85281dc7153458
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jul 3 19:56:55 2002 +0000
+
+    Follow name change.
+
+commit 2542a77fa33b6b25f68f66ec2416ce6da2723523
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Jul 2 15:12:00 2002 +0000
+
+    Use a real 8bit display now, without blitting, just direct palette updates
+    on the primary surface.
+
+commit f06bf64b244fd85873137c6b06a621b3535d632d
+Author: holger <holger>
+Date:   Thu Jun 27 15:07:39 2002 +0000
+
+    compress key events if possible, we still have the problem with mouse events, Sven is working on this
+
+commit 4e10b22ff634a44a3c7d377c63b0e4c1e2cd2111
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jun 26 19:19:55 2002 +0000
+
+    Removed flipping usage.
+
+commit d7db1455f5cf5c870e9c80914adece4c6935bb1f
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jun 26 18:38:05 2002 +0000
+
+    Added a new example blitting from a surface with a rotating/morphing palette.
+
+commit d87528cd5c16b1a725451944c80a744c7fc82cd1
+Author: Sven Neumann <neo@directfb.org>
+Date:   Wed Jun 26 17:53:22 2002 +0000
+
+    Replaced colorkeyed.png with a GIF version. Better since we test the
+    GIF provider this way and can use the provided colorkey.
+    
+    Made dest a subsurface of the primary in case it is the same surface.
+    That way the primary always has it's own state independent of the
+    destination surface used for the benchmarks.
+    
+    Call GetAccelerationMask() on the dest surface, not on the primary.
+
+commit 1446bbe6d1a2ca11304a5debcb310b1ae9981681
+Author: holger <holger>
+Date:   Wed Jun 26 17:09:02 2002 +0000
+
+    show keypress/release
+
+commit 92aef617d636fc11342d914f913de861898ee98c
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Jun 20 19:06:43 2002 +0000
+
+    removed a superfluous Clear()
+
+commit a4b68a355978a99b41d3b71a51daa4ac959c4c63
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Jun 20 16:50:09 2002 +0000
+
+    Setting the background to none is even faster...
+
+commit 0bd5406597812960dd35ce9360fad397bbf30d11
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Jun 20 16:47:31 2002 +0000
+
+    Based on a patch from Ville Syrjälä <syrjala@sci.fi>:
+    
+    Added --offscreen command-line option that works similar to --system
+    but doesn't force the offscreen surface into system memory. Useful to
+    test surfaces in AGP memory.
+    
+    Blit the offscreen surface to the primary when the test is finished.
+    
+    Disabled cursor and set background color to black for faster startup.
+
+commit eadb039967130207e0bf5a76616684df82450c20
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jun 19 21:11:41 2002 +0000
+
+    generated
+
+commit 3abd1d34f78ab0a27faff0bb036220a67622f8dc
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Jun 11 12:15:44 2002 +0000
+
+    No need to pass struct reference to bsearch, just pass the struct directly.
+    Declared keynames and idnames as const arrays.
+
+commit 5e8309c2974a7d1ef89c5eb9e89adfce1a407435
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Jun 10 19:28:17 2002 +0000
+
+    Also display the Unicode index of the key_symbol.
+
+commit 4ccbc8cb8c1e17f56f39dadce965340ecd10ee37
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Jun 10 17:47:21 2002 +0000
+
+    Use IDirectFBSurface::DrawGlyph to render the key_symbol.
+    Removed unichar_to_utf8() function which is not longer needed.
+
+commit 5d3bb62af9e648d4522362b41a527a2cbfcdb28c
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Jun 8 20:25:47 2002 +0000
+
+    Subtract one from the size of the symbol/id to name arrays,
+    because the last element is DIKI_UNKNOWN/DIKS_NULL.
+
+commit f734257217a27d60b58fecbad53b12ae9930aa3b
+Author: Sven Neumann <neo@directfb.org>
+Date:   Fri Jun 7 18:32:42 2002 +0000
+
+    Display modifier state of last keypress event.
+
+commit aa60e3ddb0acd3f5fda34d192d22ffd003681f89
+Author: Sven Neumann <neo@directfb.org>
+Date:   Fri Jun 7 16:41:37 2002 +0000
+
+    Updated README.
+
+commit 6df3c1f77fcace6ebb9c8531fde293354228bb5c
+Author: Sven Neumann <neo@directfb.org>
+Date:   Fri Jun 7 14:56:02 2002 +0000
+
+    Display the state of lock keys.
+
+commit dbd23183db36c17e2e67f3bbde17876abe76ef16
+Author: Sven Neumann <neo@directfb.org>
+Date:   Fri Jun 7 13:54:55 2002 +0000
+
+    Set version to 0.9.12 and depend on DirectFB-0.9.12.
+
+commit b92283214342138dcf676d1525d012a82abaeb7b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Jun 7 12:18:00 2002 +0000
+
+    Show name of identifier instead of value.
+
+commit 2e19941bfb5f682cf9c7c9e3b522a09f97a453d3
+Author: Sven Neumann <neo@directfb.org>
+Date:   Thu Jun 6 11:50:40 2002 +0000
+
+    Regenerated ChangeLog.
+
+commit ed218da6714c6784acbe195bcd2f41218cd12a09
+Author: Sven Neumann <neo@directfb.org>
+Date:   Wed Jun 5 15:16:55 2002 +0000
+
+    Display the key identifier as well.
+
+commit 60b27fd3866a565e94ecbc5683a37e592217f4b0
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Jun 5 00:29:33 2002 +0000
+
+    New example that shows the symbol name and its representation of pressed keys.
+
+commit 945e8808392b4e609ab0ecd137a7c46a455eb624
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Jun 4 23:35:09 2002 +0000
+
+    No need to zero out a DFBSurfaceDescription. Removed memset() calls that
+    were needed back in the old days.
+    Use the new IDirectFBSurface::Clear method where it makes sense.
+
+commit c788356bdcfd603a68d1e5933188258e82ca3daa
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Jun 3 18:09:09 2002 +0000
+
+    Make use of IDirectFBSurface::Clear and fixed display of acceleration icon
+    in df_dok's system mode.
+
+commit e3dce9146df98927f90b75aa5f9100c42e8f5d94
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu May 30 09:13:56 2002 +0000
+
+    Set DSBLIT_NOFX before stretch blitting the meters.
+
+commit 2bc308557f3fccc18ac7b6c9f1f6a1f721210e34
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed May 29 20:23:01 2002 +0000
+
+    Use key symbols only, to be able to use the cursor keys on the num pad.
+
+commit 6abc4a4f5d08207b6ebc7aa0cd529ec6e7e09229
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon May 27 15:52:37 2002 +0000
+
+    Follow API enhancements.
+
+commit 5d5568c566bb7d4290214734e63cdd5f9b301495
+Author: Sven Neumann <neo@directfb.org>
+Date:   Fri May 24 13:10:23 2002 +0000
+
+    *** empty log message ***
+
+commit 4826058547a0423cef39049181ed5ebe6ce71ece
+Author: Sven Neumann <neo@directfb.org>
+Date:   Fri May 24 12:48:19 2002 +0000
+
+    Bumped version number to 0.9.11. Removed AM_PROG_LIBTOOL since we are not
+    building a library.
+    
+    Added --help and --font <fontfile> parameters to df_dok.
+
+commit 0e659709cf1688e6f73d7525626a4486fb5bc7f3
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri May 10 17:11:17 2002 +0000
+
+    Fix benchmark size limitation for blitting operations.
+
+commit 9e2ea2166694a3165c48d037b3c8861bf04c6b1a
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Apr 22 16:57:41 2002 +0000
+
+    released
+
+commit e8a961f42e42353045336eebd0dfe3edca66728f
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Apr 20 20:22:44 2002 +0000
+
+    All examples written from scratch have the MIT License now,
+    LGPL didn't make sense ;)
+
+commit ffee337a6ebb1adec768ce2c934a3f9b9c4d910d
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Sat Apr 20 18:00:08 2002 +0000
+
+    added StretchBlit test with color keying
+
+commit f78e8e0708001079ee228f295ff8528c59bdb5fa
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Apr 20 16:26:59 2002 +0000
+
+    Sorted out data files.
+
+commit 448486e9ef12e58956f8a03c04b217ed79a14897
+Author: Sven Neumann <neo@directfb.org>
+Date:   Wed Apr 17 11:04:21 2002 +0000
+
+    Follow DirectFB API change in IDirectFBImageProvider::RenderTo().
+
+commit 02bf41a4c1d488bd0135ddc6e2c793ac9f8236f4
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Apr 15 17:13:55 2002 +0000
+
+    Show the DirectFB logo on startup.
+
+commit 1ea39ed2ddc41b55e022ec1887aad00fac60fa1e
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Apr 15 16:10:01 2002 +0000
+
+    New gfx card icon based on a GNOME icon from Jimmac.
+
+commit 4f9671b127d39923b1dd234149c597250c174f82
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Mar 9 01:20:12 2002 +0000
+
+    Added dest. color keying to capability listing.
+
+commit bb47557a1d6ac6b5a13fa70600a7faf57dd75653
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Mar 8 04:58:21 2002 +0000
+
+    Tweaked lighting.
+
+commit 657a49594b17d12685dbfbbfa7e23d92a6302cd7
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Mar 8 04:54:40 2002 +0000
+
+    Made small graphics card icon with gimp ;)
+    
+    When an operation is accelerated the icon is displayed,
+    doesn't work for text.
+
+commit 3be1ecb7694bd1b4104733620cadf044505ced8b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Mar 8 00:01:54 2002 +0000
+
+    Added option "--noresults" to have df_dok automatically exitting after testing.
+    Set version version 0.9.10.
+
+commit 8e49c96869e2a7fbc0234c3ca6027465b803b3e3
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Feb 20 14:40:42 2002 +0000
+
+    regenerated
+
+commit a4481eaa6ff5461af17d6232e6365c5fa28f4664
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Feb 4 14:28:25 2002 +0000
+
+    Made functions static.
+
+commit 4710383e975f7a469f53179bfb803645798cd3c9
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Thu Jan 24 21:15:54 2002 +0000
+
+    removed directfb-avifile checks, not needed anymore for avifile
+
+commit dadfbf56dbbc03cba63c29f789f904be525d82d4
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Jan 21 12:22:12 2002 +0000
+
+    Mention --dfb-help command-line option.
+
+commit 63542c72d9de5974138cfa8761c2c2d7a6d0bdb6
+Author: Sven Neumann <neo@directfb.org>
+Date:   Mon Jan 14 14:12:48 2002 +0000
+
+    Use new method IDirectFBSurface::TileBlit to draw the background.
+
+commit 5361c92d6538ab03e192c67cd106d06edeabc107
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jan 14 11:03:00 2002 +0000
+
+    s/id/window_id/
+
+commit d5d9c0cfb997eb1048b68ce4550bcfde150903b2
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jan 14 05:38:31 2002 +0000
+
+    WaitForEventWithTimeout no longer takes nano seconds but milli seconds.
+
+commit f6f26a8e065386748e1ed2b76afe517f0f73e408
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Jan 14 04:59:08 2002 +0000
+
+    Follow API changes.
+    
+    Fixed "--enable-debug".
+    
+    Output lines/rects per second in df_dok.
+
+commit b9c03d26dc9b50f8b1fb8061f9ab3feb6b99041b
+Author: Sven Neumann <neo@directfb.org>
+Date:   Sat Jan 12 14:26:55 2002 +0000
+
+    Simplified configure.in and Makefile.am by using pkg-config macros
+    from pkg.m4. Bumped version number to 0.9.9, require the same version
+    of DirectFB.
+
+commit c9612419aa10ed806d4009a81257e9f721828112
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Jan 12 01:49:22 2002 +0000
+
+    use DICAPS_AXES
+
+commit 79b27001162db1069b3104e6fca45c0e1f2d9b1d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Jan 11 22:53:47 2002 +0000
+
+    Perform benchmarks in system memory when "--system" is used.
+
+commit 737895f5a1fa8b44d09206f51e7d4b6c0402683f
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Jan 4 22:56:24 2002 +0000
+
+    fixed aspect ratio for videos that have their black borders left and right
+
+commit e4a4cb7556261d56680804a8477dca6f90a086ba
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Jan 1 16:20:22 2002 +0000
+
+    The duration of benchmarks can now be set by "--duration <milliseconds>".
+    A value of 200 ms gave me reasonable benchmark results.
+    
+    df_layer now keeps the aspect ratio of the video.
+
+commit b77903069ff1f8daf7dc3786ce54bb749e7a7af8
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Dec 28 18:03:22 2001 +0000
+
+    If df_window is started with a video file argument it creates the second
+    window with the size of the video.
+
+commit 8d5f55c5966513a0a56e06973343bb0f8b87cf1f
+Author: Sven Neumann <neo@directfb.org>
+Date:   Tue Dec 18 11:24:56 2001 +0000
+
+    Release font when exiting from df_window.
+    Release image surfaces when exiting from df_neo.
+
+commit f3ed3eab7a14d3fe30b8b6b42791c8fa18c3d9eb
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Tue Dec 4 19:15:44 2001 +0000
+
+    follow macro name changes
+
+commit 31fad170778e242e0caae05a57731a961049dde6
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Fri Nov 30 19:07:41 2001 +0000
+
+    Added option "--size <width>x<height>" to set the benchmark size,
+    i.e. the size of filled rectangles, blits, etc.
+
+commit 8500e6cf4e741568efc1744644a28389b8aea680
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Nov 28 20:11:04 2001 +0000
+
+    Use one input buffer only, don't require a mouse, accept more keys.
+
+commit 8bb983812219f4382e86cf2680b0bf3a87ec7560
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Nov 28 20:03:33 2001 +0000
+
+    Link against avifile libs only where necessary.
+
+commit cd330e5483143f07a3d87a85bfddac8fb3278230
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Nov 26 01:09:12 2001 +0000
+
+    Use WaitForEventWithTimeout to save CPU time.
+
+commit 27e0d0495dca75be14f669b3f3bf93059532272d
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Mon Nov 19 10:08:08 2001 +0000
+
+    Made the random number generator much more random.
+
+commit 6ff85352bf310a7ca85c93e673fa44536075662b
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Wed Nov 7 15:11:53 2001 +0000
+
+    fixed typo, s/DIRECTDB_CFLAGS/DIRECTFB_CFLAGS/
+
+commit 30ca3525049a2daf2593bdb99af799d6905666c4
+Author: Michael Natterer <mitch@directfb.org>
+Date:   Tue Nov 6 17:38:00 2001 +0000
+
+    Pass the right -DDATADIR variable so df_new finds it's images.
+
+commit 916e6607aec005ae3378cf158454bcc522514aca
+Author: Denis Oliver Kropp <dok@directfb.org>
+Date:   Sat Nov 3 04:55:39 2001 +0000
+
+    added 'conftest' and 'conftest.c'
+
+commit aa13601854a692bb0422a51f857e33ce466664d1
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Tue Oct 30 13:03:53 2001 +0000
+
+    version number 0.9.7 -> 0.9.8
+
+commit 9817328e0fead6de6e420a7f38f8a92afd8d6007
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Tue Oct 30 03:36:57 2001 +0000
+
+    added README with demo descriptions
+
+commit 1d9c5b7631b6c5b8b29dcd1bf4979f259f156efc
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Tue Oct 30 03:07:14 2001 +0000
+
+    files are now installed in $datadir/directfb-examples instead of $datadir/directfb/examples, everybody happy now? ;-)
+
+commit 50e393c15721e07c7a1afa22c9f3a533fba2f27d
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Tue Oct 30 01:43:41 2001 +0000
+
+    files are installed in $datadir/directfb/examples instead of $datadir/examples/examples ...
+
+commit 7ad834e509e2700e4358ee94a501692256975f6f
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Tue Oct 30 01:13:28 2001 +0000
+
+    removed obsolete files
+
+commit 865f80bbcb97286903b10f67d7d907fbd727ee96
+Author: Andreas Hundt <andi@directfb.org>
+Date:   Tue Oct 30 00:54:13 2001 +0000
+
+    split DirectFB examples in extra package.

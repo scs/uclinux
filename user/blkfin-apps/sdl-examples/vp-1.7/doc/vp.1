@@ -1,0 +1,47 @@
+.\" $Id: vp.1,v 1.5 2007/01/10 00:11:34 erik Exp $
+.Dd Mar 8, 2001
+.Dt VP 1
+.Os
+.Sh NAME
+.Nm vp
+.Nd view image files 
+.Sh SYNOPSIS
+.Nm
+.Op Fl fhlsvz
+.Op Ar
+.Sh DESCRIPTION
+.Nm
+View Picture 
+.Ar files
+using SDL. Supported file types include jpeg, gif, png, bmp, ppm, xpm, pcx,
+tga, and anything else your install of sdl_image supports. Keyboard controls
+are escape or q to quit, f to toggle fullscreen, z to toggle zoom (only in
+fullscreen), left arrow to go to the previous image, right arrow to go to the
+next image, and space to toggle slideshow. Toggling the zoom and fullscreen or
+using the arrow keys disables slideshow mode. File names starting with http:// 
+or ftp:// are interpreted as URL's and downloaded.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl f, -fullscreen
+Start in fullscreen mode
+.It Fl h, -help
+Show the help screen
+.It Fl l, -loud
+Loud behavior. Print out file names as it displays
+.It Fl s, -sleep
+Sleep time between images, in seconds
+.It Fl r, -resolution
+Screen resolution (for fullscreen). <width>x<height>@<bpp>
+.It Fl v, -version
+Print the version and exit
+.It Fl z, -zoom
+Scale the images to fill the screen (zoom)
+.El
+.\".Sh DIAGNOSTICS
+.\"Filenames are sent to stderr. 
+.Sh BUGS
+Bad jpeg images force the program to exit.
+
+This manpage is inadequate.
+.Sh AUTHOR
+Erik Greenwald <erik@smluc.org>

@@ -1,0 +1,33 @@
+ifeq ($(origin CC),default)
+CC := bfin-uclinux-gcc
+endif
+MAKEARCH_KERNEL ?= $(MAKE) ARCH=blackfin CROSS_COMPILE=bfin-uclinux-
+ROOTDIR  ?= $(PWD)/../../../
+LINUXDIR ?= linux-2.6.x
+
+obj-m := tea5764.o
+
+CFLAGS += -Wall -g -O2
+
+all: module
+
+module:
+	CFLAGS="" CPPFLAGS="" LDFLAGS="" \
+	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD modules
+
+IP = bfin
+RSH = rsh -l root $(IP)
+rcp: module
+	rcp tea5764.ko root@$(IP):/
+	-$(RSH) rmmod tea5764
+	$(RSH) dmesg -c -n 8 > /dev/null
+	$(RSH) insmod /tea5764.ko
+	$(RSH) dmesg -c -n 4 > /dev/null
+
+romfs:
+	$(ROMFSINST) -d -M tea5764.ko blkfindrvs/tea5764.ko
+
+clean:
+	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD clean
+
+.PHONY: all module romfs clean

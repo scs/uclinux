@@ -1,0 +1,156 @@
+Release Notes for uClinux for Blackfin 2008R1.5 Release
+
+Version: 2008R1.5
+
+Date: Aug. 4, 2008
+
+This is a sub release of 2008R1. In addition to the new drivers for bf52x board, most changes are bug fixings. The latest version of this document can always be found here: http://docs.blackfin.uclinux.org/doku.php?id=release_notes
+Development Environments
+
+Tool Chain: Toolchain Release 2008R1.5
+
+u-boot: uboot_1.1.6 Release 2008R1.5
+
+Host platform: SuSE Linux 9.2 or above
+
+Target board: STAMP & EZKIT Board
+
+Note: However, other similar host platforms are also supported, but they are not well tested.
+Deliverables
+
+Source files
+
+uClinux_dist_2008R1.5.tar.bz2
+
+Linux ELF file
+
+linux-bf533-stamp
+linux-bf533-ezkit
+linux-bf537-stamp
+linux-bf561-ezkit
+linux-bf548-ezkit
+linux-bf527-ezkit
+
+Compressed Linux image
+
+uImage-bf533-stamp
+uImage-bf533-ezkit
+uImage-bf537-stamp
+uImage-bf561-ezkit
+uImage-bf548-ezkit
+uImage-bf527-ezkit
+
+This document
+
+release_notes_2008R1.5.pdf
+
+Compressed archive of test results
+
+test_results_bf533_STAMP_2008R1.5.tar.gz
+test_results_bf533_EZKIT_2008R1.5.tar.gz
+test_results_bf537_2008R1.5.tar.gz
+test_results_bf561_2008R1.5.tar.gz
+test_results_bf548_2008R1.5.tar.gz
+test_results_bf527_2008R1.5.tar.gz
+
+Summary of test results
+
+test_results_summary_2008R1.5
+
+New features and changes
+
+   1.
+      Port kernel to bf52x
+          *
+            Enable I2C-TWI driver, SPI flash driver, NOR flash driver, touch screen SPI driver.
+          *
+            Enable NAND flash driver
+          *
+            Enable USB device and USB host driver
+          *
+            Add T350MCQB TFT LCD driver
+          *
+            Add ssm2602 audio codec
+   2.
+      Improve kernel.
+          *
+            Upgrade kernel to 2.6.22.19
+          *
+            Update real time ADEOS patch to 2.6.22.19 kernel.
+          *
+            Turn on user space memory protection for blackfin
+          *
+            Turn on limited SMP kernel support on bf561.
+   3.
+      Drivers
+          *
+            Enable DMA 1 mode for bulk transfer in BF54x or BF52x MUSB driver
+   4.
+      board support
+          *
+            Add bf527-ezkit board and bf526-ezkit board support
+   5.
+      Application and library
+          *
+            Port Bluetooth-alsa library to blackfin
+          *
+            make linphone g729 stream compliant
+          *
+            Change bf561 coreb link script to support C/C++ code application
+   6.
+      Automate new test cases to include more manual testings. Update existed automated test suites against new bf52x board.
+
+Known Issues
+
+A full list of known issues of 2008R1.5 release can be found at:
+
+http://blackfin.uclinux.org/gf/project/uclinux-dist/tracker/?action=TrackerItemBrowse&tracker_id=141
+No 	Issue Title
+1186	Sometimes CTRL+C kills shell
+1800	kaffe.flt crash
+2718	/proc/self/exe link is broken for FLAT binaries
+2719	unable to strace across vforks
+2779	Null pointer exception when run a test bash script
+2977	OPROFILE doesn't seem to work and crashes with null pointer access
+3417	loading module with certain relocations into L1 may crash kernel
+3713	spi_mmc driver not working well with concurrent access on the spi bus.
+3787	pata_bf54x does not unload cleanly
+3788	USB hang with ZiO! CF reader
+3826	`strace env <something>` crashes when built as FLAT
+3851	CFI flash on BF548-EZKIT is not detected due to query version being too new
+4090	XIP can't work in flash
+4120	Ping sometimes fail for gadget ethernet on BF527-EZKIT in 08r1 branch
+4141	usb gadget zero test NO. 14 fails
+4175	PIPE_ISOCHRONOUS mode is not enabled or running well in isp1362, isp1760 usb host driver.
+4193	kernel with icache disabled boots fail on BF548 EZKIT
+4207	build smb sometimes fails at mkcramfs.c on branch 08r1
+4265	WARNING: at lib/kref.c:33 kref_get() when using USB peripherals on BF54x, BF52x MUSB driver
+4273	Double faults are impossible to debug
+4278	In 08r1 branch, when ping/telnet/ftp to BF533-EZKIT, xenomai kernel shows warning messages
+4291	MUSB peripheral bulk transfer issues
+
+There are also some issues in the latest LTP test suite. They are recorded as bug 3743 and 3958. Bug 4291, 4141 and 4120 look like USB hardware anomalies more than software bugs. 4291 is walked around is this release, while 4141 and 4120 don't have a good walkaround yet. It is not recommend to set up ethernet over USB through bf548 onchip USB controller.
+Build Procedure
+
+   1.
+      Install Toolchain Release 2008R1.5
+          *
+            Release Notes
+          *
+            Installation instructions
+          *
+            File List
+   2.
+      Download the source code of project uClinux-dist for Blackfin release 2008R1.5
+          *
+            File List
+   3.
+      Follow basic compilation directions
+
+Reporting Bugs
+
+1. Go to the following Blackfin uClinux bug tracker page,
+
+http://blackfin.uclinux.org/tracker/?atid=141&group_id=17&func=browse
+
+2. If the bug is not already reported click on “Submit New” button to report new bug.

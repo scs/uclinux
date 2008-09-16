@@ -1,0 +1,73 @@
+gnu_getopt_long.o gnu_getopt_long.o: gnu_getopt_long.c \
+  ../include/gnu_getopt.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/stdio.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/features.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/cdefs.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_config.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/types.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/kernel_types.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/pthreadtypes.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/sched.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/types.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/time.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/endian.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/endian.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/select.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/select.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/sigset.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/time.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/sysmacros.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_stdio.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stdarg.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/stdio_lim.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/stdlib.h \
+  /usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/alloca.h
+
+../include/gnu_getopt.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/stdio.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/features.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/cdefs.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_config.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stddef.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/types.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/kernel_types.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/pthreadtypes.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/sched.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/types.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/time.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/endian.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/endian.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/select.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/select.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/sigset.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/time.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/sys/sysmacros.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/uClibc_stdio.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/include/stdarg.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/bits/stdio_lim.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/stdlib.h:
+
+/usr/toolchain/bfin-uclinux/lib/gcc/bfin-uclinux/3.4.4/../../../../bfin-uclinux/include/alloca.h:

@@ -1,0 +1,196 @@
+This file documents externally visible changes of the native API. Make
+sure you read it carefully when upgrading versions of this software.
+
+___________________________________________________________________
+
+
+0.6.9 -> 0.7
+
+	o mlockall() is no longer implicitely issued by the
+	rt_task_create() service in user-space. Applications should 
+	make sure to lock the memory pages appropriately by
+	themselves (--rpm 2005-02-22).
+
+	o The skin now uses an increasing priority scale for
+	tasks which is the same as the Linux one for the SCHED_FIFO
+	scheduling class, i.e. 1 - 99 with 1 being the lowest
+	effective priority level (--rpm 2005-03-13).
+
+	o The default task stack size in user-space is now
+	PTHREAD_STACK_MIN * 4. A mininum size of PTHREAD_STACK_MIN
+	is enforced in rt_task_create().
+
+___________________________________________________________________
+
+
+0.7.2 -> 0.7.3
+
+	o Added basic message-passing support: rt_task_send(),
+	rt_task_receive(), rt_task_reply(). Those work the QNX way.
+
+___________________________________________________________________
+
+0.7.3 -> 0.7.4
+
+	o Renames:
+	  rt_pipe_open() -> rt_pipe_create()
+	  rt_pipe_close() -> rt_pipe_delete()
+	  rt_pipe_read() -> rt_pipe_receive()
+	  rt_pipe_write() -> rt_pipe_send()
+
+	o Added "name" parameter to rt_pipe_create() as 2nd argument,
+	so that message pipe objects can be registered for naming
+	support.
+
+	o New implementations of rt_pipe_write() and rt_pipe_read()
+	taking raw data buffers instead of canned message buffers.
+
+___________________________________________________________________
+
+0.8.2 -> 0.8.3
+
+	o Added "iack" parameter to rt_intr_create() from the
+	kernel-space API, so that a specific acknowledge routine for
+	the interrupt can be installed.
+
+        o Fixed rt_timer_ns2ticks and rt_timer_ticks2ns behaviour,
+        so that calling rt_task_sleep(rt_timer_ns2ticks(2000000000))
+        will sleep two seconds whatever the timer mode is.
+
+        o Added rt_timer_ns2tsc and rt_timer_tsc2ns to convert 
+        between nanoseconds and values returned by rt_timer_tsc.
+
+___________________________________________________________________
+
+0.8.3 -> 0.9
+
+	o Added a timeout parameter to rt_mutex_lock(). Calling
+	rt_mutex_lock(mutex,TM_INFINITE) is equivalent to the former
+	single-parameter syntax.
+
+	o Added a timeout parameter to all rt_*_bind()
+	services. Calling rt_*_bind(descp,name,TM_INFINITE) is equivalent
+	to the former syntax.
+
+        o rt_task_set_periodic requires the value passed as a start time
+        to be obtained using rt_timer_read().
+
+        o the timer rt_timer_info structure has a "tsc" member, whose value is
+         synchronized with the value of the date member.
+___________________________________________________________________
+
+2.0 -> 2.1-rc1
+
+	o Added a parameter to rt_pipe_create(), specifying the size
+	of a local memory pool to associate to the message
+	pipe. Passing zero is equivalent to the former
+	syntax. Additionally, rt_pipe_alloc() and rt_pipe_free() now
+	need to be passed the address of the message pipe descriptor
+	of reference.
+___________________________________________________________________
+
+2.1-rc2 -> 2.1-rc3
+
+	o rt_event_wait() has been fixed so that the satisfied event
+	bits are not auto-cleared upon receipt anymore. An explicit
+	call to rt_event_clear() is therefore needed to zero the
+	received bits into the event group.
+
+	o rt_heap_create() called from user-space with a null "mode"
+	argument now creates a regular mappable heap supporting
+	multiple blocks of memory, instead of a shared memory segment
+	managed as a single-block area. Passing H_SHARED is equivalent
+	to the former behaviour.
+
+	o rt_timer_start() and rt_timer_stop() have been deprecated.
+	The Xenomai nucleus now automatically starts the system timer
+	according to the configured policy and period when a real-time
+	skin is loaded (see CONFIG_XENO_OPT_TIMING_PERIOD). The new
+	rt_timer_set_mode() service can be used to change the current
+	timing mode and clock tick rate dynamically.
+___________________________________________________________________
+
+2.1-rc3 -> 2.1-rc4
+
+	o rt_task_wait_period() now takes a pointer-to-variable
+	parameter which is used to collect the number of pending
+	overruns. Passing NULL tells the API to discard this
+	count. Once collected or discarded, the count of past overruns
+	is cleared, and the timeline is resynchronized to the current
+	period. This update is basically a fix, which allows
+	applications to tell their overrun recovery procedure about
+	the exact number of pending overruns at once.
+___________________________________________________________________
+
+2.1 -> 2.2-rc1
+
+	o rt_queue_recv() has been renamed rt_queue_receive() with no
+	other change for consistency purpose with the rest of the
+	interface.
+
+	o New services rt_queue_read() and rt_queue_write() have been
+	provided, accepting user-defined buffers instead of blocks
+	from the internal buffer pool.
+___________________________________________________________________
+
+2.2 -> 2.3-rc1
+
+	o rt_mutex_lock() and rt_mutex_unlock() have been renamed as
+	rt_mutex_acquire() and rt_mutex_release() respectively. This
+	change was needed to solve a conflict with stock kernel
+	releases beyond 2.6.17. The former API is still available to
+	software configurations using older kernels up to 2.6.17
+	(included).
+
+	o Deprecate rt_pipe_flush() since the optimization of the data
+	streaming mode made it useless.
+___________________________________________________________________
+
+2.3 -> 2.4-rc1
+
+	o rt_timer_inquire() cannot return TM_UNSET anymore, since
+	the master time base is always valid when a skin is active.
+
+	o rt_pipe_flush() has been reinstated, allowing to flush the
+	kernel endpoint i/o queues of a message pipe.
+
+___________________________________________________________________
+
+
+2.4-rc5 -> 2.4-rc6
+
+	o Allow rt_task_inquire() to only probe for the existence of a
+	task, by passing a NULL info pointer.
+
+	o rt_pipe_receive() and rt_pipe_read() now return 0 whenever
+	the peer closes the connection while reading from the pipe. It
+	should have been this way for POSIX conformance reasons, so
+	this is more a bugfix than an arbitrary API change actually.
+	Applications calling rt_pipe_receive() may want to check the
+	value of the message pointer returned to them, and branch
+	according to the following rules:
+	  - (nbytes == 0 && msg == NULL): pipe closed by peer while
+            reading
+	  - (nbytes < 0): error
+	  - (nbytes >= 0 && msg != NULL): valid message, possibly
+            zero-sized.
+	In the particular case of rt_pipe_read(), there is no mean
+	to distinguish a "closed by peer" situation from a zero-sized
+	message being received. One should use rt_pipe_receive()
+	instead to be able to make such distinction.
+
+	o rt_misc_get/put_io_region() have been deprecated, and should
+	be replaced by rt_io_get/put_region() calls. The new services
+	hold the start address and length of the region as 64bit
+	values, in order to cope with architectures where I/O memory
+	lives beyond the 4GB limit. Moreover, those services now allow
+	to request MMIO memory, in addition to I/O port
+	ranges. Finally, I/O region descriptors have been introduced
+	in order to provide auto-cleanup support of held regions.
+
+2.4-rc6 -> 2.4-rc7
+
+	* rt_heap_inquire() now reports the requested heap size
+          (info->heapsize), the overall actual/usable amount of memory
+          (info->usablemem), the current amount of memory used
+          (info->usedmem).

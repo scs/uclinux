@@ -1,0 +1,219 @@
+Everything included (code, executable, text, etc...) is under GPL and
+Copyright (C) 2001 Scott Scriven
+
+
+----------------------------------------
+Internet addresses
+----------------------------------------
+My email address is:
+        water@xyzz.org
+My web page is at:
+        http://www.xyzz.org/
+
+
+--------------------------------------
+Water
+--------------------------------------
+The water effect is one of my favorite effects.  It looks amazingly like the
+real thing, if done right; and yet it doesn't have to conform to physics...
+
+I've added some very non-water-like stuff to this version, using the same
+algorithms but by doing slightly different things with it.
+
+Just run the executable to see what it looks like...
+
+
+------------------------------------
+Files included...
+------------------------------------
+water	.txt    The file you're now reading... I hope.
+Makefile	Just run "make"
+water	.c      The source code...
+datatype.h	More source
+fixsin	.c	More source
+fixsin	.h	More source
+fps	.c	More source
+fps	.h	More source
+water320.bmp    Background picture for 320x200 water...
+
+
+------------------------------------
+The source code
+------------------------------------
+
+I've tried to comment the source a bit, so hopefully it's fairly readable.
+
+
+------------------------------------
+Performance -- speed
+------------------------------------
+When I run this on my 486/66, I get around 9 fps with the 320x200 version.
+The 160x100 version gets around 37 fps.  There is no speed checking, so this
+would look a bit silly on a PPro 200.
+
+I've since gotten a new motherboard/cpu, and am now running it on a Cyrix
+P166+ that seems a bit sluggish compared to brand-new systems with the same
+cpu.  (but it's faster than any Pentium166 I've seen...)  I get around
+35 fps on the 320x200 version of water now.
+
+I'm fairly happy with the speed it goes.  It's about 1.25 - 1.5 times as fast
+as the original water I saw, and that one was written in optimized assembly.
+I've managed to get this to go faster even though it's pure C and it uses
+more surrounding pixels to calculate the height map.
+
+I intend to make a Silcon Graphics version sometime, too.  That way I can
+run it at high resolutions and still get decent speed.  A friend of mine,
+a brilliant but misguided friend, has made a mac port.  So, if you're a
+mac user, you might be able to find it somewhere (I don't know where).
+
+
+--------------------------------------
+How it works
+--------------------------------------
+Water is a four-step process.  First, you must create some sort of turbulence
+in the water (like raindrops).  Then, make the height map ripple and move.
+After that, we can apply the height map to a background image and then put it
+onscreen.
+
+We'll need two height maps, though.  That way we can use one as a "source"
+map and one as a "destination".  This is to make the filter work correctly.
+
+The main loop, pretty much, is:
+{
+  add_turbulence();
+  calculate_height_map();
+  apply_height_map();
+  Put_it_onscreen();
+}
+
+Adding turbulence is easy.  Just do whatever you like to the height field 
+that represents the surface of the water.  If you draw a "high" circle, it 
+looks like something big splashed into the water....  I also like to have a
+smoothly moving point that looks like a surfer.
+
+Making the height map ripple is done by applying a rather odd filter to it.
+The filter is (if I'm not mistaken):
+  1  1  1
+  1 -4  1
+  1  1  1	division: 4
+After filtering a single pixel, we multiply it times a number between 0 and 1
+that represents the density of the water, which we do instead with a shift
+and a subtraction.
+
+The source is something like this:
+{
+  for each pixel(you'll need to use two height-field pages):
+    temp= src[x-1][y-1]
+        + src[x  ][y-1]
+        + src[x+1][y-1]
+        + src[x-1][y  ]
+        -(src[x  ][y  ] * 4)
+        + src[x+1][y  ]
+        + src[x-1][y+1]
+        + src[x  ][y+1]
+        + src[x+1][y+1];
+    
+    temp /= 4;
+
+    dest[x][y] = temp - (temp >> density);
+}
+The density seems about right at 4.
+
+
+Applying the height map distorts the background image (whatever is 
+"underneath" the water) and simulates light reflection.
+
+We need to (for each pixel) figure out the slope of the water at that point,
+and then add a corresponding value to the actual coordinate we read the pixel
+from.  Also, we'll use the x slope as an indication of how much to increase
+or decrease the brightness of that pixel (fake lighting).
+
+It goes like this:
+{
+  for each pixel:
+    deltax = map[x][y] - map[x+1][y];	// how far is the image
+    deltay = map[x][y] - map[x][y+1];	// stretched?
+    c = 128 - deltax;	// apply fake lighting...
+    offsetx = (deltax/8) +x;	// final pixel we'll read from
+    offsety = (deltay/8) +y;
+    c = (BkGdImage[offsetx][offsety] * c) /128;	// Get a value
+    bound c between 0 and 255;	// and make sure it doesn't overflow
+    final[x][y] = c;	// write the pixel...
+}
+
+
+After this step, you just need to put the final image onscreen and restart
+the loop.
+
+
+------------------------------------------
+"Turbulence" (or, effects)
+------------------------------------------
+I've made several effects that you can try out...
+
+HeightBlob: This makes (in the height map) a cylinder-like shape.  This
+makes a sharp contrast and creates crisp edges and small ripples.
+
+SineBlob: This takes a lot more cpu time than HeightBlob, but it makes
+more interesting things happen.  In the height map, this creates a shape
+that is like a sine wave but rotated around to form a "bump".  I am not a
+good ascii-artist, but here's a small picture of what a bump would look
+like from the side:        _,*`'*,_
+This usually distorts the image underneath as if you had used a "pinch" or
+"punch" effect in a paint program.
+
+There is also a "WarpBlob", but it isn't used.  It makes half-sphere shapes
+instead of "bump" shapes.  It looked okay in interactive mode, but didn't
+work well when movement was turned off.
+
+
+Surfer (in water mode): The surfer just moves around in a sine-wave pattern,
+and is drawn by placing five pixels in a "+" shape.  This also tends to
+create sharp edges.
+
+Surfer (in other modes): This just draws SineBlobs in a sine-pattern, and
+looks much smoother than the regular surfer.  It looks better for images
+that don't work with lighting on.
+
+"Swirly" mode:  This is very similar to if you stuck your finger in the
+water and tried to create a whirlpool.  I like to use this (with lighting)
+on the regular water background in "sludge" mode.
+
+Raindrops:  This is just kind of cheesy.  I don't really like this effect,
+but it's a nice way to "warm people up" for the more impressive effects.
+
+
+-------------------------------------------------------------
+My favorite combinations of effects (or, fun things to try)
+-------------------------------------------------------------
+First, if you're using an image that works with lighting, make sure to
+turn lighting on whenever you use any of these effects.  Otherwise, make
+sure the lighting stays off.  Also, I'm assuming that you have just entered
+the program when I state which keys to press.
+
+Whirlpool:  Press s, 4.
+Neat surfer:  Press s, 1, D.
+Bumpy:  Press b.
+Bumpy Surf:  Press b, 1.
+Really distorted:  Press D.  Make a little bit of disturbance somehow.  Now
+        press z in rhythm with the rising and falling of the water, but make
+        sure not to get the waves too high!  (program will crash if you do)
+        If you're really good, it is possible to make the background
+        move as if it was a trampoline (but you have to have *really* good
+        timing with the z key).
+Regular water:  Press w, 1, 3.
+Distort-o-matic:  Press s, m.  Draw on the image with the mouse, distorting
+        things however you want (more fun than GifWarp, if you remember that
+        program...).  When you're done, press m again to "release" the
+        surface of the water.
+
+And, of course, just playing.  I like to use the picture of the lady's
+face, and make ripples on the tip of her nose in rhythm with the water
+in sludge mode.  It's fun to distort people's faces...  :)
+
+
+-------------------------------------------
+Please credit me for this if you use it...
+-------------------------------------------
+
+

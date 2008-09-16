@@ -1,0 +1,93 @@
+# keep it sorted by build order, then alphabetically
+# Please list dependancies
+dir_3_$(CONFIG_LIB_ALSA_LIB)         += alsa-lib
+dir_3_$(CONFIG_LIB_ALSA_LIB_FORCE)   += alsa-lib
+dir_3_$(CONFIG_LIB_AVAHI)            += avahi
+dir_3_$(CONFIG_LIB_AVAHI_FORCE)      += avahi
+dir_3_$(CONFIG_LIB_BFIN_GSM)         += blackfin-gsm
+dir_3_$(CONFIG_LIB_BLUEZ)            += bluez-libs
+dir_3_$(CONFIG_LIB_BLUEZ_FORCE)      += bluez-libs
+dir_3_$(CONFIG_LIB_CGIC)             += cgic
+dir_3_$(CONFIG_LIB_CGIC_FORCE)       += cgic
+dir_3_$(CONFIG_LIB_CONFUSE_FORCE)    += libconfuse
+dir_3_$(CONFIG_LIB_CONFUSE)          += libconfuse
+dir_3_$(CONFIG_LIB_CRYPTOPP)         += crypto++lib
+dir_3_$(CONFIG_LIB_CRYPTOPP_FORCE)   += crypto++lib
+dir_3_$(CONFIG_LIB_DMALLOC)          += dmalloc
+dir_3_$(CONFIG_LIB_DMALLOC_FORCE)    += dmalloc
+dir_3_$(CONFIG_LIB_FAAD2)            += faad2
+dir_3_$(CONFIG_LIB_FAAD2_FORCE)      += faad2
+dir_3_$(CONFIG_LIB_FLAC)             += flac
+dir_3_$(CONFIG_LIB_FLAC_FORCE)       += flac
+dir_3_$(CONFIG_LIB_FTPLIB_FORCE)     += ftplib
+dir_3_$(CONFIG_LIB_FTPLIB)           += ftplib
+dir_3_$(CONFIG_LIB_LIBAO_FORCE)      += libao
+dir_3_$(CONFIG_LIB_LIBAO)            += libao
+dir_3_$(CONFIG_LIB_LIBAUDIO_FORCE)   += libaudio
+dir_3_$(CONFIG_LIB_LIBAUDIO)         += libaudio
+dir_3_$(CONFIG_LIB_LIBBFGDOTS_FORCE) += libbfgdots
+dir_3_$(CONFIG_LIB_LIBBFGDOTS)       += libbfgdots
+dir_3_$(CONFIG_LIB_LIBICONV_FORCE)   += libiconv
+dir_3_$(CONFIG_LIB_LIBICONV)         += libiconv
+dir_3_$(CONFIG_LIB_LIBIPOD_FORCE)    += libipod
+dir_3_$(CONFIG_LIB_LIBIPOD)          += libipod
+dir_3_$(CONFIG_LIB_LIBMAD_FORCE)     += libmad
+dir_3_$(CONFIG_LIB_LIBMAD)           += libmad
+dir_3_$(CONFIG_LIB_LIBMPEG2_FORCE)   += mpeg2dec
+dir_3_$(CONFIG_LIB_LIBMPEG2)         += mpeg2dec
+dir_3_$(CONFIG_LIB_LIBSDL_FORCE)     += libsdl
+dir_3_$(CONFIG_LIB_LIBSDL)           += libsdl
+dir_3_$(CONFIG_LIB_LIBTOOL_FORCE)    += libtool
+dir_3_$(CONFIG_LIB_LIBTOOL)          += libtool
+dir_3_$(CONFIG_LIB_LIBUSB_FORCE)     += libusb
+dir_3_$(CONFIG_LIB_LIBUSB)           += libusb
+dir_3_$(CONFIG_LIB_MPFR_FORCE)       += mpfr
+dir_3_$(CONFIG_LIB_MPFR)             += mpfr
+dir_3_$(CONFIG_LIB_NCURSES_FORCE)    += ncurses
+dir_3_$(CONFIG_LIB_NCURSES)          += ncurses
+dir_3_$(CONFIG_LIB_POPT_FORCE)       += popt
+dir_3_$(CONFIG_LIB_POPT)             += popt
+dir_3_$(CONFIG_LIB_READLINE_FORCE)   += readline
+dir_3_$(CONFIG_LIB_READLINE)         += readline
+dir_3_$(CONFIG_LIB_SPEEX_FORCE)      += speex
+dir_3_$(CONFIG_LIB_SPEEX)            += speex
+dir_3_$(CONFIG_LIB_SPHINXBASE_FORCE) += sphinxbase
+dir_3_$(CONFIG_LIB_SPHINXBASE)       += sphinxbase
+dir_3_$(CONFIG_LIB_SQLITE_FORCE)     += sqlite
+dir_3_$(CONFIG_LIB_SQLITE)           += sqlite
+dir_3_$(CONFIG_LIB_TREMOR_FORCE)     += tremor
+dir_3_$(CONFIG_LIB_TREMOR)           += tremor
+dir_3_$(CONFIG_LIB_TSLIB_FORCE)      += tslib-1.0
+dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
+
+dir_4_$(CONFIG_LIB_FREETYPE_FORCE)   += freetype
+dir_4_$(CONFIG_LIB_FREETYPE)         += freetype
+# freetype requires zlib(3)
+dir_4_$(CONFIG_LIB_LIBEXOSIP_FORCE)  += libeXosip
+dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip
+# libeXosip requires
+dir_4_$(CONFIG_LIB_LIBID3TAG_FORCE)  += libid3tag
+dir_4_$(CONFIG_LIB_LIBID3TAG)        += libid3tag
+# libid3tag requires
+dir_4_$(CONFIG_LIB_SDL_GFX_FORCE)    += SDL_gfx
+dir_4_$(CONFIG_LIB_SDL_GFX)          += SDL_gfx
+# SDL_gfx requires libsdl(3)
+
+dir_5_$(CONFIG_LIB_DIRECTFB)         += DirectFB
+dir_5_$(CONFIG_LIB_DIRECTFB_FORCE)   += DirectFB
+# DirectFB requires zlib(3) libsdl(3) libpng(4)
+dir_5_$(CONFIG_LIB_FFMPEG)           += ffmpeg
+dir_5_$(CONFIG_LIB_FFMPEG_FORCE)     += ffmpeg
+# FFMPEG requires libsdl(3)
+dir_5_$(CONFIG_LIB_SDL_IMAGE_FORCE)  += SDL_image
+dir_5_$(CONFIG_LIB_SDL_IMAGE)        += SDL_image
+# SDL_image requires libsdl(3) libpng(4) libjpeg(3) zlib (3) tiff(?)
+dir_5_$(CONFIG_LIB_SDL_MIXER_FORCE)  += SDL_mixer
+dir_5_$(CONFIG_LIB_SDL_MIXER)        += SDL_mixer
+# SDL_mixer requires libsdl(3) tremor(3) SMPEG(?) libmad(3)
+dir_5_$(CONFIG_LIB_SDL_NET_FORCE)    += SDL_net
+dir_5_$(CONFIG_LIB_SDL_NET)          += SDL_net
+# SDL_net requires libsdl(3)
+dir_5_$(CONFIG_LIB_SDL_TTF_FORCE)    += SDL_ttf
+dir_5_$(CONFIG_LIB_SDL_TTF)          += SDL_ttf
+# SDL_ttf requires libsdl(3) freetype(4)

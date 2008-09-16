@@ -1,0 +1,29 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+
+ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
+VENDOR_TOPDIRS = boot
+endif
+
+ENDIAN := big
+CPUFLAGS := -mbig-endian
+CPULDFLAGS := -EB
+VENDOR_CFLAGS = -DCONFIG_SNAPGEAR
+
+BUILD_NETtel = 1
+LINUXTARGET = zImage
+
+
+# To override the vendor-global version do something like:
+# VERSIONPKG = 2.3.5u1
+
+VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
+RELFILES = boot/boot.elf images/image.bin,.sgu $(LINUXDIR)/linux
+
+############################################################################
+
+include $(ROOTDIR)/vendors/config/arm/config.arch
+
+RELFILES += images/configs.tar.gz
+
+############################################################################

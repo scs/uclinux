@@ -1,0 +1,8 @@
+all:
+	rm -f *~
+	rm -f sip*
+	rm -f *.so
+	rm -f *.sbf
+	rm -f Makefile
+	rm -f *.pyc
+	rm -f *.pyo

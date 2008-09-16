@@ -1,0 +1,776 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>openpgp</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.73.2">
+<link rel="start" href="index.html" title="GNU TLS API Reference Manual">
+<link rel="up" href="ch01.html" title="GNU TLS API Reference Manual">
+<link rel="prev" href="gnutls-pkcs12.html" title="pkcs12">
+<link rel="next" href="gnutls-openssl.html" title="openssl">
+<meta name="generator" content="GTK-Doc V1.9 (XML mode)">
+<link rel="stylesheet" href="style.css" type="text/css">
+<link rel="chapter" href="ch01.html" title="GNU TLS API Reference Manual">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table class="navigation" id="top" width="100%" summary="Navigation header" cellpadding="2" cellspacing="2">
+<tr valign="middle">
+<td><a accesskey="p" href="gnutls-pkcs12.html"><img src="left.png" width="24" height="24" border="0" alt="Prev"></a></td>
+<td><a accesskey="u" href="ch01.html"><img src="up.png" width="24" height="24" border="0" alt="Up"></a></td>
+<td><a accesskey="h" href="index.html"><img src="home.png" width="24" height="24" border="0" alt="Home"></a></td>
+<th width="100%" align="center">GNU TLS API Reference Manual</th>
+<td><a accesskey="n" href="gnutls-openssl.html"><img src="right.png" width="24" height="24" border="0" alt="Next"></a></td>
+</tr>
+<tr><td colspan="5" class="shortcuts"><nobr><a href="#id2618159" class="shortcut">Top</a>
+                  &#160;|&#160;
+                  <a href="#id2625184" class="shortcut">Description</a></nobr></td></tr>
+</table>
+<div class="refentry" lang="en">
+<a name="gnutls-openpgp"></a><div class="titlepage"></div>
+<div class="refnamediv"><table width="100%"><tr>
+<td valign="top">
+<h2>
+<a name="id2618159"></a><span class="refentrytitle">openpgp</span>
+</h2>
+<p>openpgp</p>
+</td>
+<td valign="top" align="right"></td>
+</tr></table></div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<pre class="synopsis">
+
+
+
+typedef             <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a>;
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-get-name">gnutls_openpgp_crt_get_name</a>         (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         int idx,
+                                                         char *buf,
+                                                         size_t *sizeof_buf);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-get-fingerprint">gnutls_openpgp_crt_get_fingerprint</a>  (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *fpr,
+                                                         size_t *fprlen);
+<a class="link" href="gnutls-gnutls.html#gnutls-pk-algorithm-t">gnutls_pk_algorithm_t</a> <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-get-pk-algorithm">gnutls_openpgp_crt_get_pk_algorithm</a>
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         unsigned int *bits);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-get-version">gnutls_openpgp_crt_get_version</a>      (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key);
+time_t              <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-get-creation-time">gnutls_openpgp_crt_get_creation_time</a>
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key);
+time_t              <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-get-expiration-time">gnutls_openpgp_crt_get_expiration_time</a>
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-get-id">gnutls_openpgp_crt_get_id</a>           (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         unsigned char keyid[8]);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-init">gnutls_openpgp_crt_init</a>             (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> *key);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-deinit">gnutls_openpgp_crt_deinit</a>           (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-import">gnutls_openpgp_crt_import</a>           (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-extra.html#gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</a> format);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-export">gnutls_openpgp_crt_export</a>           (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         <a class="link" href="gnutls-extra.html#gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</a> format,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *output_data,
+                                                         size_t *output_data_size);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-deinit">gnutls_openpgp_keyring_deinit</a>       (<a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> keyring);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-init">gnutls_openpgp_keyring_init</a>         (<a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> *keyring);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-import">gnutls_openpgp_keyring_import</a>       (<a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> keyring,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-extra.html#gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</a> format);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-check-id">gnutls_openpgp_keyring_check_id</a>     (<a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> ring,
+                                                         unsigned char keyid[8],
+                                                         unsigned int flags);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-verify-ring">gnutls_openpgp_crt_verify_ring</a>      (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> keyring,
+                                                         unsigned int flags,
+                                                         unsigned int *verify);
+int                 <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-crt-verify-self">gnutls_openpgp_crt_verify_self</a>      (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         unsigned int flags,
+                                                         unsigned int *verify);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-privkey-deinit">gnutls_openpgp_privkey_deinit</a>       (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-privkey-t">gnutls_openpgp_privkey_t</a> key);
+</pre>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2625184"></a><h2>Description</h2>
+<p>
+
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2625200"></a><h2>Details</h2>
+<div class="refsect2" lang="en">
+<a name="id2625210"></a><h3>
+<a name="gnutls-openpgp-keyring-t"></a>gnutls_openpgp_keyring_t</h3>
+<a class="indexterm" name="id2625222"></a><p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2625231"></a><h3>
+<a name="gnutls-openpgp-crt-get-name"></a>gnutls_openpgp_crt_get_name ()</h3>
+<a class="indexterm" name="id2625243"></a><pre class="programlisting">int                 gnutls_openpgp_crt_get_name         (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         int idx,
+                                                         char *buf,
+                                                         size_t *sizeof_buf);</pre>
+<p>
+Extracts the userID from the parsed OpenPGP key.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>idx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>sizeof_buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2634337"></a><h3>
+<a name="gnutls-openpgp-crt-get-fingerprint"></a>gnutls_openpgp_crt_get_fingerprint ()</h3>
+<a class="indexterm" name="id2634350"></a><pre class="programlisting">int                 gnutls_openpgp_crt_get_fingerprint  (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *fpr,
+                                                         size_t *fprlen);</pre>
+<p>
+</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>fpr</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>fprlen</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2634452"></a><h3>
+<a name="gnutls-openpgp-crt-get-pk-algorithm"></a>gnutls_openpgp_crt_get_pk_algorithm ()</h3>
+<a class="indexterm" name="id2634465"></a><pre class="programlisting"><a class="link" href="gnutls-gnutls.html#gnutls-pk-algorithm-t">gnutls_pk_algorithm_t</a> gnutls_openpgp_crt_get_pk_algorithm
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         unsigned int *bits);</pre>
+<p>
+This function will return the public key algorithm of an OpenPGP
+certificate.
+</p>
+<p>
+If bits is non null, it should have enough size to hold the parameters
+size in bits. For RSA the bits returned is the modulus. 
+For DSA the bits returned are of the public exponent.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>bits</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2634554"></a><h3>
+<a name="gnutls-openpgp-crt-get-version"></a>gnutls_openpgp_crt_get_version ()</h3>
+<a class="indexterm" name="id2634567"></a><pre class="programlisting">int                 gnutls_openpgp_crt_get_version      (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key);</pre>
+<p>
+Extract the version of the OpenPGP key.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647710"></a><h3>
+<a name="gnutls-openpgp-crt-get-creation-time"></a>gnutls_openpgp_crt_get_creation_time ()</h3>
+<a class="indexterm" name="id2647722"></a><pre class="programlisting">time_t              gnutls_openpgp_crt_get_creation_time
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key);</pre>
+<p>
+</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647784"></a><h3>
+<a name="gnutls-openpgp-crt-get-expiration-time"></a>gnutls_openpgp_crt_get_expiration_time ()</h3>
+<a class="indexterm" name="id2647797"></a><pre class="programlisting">time_t              gnutls_openpgp_crt_get_expiration_time
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key);</pre>
+<p>
+</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647859"></a><h3>
+<a name="gnutls-openpgp-crt-get-id"></a>gnutls_openpgp_crt_get_id ()</h3>
+<a class="indexterm" name="id2647870"></a><pre class="programlisting">int                 gnutls_openpgp_crt_get_id           (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         unsigned char keyid[8]);</pre>
+<p>
+</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>keyid</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647951"></a><h3>
+<a name="gnutls-openpgp-crt-init"></a>gnutls_openpgp_crt_init ()</h3>
+<a class="indexterm" name="id2647963"></a><pre class="programlisting">int                 gnutls_openpgp_crt_init             (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> *key);</pre>
+<p>
+This function will initialize an OpenPGP key structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648023"></a><h3>
+<a name="gnutls-openpgp-crt-deinit"></a>gnutls_openpgp_crt_deinit ()</h3>
+<a class="indexterm" name="id2648035"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                gnutls_openpgp_crt_deinit           (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key);</pre>
+<p>
+This function will deinitialize a key structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648084"></a><h3>
+<a name="gnutls-openpgp-crt-import"></a>gnutls_openpgp_crt_import ()</h3>
+<a class="indexterm" name="id2648096"></a><pre class="programlisting">int                 gnutls_openpgp_crt_import           (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-extra.html#gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</a> format);</pre>
+<p>
+This function will convert the given RAW or Base64 encoded key
+to the native gnutls_openpgp_crt_t format. The output will be stored in 'key'.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648200"></a><h3>
+<a name="gnutls-openpgp-crt-export"></a>gnutls_openpgp_crt_export ()</h3>
+<a class="indexterm" name="id2626072"></a><pre class="programlisting">int                 gnutls_openpgp_crt_export           (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         <a class="link" href="gnutls-extra.html#gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</a> format,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *output_data,
+                                                         size_t *output_data_size);</pre>
+<p>
+This function will convert the given key to RAW or Base64 format.
+If the buffer provided is not long enough to hold the output, then
+GNUTLS_E_SHORT_MEMORY_BUFFER will be returned.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>output_data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>output_data_size</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2626197"></a><h3>
+<a name="gnutls-openpgp-keyring-deinit"></a>gnutls_openpgp_keyring_deinit ()</h3>
+<a class="indexterm" name="id2626210"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                gnutls_openpgp_keyring_deinit       (<a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> keyring);</pre>
+<p>
+This function will deinitialize a keyring structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>keyring</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2626261"></a><h3>
+<a name="gnutls-openpgp-keyring-init"></a>gnutls_openpgp_keyring_init ()</h3>
+<a class="indexterm" name="id2626273"></a><pre class="programlisting">int                 gnutls_openpgp_keyring_init         (<a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> *keyring);</pre>
+<p>
+This function will initialize an OpenPGP keyring structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>keyring</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2626333"></a><h3>
+<a name="gnutls-openpgp-keyring-import"></a>gnutls_openpgp_keyring_import ()</h3>
+<a class="indexterm" name="id2626346"></a><pre class="programlisting">int                 gnutls_openpgp_keyring_import       (<a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> keyring,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-extra.html#gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</a> format);</pre>
+<p>
+This function will convert the given RAW or Base64 encoded keyring to the
+native <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t"><span class="type">gnutls_openpgp_keyring_t</span></a> format.  The output will be stored in
+'keyring'.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>keyring</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2626457"></a><h3>
+<a name="gnutls-openpgp-keyring-check-id"></a>gnutls_openpgp_keyring_check_id ()</h3>
+<a class="indexterm" name="id2626470"></a><pre class="programlisting">int                 gnutls_openpgp_keyring_check_id     (<a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> ring,
+                                                         unsigned char keyid[8],
+                                                         unsigned int flags);</pre>
+<p>
+Check if a given key ID exists in the keyring.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ring</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>keyid</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>flags</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2626574"></a><h3>
+<a name="gnutls-openpgp-crt-verify-ring"></a>gnutls_openpgp_crt_verify_ring ()</h3>
+<a class="indexterm" name="id2626587"></a><pre class="programlisting">int                 gnutls_openpgp_crt_verify_ring      (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         <a class="link" href="gnutls-openpgp.html#gnutls-openpgp-keyring-t">gnutls_openpgp_keyring_t</a> keyring,
+                                                         unsigned int flags,
+                                                         unsigned int *verify);</pre>
+<p>
+Verify all signatures in the key, using the given set of keys (keyring). 
+</p>
+<p>
+The key verification output will be put in <em class="parameter"><code>verify</code></em> and will be
+one or more of the gnutls_certificate_status_t enumerated elements bitwise or'd.
+</p>
+<p>
+GNUTLS_CERT_INVALID: A signature on the key is invalid.
+</p>
+<p>
+GNUTLS_CERT_REVOKED: The key has been revoked.
+</p>
+<p>
+Note that this function does not verify using any "web of
+trust". You may use GnuPG for that purpose, or any other external
+PGP application.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>keyring</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>flags</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>verify</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2626739"></a><h3>
+<a name="gnutls-openpgp-crt-verify-self"></a>gnutls_openpgp_crt_verify_self ()</h3>
+<a class="indexterm" name="id2626752"></a><pre class="programlisting">int                 gnutls_openpgp_crt_verify_self      (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-crt-t">gnutls_openpgp_crt_t</a> key,
+                                                         unsigned int flags,
+                                                         unsigned int *verify);</pre>
+<p>
+Verifies the self signature in the key.
+The key verification output will be put in <em class="parameter"><code>verify</code></em> and will be
+one or more of the gnutls_certificate_status_t enumerated elements bitwise or'd.
+</p>
+<p>
+GNUTLS_CERT_INVALID: The self signature on the key is invalid.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>flags</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>verify</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2626869"></a><h3>
+<a name="gnutls-openpgp-privkey-deinit"></a>gnutls_openpgp_privkey_deinit ()</h3>
+<a class="indexterm" name="id2626882"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                gnutls_openpgp_privkey_deinit       (<a class="link" href="gnutls-gnutls.html#gnutls-openpgp-privkey-t">gnutls_openpgp_privkey_t</a> key);</pre>
+<p>
+This function will deinitialize a key structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2626933"></a><div class="refsect2" lang="en"><a name="id2626934"></a></div>
+<hr>
+<div class="refsect2" lang="en"><a name="id2626936"></a></div>
+</div>
+</div>
+</body>
+</html>

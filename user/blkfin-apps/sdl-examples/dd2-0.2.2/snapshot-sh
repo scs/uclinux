@@ -1,0 +1,10 @@
+SHOTDATE=`date +"%Y%m%d"`
+make distclean
+mkdir ./.tmp/
+mkdir ./.tmp/dd2_$SHOTDATE
+echo "This is $SHOTDATE snapshot of the game, not an official release." > ./.tmp/dd2_$SHOTDATE/README.snapshot
+cp -R * ./.tmp/dd2_$SHOTDATE
+cd ./.tmp/
+tar cvfz ../dd2_$SHOTDATE.tar.gz ./dd2_$SHOTDATE
+cd ..
+rm -rf ./.tmp/

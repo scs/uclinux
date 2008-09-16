@@ -1,0 +1,111 @@
+#!/bin/sh
+#
+#select event type ,default is 0x9
+	event_name=TOTAL_BRANCH
+	event_type=0x9
+	counter_enable=0x1
+# select counter number
+	counter=0
+# select count of counter
+	counter_count=100000
+# unit_mask
+	unit_mask=1
+# kernel
+	kernel=1
+# user
+	user=1
+# location of kernel image
+	kernel_image=./vmlinux
+case "$1" in
+	--init)
+		#do some initialization
+        	mkdir /dev/oprofile
+	        mount -t oprofilefs nodev /dev/oprofile >/dev/null
+
+	        export OPROFILE_EVENTS_DIR=/usr/share/oprofile
+        	mkdir /var/lib/
+	        mkdir /var/lib/oprofile
+        	#place the current samples result
+	        mkdir -p /var/lib/oprofile/samples/current/
+		;;
+	--setup)
+		echo $counter_count > /dev/oprofile/0/count
+		echo $counter_enable > /dev/oprofile/0/enabled
+		echo $event_type > /dev/oprofile/0/event
+		echo $counter_count > /dev/oprofile/1/count
+		echo $counter_enable > /dev/oprofile/1/enabled
+		echo $event_type > /dev/oprofile/1/event
+		;;	
+	--start-daemon)
+		cd /usr/bin/
+		./oprofiled --events=${event_name}:${event_type}:${counter}:${counter_count}:${unit_mask}:${kernel}:${user}, --vmlinux=${kernel_image} --kernel-range=0x1000,0x10000 &
+		;;
+	--start)
+		echo 1 > /dev/oprofile/enable
+		;;
+	--stop)
+		echo 0 > /dev/oprofile/enable
+		;;
+	--help)
+		echo "help:"
+		echo "--init   initialize oprofile system and create some directory"
+		echo "--setup  set some parameter for kernel performance monitor registers"
+		echo "--start-daemon launch oprofiled to collect data"	
+		echo "--start  performance monitor counter begin to count"
+		echo "--stop   performance monitor counter stop "
+		echo "--dump   dump some samples from kernel"
+		echo "--list-event list all the event type in Blackfin"
+		echo "--help show the above message"
+		;;
+	--dump)
+		echo 1 > /dev/oprofile/dump
+		;;
+	--list-event)
+		echo "
+event:0x00 counters:1,2 um:zero minimum:500 name:LOOP0_ITER : Loop 0 iterations
+event:0x01 counters:1,2 um:zero minimum:500 name:LOOP1_ITER : Loop 1 iterations
+event:0x02 counters:1,2 um:zero minimum:500 name:LOOP_BUF0_NOT_OPTIM : Loop buffer 0 not optimized
+event:0x03 counters:1,2 um:zero minimum:500 name:LOOP_BUF1_NOT_OPTIM : Loop buffer 1 not optimized
+event:0x04 counters:1,2 um:zero minimum:500 name:PC_INVAR_BRANCH : PC invariant branches (requires trace buffer to be enabled)
+event:0x06 counters:1,2 um:zero minimum:500 name:COND_BRANCH : Conditional branches
+event:0x09 counters:1,2 um:zero minimum:5000 name:TOTAL_BRANCH : Total branches including calls, returns, branches, but not interrupts(requires trace buffer to be enabled)"
+		echo "
+event:0x0a counters:1,2 um:zero minimum:500 name:STALL_CSYNC_SSYNC : Stalls due to CSYNC,SSYNC
+event:0x0b counters:1,2 um:zero minimum:500 name:EXCEPT_INSN : EXCEPT instrcution
+event:0x0c counters:1,1 um:zero minimum:500 name:CSYNC_SSYNC_INSN : CSYNC,SSYNC instructions
+event:0x0d counters:1,2 um:zero minimum:500 name:CMIT_INSN : Committed instrcutions
+event:0x0e counters:1,2 um:zero minimum:500 name:INTERRUPTS_TAKEN : interrupts taken
+event:0x0f counters:1,2 um:zero minimum:500 name:MISALIGN_ADDR_EXT : Misaligned address violation exception"
+		echo "
+event:0x10 counters:1,2 um:zero minimum:500 name:STALL_DAG : Stall cycles due to read after write hazards on DAG registers
+event:0x13 counters:1,2 um:zero minimum:500 name:STALL_RAW : Stall cycles due to RAW data hazards in computers
+event:0x80 counters:1,2  um:zero minimum:500 name:FETCH_POSTPON_BY_DMA : Code memory fetches postponed due to DMA collisions(minimum count of two per event)
+event:0x81 counters:1,2 um:zero minimum:500 name:TAG_STALL : Code memory TAG stalls (cache misses, or FlushI operations, count of 3 per FlushI). Note code memory stall results in a processor stall only if instruction assembly unit FIFO empties.
+event:0x82 counters:1,2 um:zero minimum:500 name:FILL_STALL : Code memory fill stalls (cacheable or non-cacheable). Note code memory stall results in a processor stall only if instruction assembly unit FIFO empties."
+		echo "
+event:0x83 counters:1,2 um:zero minimum:500 name:64_DELIVER : Code memory 64-bit words delibered to processor instruction assembly unit
+event:0x90 counters:1,2 um:zero minimum:500 name:STALL_MEMORY : Processors stalls to memory
+event:0x91 counters:1,2 um:zero minimum:500 name:DATA_MEMORY_STALL : Data memory stalls to processor not hidden by processor stall
+event:0x92 counters:1,2 um:zero minimum:500 name:DATA_STORE_FULL_STALL : Data memory store buffer full stalls
+event:0x93 counters:1,2 um:zero minimum:500 name:DATA_WRITE_FULL_STALL : Data memory write buffer full stalls due to high-to-low priority code transition
+event:0x94 counters:1,2 um:zero minimum:500 name:DATA_STORE_FORWORD)STALL : Data memory store buffer forward stalls due to lack of committed data from processor"
+		echo "
+event:0x95 counters:1,2 um:zero minimum:500 name:DATA_FILL_STALL : Data memory fill buffer stalls
+event:0x96 counters:1,2 um:zero minimum:500 name:DATA_TAG_STALL : Data memory array or TAG collision stalls (DAG to DAG, or DMA to DAG)
+event:0x97 counters:1,2 um:zero minimum:500 name:DATA_COLLI_STALL : Data memory array collision stalls (DAG to DAG ot DMA to DAG)
+event:0x98 counters:1,2 um:zero minimum:500 name:DATA_MEM_STALL : Data memory stalls
+event:0x99 counters:1,2 um:zero minimum:500 name:DATA_STALL_TO_PROC : Data memory stalls sent to processor
+event:0x9A counters:1,2 um:zero minimum:500 name:DATA_FILL_BANK_A : Data memory cache fills completed to Bank A
+event:0x9B counters:1,2 um:zero minimum:500 name:DATA_FILL_BANK_B : Data memory cache fills completed to Bank B
+event:0x9C counters:1,2 um:zero minimum:500 name:DATA_VICTIMS_BANK_A : Data memory cache victims delivered from Bank A
+event:0x9D counters:1,2 um:zero minimum:500 name:DATA_VICTIMS_BANK_B : Data memory cache victims delivered from Bank B
+event:0x9E counters:1,2 um:zero minimum:500 name:DATA_HIGH_FILL : Data memory cache high priority fills requested
+event:0x9F counters:1,2 um:zero minimum:500 name:DATA_LOW_FILL: Data memory cache low priority
+"
+		;;
+	*)
+		echo "Unknown option . See opcontrol --help" >&2
+                exit 1
+		;;
+esac
+

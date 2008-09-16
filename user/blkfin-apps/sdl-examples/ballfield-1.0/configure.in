@@ -1,0 +1,32 @@
+dnl Process this file with autoconf to produce a configure script.
+
+dnl Simple Automake init
+AC_INIT(ballfield.c)
+AM_INIT_AUTOMAKE(ballfield, 1.0, david@olofson.net)
+
+dnl Detect canonical host and target build environment
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+
+dnl Check for various tools
+AC_PROG_CC
+AC_PROG_CPP
+
+dnl Check for SDL 1.2.0+
+SDL_VERSION=1.2.0
+AM_PATH_SDL($SDL_VERSION,:,AC_MSG_ERROR([*** SDL >= $SDL_VERSION not found!]))
+
+dnl Checks for SDL_image
+AC_CHECK_LIB(SDL_image, IMG_Load,,
+	AC_MSG_ERROR([You need the SDL_image library to compile this software.
+	Get it at http://www.libsdl.org/projects/SDL_image/]),
+	-lSDL
+)
+LIBS="$LIBS -lSDL_image"
+
+dnl Get compile and linking flags
+CFLAGS="$CFLAGS $SDL_CFLAGS"
+LIBS="$LIBS $SDL_LIBS"
+
+dnl Generate Makefile
+AC_OUTPUT(Makefile)

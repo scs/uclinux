@@ -1,0 +1,237 @@
+@INCLUDE = Doxyfile-common
+
+# Doxyfile 1.3.4
+
+# The PROJECT_NAME tag is a single word (or a sequence of words surrounded 
+# by quotes) that should identify the project.
+
+PROJECT_NAME           = "Xenomai Native skin API"
+
+#---------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+
+# The INPUT tag can be used to specify the files and/or directories that contain 
+# documented source files. You may enter file names like "myfile.cpp" or 
+# directories like "/usr/src/myproject". Separate the files or directories 
+# with spaces.
+
+INPUT                  = \
+        @top_srcdir@/include/native \
+        @top_srcdir@/src/skins/native \
+        @top_srcdir@/ksrc/skins/native \
+        @top_srcdir@/doc/doxygen
+
+# The EXAMPLE_PATH tag can be used to specify one or more files or 
+# directories that contain example code fragments that are included (see 
+# the \include command).
+
+EXAMPLE_PATH           = @top_srcdir@/ksrc/skins/native/snippets \
+		         @top_srcdir@/ksrc/skins/native/demos \
+			 @top_srcdir@/examples/native
+
+#---------------------------------------------------------------------------
+# configuration options related to the HTML output
+#---------------------------------------------------------------------------
+
+# If the GENERATE_HTML tag is set to YES (the default) Doxygen will 
+# generate HTML output.
+
+GENERATE_HTML          = NO
+
+# The HTML_OUTPUT tag is used to specify where the HTML docs will be put. 
+# If a relative path is entered the value of OUTPUT_DIRECTORY will be 
+# put in front of it. If left blank `html' will be used as the default path.
+
+HTML_OUTPUT            = api
+
+# The HTML_FILE_EXTENSION tag can be used to specify the file extension for 
+# each generated HTML page (for example: .htm,.php,.asp). If it is left blank 
+# doxygen will generate files with .html extension.
+
+HTML_FILE_EXTENSION    = .html
+
+# The HTML_HEADER tag can be used to specify a personal HTML header for 
+# each generated HTML page. If it is left blank doxygen will generate a 
+# standard header.
+
+HTML_HEADER            = 
+
+# The HTML_FOOTER tag can be used to specify a personal HTML footer for 
+# each generated HTML page. If it is left blank doxygen will generate a 
+# standard footer.
+
+HTML_FOOTER            = 
+
+# The HTML_STYLESHEET tag can be used to specify a user-defined cascading 
+# style sheet that is used by each HTML page. It can be used to 
+# fine-tune the look of the HTML output. If the tag is left blank doxygen 
+# will generate a default style sheet
+
+HTML_STYLESHEET        = 
+
+# If the HTML_ALIGN_MEMBERS tag is set to YES, the members of classes, 
+# files or namespaces will be aligned in HTML using tables. If set to 
+# NO a bullet list will be used.
+
+HTML_ALIGN_MEMBERS     = YES
+
+# If the GENERATE_HTMLHELP tag is set to YES, additional index files 
+# will be generated that can be used as input for tools like the 
+# Microsoft HTML help workshop to generate a compressed HTML help file (.chm) 
+# of the generated HTML documentation.
+
+GENERATE_HTMLHELP      = NO
+
+# If the GENERATE_HTMLHELP tag is set to YES, the CHM_FILE tag can 
+# be used to specify the file name of the resulting .chm file. You 
+# can add a path in front of the file if the result should not be 
+# written to the html output dir.
+
+CHM_FILE               = 
+
+# If the GENERATE_HTMLHELP tag is set to YES, the HHC_LOCATION tag can 
+# be used to specify the location (absolute path including file name) of 
+# the HTML help compiler (hhc.exe). If non-empty doxygen will try to run 
+# the HTML help compiler on the generated index.hhp.
+
+HHC_LOCATION           = 
+
+# If the GENERATE_HTMLHELP tag is set to YES, the GENERATE_CHI flag 
+# controls if a separate .chi index file is generated (YES) or that 
+# it should be included in the master .chm file (NO).
+
+GENERATE_CHI           = NO
+
+# If the GENERATE_HTMLHELP tag is set to YES, the BINARY_TOC flag 
+# controls whether a binary table of contents is generated (YES) or a 
+# normal table of contents (NO) in the .chm file.
+
+BINARY_TOC             = NO
+
+# The TOC_EXPAND flag can be set to YES to add extra items for group members 
+# to the contents of the HTML help documentation and to the tree view.
+
+TOC_EXPAND             = NO
+
+# The DISABLE_INDEX tag can be used to turn on/off the condensed index at 
+# top of each HTML page. The value NO (the default) enables the index and 
+# the value YES disables it.
+
+DISABLE_INDEX          = NO
+
+# This tag can be used to set the number of enum values (range [1..20]) 
+# that doxygen will group on one line in the generated HTML documentation.
+
+ENUM_VALUES_PER_LINE   = 4
+
+# If the GENERATE_TREEVIEW tag is set to YES, a side panel will be
+# generated containing a tree-like index structure (just like the one that 
+# is generated for HTML Help). For this to work a browser that supports 
+# JavaScript, DHTML, CSS and frames is required (for instance Mozilla 1.0+, 
+# Netscape 6.0+, Internet explorer 5.0+, or Konqueror). Windows users are 
+# probably better off using the HTML help feature.
+
+GENERATE_TREEVIEW      = YES
+
+# If the treeview is enabled (see GENERATE_TREEVIEW) then this tag can be 
+# used to set the initial width (in pixels) of the frame in which the tree 
+# is shown.
+
+TREEVIEW_WIDTH         = 250
+
+#---------------------------------------------------------------------------
+# Configuration::addtions related to the search engine   
+#---------------------------------------------------------------------------
+
+# The SEARCHENGINE tag specifies whether or not a search engine should be 
+# used. If set to NO the values of all tags below this one will be ignored.
+
+SEARCHENGINE           = NO
+
+#---------------------------------------------------------------------------
+# configuration options related to the LaTeX output
+#---------------------------------------------------------------------------
+
+# If the GENERATE_LATEX tag is set to YES (the default) Doxygen will 
+# generate Latex output.
+
+GENERATE_LATEX         = YES
+
+# The LATEX_OUTPUT tag is used to specify where the LaTeX docs will be put. 
+# If a relative path is entered the value of OUTPUT_DIRECTORY will be 
+# put in front of it. If left blank `latex' will be used as the default path.
+
+LATEX_OUTPUT           = latex-native
+
+# The LATEX_CMD_NAME tag can be used to specify the LaTeX command name to be 
+# invoked. If left blank `latex' will be used as the default command name.
+
+LATEX_CMD_NAME         = latex
+
+# The MAKEINDEX_CMD_NAME tag can be used to specify the command name to 
+# generate index for LaTeX. If left blank `makeindex' will be used as the 
+# default command name.
+
+MAKEINDEX_CMD_NAME     = makeindex
+
+# If the COMPACT_LATEX tag is set to YES Doxygen generates more compact 
+# LaTeX documents. This may be useful for small projects and may help to 
+# save some trees in general.
+
+COMPACT_LATEX          = NO
+
+# The PAPER_TYPE tag can be used to set the paper type that is used 
+# by the printer. Possible values are: a4, a4wide, letter, legal and 
+# executive. If left blank a4wide will be used.
+
+PAPER_TYPE             = a4wide
+
+# The EXTRA_PACKAGES tag can be to specify one or more names of LaTeX 
+# packages that should be included in the LaTeX output.
+
+EXTRA_PACKAGES         = pxfonts
+
+# The LATEX_HEADER tag can be used to specify a personal LaTeX header for 
+# the generated latex document. The header should contain everything until 
+# the first chapter. If it is left blank doxygen will generate a 
+# standard header. Notice: only use this tag if you know what you are doing!
+
+LATEX_HEADER           = 
+
+# If the PDF_HYPERLINKS tag is set to YES, the LaTeX that is generated 
+# is prepared for conversion to pdf (using ps2pdf). The pdf file will 
+# contain links (just like the HTML output) instead of page references 
+# This makes the output suitable for online browsing using a pdf viewer.
+
+PDF_HYPERLINKS         = YES
+
+# If the USE_PDFLATEX tag is set to YES, pdflatex will be used instead of 
+# plain latex in the generated Makefile. Set this option to YES to get a 
+# higher quality PDF documentation.
+
+USE_PDFLATEX           = YES
+
+# If the LATEX_BATCHMODE tag is set to YES, doxygen will add the \\batchmode. 
+# command to the generated LaTeX files. This will instruct LaTeX to keep 
+# running if errors occur, instead of asking the user for help. 
+# This option is also used when generating formulas in HTML.
+
+LATEX_BATCHMODE        = @LATEX_BATCHMODE@
+
+# If LATEX_HIDE_INDICES is set to YES then doxygen will not 
+# include the index chapters (such as File Index, Compound Index, etc.) 
+# in the output.
+
+LATEX_HIDE_INDICES     = NO
+
+# The INCLUDE_PATH tag can be used to specify one or more directories that 
+# contain include files that are not input files but should be processed by 
+# the preprocessor.
+
+# Added top_buildir/include here for the definition of XENO_PROTO in
+# xeno_config.h
+INCLUDE_PATH           = \
+@top_srcdir@/ksrc/skins/native \
+@top_builddir@/include \
+@top_srcdir@/include

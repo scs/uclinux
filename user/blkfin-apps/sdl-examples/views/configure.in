@@ -1,0 +1,36 @@
+AC_PREREQ(2.57)
+AC_INIT(views, 0.3beta, cappa@referee.at)
+AC_CONFIG_SRCDIR([src/views.c])
+AC_CONFIG_HEADER(src/include/config.h)
+
+AC_PROG_CC
+AM_INIT_AUTOMAKE
+AC_C_CONST
+
+AC_FUNC_CLOSEDIR_VOID
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS([memset strdup])
+
+AC_HEADER_STDC
+AC_CHECK_HEADERS([stdlib.h string.h stdarg.h libgen.h getopt.h])
+
+SDL_VERSION=1.1.0
+AM_PATH_SDL($SDL_VERSION, :,
+                AC_MSG_ERROR([*** SDL version $SDL_VERSION or above not found!]))
+		CFLAGS="$CFLAGS $SDL_CFLAGS"
+		LIBS="$LIBS $SDL_LIBS $X_LIBS -L/usr/lib"
+
+AC_CHECK_LIB(SDL_image, IMG_Load)
+AC_CHECK_FUNCS([IMG_Load])
+if test x"$ac_cv_func_IMG_Load" != xyes; then
+        AC_MSG_ERROR([no SDL_image found on this system. get one from http://www.libsdl.org/projects/SDL_image/])
+fi
+AC_PATH_PROGS(WGET_PROG, wget,wget, $PATH:/usr/local/bin)
+if test -x "$WGET_PROG"
+then
+	AC_DEFINE_UNQUOTED(HAVE_WGET, 1, [Whether wget(1) is installed])
+fi
+
+AC_CHECK_FUNCS([memset strdup])
+AC_CONFIG_FILES([Makefile src/Makefile man/Makefile])
+AC_OUTPUT

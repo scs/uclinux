@@ -1,0 +1,53 @@
+#!/bin/sh
+
+echo "xeno-test: started $*"
+pidFile=/var/lock/xeno-workload
+
+echo "xeno-test: running tests"
+
+# show status
+#loudly cat /proc/interrupts
+#loudly cat /proc/loadavg
+#loudly cat /proc/meminfo
+#loudly top -b -n 3 | head -n 12
+
+# run test
+loudly $*
+
+#loudly latency $latpass -t0
+#loudly latency $latpass -t1
+#loudly latency $latpass -t2
+
+#loudly switchtest -T 120
+
+#loudly switchbench $sbpass
+
+#loudly cyclictest -p 10 -n -l 1000 
+
+# show status
+#loudly cat /proc/interrupts
+#loudly cat /proc/loadavg
+#loudly cat /proc/meminfo
+#loudly top -b -n 3| head -n 12
+
+# kill the workload
+if test -z "$dd_jobs" -a -r $pidFile; then
+  dd_jobs=`cat $pidFile`
+  rm -f $pidFile
+fi
+if test -z "$dd_jobs"; then
+  echo "no dd_jobs found"
+else 
+  for _j in $dd_jobs
+  do
+    ps | grep $_j
+    kill $_j
+  done
+fi
+
+#killall -q -9 whetstone
+killall -q -9 dd
+killall -q -9  workload
+
+echo "xeno-test: finished"
+exit 0

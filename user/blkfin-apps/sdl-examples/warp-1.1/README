@@ -1,0 +1,63 @@
+Warp - Realtime picture 'gooing' SDL demo. Version 1.1.4 (apr. 14, 1998)
+
+This program is intended to be a demonstration of SDL, the Simple
+DirectMedia Layer.
+
+Compiling the demo:
+
+Run 'make'
+
+Running the demo :
+
+Once the program is compiled, just run "warp" and enjoy.
+
+Because I wanted the program to stay small and independant of any other
+dynamic library installed in the system (e.g. libjpeg, libpng..), it reads
+BMP picture files. You can use The Gimp to save to that format, or you
+can always implement another loader, but this will grow the code beyond
+necessity. Anyway, if you have another picture, you can do :
+
+warp picturefile.bmp
+
+to use this picture instead of the default one (leeloo.bmp ;).
+
+The demo runs on its own, you can exit it by pressing any key.
+
+Background :
+
+I wrote this program just after I had started to contribute to the GGI
+project, wishing at the time to write drivers for the chips I owned and
+for which I had documentation - Matrox 1164SG (Mystique, an awesome board)
+and ATI 3D RAGE II (blargh). The idea was to learn more about GGI
+internals and to provide the project with a good demo, which was
+lacking at the time. Matthias Grimrath wrote the Mystique driver,
+the ATI chips didn't motivate anyone that much yet :), and I wrote
+the driver for the Cyrix MediaGX chipset, in cooperation with Cyrix
+themselves, which was a really interesting project. I did the libggi
+port to IRIX and I manage the ggi-project domain name aswell, now,
+and I want to hope I know GGI quite well. 
+
+This demo has been written in an evening and most of a night (not
+knowing anything about GGI when I started :). I hope you will like
+the result.
+
+(Sam:
+ This demo was converted to SDL in about 2 and a half hours.  Thanks!
+)
+
+This is actually a routine that I had written in 680x0 assembler
+on the Amiga, never used, then ported to 80x86 assembler, then ported
+to C++ under BeOS, then ported to Java (you can see the Java version
+on http://www.core.netnation.org/pages/warp_anita.html), then ported to
+plain C for GGI today. Every time I ported it to a new architecture,
+I have optimized some bits. I still think it can be done faster, but
+on a P133, and with the demo compiled with egcs as -mpentium -O6, it
+runs at full frame rate.
+
+Enjoy ;)
+
+Emmanuel Marty <core@ggi-project.org>
+
+web: http://www.core.netnation.org
+irc: core on undernet #linux
+icq: uin 1153070 (please bear with my java-linux restricted icq client :P)

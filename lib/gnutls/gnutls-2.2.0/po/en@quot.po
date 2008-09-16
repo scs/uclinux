@@ -1,0 +1,600 @@
+# English translations for GnuTLS package.
+# Copyright (C) 2007 Free Software Foundation, Inc.
+# This file is distributed under the same license as the GnuTLS package.
+# Automatically generated, 2007.
+#
+# All this catalog "translates" are quotation characters.
+# The msgids must be ASCII and therefore cannot contain real quotation
+# characters, only substitutes like grave accent (0x60), apostrophe (0x27)
+# and double quote (0x22). These substitutes look strange; see
+# http://www.cl.cam.ac.uk/~mgk25/ucs/quotes.html
+#
+# This catalog translates grave accent (0x60) and apostrophe (0x27) to
+# left single quotation mark (U+2018) and right single quotation mark (U+2019).
+# It also translates pairs of apostrophe (0x27) to
+# left single quotation mark (U+2018) and right single quotation mark (U+2019)
+# and pairs of quotation mark (0x22) to
+# left double quotation mark (U+201C) and right double quotation mark (U+201D).
+#
+# When output to an UTF-8 terminal, the quotation characters appear perfectly.
+# When output to an ISO-8859-1 terminal, the single quotation marks are
+# transliterated to apostrophes (by iconv in glibc 2.2 or newer) or to
+# grave/acute accent (by libiconv), and the double quotation marks are
+# transliterated to 0x22.
+# When output to an ASCII terminal, the single quotation marks are
+# transliterated to apostrophes, and the double quotation marks are
+# transliterated to 0x22.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: gnutls 2.2.0\n"
+"Report-Msgid-Bugs-To: bug-gnutls@gnu.org\n"
+"POT-Creation-Date: 2007-12-14 12:36+0100\n"
+"PO-Revision-Date: 2007-12-14 12:36+0100\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Success."
+msgstr "Success."
+
+msgid "Could not negotiate a supported cipher suite."
+msgstr "Could not negotiate a supported cipher suite."
+
+msgid "The cipher type is unsupported."
+msgstr "The cipher type is unsupported."
+
+msgid "The certificate and the given key do not match."
+msgstr "The certificate and the given key do not match."
+
+msgid "Could not negotiate a supported compression method."
+msgstr "Could not negotiate a supported compression method."
+
+msgid "An unknown public key algorithm was encountered."
+msgstr "An unknown public key algorithm was encountered."
+
+msgid "An algorithm that is not enabled was negotiated."
+msgstr "An algorithm that is not enabled was negotiated."
+
+msgid "A large TLS record packet was received."
+msgstr "A large TLS record packet was received."
+
+msgid "A record packet with illegal version was received."
+msgstr "A record packet with illegal version was received."
+
+msgid ""
+"The Diffie Hellman prime sent by the server is not acceptable (not long "
+"enough)."
+msgstr ""
+"The Diffie Hellman prime sent by the server is not acceptable (not long "
+"enough)."
+
+msgid "A TLS packet with unexpected length was received."
+msgstr "A TLS packet with unexpected length was received."
+
+msgid "The specified session has been invalidated for some reason."
+msgstr "The specified session has been invalidated for some reason."
+
+msgid "GnuTLS internal error."
+msgstr "GnuTLS internal error."
+
+msgid "An illegal TLS extension was received."
+msgstr "An illegal TLS extension was received."
+
+msgid "A TLS fatal alert has been received."
+msgstr "A TLS fatal alert has been received."
+
+msgid "An unexpected TLS packet was received."
+msgstr "An unexpected TLS packet was received."
+
+msgid "A TLS warning alert has been received."
+msgstr "A TLS warning alert has been received."
+
+msgid "An error was encountered at the TLS Finished packet calculation."
+msgstr "An error was encountered at the TLS Finished packet calculation."
+
+msgid "The peer did not send any certificate."
+msgstr "The peer did not send any certificate."
+
+msgid "No temporary RSA parameters were found."
+msgstr "No temporary RSA parameters were found."
+
+msgid "No temporary DH parameters were found."
+msgstr "No temporary DH parameters were found."
+
+msgid "An unexpected TLS handshake packet was received."
+msgstr "An unexpected TLS handshake packet was received."
+
+msgid "The scanning of a large integer has failed."
+msgstr "The scanning of a large integer has failed."
+
+msgid "Could not export a large integer."
+msgstr "Could not export a large integer."
+
+msgid "Decryption has failed."
+msgstr "Decryption has failed."
+
+msgid "Encryption has failed."
+msgstr "Encryption has failed."
+
+msgid "Public key decryption has failed."
+msgstr "Public key decryption has failed."
+
+msgid "Public key encryption has failed."
+msgstr "Public key encryption has failed."
+
+msgid "Public key signing has failed."
+msgstr "Public key signing has failed."
+
+msgid "Public key signature verification has failed."
+msgstr "Public key signature verification has failed."
+
+msgid "Decompression of the TLS record packet has failed."
+msgstr "Decompression of the TLS record packet has failed."
+
+msgid "Compression of the TLS record packet has failed."
+msgstr "Compression of the TLS record packet has failed."
+
+msgid "Internal error in memory allocation."
+msgstr "Internal error in memory allocation."
+
+msgid "An unimplemented or disabled feature has been requested."
+msgstr "An unimplemented or disabled feature has been requested."
+
+msgid "Insufficient credentials for that request."
+msgstr "Insufficient credentials for that request."
+
+msgid "Error in password file."
+msgstr "Error in password file."
+
+msgid "Wrong padding in PKCS1 packet."
+msgstr "Wrong padding in PKCS1 packet."
+
+msgid "The requested session has expired."
+msgstr "The requested session has expired."
+
+msgid "Hashing has failed."
+msgstr "Hashing has failed."
+
+msgid "Base64 decoding error."
+msgstr "Base64 decoding error."
+
+msgid "Base64 unexpected header error."
+msgstr "Base64 unexpected header error."
+
+msgid "Base64 encoding error."
+msgstr "Base64 encoding error."
+
+msgid "Parsing error in password file."
+msgstr "Parsing error in password file."
+
+msgid "The requested data were not available."
+msgstr "The requested data were not available."
+
+msgid "Error in the pull function."
+msgstr "Error in the pull function."
+
+msgid "Error in the push function."
+msgstr "Error in the push function."
+
+msgid ""
+"The upper limit of record packet sequence numbers has been reached. Wow!"
+msgstr ""
+"The upper limit of record packet sequence numbers has been reached. Wow!"
+
+msgid "Error in the certificate."
+msgstr "Error in the certificate."
+
+msgid "Unknown Subject Alternative name in X.509 certificate."
+msgstr "Unknown Subject Alternative name in X.509 certificate."
+
+msgid "Unsupported critical extension in X.509 certificate."
+msgstr "Unsupported critical extension in X.509 certificate."
+
+msgid "Key usage violation in certificate has been detected."
+msgstr "Key usage violation in certificate has been detected."
+
+msgid "Function was interrupted."
+msgstr "Function was interrupted."
+
+msgid "Rehandshake was requested by the peer."
+msgstr "Rehandshake was requested by the peer."
+
+msgid "TLS Application data were received, while expecting handshake data."
+msgstr "TLS Application data were received, while expecting handshake data."
+
+msgid "Error in Database backend."
+msgstr "Error in Database backend."
+
+msgid "The certificate type is not supported."
+msgstr "The certificate type is not supported."
+
+msgid "The given memory buffer is too short to hold parameters."
+msgstr "The given memory buffer is too short to hold parameters."
+
+msgid "The request is invalid."
+msgstr "The request is invalid."
+
+msgid "An illegal parameter has been received."
+msgstr "An illegal parameter has been received."
+
+msgid "Error while reading file."
+msgstr "Error while reading file."
+
+msgid "ASN1 parser: Element was not found."
+msgstr "ASN1 parser: Element was not found."
+
+msgid "ASN1 parser: Identifier was not found"
+msgstr "ASN1 parser: Identifier was not found"
+
+msgid "ASN1 parser: Error in DER parsing."
+msgstr "ASN1 parser: Error in DER parsing."
+
+msgid "ASN1 parser: Value was not found."
+msgstr "ASN1 parser: Value was not found."
+
+msgid "ASN1 parser: Generic parsing error."
+msgstr "ASN1 parser: Generic parsing error."
+
+msgid "ASN1 parser: Value is not valid."
+msgstr "ASN1 parser: Value is not valid."
+
+msgid "ASN1 parser: Error in TAG."
+msgstr "ASN1 parser: Error in TAG."
+
+msgid "ASN1 parser: error in implicit tag"
+msgstr "ASN1 parser: error in implicit tag"
+
+msgid "ASN1 parser: Error in type 'ANY'."
+msgstr "ASN1 parser: Error in type 'ANY'."
+
+msgid "ASN1 parser: Syntax error."
+msgstr "ASN1 parser: Syntax error."
+
+msgid "ASN1 parser: Overflow in DER parsing."
+msgstr "ASN1 parser: Overflow in DER parsing."
+
+msgid "Too many empty record packets have been received."
+msgstr "Too many empty record packets have been received."
+
+msgid "The initialization of GnuTLS-extra has failed."
+msgstr "The initialization of GnuTLS-extra has failed."
+
+msgid ""
+"The GnuTLS library version does not match the GnuTLS-extra library version."
+msgstr ""
+"The GnuTLS library version does not match the GnuTLS-extra library version."
+
+msgid "The gcrypt library version is too old."
+msgstr "The gcrypt library version is too old."
+
+msgid "The tasn1 library version is too old."
+msgstr "The tasn1 library version is too old."
+
+msgid "Error loading the keyring."
+msgstr "Error loading the keyring."
+
+msgid "The initialization of LZO has failed."
+msgstr "The initialization of LZO has failed."
+
+msgid "No supported compression algorithms have been found."
+msgstr "No supported compression algorithms have been found."
+
+msgid "No supported cipher suites have been found."
+msgstr "No supported cipher suites have been found."
+
+msgid "Could not get OpenPGP key."
+msgstr "Could not get OpenPGP key."
+
+msgid "The SRP username supplied is illegal."
+msgstr "The SRP username supplied is illegal."
+
+msgid "The OpenPGP fingerprint is not supported."
+msgstr "The OpenPGP fingerprint is not supported."
+
+msgid "The certificate has unsupported attributes."
+msgstr "The certificate has unsupported attributes."
+
+msgid "The OID is not supported."
+msgstr "The OID is not supported."
+
+msgid "The hash algorithm is unknown."
+msgstr "The hash algorithm is unknown."
+
+msgid "The PKCS structure's content type is unknown."
+msgstr "The PKCS structure's content type is unknown."
+
+msgid "The PKCS structure's bag type is unknown."
+msgstr "The PKCS structure's bag type is unknown."
+
+msgid "The given password contains invalid characters."
+msgstr "The given password contains invalid characters."
+
+msgid "The Message Authentication Code verification failed."
+msgstr "The Message Authentication Code verification failed."
+
+msgid "Some constraint limits were reached."
+msgstr "Some constraint limits were reached."
+
+msgid "Failed to acquire random data."
+msgstr "Failed to acquire random data."
+
+msgid "Received a TLS/IA Intermediate Phase Finished message"
+msgstr "Received a TLS/IA Intermediate Phase Finished message"
+
+msgid "Received a TLS/IA Final Phase Finished message"
+msgstr "Received a TLS/IA Final Phase Finished message"
+
+msgid "Verifying TLS/IA phase checksum failed"
+msgstr "Verifying TLS/IA phase checksum failed"
+
+msgid "The specified algorithm or protocol is unknown."
+msgstr "The specified algorithm or protocol is unknown."
+
+#, c-format
+msgid "\t\t\tPath Length Constraint: %d\n"
+msgstr "\t\t\tPath Length Constraint: %d\n"
+
+#, c-format
+msgid "\t\t\tPolicy Language: %s"
+msgstr "\t\t\tPolicy Language: %s"
+
+msgid ""
+"\t\t\tPolicy:\n"
+"\t\t\t\tASCII: "
+msgstr ""
+"\t\t\tPolicy:\n"
+"\t\t\t\tASCII: "
+
+msgid ""
+"\n"
+"\t\t\t\tHexdump: "
+msgstr ""
+"\n"
+"\t\t\t\tHexdump: "
+
+msgid "\t\t\tDigital signature.\n"
+msgstr "\t\t\tDigital signature.\n"
+
+msgid "\t\t\tNon repudiation.\n"
+msgstr "\t\t\tNon repudiation.\n"
+
+msgid "\t\t\tKey encipherment.\n"
+msgstr "\t\t\tKey encipherment.\n"
+
+msgid "\t\t\tData encipherment.\n"
+msgstr "\t\t\tData encipherment.\n"
+
+msgid "\t\t\tKey agreement.\n"
+msgstr "\t\t\tKey agreement.\n"
+
+msgid "\t\t\tCertificate signing.\n"
+msgstr "\t\t\tCertificate signing.\n"
+
+msgid "\t\t\tCRL signing.\n"
+msgstr "\t\t\tCRL signing.\n"
+
+msgid "\t\t\tKey encipher only.\n"
+msgstr "\t\t\tKey encipher only.\n"
+
+msgid "\t\t\tKey decipher only.\n"
+msgstr "\t\t\tKey decipher only.\n"
+
+msgid "\t\t\tTLS WWW Server.\n"
+msgstr "\t\t\tTLS WWW Server.\n"
+
+msgid "\t\t\tTLS WWW Client.\n"
+msgstr "\t\t\tTLS WWW Client.\n"
+
+msgid "\t\t\tCode signing.\n"
+msgstr "\t\t\tCode signing.\n"
+
+msgid "\t\t\tEmail protection.\n"
+msgstr "\t\t\tEmail protection.\n"
+
+msgid "\t\t\tTime stamping.\n"
+msgstr "\t\t\tTime stamping.\n"
+
+msgid "\t\t\tOCSP signing.\n"
+msgstr "\t\t\tOCSP signing.\n"
+
+msgid "\t\t\tAny purpose.\n"
+msgstr "\t\t\tAny purpose.\n"
+
+msgid "\t\t\tCertificate Authority (CA): FALSE\n"
+msgstr "\t\t\tCertificate Authority (CA): FALSE\n"
+
+msgid "\t\t\tCertificate Authority (CA): TRUE\n"
+msgstr "\t\t\tCertificate Authority (CA): TRUE\n"
+
+#, c-format
+msgid "\t\t\tXMPP Address: %.*s\n"
+msgstr "\t\t\tXMPP Address: %.*s\n"
+
+#, c-format
+msgid "\t\t\totherName OID: %.*s\n"
+msgstr "\t\t\totherName OID: %.*s\n"
+
+msgid "\t\t\totherName DER: "
+msgstr "\t\t\totherName DER: "
+
+msgid ""
+"\n"
+"\t\t\totherName ASCII: "
+msgstr ""
+"\n"
+"\t\t\totherName ASCII: "
+
+#, c-format
+msgid "\tVersion: %d\n"
+msgstr "\tVersion: %d\n"
+
+msgid "\tSerial Number (hex): "
+msgstr "\tSerial Number (hex): "
+
+#, c-format
+msgid "\tIssuer: %s\n"
+msgstr "\tIssuer: %s\n"
+
+msgid "\tValidity:\n"
+msgstr "\tValidity:\n"
+
+#, c-format
+msgid "\t\tNot Before: %s\n"
+msgstr "\t\tNot Before: %s\n"
+
+#, c-format
+msgid "\t\tNot After: %s\n"
+msgstr "\t\tNot After: %s\n"
+
+#, c-format
+msgid "\tSubject: %s\n"
+msgstr "\tSubject: %s\n"
+
+#, c-format
+msgid "\tSubject Public Key Algorithm: %s\n"
+msgstr "\tSubject Public Key Algorithm: %s\n"
+
+#, c-format
+msgid "\t\tModulus (bits %d):\n"
+msgstr "\t\tModulus (bits %d):\n"
+
+msgid "\t\tExponent:\n"
+msgstr "\t\tExponent:\n"
+
+#, c-format
+msgid "\t\tPublic key (bits %d):\n"
+msgstr "\t\tPublic key (bits %d):\n"
+
+msgid "\t\tP:\n"
+msgstr "\t\tP:\n"
+
+msgid "\t\tQ:\n"
+msgstr "\t\tQ:\n"
+
+msgid "\t\tG:\n"
+msgstr "\t\tG:\n"
+
+msgid "\tExtensions:\n"
+msgstr "\tExtensions:\n"
+
+#, c-format
+msgid "\t\tBasic Constraints (%s):\n"
+msgstr "\t\tBasic Constraints (%s):\n"
+
+msgid "critical"
+msgstr "critical"
+
+msgid "not critical"
+msgstr "not critical"
+
+#, c-format
+msgid "\t\tSubject Key Identifier (%s):\n"
+msgstr "\t\tSubject Key Identifier (%s):\n"
+
+#, c-format
+msgid "\t\tAuthority Key Identifier (%s):\n"
+msgstr "\t\tAuthority Key Identifier (%s):\n"
+
+#, c-format
+msgid "\t\tKey Usage (%s):\n"
+msgstr "\t\tKey Usage (%s):\n"
+
+#, c-format
+msgid "\t\tKey Purpose (%s):\n"
+msgstr "\t\tKey Purpose (%s):\n"
+
+#, c-format
+msgid "\t\tSubject Alternative Name (%s):\n"
+msgstr "\t\tSubject Alternative Name (%s):\n"
+
+#, c-format
+msgid "\t\tCRL Distribution points (%s):\n"
+msgstr "\t\tCRL Distribution points (%s):\n"
+
+#, c-format
+msgid "\t\tProxy Certificate Information (%s):\n"
+msgstr "\t\tProxy Certificate Information (%s):\n"
+
+#, c-format
+msgid "\t\tUnknown extension %s (%s):\n"
+msgstr "\t\tUnknown extension %s (%s):\n"
+
+msgid "\t\t\tASCII: "
+msgstr "\t\t\tASCII: "
+
+msgid "\t\t\tHexdump: "
+msgstr "\t\t\tHexdump: "
+
+#, c-format
+msgid "\tSignature Algorithm: %s\n"
+msgstr "\tSignature Algorithm: %s\n"
+
+msgid ""
+"warning: signed using a broken signature algorithm that can be forged.\n"
+msgstr ""
+"warning: signed using a broken signature algorithm that can be forged.\n"
+
+msgid "\tSignature:\n"
+msgstr "\tSignature:\n"
+
+msgid ""
+"\tMD5 fingerprint:\n"
+"\t\t"
+msgstr ""
+"\tMD5 fingerprint:\n"
+"\t\t"
+
+msgid ""
+"\tSHA-1 fingerprint:\n"
+"\t\t"
+msgstr ""
+"\tSHA-1 fingerprint:\n"
+"\t\t"
+
+msgid ""
+"\tPublic Key Id:\n"
+"\t\t"
+msgstr ""
+"\tPublic Key Id:\n"
+"\t\t"
+
+msgid "X.509 Certificate Information:\n"
+msgstr "X.509 Certificate Information:\n"
+
+msgid "Other Information:\n"
+msgstr "Other Information:\n"
+
+msgid "\tVersion: 1 (default)\n"
+msgstr "\tVersion: 1 (default)\n"
+
+msgid "\tUpdate dates:\n"
+msgstr "\tUpdate dates:\n"
+
+#, c-format
+msgid "\t\tIssued: %s\n"
+msgstr "\t\tIssued: %s\n"
+
+#, c-format
+msgid "\t\tNext at: %s\n"
+msgstr "\t\tNext at: %s\n"
+
+#, c-format
+msgid "\tRevoked certificates (%d):\n"
+msgstr "\tRevoked certificates (%d):\n"
+
+msgid "\tNo revoked certificates.\n"
+msgstr "\tNo revoked certificates.\n"
+
+msgid "\t\tSerial Number (hex): "
+msgstr "\t\tSerial Number (hex): "
+
+#, c-format
+msgid "\t\tRevoked at: %s\n"
+msgstr "\t\tRevoked at: %s\n"
+
+msgid "X.509 Certificate Revocation List Information:\n"
+msgstr "X.509 Certificate Revocation List Information:\n"

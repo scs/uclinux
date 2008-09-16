@@ -1,0 +1,203 @@
+# Makefile for `wget' utility
+# Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# In addition, as a special exception, the Free Software Foundation
+# gives permission to link the code of its release of Wget with the
+# OpenSSL project's "OpenSSL" library (or with modified versions of it
+# that use the same license as the "OpenSSL" library), and distribute
+# the linked executables.  You must obey the GNU General Public License
+# in all respects for all of the code used other than "OpenSSL".  If you
+# modify this file, you may extend this exception to your version of the
+# file, but you are not obligated to do so.  If you do not wish to do
+# so, delete this exception statement from your version.
+
+#
+# Version: @VERSION@
+#
+FLTFLAGS += -s 20000
+
+SHELL = /bin/sh
+
+top_builddir = ..
+
+top_srcdir = @top_srcdir@
+srcdir     = @srcdir@
+VPATH      = @srcdir@
+ANSI2KNR = @ANSI2KNR@
+o = .@U@o
+
+prefix       = @prefix@
+exec_prefix  = @exec_prefix@
+bindir       = @bindir@
+sysconfdir   = @sysconfdir@
+localedir    = $(prefix)/share/locale
+
+DESTDIR      =
+
+CC       = @CC@
+CPPFLAGS = @CPPFLAGS@
+# The following line is losing on some versions of make!
+DEFS     = @DEFS@ -DSYSTEM_WGETRC=\"$(sysconfdir)/wgetrc\" -DLOCALEDIR=\"$(localedir)\"
+CFLAGS   = @CFLAGS@
+LDFLAGS  = @LDFLAGS@
+LIBS     = @LIBS@
+exeext   = @exeext@
+
+INCLUDES = -I. -I$(srcdir) @SSL_INCLUDES@
+
+COMPILE = $(CC) $(INCLUDES) $(CPPFLAGS)  $(DEFS) $(CFLAGS)
+LINK    = @LIBTOOL@ --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -o $@
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+RM = rm -f
+ETAGS = etags
+
+# Conditional compiles
+ALLOCA     = @ALLOCA@
+MD5_OBJ    = @MD5_OBJ@
+OPIE_OBJ   = @OPIE_OBJ@
+SSL_OBJ    = @SSL_OBJ@
+GETOPT_OBJ = @GETOPT_OBJ@
+
+OBJ = $(ALLOCA) cmpt$o connect$o convert$o cookies$o              \
+      ftp$o ftp-basic$o ftp-ls$o $(OPIE_OBJ) $(GETOPT_OBJ) hash$o \
+      headers$o host$o html-parse$o html-url$o http$o init$o      \
+      log$o main$o $(MD5_OBJ) netrc$o progress$o rbuf$o recur$o   \
+      res$o retr$o safe-ctype$o snprintf$o $(SSL_OBJ) url$o       \
+      utils$o version$o
+
+.SUFFIXES:
+.SUFFIXES: .c .o ._c ._o
+
+.c.o:
+	$(COMPILE) -c $<
+
+.c._c: $(ANSI2KNR)
+	$(ANSI2KNR) $< > $*.tmp && mv $*.tmp $@
+
+._c._o:
+	@echo $(COMPILE) -c $<
+	@rm -f _$*.c
+	@ln $< _$*.c && $(COMPILE) -c _$*.c && mv _$*.o $@ && rm _$*.c
+
+.c._o: $(ANSI2KNR)
+	$(ANSI2KNR) $< > $*.tmp && mv $*.tmp $*._c
+	@echo $(COMPILE) -c $*._c
+	@rm -f _$*.c
+	@ln $*._c _$*.c && $(COMPILE) -c _$*.c && mv _$*.o $@ && rm _$*.c
+
+# Dependencies for building
+
+wget$(exeext): $(OBJ)
+	$(LINK) $(OBJ) $(LIBS)
+
+ansi2knr: ansi2knr.o
+	$(CC) -o ansi2knr ansi2knr.o $(LIBS)
+
+$(OBJ): $(ANSI2KNR)
+
+#
+# Dependencies for installing
+#
+
+install: install.bin
+
+uninstall: uninstall.bin
+
+install.bin: wget$(exeext)
+	$(top_srcdir)/mkinstalldirs $(DESTDIR)$(bindir)
+	$(INSTALL_PROGRAM) wget$(exeext) $(DESTDIR)$(bindir)/wget$(exeext)
+
+uninstall.bin:
+	$(RM) $(DESTDIR)$(bindir)/wget$(exeext)
+
+#
+# Dependencies for cleanup
+#
+
+clean:
+	$(RM) *.o wget$(exeext) *~ *.bak core core.[0-9]* $(ANSI2KNR) *._o *._c
+	$(RM) -r .libs
+
+distclean: clean
+	$(RM) Makefile config.h
+
+realclean: distclean
+	$(RM) TAGS
+
+#
+# Dependencies for maintenance
+#
+
+subdir = src
+
+Makefile: Makefile.in ../config.status
+	cd .. && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status
+
+TAGS: *.c *.h
+	-$(ETAGS) *.c *.h
+
+# DO NOT DELETE THIS LINE -- make depend depends on it.
+
+alloca$o:
+cmpt$o: wget.h sysdep.h options.h safe-ctype.h
+connect$o: wget.h sysdep.h options.h safe-ctype.h utils.h connect.h host.h
+convert$o: wget.h convert.h url.h recur.h utils.h hash.h
+cookies$o: wget.h sysdep.h options.h safe-ctype.h cookies.h hash.h url.h utils.h
+ftp-basic$o: wget.h sysdep.h options.h safe-ctype.h utils.h rbuf.h connect.h \
+	host.h ftp.h
+ftp-ls$o: wget.h sysdep.h options.h safe-ctype.h utils.h ftp.h rbuf.h host.h \
+	url.h
+ftp-opie$o: wget.h sysdep.h options.h safe-ctype.h gen-md5.h
+ftp$o: wget.h sysdep.h options.h safe-ctype.h utils.h url.h rbuf.h retr.h \
+	ftp.h host.h connect.h netrc.h
+gen-md5$o: wget.h sysdep.h options.h safe-ctype.h gen-md5.h
+gen_sslfunc$o: wget.h sysdep.h options.h safe-ctype.h utils.h connect.h host.h \
+	url.h
+getopt$o: wget.h sysdep.h options.h safe-ctype.h getopt.h
+gnu-md5$o: wget.h sysdep.h options.h safe-ctype.h gnu-md5.h
+hash$o: wget.h sysdep.h options.h safe-ctype.h utils.h hash.h
+headers$o: wget.h sysdep.h options.h safe-ctype.h connect.h host.h rbuf.h \
+	headers.h
+host$o: wget.h sysdep.h options.h safe-ctype.h utils.h host.h url.h hash.h
+html-parse$o: wget.h sysdep.h options.h safe-ctype.h html-parse.h
+html-url$o: wget.h sysdep.h options.h safe-ctype.h html-parse.h url.h utils.h
+http$o: wget.h sysdep.h options.h safe-ctype.h utils.h url.h host.h rbuf.h \
+	retr.h headers.h connect.h host.h netrc.h gen_sslfunc.h \
+	cookies.h gen-md5.h
+init$o: wget.h sysdep.h options.h safe-ctype.h utils.h init.h host.h recur.h \
+	netrc.h cookies.h progress.h
+log$o: wget.h sysdep.h options.h safe-ctype.h utils.h
+main$o: wget.h sysdep.h options.h safe-ctype.h utils.h init.h retr.h rbuf.h \
+	recur.h host.h cookies.h url.h progress.h gen_sslfunc.h getopt.h
+gnu-md5$o: wget.h sysdep.h options.h safe-ctype.h gnu-md5.h
+mswindows$o: wget.h sysdep.h options.h safe-ctype.h utils.h url.h
+netrc$o: wget.h sysdep.h options.h safe-ctype.h utils.h netrc.h init.h
+progress$o: wget.h sysdep.h options.h safe-ctype.h progress.h utils.h retr.h \
+	rbuf.h
+rbuf$o: wget.h sysdep.h options.h safe-ctype.h rbuf.h connect.h host.h \
+	gen_sslfunc.h
+recur$o: wget.h sysdep.h options.h safe-ctype.h url.h recur.h utils.h retr.h \
+	rbuf.h ftp.h host.h hash.h
+res$o: wget.h sysdep.h options.h safe-ctype.h utils.h hash.h url.h retr.h res.h
+retr$o: wget.h sysdep.h options.h safe-ctype.h utils.h retr.h rbuf.h url.h \
+	recur.h ftp.h host.h connect.h hash.h
+snprintf$o: safe-ctype.h
+safe-ctype$o: safe-ctype.h
+url$o: wget.h sysdep.h options.h safe-ctype.h utils.h url.h host.h hash.h
+utils$o: wget.h sysdep.h options.h safe-ctype.h utils.h hash.h
+version$o:

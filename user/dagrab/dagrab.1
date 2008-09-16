@@ -1,0 +1,275 @@
+.TH DAGRAB 1 10/2002 dagrab dagrab
+.SH NAME
+dagrab \- dumps digital audio from IDE CD-ROM into file
+.SH SYNOPSIS
+.B dagrab
+[
+.B --help
+|
+.B --longhelp
+]
+[
+.B --examples
+]
+[
+.B -v
+]
+[
+.B -i
+]
+[
+.B -d
+.I device
+]
+[
+.B -n
+.I sectors
+]
+[
+.B -J
+]
+[
+.B -j
+.I delta
+]
+[
+.B -f
+.I file
+]
+[
+.B -C
+or
+.B -N
+]
+[
+.B -A
+or
+.B -S
+]
+[
+.B -H 
+.I [host][:port]
+]
+[
+.B -D dir
+]
+[
+.B -m
+.I mode
+]
+[
+.B -e
+.I command
+]
+[ 
+.B -s 
+]
+
+[ 
+.I track-list
+]
+
+.SH DESCRIPTION
+.B dagrab
+is a program for reading audio tracks from a CD-ROM drive into RIFF WAVE (.wav) sound files.
+
+It should work with any IDE CD-ROM drive, provided that digital audio extraction.
+
+.SH OPTIONS
+
+.B track-list
+.RS 3
+The tracks you want to dump. Example: 2 7-12 15. If the word '\fBall\fP' (or -a) is specified, dumps all tracks.
+.RE
+
+.B -h, --help or --shorthelp, --longhelp
+.RS 3
+prints short/long help screen with implicit values of parameters and exits.
+.RE
+
+.B --examples or -E
+.RS 3
+prints examples help screen and exits.
+.RE
+
+.B -v
+.RS 3
+verbose mode -- will print usefull informations:
+.RS 3
+\fBlba read\fP: block position that is just read;
+.RE
+.RS 3
+\fBspd\fP: average speed of reading yet/active speed;
+.RE
+.RS 3
+\fBsect.\fP: number of sectors read ot once (see -n option);
+.RE
+.RS 3
+\fBoverlap\fP: number of sectors used for overlap checking.
+When overlap error appears or the drive sends corrupted data, it writes 'err',
+and dagrab reads again till no error will occur;
+.RE
+.RS 3
+\fBretry\fP: number of retries, when instead of data, error was obtained by the driver;
+.RE
+.RS 3
+\fBjitter\fP: number of \fIpossible\fP jitter errors/corrections
+.RE
+.RS 3
+\fBest. time\fP: estimated time to complete the track.
+.RE
+.PP
+.RE
+
+.B -i
+.RS 3
+prints the track list of the current CD. Can show also author/titles, if cddb support is enabled.
+.RE
+
+.B -d
+.I device
+.RS 3
+sets the cdrom device name. Default is /dev/cdrom. Note: you need kernel support for ide cd.
+.RE
+
+.B -n
+.I sectors
+.RS 3
+will be read per request from the cdrom driver. -n\ 8 (default) should work fine on all drives. Higher values should speed up reading and improve performance, but on some devices, cracks and other errors can occur.
+.RE
+
+.B -J
+.RS 3
+sets the pseudo jitter correction filter inside the block on. Usefull when cracks occur.
+.RE
+
+.B -j
+.I delta
+.RS 3
+If non-zero, implies -J and sets the delta value for pseudo jitter correction filter. Use lower values if you hear cracks. For more details see README file from the package.  Values delta\ +\ 128 have special meaning -- turn off overlap checking (not recommended!, use with care). Example: -j\ 160 disables overlap checking and sets jitter delta to 32.
+.RE
+
+.B -f
+.I file
+.RS 3
+sets the output name for dumped tracks. If the file exists, it will be overwritten. You can embed %02d in the string which will be replaced with the track number (counting from 01). Default is "track%02d.wav".
+
+When using cddb, instead of %02d use those CDDB variables (lowcase values for removing slashes):
+
+.RS 3
+.B @TRK 
+Track name 
+.RE
+.RS 3
+.B @FDS 
+Full disk name (usually author/title)
+.RE
+.RS 3
+.B @AUT 
+Disk author (guessed)
+.RE
+.RS 3
+.B @NUM 
+Track number
+.RE
+.RS 3
+.B @DIS 
+Disk name (guessed)
+.RE
+.RS 3
+.B @GNR
+Disk genre
+.RE
+.RS 3
+.B @YER
+Disk year
+.RE
+
+Note: /:*'<>\\|? characters are transmuted to enable saving files on several filesystems.
+.RE
+
+.B -f -
+outputs to stdout, so you can use pipe.
+.RE
+
+.B -C 
+or 
+.B -N
+.RS 3
+enables cddb protocol to retrieve disk info. Gives to each track the name reported by cddb (defaults to @num-@trk).
+.RE
+
+.B -A
+or
+.B -S
+.RS 3
+causes the program to look for cddb data on remote server and to save it in the local database if not stored here. Refer to -D option. Implies -C.
+.RE
+
+.B -H
+.I [host][:port]
+.RS 3
+sets the remote cddb server and/or port, defaults to de.freedb.org:888.
+.RE
+
+.B -D
+.I dir
+.RS 3
+sets the base directory of the local cddb database; defaults to $XMCD_LIBDIR/cddb or /usr/lib/X11/xmcd/cddb if not defined.
+.RE
+
+.B -m
+.I mode
+.RS 3
+gives the standard mode for files. Also existing files will be chmoded to this (octal) value.
+.RE
+
+.B -e
+.I command
+.RS 3
+will be executed after dumping each track. This can be used to automize converting the dumped data, for example. You can embed %s in the command which will be substituted with the filename of the track file. Also CDDB variables are supported.
+
+Note: ` is printed instead of '.
+.RE
+
+.B -s
+.RS 3
+enables checking for free space before dumping the track to a file. However, if the file exists before, it will be overwritten (read: deleted).
+.RE
+
+
+.SH EXAMPLES
+Run dagrab --examples (also -E works).
+
+.SH NOTES
+You are encouraged to use sh script included, called grab, instead of using dagrab by hand; grab has no manpages.
+
+Linux kernel 2.0.x is no longer supported (but works), at least 2.2.x is recommended. Don't bother about kernel error messages if you see any.
+
+
+Dagrab uses the term ``MB'' for MByte (2^20 bytes == 1024^2 bytes == 1,048,576 bytes)
+
+Legal note: This program may not be used to circumvent existing copyrights.
+
+
+.SH HOMEPAGE
+http://vertigo.fme.vutbr.cz/~stibor/dagrab.html
+
+.SH BUGS
+On some CD-ROMs (ie. Mitsumi, probably it is bug of CD-ROM) it is 50 to 50 there is changed left/right channel.
+
+Can't deal with title/author on more than one line when using cddb.
+
+Please send bug reports and comments to Miroslav Stibor
+<stibor@vertigo.fme.vutbr.cz>.
+
+Note (bug reports related to ripping itself): please attach output made by
+dagrab called also with \fB-i -v --debug\fP parameters (\fB--debug\fP feature
+must be enabled within Makefile at compile time). Example:
+.B ./dagrab -iv --d 1-3 > bombs.txt 2>&1
+
+.SH CREDITS
+Main author of the dagrab is Marcello Urbani <marcello@lumetel.it>. 
+
+Author of some dagrab extensions and man page is 
+Sascha Schumann <sas@schell.de>

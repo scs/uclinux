@@ -1,0 +1,19 @@
+#
+# Xenomai nucleus configuration for Linux v2.4
+#
+
+dep_tristate 'POSIX-compliant skin' CONFIG_XENO_SKIN_POSIX $CONFIG_XENO_OPT_NUCLEUS
+
+if [ "$CONFIG_XENO_SKIN_POSIX" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'POSIX interface options'
+	if [ "$CONFIG_XENO_OPT_TIMING_PERIODIC" != "n" ]; then
+		int 'Base period (us)' CONFIG_XENO_OPT_POSIX_PERIOD 0
+	else
+		define_int CONFIG_XENO_OPT_POSIX_PERIOD 0
+	fi
+	bool 'Shared memory' CONFIG_XENO_OPT_POSIX_SHM
+	bool 'Interrupts' CONFIG_XENO_OPT_POSIX_INTR
+	bool 'Debugging support' CONFIG_XENO_OPT_DEBUG_POSIX
+	endmenu
+fi

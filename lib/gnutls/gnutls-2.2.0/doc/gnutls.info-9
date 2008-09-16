@@ -1,0 +1,130 @@
+This is gnutls.info, produced by makeinfo version 4.11 from gnutls.texi.
+
+This manual is last updated 10 December 2007 for version 2.2.0 of GNU
+TLS.
+
+Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
+Foundation, Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.2 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, no Front-Cover Texts, and
+     no Back-Cover Texts.  A copy of the license is included in the
+     section entitled "GNU Free Documentation License".
+
+INFO-DIR-SECTION GNU Libraries
+START-INFO-DIR-ENTRY
+* libgnutls: (gnutls).		A Transport Layer Security Library.
+END-INFO-DIR-ENTRY
+
+INFO-DIR-SECTION Network Applications
+START-INFO-DIR-ENTRY
+* GnuTLS: (gnutls).			Package for Transport Layer Security.
+* certtool: (gnutls)Invoking certtool.	Manipulate certificates and keys.
+* srptool: (gnutls)Invoking srptool.	Simple SRP password tool.
+* gnutls-serv: (gnutls)Invoking gnutls-serv.	GNU TLS test server.
+* gnutls-cli: (gnutls)Invoking gnutls-cli.	GNU TLS test client.
+* gnutls-cli-debug: (gnutls)Invoking gnutls-cli-debug.	GNU TLS debug client.
+END-INFO-DIR-ENTRY
+
+[RFC4346]
+     Tim Dierks and Eric Rescorla, "The TLS Protocol Version 1.1", Match
+     2006, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc4346.txt'.
+
+[RFC2440]
+     Jon Callas, Lutz Donnerhacke, Hal Finney and Rodney Thayer,
+     "OpenPGP Message Format", November 1998, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc2440.txt'.
+
+[RFC4211]
+     J. Schaad, "Internet X.509 Public Key Infrastructure Certificate
+     Request Message Format (CRMF)", September 2005, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc4211.txt'.
+
+[RFC2817]
+     Rohit Khare and Scott Lawrence, "Upgrading to TLS Within HTTP/1.1",
+     May 2000, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc2817.txt'
+
+[RFC2818]
+     Eric Rescola, "HTTP Over TLS", May 2000, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc2818.txt'.
+
+[RFC2945]
+     Tom Wu, "The SRP Authentication and Key Exchange System", September
+     2000, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc2945.txt'.
+
+[RFC2986]
+     Magnus Nystrom and Burt Kaliski, "PKCS 10 v1.7: Certification
+     Request Syntax Specification", November 2000, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc2986.txt'.
+
+[RFC3280]
+     Russell Housley, Tim Polk, Warwick Ford and David Solo, "Internet
+     X.509 Public Key Infrastructure Certificate and Certificate
+     Revocation List (CRL) Profile", April 2002, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc3280.txt'.
+
+[RFC3749]
+     Scott Hollenbeck, "Transport Layer Security Protocol Compression
+     Methods", May 2004, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc3749.txt'.
+
+[RFC3820]
+     Steven Tuecke, Von Welch, Doug Engert, Laura Pearlman, and Mary
+     Thompson, "Internet X.509 Public Key Infrastructure (PKI) Proxy
+     Certificate Profile", June 2004, available from
+     `http://www.ietf.org/rfc3820'.
+
+[PKCS12]
+     RSA Laboratories, "PKCS 12 v1.0: Personal Information Exchange
+     Syntax", June 1999, Available from `http://www.rsa.com'.
+
+[RESCOLA]
+     Eric Rescola, "SSL and TLS: Designing and Building Secure Systems",
+     2001
+
+[SSL3]
+     Alan Freier, Philip Karlton and Paul Kocher, "The SSL Protocol
+     Version 3.0", November 1996, Available from
+     `http://wp.netscape.com/eng/ssl3/draft302.txt'.
+
+[STEVENS]
+     Richard Stevens, "UNIX Network Programming, Volume 1", Prentice
+     Hall PTR, January 1998
+
+[TLSEXT]
+     Simon Blake-Wilson, Magnus Nystrom, David Hopwood, Jan Mikkelsen
+     and Tim Wright, "Transport Layer Security (TLS) Extensions", June
+     2003, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc3546.txt'.
+
+[TLSPGP]
+     Nikos Mavrogiannopoulos, "Using OpenPGP keys for TLS
+     authentication", April 2004, November 2007. Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc5081.txt'.
+
+[TLSSRP]
+     David Taylor, Trevor Perrin, Tom Wu and Nikos Mavrogiannopoulos,
+     "Using SRP for TLS Authentication", November 2007. Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc5054.txt'.
+
+[TLSPSK]
+     Pasi Eronen and Hannes Tschofenig, "Pre-shared key Ciphersuites for
+     TLS", December 2005, Available from
+     `http://kaizi.viagenie.qc.ca/ietf/rfc/rfc4279.txt'.
+
+[TOMSRP]
+     Tom Wu, "The Stanford SRP Authentication Project", Available at
+     `http://srp.stanford.edu/'.
+
+[WEGER]
+     Arjen Lenstra and Xiaoyun Wang and Benne de Weger, "Colliding X.509
+     Certificates", Cryptology ePrint Archive, Report 2005/067,
+     Available at `http://eprint.iacr.org/'.
+
+
+

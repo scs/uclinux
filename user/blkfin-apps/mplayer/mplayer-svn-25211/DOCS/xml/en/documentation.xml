@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- $Revision: 24293 $ -->
+
+<bookinfo id="toc">
+<title><application>MPlayer</application> - The Movie Player</title>
+<subtitle><ulink url="http://www.mplayerhq.hu"></ulink></subtitle>
+<date>March 24, 2003</date>
+<copyright>
+  <year>2000</year>
+  <year>2001</year>
+  <year>2002</year>
+  <year>2003</year>
+  <year>2004</year>
+  <year>2005</year>
+  <year>2006</year>
+  <year>2007</year>
+  <holder>MPlayer team</holder>
+</copyright>
+<legalnotice>
+  <title>License</title>
+  <para>MPlayer is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by the
+  Free Software Foundation; either version 2 of the License, or (at your
+  option) any later version.</para>
+
+  <para>MPlayer is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+  for more details.</para>
+
+  <para>You should have received a copy of the GNU General Public License
+  along with MPlayer; if not, write to the Free Software Foundation,
+  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.</para>
+</legalnotice>
+</bookinfo>
+
+
+<preface id="howtoread">
+<title>How to read this documentation</title>
+
+<para>
+If you are a first-time installer: be sure to read everything from here to
+the end of the Installation section, and follow the links you will find. If
+you have any other questions, return to the <link linkend="toc">Table of
+Contents</link> and search for the topic, read the <xref linkend="faq"/>,
+or try grepping through the files. Most questions should be answered somewhere
+here and the rest has probably already been asked on our
+<ulink url="http://www.mplayerhq.hu/design7/mailing_lists.html">mailing lists</ulink>.
+<!-- FIXME: This refers to nonexistent links
+Check the
+<ulink url="http://lists.mplayerhq.hu/cgi-bin/s-arch.cgi">archives</ulink>, there
+is a lot of valuable information to be found there.
+-->
+</para>
+</preface>
+
+
+<chapter id="intro">
+<title>Introduction</title>
+
+<para>
+<application>MPlayer</application> is a movie player for Linux (runs on
+many other Unices, and <emphasis role="bold">non-x86</emphasis> CPUs, see
+<xref linkend="ports"/>).
+It plays most MPEG, VOB, AVI, OGG/OGM, VIVO, ASF/WMA/WMV, QT/MOV/MP4, FLI, RM,
+NuppelVideo, yuv4mpeg, FILM, RoQ, PVA, Matroska files, supported by
+many native, XAnim, RealPlayer, and Win32 DLL codecs. You can watch
+<emphasis role="bold">VideoCD, SVCD, DVD, 3ivx, RealMedia, Sorenson, Theora</emphasis>,
+and <emphasis role="bold">MPEG-4 (DivX)</emphasis> movies too. Another big
+feature of <application>MPlayer</application> is the wide range of
+supported output drivers. It works with X11, Xv, DGA, OpenGL, SVGAlib,
+fbdev, AAlib, libcaca, DirectFB, but you can use GGI and SDL (and this way all
+their drivers) and some lowlevel card-specific drivers (for Matrox, 3Dfx and
+Radeon, Mach64, Permedia3) too! Most of them support software or hardware
+scaling, so you can enjoy movies in fullscreen.
+<application>MPlayer</application> supports displaying through some
+hardware MPEG decoder boards, such as the <link linkend="dvb">DVB</link> and
+<link linkend="dxr3">DXR3/Hollywood+</link>. And what about the nice big
+antialiased shaded subtitles
+(<emphasis role="bold">14 supported types</emphasis>)
+with European/ISO 8859-1,2 (Hungarian, English, Czech, etc), Cyrillic, Korean
+fonts, and the onscreen display (OSD)?
+</para>
+
+<para>
+The player is rock solid playing damaged MPEG files (useful for some VCDs),
+and it plays bad AVI files which are unplayable with the famous windows
+media player. Even AVI files without index chunk are playable, and you can
+temporarily rebuild their indexes with the <option>-idx</option> option, or
+permanently with <application>MEncoder</application>, thus enabling
+seeking!  As you see, stability and quality are the most important things,
+but the speed is also amazing. There is also a powerful filter system for
+video and audio manipulation.
+</para>
+
+<para>
+<application>MEncoder</application> (<application>MPlayer</application>'s Movie
+Encoder) is a simple movie encoder, designed to encode
+<application>MPlayer</application>-playable movies
+(<emphasis role="bold">AVI/ASF/OGG/DVD/VCD/VOB/MPG/MOV/VIV/FLI/RM/NUV/NET/PVA</emphasis>)
+to other <application>MPlayer</application>-playable formats (see below).
+It can encode with various codecs, like
+<emphasis role="bold">MPEG-4 (DivX4)</emphasis>
+(one or two passes), <systemitem class="library">libavcodec</systemitem>,
+<emphasis role="bold">PCM/MP3/VBR MP3</emphasis>
+audio.
+</para>
+
+<itemizedlist>
+<title><application>MEncoder</application> features</title>
+<listitem><para>
+  Encoding from the wide range of fileformats and decoders of
+  <application>MPlayer</application>
+</para></listitem>
+<listitem><para>
+  Encoding to all the codecs of FFmpeg's
+  <link linkend="ffmpeg"><systemitem class="library">libavcodec</systemitem></link>
+</para></listitem>
+<listitem><para>
+  Video encoding from <emphasis role="bold">V4L compatible TV tuners</emphasis>
+</para></listitem>
+<listitem><para>
+  Encoding/multiplexing to interleaved AVI files with proper index
+</para></listitem>
+<listitem><para>
+  Creating files from external audio stream
+</para></listitem>
+<listitem><para>
+  1, 2 or 3 pass encoding
+</para></listitem>
+<listitem><para>
+  <emphasis role="bold">VBR</emphasis> MP3 audio
+  <important><para>
+  VBR MP3 audio doesn't always play nicely on windows players!
+  </para></important>
+</para></listitem>
+<listitem><para>
+  PCM audio
+</para></listitem>
+<listitem><para>
+  Stream copying
+</para></listitem>
+<listitem><para>
+  Input A/V synchronizing (PTS-based, can be disabled with
+  <option>-mc 0</option> option)
+</para></listitem>
+<listitem><para>
+  fps correction with <option>-ofps</option> option (useful when encoding
+  30000/1001 fps VOB to 24000/1001 fps AVI)
+</para></listitem>
+<listitem><para>
+  Using our very powerful filter system (crop, expand, flip, postprocess,
+  rotate, scale, rgb/yuv conversion)
+</para></listitem>
+<listitem><para>
+  Can encode DVD/VOBsub <emphasis role="bold">AND</emphasis> text subtitles
+  into the output file
+</para></listitem>
+<listitem><para>
+  Can rip DVD subtitles to VOBsub format
+</para></listitem>
+</itemizedlist>
+
+<!-- FIXME: the license should be in bookinfo -->
+<para>
+<application>MPlayer</application> and <application>MEncoder</application>
+can be distributed under the terms of the GNU General Public License Version 2.
+</para>
+
+</chapter>
+
+&install.xml;
+
+&usage.xml;
+&cd-dvd.xml;
+&faq.xml;
+
+&containers.xml;
+&codecs.xml;
+&video.xml;
+&audio.xml;
+&tvinput.xml;
+&radio.xml;
+
+&ports.xml;
+&mencoder.xml;
+&encoding-guide.xml;
+&bugreports.xml;
+&bugs.xml;
+&skin.xml;
+&history.xml;

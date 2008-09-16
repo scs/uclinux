@@ -1,0 +1,61 @@
+2006-11-22 - Snort 2.6.1.1 Released
+[*] Improvements
+    * Fixed problem with snort using high CPU and potentially reprocessing
+      the same TCP reassembled packets at session end or TCP ACK of only
+      part of a packet.
+
+2006-11-16 - Snort 2.6.1 Released
+[*] New Additions
+    * Support for UDP "session" tracking to Stream4.  Enable via
+      --enable-stream4udp option to configure script.  This allows
+      the use of flow option with UDP rules.  Includes tracking
+      of stats for UDP sessions.  A session is created for rules that
+      use the flow or flowbits keywords.  Also provided the ability to
+      ignore UDP any any -> any any rules as a performance improvement.
+
+    * Stream5 (for Beta testing) as replacement for Stream4
+      and Flow preprocessors.  See README.stream for details.
+
+    * Allow blocking of entire session in inline mode via stream API.
+      All subsequent packets on that session are blocked.
+
+    * Dynamic DCE/RPC protocol normalizer and defragmentation
+      module.  See README.dcerpc for details.
+
+    * SSH (for Beta testing) protocol analyzer.  See README.ssh for
+      details.
+
+    * Support for GRE encapsulated protocol (experimental).  Enable via
+      --enable-gre option to configure script.
+    
+    * Aruba networks output plugin (experimental).  See README.ARUBA for
+      details.  Enable via --enable-aruba option to configure script.
+
+    * Smaller memory footprint pattern mattcher using Aho-Corasick,
+      using NFA.  Use 'config detection: search-method ac-bnfa' to 
+      enable.  This will become the default pattern matcher in future
+      releases.  Wu-Manhber has been deprecated (mwm).
+
+[*] Improvements
+
+    * Added parameter to dynamicengine to allow specification of
+      directory instead of implicit file.  This will load all engine shared
+      libraries within the specified directory.  Can also use
+      --dynamic-engine-lib-dir command-line option.  Fix handling of
+      loading multiple instances of the same dynamic library (engine,
+      detection, or preprocessor).
+
+    * Updates to HTTP inspect to handle different versions of IIS with
+      the related iis profiles.  See README.httpinspect for details.
+
+    * Cleaned up inline initialization to better handle test mode.
+
+    * Updates to interface dependent variable definitions.
+
+    * Added stats for packets not yet processed -- those that are still in
+      the buffer used by pcap.
+
+    * Fixed issue with fewer alerts being generated when snort is compiled
+      with gcc 4.x by using no-strict-aliasing flag.
+
+    * Require each rule to have a unique sid/gid pair.

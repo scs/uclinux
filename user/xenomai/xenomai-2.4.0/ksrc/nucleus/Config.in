@@ -1,0 +1,66 @@
+#
+# Xenomai nucleus configuration for Linux v2.4
+#
+
+if [ "$CONFIG_XENOMAI" = "y" ]; then
+
+dep_tristate 'Nucleus' CONFIG_XENO_OPT_NUCLEUS $CONFIG_XENOMAI
+
+if [ "$CONFIG_XENO_OPT_NUCLEUS" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'Nucleus options'
+	bool 'Pervasive real-time support in user-space' CONFIG_XENO_OPT_PERVASIVE
+	if [ "$CONFIG_XENO_OPT_PERVASIVE" != "n" ]; then
+		bool 'Priority coupling support' CONFIG_XENO_OPT_PRIOCPL
+	fi
+	bool 'Message pipes' CONFIG_XENO_OPT_PIPE
+	if [ "$CONFIG_XENO_OPT_PIPE" != "n" ]; then
+		int 'Number of pipe devices' CONFIG_XENO_OPT_PIPE_NRDEV 32
+	fi
+	if [ "$CONFIG_XENO_OPT_PERVASIVE" != "n" ]; then
+		define_bool CONFIG_XENO_OPT_REGISTRY y
+	else
+		bool 'Registry support' CONFIG_XENO_OPT_REGISTRY
+	fi
+	if [ "$CONFIG_XENO_OPT_REGISTRY" != "n" ]; then
+		int 'Number of registry slots' CONFIG_XENO_OPT_REGISTRY_NRSLOTS 512
+	fi
+	int 'Size of the system heap (Kb)' CONFIG_XENO_OPT_SYS_HEAPSZ 128
+	bool 'Interrupt shield support' CONFIG_XENO_OPT_ISHIELD
+	bool 'Optimize as pipeline head' CONFIG_XENO_OPT_PIPELINE_HEAD
+	bool 'Statistics collection' CONFIG_XENO_OPT_STATS
+	bool 'Debug support' CONFIG_XENO_OPT_DEBUG
+	if [ "$CONFIG_XENO_OPT_DEBUG" = "y" ]; then
+		bool 'Nucleus Debugging support' CONFIG_XENO_OPT_DEBUG_NUCLEUS
+		bool 'Queue Debugging support' CONFIG_XENO_OPT_DEBUG_QUEUES
+		bool 'Watchdog support' CONFIG_XENO_OPT_WATCHDOG
+		if [ "$CONFIG_XENO_OPT_WATCHDOG" = "y" ]; then
+			int 'Watchdog timeout (seconds)' CONFIG_XENO_OPT_WATCHDOG_TIMEOUT 4
+		fi
+	fi
+
+	bool 'Shared interrupts' CONFIG_XENO_OPT_SHIRQ
+
+	bool 'Enable periodic timing' CONFIG_XENO_OPT_TIMING_PERIODIC
+	int 'Timer tuning latency (ns)' CONFIG_XENO_OPT_TIMING_TIMERLAT 0
+	int 'Scheduling latency (ns)' CONFIG_XENO_OPT_TIMING_SCHEDLAT 0
+
+	mainmenu_option next_comment
+	comment 'Scalability options'
+		bool 'O(1) scheduler' CONFIG_XENO_OPT_SCALABLE_SCHED
+        choice 'Timer indexing method'			\
+	"Linear			CONFIG_XENO_OPT_TIMER_LIST	\
+	 Tree			CONFIG_XENO_OPT_TIMER_HEAP	\
+	 Hash			CONFIG_XENO_OPT_TIMER_WHEEL"	Linear
+	if [ "$CONFIG_XENO_OPT_TIMER_HEAP" = "y" ]; then
+		int 'Max. number of timers' CONFIG_XENO_OPT_TIMER_HEAP_CAPACITY 256
+	fi
+	if [ "$CONFIG_XENO_OPT_TIMER_WHEEL" = "y" ]; then
+		int 'Timer wheel step (ns)' CONFIG_XENO_OPT_TIMER_WHEEL_STEP 100000
+	fi
+	endmenu
+
+	endmenu
+fi
+
+fi

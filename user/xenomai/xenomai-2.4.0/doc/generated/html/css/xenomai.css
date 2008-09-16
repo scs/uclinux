@@ -1,0 +1,200 @@
+pre.programlisting {
+	background-color: #F4F4F4;
+	padding: 6px;
+}
+
+p.releaseinfo { 
+        color: black;
+        font-style: oblique;
+        text-align: center;
+}
+
+p { 
+        text-align: justify;
+}
+
+table {
+	border: 1px;
+}
+table pre.programlisting {
+	background-color: #FFFFFF;
+}
+
+div.article div.titlepage {
+	border-top: 3px solid #7F9DD1;
+	border-left: 3px solid #A4B7D5;
+	border-right: 3px solid #A4B7D5;
+	border-bottom: 3px solid #A4B7D5;
+	background-color: #EBF2FA;
+        color: #1E438D;
+	padding-left: 12px;
+	padding-right: 12px;
+        text-align: justify;
+}
+
+div.article div.sect1 div.titlepage {
+	border-top: none;
+	border-left: 3px solid white;
+	border-right: 3px solid white;
+	border-bottom: none;
+	font-family: Tahoma, Arial, Helvetica, sans-serif;
+	font-weight: bold;
+	padding-left: 12px;
+        padding-right: 12px;
+        color: white;
+        background-color: #0B307B;
+}
+
+div.article div.abstract {
+	color: #0B152B;
+}
+
+table.copyright {
+	font-style: italic;
+	font-size: 11;
+	padding-top: 8px;
+	padding-left: 8px;
+	padding-right: 8px;
+	padding-bottom: 8px;
+	background-color: #EBF2FA;
+}
+
+.navheader {
+	font-family: Tahoma, Arial, Helvetica, sans-serif;
+	background-color: #EBF2FA;
+	font-size: 12;
+}
+
+.navfooter {
+	font-family: Tahoma, Ariel, Helvetica, sans-serif;
+	font-size: 12;
+}
+
+div.toc span.part {
+	font-family: Tahoma, Ariel, Helvetica, sans-serif;
+	font-weight: bold;
+	font-size: 20;
+	margin-top: 1in;
+}
+div.toc span.glossary {
+	font-weight: bold;
+}
+div.toc span.index {
+	font-weight: bold;
+}
+div.toc span.preface {
+	font-weight: bold;
+}
+div.toc span.appendix {
+	font-weight: bold;
+}
+div.toc span.chapter {
+	font-weight: bold;
+}
+
+
+h1, h4 {
+	font-family: Tahoma, Ariel, Helvetica, sans-serif;
+	font-weight: bold;
+}
+
+h2 {
+	font-family: Tahoma, Ariel, Helvetica, sans-serif;
+	font-weight: bold;
+        margin-top: 3px;
+        margin-bottom: 3px;
+}
+
+div.article div.sect2 div.titlepage {
+	font-family: Tahoma, Ariel, Helvetica, sans-serif;
+	font-weight: bold;
+        color: #003366;
+	border-top: none;
+        padding-left: 0px;
+        padding-bottom: 0px;
+	background-color: white;
+}
+
+div.article div.sect2 div.titlepage h3 {
+        border-bottom-style: solid;
+        padding-bottom: 0px;
+}
+
+
+div.article div.titlepage h1.title {
+	font-family: Tahoma, Ariel, Helvetica, sans-serif;
+	font-weight: bold;
+        font-size: 36;
+        text-align: center;
+}
+
+div.article div.titlepage h3.author {
+	font-family: Tahoma, Ariel, Helvetica, sans-serif;
+	font-weight: bold;
+	font-size: 24;
+        text-align: center;
+        color: #5A9BC1;
+}
+
+div.article div.titlepage h3.corpauthor {
+	font-family: Tahoma, Ariel, Helvetica, sans-serif;
+	font-weight: bold;
+	font-size: 18;
+        text-align: center;
+        color: #1E438D;
+}
+
+
+div.article div.titlepage p.edition {
+	font-family: Tahoma, Ariel, Helvetica, sans-serif;
+	color: gray;
+	font-weight: bold;
+	font-size: 30;
+}
+span.lineannotation {
+        font-family: serif;
+        font-style: italic;
+}
+
+div.note p { 
+        color: red;
+}
+
+div.caption { 
+        color: #8A56EF;
+        text-decoration: underline;
+}
+
+div.caption p { 
+        text-align: center;
+}
+
+
+div.legalnotice {
+        background-color: #FFFFBB;
+	border-top: 3px solid #FCCB69;
+	border-left: 3px solid #FCCB69;
+	border-right: 3px solid #FCCB69;
+	border-bottom: 3px solid #FCCB69;
+	padding-top: 8px;
+	padding-left: 8px;
+	padding-right: 8px;
+	padding-bottom: 8px;
+}
+
+
+th {
+        color: #4766A3;
+        text-decoration: underline;
+}
+
+span.emphasis { 
+        color: #4766A3;
+        text-decoration: oblique;
+}
+
+a img {
+	border: 0;
+}
+
+

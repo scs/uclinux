@@ -1,0 +1,21 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+dep_tristate 'RTAI emulator' CONFIG_XENO_SKIN_RTAI $CONFIG_XENO_OPT_NUCLEUS
+
+if [ "$CONFIG_XENO_SKIN_RTAI" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'RTAI interface options'
+	if [ "$CONFIG_XENO_OPT_TIMING_PERIODIC" != "n" ]; then
+		int 'Base period (us)' CONFIG_XENO_OPT_RTAI_PERIOD 0
+	else
+		define_int CONFIG_XENO_OPT_RTAI_PERIOD 0
+	fi
+	if [ "$CONFIG_XENO_OPT_PIPE" != "n" ]; then
+		bool 'Fifos' CONFIG_XENO_OPT_RTAI_FIFO
+	fi
+	bool 'Semaphores' CONFIG_XENO_OPT_RTAI_SEM
+	bool 'Shared Memory' CONFIG_XENO_OPT_RTAI_SHM
+	endmenu
+fi

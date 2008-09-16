@@ -1,0 +1,159 @@
+#!/bin/sh
+
+#
+#
+#   Copyright (c) International Business Machines  Corp., 2001
+#
+#   This program is free software;  you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY;  without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+#   the GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program;  if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+#
+#***********************************************************************
+#
+# TEST: 
+# 	NAME:		fs_inod
+#	FUNCTIONALITY: 	File system stress - inode allocation/deallocation
+# 	DESCRIPTION:	Rapidly creates and deletes files through 
+#			multiple processes running in the background.  
+#			The user may specify the number of subdirectories 
+#			to create, the number of files to create (per 
+#			subdirectory), and the number of times to repeat 
+#			the creation/deletion cycle.
+#
+#========================================================================
+#
+# CHANGE HISTORY:
+# 		DATE            AUTHOR                  REASON
+#       	04/18/98        Dara Morgenstein        Project Yeager (AIX)
+#		02/08/01	Jay Inman		Modified to run standalone on Linux
+#		05/24/01	Jay Inman		Added command line args
+#		06/27/01	Jay Inman		Ported from Korn to Bash
+#
+#***********************************************************************
+
+
+
+#=============================================================================
+# MAIN 
+#     See the description, purpose, and design of this test under TEST 
+#     in this test's prolog.
+#=============================================================================
+    USAGE="Usage: ./fs_inod [volumename] [numsubdirectories] [numfiles] [numloops]"
+    FS_PATH=`pwd`
+    
+    if [ $# -ne 4 ]
+    then
+       echo $USAGE
+       exit 2
+    fi
+
+    testvol=$1
+    numsubdirs=$2
+    numfiles=$3
+    numloops=$4
+
+    cd $testvol || exit 2
+    pwd
+    
+    echo "FS_INODE: File system stress - inode allocation/deallocation"
+    echo "Volume under test: $testvol"
+    echo "Number of subdirectories: $numsubdirs"
+    echo "Number of files: $numfiles"
+    echo "Number of loops: $numloops"
+    echo "Execution begins "
+    date
+
+    STEPS="1"
+    for I in $STEPS
+    do
+         step_errors=0
+         
+	
+
+    echo "=============================================="
+    echo "MULTIPLE PROCESSES CREATING AND DELETING FILES"
+    echo "=============================================="
+
+    echo "$0: creating dir2 subdirectories"
+    [ -d dir2 ] || { \
+        mkdir -p dir2 || end_testcase "mkdir dir2 failed"
+    }
+    cd dir2 || $FS_PATH/err_log "cd dir2 FAILED"
+    $FS_PATH/make_subdirs $testvol $numsubdirs $numfiles $numloops
+      if [ $? != 0 ]; then
+            $FS_PATH/err_log "make_subdirs on dir2 FAILED"
+      fi
+
+    
+    cd ..
+    echo "$0: creating dir1 subdirectories & files"
+    [ -d dir1 ] || { \
+        mkdir dir1 || abort "mkdir dir1 FAILED"
+    }
+    cd dir1 || $FS_PATH/err_log "cd dir1 FAILED"
+     $FS_PATH/make_subdirs $testvol $numsubdirs $numfiles $numloops  
+      if [ $? != 0 ]; then
+            $FS_PATH/err_log "make_subdirs on dir2 FAILED"
+      fi
+      
+    $FS_PATH/touch_files $testvol $numsubdirs $numfiles $numloops &
+    pid1=$!
+    
+       
+    i=1;   
+    while [ "$i" -le "$numloops" ]; do
+	echo "Executing loop $i of $numloops..."
+
+#	Added date stamps to track execution time and duration
+
+	echo "$0: cd ../dir1 & creating files"
+	cd ../dir1
+	wait $pid1 
+	$FS_PATH/touch_files $testvol $numsubdirs $numfiles $numloops &
+	pid1=$!
+	
+	echo "$0: cd ../dir1 & removing files"
+	cd ../dir1
+	wait $pid1 
+	$FS_PATH/rm_files $testvol $numsubdirs $numfiles $numloops &
+	pid2=$!
+
+	echo "$0: cd ../dir2 & creating files"
+	cd ../dir2
+	wait $pid2
+	$FS_PATH/touch_files $testvol $numsubdirs $numfiles $numloops &
+	pid2=$!
+
+	echo "$0: cd ../dir2 & removing files"
+	cd ../dir2
+	wait $pid2 
+	$FS_PATH/rm_files $testvol $numsubdirs $numfiles $numloops &
+	pid1=$!
+
+	i=`expr $i + 1`
+    done
+
+    # wait for all background processes to complete execution
+    wait	
+    	
+    cd $FS_PATH
+    cat fs_error_log
+    
+    done   
+
+# Clean up and timestamp
+    rm -rf $testvol/dir*
+    echo "Execution completed"
+    date
+
+    exit $ERRORS

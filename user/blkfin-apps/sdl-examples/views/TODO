@@ -1,0 +1,8 @@
+d = done
+o = in progress
+x = todo
+
+d: URL Fetching
+x: MP3 Playing
+x: Movie Playing
+x: code cleaning

@@ -1,0 +1,60 @@
+verbose "Setting default firewall rules"
+
+set lan [config ref firewall.fwclass<fwclass=lan>]
+set wan [config ref firewall.fwclass<fwclass=wan>]
+
+# Create service groups for the builtin services
+set group [service_group "Domain"]
+add_service $group domain udp 53
+add_service $group domain tcp 53
+single_service_group "FTP" ftp tcp 21
+single_service_group "HTTP (Web)" http tcp 80
+single_service_group "HTTPS" https tcp 443
+single_service_group "IMAP4 (E-Mail)" imap tcp 143
+single_service_group "IRC" irc tcp 194
+single_service_group "NNTP (News)" nntp tcp 119
+single_service_group "NTP (Time)" ntp udp 123
+single_service_group "POP3 (E-Mail)" pop3 tcp 110
+single_service_group "SMTP" smtp tcp 25
+single_service_group "SNMP" snmp udp 161
+single_service_group "SSH" ssh tcp 22
+single_service_group "Telnet" telnet tcp 23
+add_service_icmp [service_group "ICMP Echo Request"] 8
+
+# Drop Windows networking on WAN interfaces
+set group [service_group "Windows Networking"]
+add_service $group microsoft-rpc tcp 135
+add_service $group windows-messenger udp 135
+add_service $group netbios-ns tcp 137
+add_service $group netbios-ns udp 137
+add_service $group netbios-dgm tcp 138
+add_service $group netbios-dgm udp 138
+add_service $group netbios-ssn tcp 139
+add_service $group netbios-ssn udp 139
+add_service $group microsoft-ds tcp 445
+add_service $group microsoft-ds udp 445
+
+set rule [config new firewall.packet_filter]
+config index end $rule index 1
+config set $rule desc "Drop Windows Networking"
+config set $rule enabled true
+config set $rule outgoing $wan service $group action drop
+config set $rule log 1 log_prefix "Dropped SMB"
+
+# Drop RFC1918 addresses on WAN interfaces
+set RFC1918 [address_group "RFC1918"]
+add_address $RFC1918 "RFC1918 A" 10.0.0.0/8
+add_address $RFC1918 "RFC1918 B" 172.16.0.0/12
+add_address $RFC1918 "RFC1918 C" 192.168.0.0/16
+
+set rule [config new firewall.packet_filter]
+config index end $rule index 1
+config set $rule desc "Drop RFC1918 Incoming" enabled false
+config set $rule incoming $wan source $RFC1918 action drop
+
+set rule [config new firewall.packet_filter]
+config index end $rule index 1
+config set $rule desc "Drop RFC1918 Outgoing " enabled false
+config set $rule outgoing $wan dest $RFC1918 action drop
+config set $rule log 1 log_prefix "Dropped RFC1918"
+

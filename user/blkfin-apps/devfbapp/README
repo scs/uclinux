@@ -1,0 +1,10 @@
+Instruction for Installing The Video Driver and Running Sample Application devtest on EZKIT
+
+1.	Make sure that uClibc is installed, Data cache disabled, and instruction cache enabled.
+2.	In the menuconfig select support for frame buffer devices and blackfin AD7171 video encoder on uClinux under the graphics option.
+3.	Apply the patch (patch po <patch_name).
+4.	Do make.
+5.	Load the linux image on the board.
+6.	When kernel prompt appears run devtest application by typing devtest on the command prompt.
+7.	It is important to note that if size of SDRAM is made less than 32(for ezkit) buffer allocation takes place at lower memory banks and that causes degradation of performance.
+8.	It has been observed that performace improves significantly if " DMA has priority over core for ext. accesses" option is enalbed(for .3 silicon), and this is eexpected.

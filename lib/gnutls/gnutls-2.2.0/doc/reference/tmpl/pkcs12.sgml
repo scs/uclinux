@@ -1,0 +1,176 @@
+<!-- ##### SECTION Title ##### -->
+pkcs12
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### ENUM gnutls_pkcs12_bag_type_t ##### -->
+<para>
+
+</para>
+
+@GNUTLS_BAG_EMPTY: 
+@GNUTLS_BAG_PKCS8_ENCRYPTED_KEY: 
+@GNUTLS_BAG_PKCS8_KEY: 
+@GNUTLS_BAG_CERTIFICATE: 
+@GNUTLS_BAG_CRL: 
+@GNUTLS_BAG_ENCRYPTED: 
+@GNUTLS_BAG_UNKNOWN: 
+
+<!-- ##### MACRO MAX_BAG_ELEMENTS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO BAG_PKCS8_KEY ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO BAG_PKCS8_ENCRYPTED_KEY ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO BAG_CERTIFICATE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO BAG_CRL ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO DATA_OID ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO ENC_DATA_OID ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO FRIENDLY_NAME_OID ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO KEY_ID_OID ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### TYPEDEF gnutls_pkcs12_t ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### TYPEDEF gnutls_pkcs12_bag_t ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### FUNCTION gnutls_pkcs12_init ##### -->
+<para>
+
+</para>
+
+@pkcs12: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_pkcs12_deinit ##### -->
+<para>
+
+</para>
+
+@pkcs12: 
+
+
+<!-- ##### FUNCTION gnutls_pkcs12_import ##### -->
+<para>
+
+</para>
+
+@pkcs12: 
+@data: 
+@format: 
+@flags: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_pkcs12_get_bag ##### -->
+<para>
+
+</para>
+
+@pkcs12: 
+@indx: 
+@bag: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_pkcs12_bag_init ##### -->
+<para>
+
+</para>
+
+@bag: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_pkcs12_bag_deinit ##### -->
+<para>
+
+</para>
+
+@bag: 
+
+
+<!-- ##### ENUM schema_id ##### -->
+<para>
+
+</para>
+
+@PBES2: 
+@PKCS12_3DES_SHA1: 
+@PKCS12_ARCFOUR_SHA1: 
+@PKCS12_RC2_40_SHA1: 
+

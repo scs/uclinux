@@ -1,0 +1,58 @@
+menuconfig XENO_SKIN_POSIX
+	depends on XENO_OPT_NUCLEUS
+	tristate "POSIX API"
+	default y
+	help
+
+	A POSIX-compliant skin.
+
+if XENO_SKIN_POSIX
+
+config XENO_OPT_POSIX_PERIOD
+	int "Base period (us)" if XENO_OPT_TIMING_PERIODIC
+	default 0
+	help
+	Duration of the base periodic tick (in microseconds).
+
+	The POSIX skin can express all delays and timeouts either as
+	counts of ticks (i.e. jiffy-based), or directly in
+	nanoseconds in a tick-less fashion. This paramater defines the
+	duration of the base period in microseconds; a null value
+	selects the tick-less mode.
+
+	The base period can be overriden at runtime using the
+	"tick_arg" module parameter when loading the POSIX skin.
+
+	If in doubt, leave zero in this field.
+
+config XENO_OPT_POSIX_SHM
+	bool "Shared memory"
+	help
+
+	POSIX skin shared memory areas are regions of memory which can be shared
+	between kernel-space and user-space, or used to share synchronization
+	objects between kernel-space and user-space.
+
+	If you do not intend to use Xenomai POSIX skin in kernel-space (and
+	using the RTDM skin is the preferred way of implementing drivers), leave
+	this option unselected.
+
+config XENO_OPT_POSIX_INTR
+	bool "Interrupts"
+	help
+
+	This option provides an ad-hoc API to deal with interrupts in programs
+	using Xenomai POSIX skin, both in kernel and user-space contexts. If you
+	do not intend to handle interrupts in POSIX skin programs (and using the
+	RTDM skin is the preferred way of implementing drivers), leave this
+	option unselected.
+
+config XENO_OPT_DEBUG_POSIX
+	bool "Debugging support"
+	default y
+	help
+
+	When enabled, this option makes the skin warn about not properly
+	cleaned up POSIX objects it detects on process termination.
+
+endif

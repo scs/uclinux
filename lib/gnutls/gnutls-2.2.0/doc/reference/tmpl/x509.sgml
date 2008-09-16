@@ -1,0 +1,473 @@
+<!-- ##### SECTION Title ##### -->
+x509
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### MACRO HASH_OID_SHA1 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO HASH_OID_MD5 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO HASH_OID_MD2 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO HASH_OID_RMD160 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO HASH_OID_SHA256 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO HASH_OID_SHA384 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO HASH_OID_SHA512 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO MAX_PRIV_PARAMS_SIZE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO DSA_PRIVATE_PARAMS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO DSA_PUBLIC_PARAMS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO RSA_PRIVATE_PARAMS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO RSA_PUBLIC_PARAMS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_get_issuer_dn_by_oid ##### -->
+<para>
+
+</para>
+
+@cert: 
+@oid: 
+@indx: 
+@raw_flag: 
+@buf: 
+@sizeof_buf: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_get_subject_alt_name ##### -->
+<para>
+
+</para>
+
+@cert: 
+@seq: 
+@ret: 
+@ret_size: 
+@critical: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_get_dn_by_oid ##### -->
+<para>
+
+</para>
+
+@cert: 
+@oid: 
+@indx: 
+@raw_flag: 
+@buf: 
+@sizeof_buf: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_get_ca_status ##### -->
+<para>
+
+</para>
+
+@cert: 
+@critical: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_get_pk_algorithm ##### -->
+<para>
+
+</para>
+
+@cert: 
+@bits: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_get_serial ##### -->
+<para>
+
+</para>
+
+@cert: 
+@result: 
+@result_size: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_check_revocation ##### -->
+<para>
+
+</para>
+
+@cert: 
+@crl_list: 
+@crl_list_length: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crl_get_crt_count ##### -->
+<para>
+
+</para>
+
+@crl: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crl_get_crt_serial ##### -->
+<para>
+
+</para>
+
+@crl: 
+@indx: 
+@serial: 
+@serial_size: 
+@t: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crl_deinit ##### -->
+<para>
+
+</para>
+
+@crl: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crl_init ##### -->
+<para>
+
+</para>
+
+@crl: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crl_import ##### -->
+<para>
+
+</para>
+
+@crl: 
+@data: 
+@format: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crl_export ##### -->
+<para>
+
+</para>
+
+@crl: 
+@format: 
+@output_data: 
+@output_data_size: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_init ##### -->
+<para>
+
+</para>
+
+@cert: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_deinit ##### -->
+<para>
+
+</para>
+
+@cert: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_import ##### -->
+<para>
+
+</para>
+
+@cert: 
+@data: 
+@format: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_export ##### -->
+<para>
+
+</para>
+
+@cert: 
+@format: 
+@output_data: 
+@output_data_size: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_get_key_usage ##### -->
+<para>
+
+</para>
+
+@cert: 
+@key_usage: 
+@critical: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_get_signature_algorithm ##### -->
+<para>
+
+</para>
+
+@cert: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_crt_get_version ##### -->
+<para>
+
+</para>
+
+@cert: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_privkey_init ##### -->
+<para>
+
+</para>
+
+@key: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_privkey_deinit ##### -->
+<para>
+
+</para>
+
+@key: 
+
+
+<!-- ##### FUNCTION gnutls_x509_privkey_generate ##### -->
+<para>
+
+</para>
+
+@key: 
+@algo: 
+@bits: 
+@flags: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_privkey_import ##### -->
+<para>
+
+</para>
+
+@key: 
+@data: 
+@format: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_privkey_get_pk_algorithm ##### -->
+<para>
+
+</para>
+
+@key: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_privkey_import_rsa_raw ##### -->
+<para>
+
+</para>
+
+@key: 
+@m: 
+@e: 
+@d: 
+@p: 
+@q: 
+@u: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_privkey_export_rsa_raw ##### -->
+<para>
+
+</para>
+
+@key: 
+@m: 
+@e: 
+@d: 
+@p: 
+@q: 
+@u: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_x509_privkey_export ##### -->
+<para>
+
+</para>
+
+@key: 
+@format: 
+@output_data: 
+@output_data_size: 
+@Returns: 
+
+
+<!-- ##### MACRO GNUTLS_CRL_REASON_UNUSED ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO GNUTLS_CRL_REASON_KEY_COMPROMISE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO GNUTLS_CRL_REASON_CA_COMPROMISE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO GNUTLS_CRL_REASON_AFFILIATION_CHANGED ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO GNUTLS_CRL_REASON_SUPERSEEDED ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO GNUTLS_CRL_REASON_CESSATION_OF_OPERATION ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO GNUTLS_CRL_REASON_CERTIFICATE_HOLD ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO GNUTLS_CRL_REASON_PRIVILEGE_WITHDRAWN ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO GNUTLS_CRL_REASON_AA_COMPROMISE ##### -->
+<para>
+
+</para>
+
+
+

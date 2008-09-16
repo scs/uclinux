@@ -1,0 +1,3 @@
+modprobe pxa-ac97
+aumix -l 80
+a2play -r 16000 -d -t -t -t 00:0D:3C:30:32:AD /dev/dsp

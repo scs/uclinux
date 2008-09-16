@@ -1,0 +1,70 @@
+This is inetutils.info, produced by makeinfo version 4.3 from
+../../inetutils/doc/inetutils.texi.
+
+START-INFO-DIR-ENTRY
+* networking(inet) utilities: (inetutils).      GNU networking utilities.
+* ftp: (inetutils)ftp invocation.               File Transfer Protocol.
+* ftpd: (inetutils)ftpd invocation.             FTP Daemon.
+* inetd: (inetutils)inetd invocation.           Interner super-server.
+* ping: (inetutils)ping invocation.             Packets to network hosts.
+* rcp: (inetutils)rcp invocation.               Strip non-directory suffix.
+* rexecd: (inetutils)rexecd invocation.         Remote execution server.
+* rlogin: (inetutils)rlogin invocation.         Remote login.
+* rlogind: (inetutils)rlogind invocation.       Remote login server.
+* rsh: (inetutils)rsh invocation.               Remote shell.
+* rshd: (inetutils)rshd invocation.             Remote shell server.
+* logger: (inetutils)logger invocation.         Logger.
+* syslogd: (inetutils)syslogd invocation.       Syslog server.
+* talk: (inetutils)talk invocation.             Talk client.
+* talkd: (inetutils)talkd invocation.           Talk server.
+* tftp: (inetutils)tftp invocation.             Trivial FTP.
+END-INFO-DIR-ENTRY
+
+   This file documents the GNU networking utilities.
+
+   Copyright (C) 1994, 95, 96, 2000, 2001 Free Software Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+
+Indirect:
+inetutils.info-1: 1992
+inetutils.info-2: 48840
+inetutils.info-3: 93645
+
+Tag Table:
+(Indirect)
+Node: Top1992
+Node: Introduction3183
+Node: ftp4337
+Node: ftpd32189
+Node: inetd39601
+Node: ping48840
+Node: rcp57004
+Node: rexecd58695
+Node: rlogin61624
+Node: rlogind65284
+Node: rsh69887
+Node: rshd72078
+Node: logger77410
+Node: syslogd79077
+Node: talk86593
+Node: talkd88887
+Node: tftp90256
+Node: Reporting Bugs93150
+Node: Concept Index93645
+Node: Index103716
+
+End Tag Table

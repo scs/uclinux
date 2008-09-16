@@ -1,0 +1,12 @@
+		README for KGDB for blackfin uclinux
+
+		Sonic Zhang <sonic.zhang@analog.com>
+
+			Apr. 13th 2005
+
+This KGDB patch should be applied to the uclinux kernel 2.6.x for blackfin
+architecure.  The corresponding GDB client is in the blackfin toolchain 
+project, it should be compiled before you can do the debugging.
+
+After you apply this patch, you can find a simple guide on how to configure
+kgdb to debug kernel in file linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt .

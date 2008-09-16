@@ -1,0 +1,65 @@
+<html>
+
+<head>
+<title>Blackfin Sine Waveform</title>
+<link rel="stylesheet" href="/style.css" type="text/css">
+</head>
+
+<body style='padding:3px;'>
+
+<form method="POST" action="/cgi-bin/awg.cgi" target="main">
+ <fieldset>
+  <legend>Voltage</legend>
+  <fieldset>
+   <legend>Amplitude</legend>
+   <input type="text" name="A1" size="10" value="1">
+   <select size="1" name="UA">
+    <option value="0.001">mV</option>
+    <option selected value="1">V</option>
+   </select>
+  </fieldset>
+  <fieldset>
+   <legend>DC Offset</legend>
+   <input type="text" name="O1" size="10" value="0">
+   <select size="1" name="UD">
+    <option value="0.001">mV</option>
+    <option selected value="1">V</option>
+   </select>
+  </fieldset>
+ </fieldset>
+
+ <br>
+
+ <fieldset>
+  <legend>Frequency</legend>
+  <input type="text" name="F1" size="10" value="1000">
+  <select size="1" name="UF">
+   <option selected value="1">Hz</option>
+   <option value="1000">kHz</option>
+   <option value="1000000">MHz</option>
+  </select>
+ </fieldset>
+
+ <br>
+
+ <fieldset>
+  <legend>Run Time</legend>
+  <input type="text" name="TR" size="10" value="20">
+ </fieldset>
+
+ <br>
+
+ <input type="checkbox" name="FB" value="1"> Show on Frame Buffer<br>
+
+ <br>
+
+ <input type="submit" value="Calculate" name="B1">
+ <input type="submit" value="RUN" name="B2">
+ <input type="reset" value="Reset" name="B2">
+ <input type="hidden" name="CH1" value="0">
+
+</form>
+
+</body>
+
+</html>

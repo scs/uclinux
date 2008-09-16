@@ -1,0 +1,9 @@
+#!/bin/sh -e
+for c in $(find .. -name Config.in | grep -v uclinux-configs) ; do
+	c=${c#../}
+	#echo "Updating ${c}"
+	dir=${c%/*}
+	[ "${dir}" != "${c}" ] && mkdir -p ${c%/*}
+	# uClinux build system is a meta system so we need to transform
+	gawk -v HELPFILE=${c}.help -f kconfig-to-uclinux.awk ../${c} > ${c}
+done

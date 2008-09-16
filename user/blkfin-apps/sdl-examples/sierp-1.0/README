@@ -1,0 +1,6 @@
+
+sierp, written by Michael Mestre <mmestre@teaser.fr>
+
+It uses a very simple algorithm based on the color=x|y function,
+which produces a sierpinsky-like image : very fun !
+

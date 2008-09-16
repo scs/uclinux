@@ -1,0 +1,41 @@
+##############################################################################
+# Microwindows Path rules Makefile
+# Copyright (c) 2003 by Koninklijke Philips Electronics N.V.
+##############################################################################
+
+# set the locations of the bin and lib output directories
+ifndef MW_DIR_BIN
+MW_DIR_BIN := $(MW_DIR_SRC)/bin
+# NOTE: In a future release this may change to: $(MW_DIR_SRC)/../bin
+endif
+ifndef MW_DIR_LIB
+MW_DIR_LIB := $(MW_DIR_SRC)/lib
+# NOTE: In a future release this may change to: $(MW_DIR_SRC)/../lib
+endif
+
+# The location to be used during the build for object and other
+# generated files 
+ifndef MW_DIR_OBJ
+MW_DIR_OBJ := $(MW_DIR_SRC)/obj
+# NOTE: In a future release this may change to: $(MW_DIR_SRC)/../obj
+endif
+
+# See if the user has a local config file. If so use that else
+# use the one provided in the distribution.
+ifndef CONFIG
+ifeq ($(HOME)/microwin/config,$(wildcard $(HOME)/microwin/config))
+CONFIG = $(HOME)/microwin/config
+else
+CONFIG = $(MW_DIR_SRC)/config
+endif
+endif
+
+# Catch Makefile errors.
+# Makefiles that include this file must define MW_DIR_RELATIVE
+ifeq ($(origin MW_DIR_RELATIVE),undefined)
+$(error MW_DIR_RELATIVE is not set)
+endif
+ifeq ($(wildcard $(MW_DIR_SRC)/$(MW_DIR_RELATIVE)Makefile),)
+$(error MW_DIR_RELATIVE is wrong: $(MW_DIR_RELATIVE))
+endif
+

@@ -1,0 +1,1 @@
+switchtest:posix+rtdm+switchtest:!@exec_prefix@/bin/switchtest;popall:control_c

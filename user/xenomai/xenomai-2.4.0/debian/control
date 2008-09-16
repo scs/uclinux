@@ -1,0 +1,57 @@
+Source: xenomai
+Section: devel
+Priority: extra
+Maintainer: Paul Corner <paul_c@gna.org>
+Build-Depends: debhelper (>= 5), build-essential, dh-kpatches, findutils (>= 4.2.28)
+Standards-Version: 3.7.2
+
+Package: linux-patch-xenomai
+Section: devel
+Architecture: all
+Depends: ${kpatch:Depends}
+Suggests: xenomai, linux-source-2.6, kernel-package
+Description: Linux kernel patches for Xenomai
+ Xenomai kernel patches - See www.xenomai.org
+ .
+ Patches for 2.6 series kernels - These are intended for use with kernel-package
+ and a virgin linux source tree. Note: These patches include the base
+ adeos-ipipe patch along with all the additional material normally added by the 
+ prepare-kernel.sh script.
+ .
+ This package contains the following patches:
+ .
+
+Package: xenomai
+Section: devel
+Architecture: amd64 arm i386 ia64 powerpc
+Depends: ${shlibs:Depends}
+Suggests: linux-patch-xenomai, xenomai-docs
+Description: Xenomai realtime libraries and utilities.
+ Xenomai kernel patches - See www.xenomai.org
+ .
+ User space libraries and runtime scripts for the Xenomai realtime
+ system.
+
+Package: xenomai-dev
+Section: devel
+Architecture: amd64 arm i386 powerpc
+Depends: xenomai (= ${Source-Version})
+Suggests: linux-patch-xenomai, xenomai-docs
+Description: Headers and static libs for Xenomai
+ Xenomai user space headers - See www.xenomai.org
+ .
+ This package also contains the static libraries and scripts used
+ to compile realtime applications.
+ .
+ User space and kernel examples can be found in /usr/share/xenomai
+ along with suitable make files.
+
+Package: xenomai-docs
+Section: devel
+Architecture: all
+Depends:
+Suggests: xenomai
+Description: Xenomai documentation
+ Xenomai documentation - See www.xenomai.org
+ .
+ Documentation for Xenomai realtime API.

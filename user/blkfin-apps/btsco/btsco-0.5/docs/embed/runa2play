@@ -1,0 +1,3 @@
+mount /mnt/mmc
+a2play -n 00:0D:44:2A:5C:A3 /mnt/mmc/charm.au
+

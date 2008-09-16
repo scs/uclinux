@@ -1,0 +1,116 @@
+
+Overview
+========
+
+The pSOS (R) emulation module on top of Xenomai is currently available
+to kernel-based applications, and to user-space applications through a
+direct call interface to the module. The pSOS module can also be used
+over the event-driven simulation engine.
+
+ xeno_psos.ko: pSOS+ emulator in kernel space.
+libpsos.so: System call interface from user-space.
+libpsos_sim.a: pSOS+ emulation over the event-driven simulator.
+
+The pSOS+ emulation module currently mimicks the following services:
+
+as_catch, as_send, as_return
+
+ev_receive, ev_send
+
+pt_create, pt_delete, pt_getbuf, pt_ident, pt_retbuf
+
+q_broadcast, q_create, q_delete, q_ident, q_receive, q_send, q_urgent
+q_vcreate, q_vdelete, q_vident, q_vreceive, q_vsend, q_vurgent, q_vbroadcast
+
+rn_create, rn_delete, rn_getseg, rn_ident, rn_retseg
+
+sm_create, sm_delete, sm_ident, sm_p, sm_v
+
+t_create, t_delete, t_getreg, t_ident, t_mode, t_restart,
+t_resume, t_setpri, t_setreg, t_start, t_suspend,
+
+tm_cancel, tm_evafter, tm_evevery, tm_evwhen, tm_get,
+tm_set, tm_tick, tm_wkafter, tm_wkwhen
+
+i_return, k_fatal
+
+Known variations from pSOS+
+===========================
+
+Generally speaking, control blocks are always obtained from the
+nucleus heap instead of region #0. However, region #0 is still
+initialized and made available to the application code (See "Module
+parameters").
+
+* t_create() returns ERR_NOTCB upon memory allocation failure when
+trying to get a task control block from the nucleus heap. There is
+no control block limit for tasks.
+
+* as_return() is currently a macro-definition expanded as
+"return", so it must be called in the ASR's outer frame. The
+ERR_NOTINASR status is unused.
+
+* i_return() is a macro-definition expanded as "return", so it must be
+called in the ISR's outer frame.
+
+* sm_create() returns ERR_NOSCB upon dynamic allocation error from
+the nucleus heap. There is no control block limit for semaphores.
+
+* q_create() returns ERR_NOQCB upon dynamic allocation error from
+the nucleus heap. There is no control block limit for queues.
+
+* The use of private buffers is forced for variable-size message
+queues when the message size exceeds sizeof(u_long[4]), otherwise, the
+free buffers may be available from a local cache or obtained from a
+globally shared buffer cache, whether the Q_PRIBUF flag is set for
+q(v)create() or not. As a special exception, message buffers are
+obtained from the nucleus heap on a per-message basis if the queue has
+no size limit and the maximum message length exceeds sizeof(u_long[4]).
+
+* The minimum size of a partition block passed to pt_create() is
+equal to the native size of a pointer, thus it's an
+architecture-dependent value. Any lower value begets the ERR_BUFSIZE
+error status when given.
+
+* tm_evafter() may return ERR_NOSEG since dynamic memory is allocated
+for an internal timer from the nucleus heap.
+
+* rn_create() requires the region size to be a multiple of
+  XNCORE_PAGE_SIZE (512).
+
+* rn_retseg() does not check for the ERR_SEGFREE condition.
+
+* The original 4-byte length limitation for pSOS object names have
+been lifted by the emulator. Named pSOS objects may be given longer
+names. For this reason, routine prototypes for object creation have
+been changed to reflect the fact that arbitrary long names may be
+passed.
+
+* pSOS system calls invoked from user-space might return negative
+POSIX error codes under certain conditions, along with the standard
+positive pSOS codes. Make sure to always check error status codes
+throughfully, especially for system calls that might block the caller.
+E.g. ev_receive(), sm_p(), q_receive() might return -EINTR as error
+code, whenever a Linux signal is received by the blocked task.
+
+Module parameters
+=================
+
+The following parameters can be passed at startup to the pSOS+
+API emulation module:
+
+- "rn0_size_arg", size of region #0 (in bytes). Defaults to 32k.
+
+- "time_slice_arg", time slice period. Defaults to 10 clock ticks.
+
+- "tick_arg", duration of a base periodic tick. The pSOS skin
+  expresses all delays and timeouts as counts of ticks. This parameter
+  defines the duration of a pSOS clock tick expressed in microseconds.
+
+Limitations
+===========
+
+- Not all the pSOS+ objects have a graphical dashboard associated yet
+when running on top of the MVM. As of now, only tasks and queues have.
+- The values displayed in the existing dashboards cannot be changed
+using the Apply function in this release.

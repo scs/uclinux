@@ -1,0 +1,30 @@
+Thanks to all the people that have fixed or reported bugs in inetutils!
+
+In particular:
+  Kaveh R. Ghazi	 (Much porting work, esp. sunos/solaris)
+  Alain Magloire	 (snprintf replacement & security fixes)
+  Bernhard Rosenkraenzer (Linux port)
+  NIIBE Yutaka		 (Security fixes & making talk finally work)
+  Nathan Neulinger       (tftpd)
+  Thomas Bushnell        (sockaddr sin_len field)
+  Jeff Bailey            (Much porting on the Hurd)
+  Jeff Smith             (Y2K problems typos, etc ...)
+
+Please see */ChangeLog for full credits.
+----------------------
+Email of contributors in alphabetical order:
+Dan Stromberg      <strombrg@nis.acs.uci.edu>
+David O'Shea       <david_oshea@altavista.com>
+Frederic Goudal    <goudal@enserb.u-bordeaux.fr>
+Gerald Combs       <gerald@unicom.net>
+Jeff Bailey        <jbailey@nisa.net>
+Jeff Smith         <jeff@dcs.warwick.ac.uk>
+Joachim Gabler     <joga@sun.com>
+Marcus Brinkmann   <Marcus.Brinkmann@ruhr-uni-bochum.de>
+Michael Deutschmann <michael@talamasca.ocis.net>
+Michael Vogt       <mvogt@acm.org>
+Michael Weiser     <michael@weiser.saale-net.de>
+Matt Roberds       <mroberds@worldnet.att.net>
+Bert De Knuydt	   <Bert.Deknuydt@esat.kuleuven.ac.be>
+Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+Chris Ulherr       <chris.ulherr@inet.com>

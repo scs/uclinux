@@ -1,0 +1,2 @@
+boa::respawn:/bin/boa
+dns::respawn:/bin/dnsmasq -d

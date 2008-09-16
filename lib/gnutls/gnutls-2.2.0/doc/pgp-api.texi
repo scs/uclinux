@@ -1,0 +1,403 @@
+
+
+
+
+@subheading gnutls_certificate_set_openpgp_key_file
+@anchor{gnutls_certificate_set_openpgp_key_file}
+@deftypefun {int} {gnutls_certificate_set_openpgp_key_file} (gnutls_certificate_credentials_t       @var{res}, const char * @var{certfile}, const char * @var{keyfile}, gnutls_openpgp_crt_fmt_t @var{format})
+@var{res}: the destination context to save the data.
+
+@var{certfile}: the file that contains the public key.
+
+@var{keyfile}: the file that contains the secret key.
+
+This funtion is used to load OpenPGP keys into the GnuTLS credentials structure.
+It doesn't matter whether the keys are armored or not, but the files
+should only contain one key which should not be encrypted.
+@end deftypefun
+
+@subheading gnutls_certificate_set_openpgp_key_mem
+@anchor{gnutls_certificate_set_openpgp_key_mem}
+@deftypefun {int} {gnutls_certificate_set_openpgp_key_mem} (gnutls_certificate_credentials_t      @var{res}, const gnutls_datum_t * @var{icert}, const gnutls_datum_t * @var{ikey}, gnutls_openpgp_crt_fmt_t @var{format})
+@var{res}: the destination context to save the data.
+
+This funtion is used to load OpenPGP keys into the GnuTLS credential 
+structure.
+It doesn't matter whether the keys are armored or not, but the files
+should only contain one key which should not be encrypted.
+@end deftypefun
+
+@subheading gnutls_certificate_set_openpgp_keyring_file
+@anchor{gnutls_certificate_set_openpgp_keyring_file}
+@deftypefun {int} {gnutls_certificate_set_openpgp_keyring_file} (gnutls_certificate_credentials_t @var{c}, const char * @var{file}, gnutls_openpgp_crt_fmt_t @var{format})
+@var{c}: A certificate credentials structure
+
+@var{file}: filename of the keyring.
+
+The function is used to set keyrings that will be used internally
+by various OpenPGP functions. For example to find a key when it
+is needed for an operations. The keyring will also be used at the
+verification functions.
+@end deftypefun
+
+@subheading gnutls_certificate_set_openpgp_keyring_mem
+@anchor{gnutls_certificate_set_openpgp_keyring_mem}
+@deftypefun {int} {gnutls_certificate_set_openpgp_keyring_mem} (gnutls_certificate_credentials_t          @var{c}, const opaque * @var{data}, size_t @var{dlen}, gnutls_openpgp_crt_fmt_t @var{format})
+@var{c}: A certificate credentials structure
+
+@var{data}: buffer with keyring data.
+
+@var{dlen}: length of data buffer.
+
+The function is used to set keyrings that will be used internally
+by various OpenPGP functions. For example to find a key when it
+is needed for an operations. The keyring will also be used at the
+verification functions.
+@end deftypefun
+@subheading gnutls_certificate_set_openpgp_key
+@anchor{gnutls_certificate_set_openpgp_key}
+@deftypefun {int} {gnutls_certificate_set_openpgp_key} (gnutls_certificate_credentials_t         @var{res}, gnutls_openpgp_crt_t @var{crt}, gnutls_openpgp_privkey_t @var{pkey})
+@var{res}: is an @code{gnutls_certificate_credentials_t} structure.
+
+@var{pkey}: is an openpgp private key
+
+This function sets a certificate/private key pair in the 
+gnutls_certificate_credentials_t structure. This function may be called
+more than once (in case multiple keys/certificates exist for the
+server).
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_check_hostname
+@anchor{gnutls_openpgp_crt_check_hostname}
+@deftypefun {int} {gnutls_openpgp_crt_check_hostname} (gnutls_openpgp_crt_t @var{key}, const char * @var{hostname})
+@var{key}: should contain an gnutls_openpgp_crt_t structure
+
+@var{hostname}: A null terminated string that contains a DNS name
+
+This function will check if the given key's owner matches
+the given hostname. This is a basic implementation of the matching 
+described in RFC2818 (HTTPS), which takes into account wildcards.
+
+Returns non zero on success, and zero on failure.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_deinit
+@anchor{gnutls_openpgp_crt_deinit}
+@deftypefun {void} {gnutls_openpgp_crt_deinit} (gnutls_openpgp_crt_t @var{key})
+@var{key}: The structure to be initialized
+
+This function will deinitialize a key structure. 
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_export
+@anchor{gnutls_openpgp_crt_export}
+@deftypefun {int} {gnutls_openpgp_crt_export} (gnutls_openpgp_crt_t @var{key}, gnutls_openpgp_crt_fmt_t @var{format}, void * @var{output_data}, size_t * @var{output_data_size})
+@var{key}: Holds the key.
+
+@var{format}: One of gnutls_openpgp_crt_fmt_t elements.
+
+@var{output_data}: will contain the key base64 encoded or raw
+
+@var{output_data_size}: holds the size of output_data (and will be replaced by the actual size of parameters)
+
+This function will convert the given key to RAW or Base64 format.
+If the buffer provided is not long enough to hold the output, then
+GNUTLS_E_SHORT_MEMORY_BUFFER will be returned.
+
+Returns 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_get_creation_time
+@anchor{gnutls_openpgp_crt_get_creation_time}
+@deftypefun {time_t} {gnutls_openpgp_crt_get_creation_time} (gnutls_openpgp_crt_t @var{key})
+@var{key}: the structure that contains the OpenPGP public key.
+
+Returns the timestamp when the OpenPGP key was created.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_get_expiration_time
+@anchor{gnutls_openpgp_crt_get_expiration_time}
+@deftypefun {time_t} {gnutls_openpgp_crt_get_expiration_time} (gnutls_openpgp_crt_t @var{key})
+@var{key}: the structure that contains the OpenPGP public key.
+
+Returns the time when the OpenPGP key expires. A value of '0' means
+that the key doesn't expire at all.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_get_fingerprint
+@anchor{gnutls_openpgp_crt_get_fingerprint}
+@deftypefun {int} {gnutls_openpgp_crt_get_fingerprint} (gnutls_openpgp_crt_t @var{key}, void * @var{fpr}, size_t * @var{fprlen})
+@var{key}: the raw data that contains the OpenPGP public key.
+
+@var{fpr}: the buffer to save the fingerprint, must hold at least 20 bytes.
+
+@var{fprlen}: the integer to save the length of the fingerprint.
+
+Returns the fingerprint of the OpenPGP key. Depends on the algorithm,
+the fingerprint can be 16 or 20 bytes.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_get_id
+@anchor{gnutls_openpgp_crt_get_id}
+@deftypefun {int} {gnutls_openpgp_crt_get_id} (gnutls_openpgp_crt_t @var{key}, unsigned char @var{keyid[8]})
+@var{key}: the structure that contains the OpenPGP public key.
+
+Returns the 64-bit keyID of the OpenPGP key.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_get_key_usage
+@anchor{gnutls_openpgp_crt_get_key_usage}
+@deftypefun {int} {gnutls_openpgp_crt_get_key_usage} (gnutls_openpgp_crt_t @var{key}, unsigned int * @var{key_usage})
+@var{key}: should contain a gnutls_openpgp_crt_t structure
+
+@var{key_usage}: where the key usage bits will be stored
+
+This function will return certificate's key usage, by checking the
+key algorithm. The key usage value will ORed values of the:
+GNUTLS_KEY_DIGITAL_SIGNATURE, GNUTLS_KEY_KEY_ENCIPHERMENT.
+
+A negative value may be returned in case of parsing error.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_get_name
+@anchor{gnutls_openpgp_crt_get_name}
+@deftypefun {int} {gnutls_openpgp_crt_get_name} (gnutls_openpgp_crt_t @var{key}, int @var{idx}, char * @var{buf}, size_t * @var{sizeof_buf})
+@var{key}: the structure that contains the OpenPGP public key.
+
+@var{idx}: the index of the ID to extract
+
+@var{buf}: a pointer to a structure to hold the name
+
+@var{sizeof_buf}: holds the maximum size of @code{buf}, on return hold the
+actual/required size of @code{buf}.
+
+Extracts the userID from the parsed OpenPGP key.
+
+Returns 0 on success, and GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE
+if the index of the ID does not exist.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_get_pk_algorithm
+@anchor{gnutls_openpgp_crt_get_pk_algorithm}
+@deftypefun {gnutls_pk_algorithm_t} {gnutls_openpgp_crt_get_pk_algorithm} (gnutls_openpgp_crt_t @var{key}, unsigned int * @var{bits})
+@var{key}: is an OpenPGP key
+
+@var{bits}: if bits is non null it will hold the size of the parameters' in bits
+
+This function will return the public key algorithm of an OpenPGP
+certificate.
+
+If bits is non null, it should have enough size to hold the parameters
+size in bits. For RSA the bits returned is the modulus. 
+For DSA the bits returned are of the public exponent.
+
+Returns a member of the GNUTLS_PKAlgorithm enumeration on success,
+or a negative value on error.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_get_version
+@anchor{gnutls_openpgp_crt_get_version}
+@deftypefun {int} {gnutls_openpgp_crt_get_version} (gnutls_openpgp_crt_t @var{key})
+@var{key}: the structure that contains the OpenPGP public key.
+
+Extract the version of the OpenPGP key.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_import
+@anchor{gnutls_openpgp_crt_import}
+@deftypefun {int} {gnutls_openpgp_crt_import} (gnutls_openpgp_crt_t @var{key}, const gnutls_datum_t * @var{data}, gnutls_openpgp_crt_fmt_t @var{format})
+@var{key}: The structure to store the parsed key.
+
+@var{data}: The RAW or BASE64 encoded key.
+
+@var{format}: One of gnutls_openpgp_crt_fmt_t elements.
+
+This function will convert the given RAW or Base64 encoded key
+to the native gnutls_openpgp_crt_t format. The output will be stored in 'key'.
+
+Returns 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_init
+@anchor{gnutls_openpgp_crt_init}
+@deftypefun {int} {gnutls_openpgp_crt_init} (gnutls_openpgp_crt_t * @var{key})
+@var{key}: The structure to be initialized
+
+This function will initialize an OpenPGP key structure. 
+
+Returns 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_verify_ring
+@anchor{gnutls_openpgp_crt_verify_ring}
+@deftypefun {int} {gnutls_openpgp_crt_verify_ring} (gnutls_openpgp_crt_t @var{key}, gnutls_openpgp_keyring_t @var{keyring}, unsigned int @var{flags}, unsigned int * @var{verify})
+@var{key}: the structure that holds the key.
+
+@var{keyring}: holds the keyring to check against
+
+@var{flags}: unused (should be 0)
+
+@var{verify}: will hold the certificate verification output.
+
+Verify all signatures in the key, using the given set of keys (keyring). 
+
+The key verification output will be put in @code{verify} and will be
+one or more of the gnutls_certificate_status_t enumerated elements bitwise or'd.
+
+@strong{GNUTLS_CERT_INVALID:} A signature on the key is invalid.
+
+@strong{GNUTLS_CERT_REVOKED:} The key has been revoked.
+
+Note that this function does not verify using any "web of
+trust". You may use GnuPG for that purpose, or any other external
+PGP application.
+
+Returns 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_crt_verify_self
+@anchor{gnutls_openpgp_crt_verify_self}
+@deftypefun {int} {gnutls_openpgp_crt_verify_self} (gnutls_openpgp_crt_t @var{key}, unsigned int @var{flags}, unsigned int * @var{verify})
+@var{key}: the structure that holds the key.
+
+@var{flags}: unused (should be 0)
+
+@var{verify}: will hold the key verification output.
+
+Verifies the self signature in the key.
+The key verification output will be put in @code{verify} and will be
+one or more of the gnutls_certificate_status_t enumerated elements bitwise or'd.
+
+@strong{GNUTLS_CERT_INVALID:} The self signature on the key is invalid.
+
+Returns 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_keyring_check_id
+@anchor{gnutls_openpgp_keyring_check_id}
+@deftypefun {int} {gnutls_openpgp_keyring_check_id} (gnutls_openpgp_keyring_t @var{ring}, const unsigned char @var{keyid[8]}, unsigned int @var{flags})
+@var{ring}: holds the keyring to check against
+
+@var{flags}: unused (should be 0)
+
+Check if a given key ID exists in the keyring.
+
+Returns 0 on success (if keyid exists) and a negative error code
+on failure.
+@end deftypefun
+
+@subheading gnutls_openpgp_keyring_deinit
+@anchor{gnutls_openpgp_keyring_deinit}
+@deftypefun {void} {gnutls_openpgp_keyring_deinit} (gnutls_openpgp_keyring_t @var{keyring})
+@var{keyring}: The structure to be initialized
+
+This function will deinitialize a keyring structure. 
+@end deftypefun
+
+@subheading gnutls_openpgp_keyring_import
+@anchor{gnutls_openpgp_keyring_import}
+@deftypefun {int} {gnutls_openpgp_keyring_import} (gnutls_openpgp_keyring_t @var{keyring}, const gnutls_datum_t * @var{data}, gnutls_openpgp_crt_fmt_t @var{format})
+@var{keyring}: The structure to store the parsed key.
+
+@var{data}: The RAW or BASE64 encoded keyring.
+
+@var{format}: One of @code{gnutls_openpgp_keyring_fmt} elements.
+
+This function will convert the given RAW or Base64 encoded keyring to the
+native @code{gnutls_openpgp_keyring_t} format.  The output will be stored in
+'keyring'.
+
+Returns 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_keyring_init
+@anchor{gnutls_openpgp_keyring_init}
+@deftypefun {int} {gnutls_openpgp_keyring_init} (gnutls_openpgp_keyring_t * @var{keyring})
+@var{keyring}: The structure to be initialized
+
+This function will initialize an OpenPGP keyring structure. 
+
+Returns 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_privkey_deinit
+@anchor{gnutls_openpgp_privkey_deinit}
+@deftypefun {void} {gnutls_openpgp_privkey_deinit} (gnutls_openpgp_privkey_t @var{key})
+@var{key}: The structure to be initialized
+
+This function will deinitialize a key structure. 
+@end deftypefun
+
+@subheading gnutls_openpgp_privkey_get_pk_algorithm
+@anchor{gnutls_openpgp_privkey_get_pk_algorithm}
+@deftypefun {gnutls_pk_algorithm_t} {gnutls_openpgp_privkey_get_pk_algorithm} (gnutls_openpgp_privkey_t @var{key}, unsigned int * @var{bits})
+@var{key}: is an OpenPGP key
+
+@var{bits}: if bits is non null it will hold the size of the parameters' in bits
+
+This function will return the public key algorithm of an OpenPGP
+certificate.
+
+If bits is non null, it should have enough size to hold the parameters
+size in bits. For RSA the bits returned is the modulus. 
+For DSA the bits returned are of the public exponent.
+
+Returns a member of the GNUTLS_PKAlgorithm enumeration on success,
+or a negative value on error.
+@end deftypefun
+
+@subheading gnutls_openpgp_privkey_import
+@anchor{gnutls_openpgp_privkey_import}
+@deftypefun {int} {gnutls_openpgp_privkey_import} (gnutls_openpgp_privkey_t @var{key}, const gnutls_datum_t * @var{data}, gnutls_openpgp_crt_fmt_t @var{format}, const char * @var{pass}, unsigned int @var{flags})
+@var{key}: The structure to store the parsed key.
+
+@var{data}: The RAW or BASE64 encoded key.
+
+@var{format}: One of gnutls_openpgp_crt_fmt_t elements.
+
+@var{pass}: Unused for now
+
+@var{flags}: should be zero
+
+This function will convert the given RAW or Base64 encoded key
+to the native gnutls_openpgp_privkey_t format. The output will be stored in 'key'.
+
+Returns 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_privkey_init
+@anchor{gnutls_openpgp_privkey_init}
+@deftypefun {int} {gnutls_openpgp_privkey_init} (gnutls_openpgp_privkey_t * @var{key})
+@var{key}: The structure to be initialized
+
+This function will initialize an OpenPGP key structure. 
+
+Returns 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_privkey_sign_hash
+@anchor{gnutls_openpgp_privkey_sign_hash}
+@deftypefun {int} {gnutls_openpgp_privkey_sign_hash} (gnutls_openpgp_privkey_t @var{key}, const gnutls_datum_t * @var{hash}, gnutls_datum_t * @var{signature})
+@var{key}: Holds the key
+
+@var{hash}: holds the data to be signed
+
+@var{signature}: will contain newly allocated signature
+
+This function will sign the given hash using the private key.
+
+@strong{Return value:} In case of failure a negative value will be returned,
+and 0 on success.
+@end deftypefun
+
+@subheading gnutls_openpgp_set_recv_key_function
+@anchor{gnutls_openpgp_set_recv_key_function}
+@deftypefun {void} {gnutls_openpgp_set_recv_key_function} (gnutls_session_t @var{session}, gnutls_openpgp_recv_key_func @var{func})
+@var{session}: a TLS session
+
+@var{func}: the callback
+
+This funtion will set a key retrieval function for OpenPGP keys. This
+callback is only useful in server side, and will be used if the peer
+sent a key fingerprint instead of a full key.
+@end deftypefun

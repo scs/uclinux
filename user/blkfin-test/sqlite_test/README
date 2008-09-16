@@ -1,0 +1,10 @@
+
+In the target, do following:
+
+ 1. cd /usr
+ 2. sqlite3 wishlist.db < wishlist.sql /* create the db */
+ 3. sqlite3 wishlist.db ".dump"        /* dump the whole db */
+ 4. sqlite_test "foo"                  /* use a test app(which uses the
+                                         libsqlite3.a) to search in the db */ 
+
+ There's a tutorial in  http://linuxgazette.net/109/chirico1.html.

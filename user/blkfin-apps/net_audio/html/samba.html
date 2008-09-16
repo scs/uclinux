@@ -1,0 +1,27 @@
+<html> <head> <title>NetAudio</title><LINK href=/mpd.css rel=stylesheet>  </head> 
+ <body onload="document.bpath.getElementById('username').focus();">
+
+<center class=h1 >Samba Mount </center>
+
+<script type="text/javascript">
+function gotoit(){
+document.write('<form name="bpath" METHOD="POST" ACTION="/cgi-bin/smbmount.cgi?'+document.smbpath.smbpth.value+'">');
+document.write('Username :<INPUT TYPE="TEXT" NAME="username" id="username" VALUE="" SIZE="30" MAXLENGTH="50"><br>');
+document.write('Password  :<INPUT TYPE="PASSWORD" NAME="password" id="password" VALUE="" SIZE="30" MAXLENGTH="50"> <br>');
+document.write('<INPUT TYPE="TEXT" NAME="path"  VALUE="q" SIZE="2" MAXLENGTH="2" style=visibility:hidden;>');
+document.write('<INPUT TYPE="TEXT" NAME="pat"  VALUE="q" SIZE="2" MAXLENGTH="2" style=visibility:hidden;>');
+document.write('<INPUT TYPE="TEXT" NAME="pt" VALUE="q" SIZE="2" MAXLENGTH="2" style=visibility:hidden;>');
+document.write('<input type="submit" name="button" value="Mount"> </form>');
+document.write('<br><LINK href=/mpd.css rel=stylesheet>');
+}
+</script>
+
+<form name=smbpath METHOD="POST" ACTION=javascript:gotoit();>
+Samba Source :<INPUT TYPE="TEXT" NAME="smbpth" VALUE="" SIZE="30" MAXLENGTH="50"> <br>
+<input type="submit" name="button" value="Next">
+</form>
+
+<br><br><p><center class=copyright>Integrated SoftTech Solutions Pvt. Ltd</center></p>
+</body>
+</html>
+

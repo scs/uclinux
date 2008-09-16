@@ -1,0 +1,20 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for xeno-info
+.\"
+.\" Copyright (C) 2005, 2006 Romain Lenglet <rlenglet@users.forge.objectweb.org>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH XENO-INFO 1 "2005-10-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+xeno-info \- Outputs information about the system
+.SH SYNOPSIS
+.B xeno-info
+.SH DESCRIPTION
+\fBxeno-info\fP outputs information about the release and version of the currently running Linux kernel, the versions of installed kernel-related tools such as compilation utitilies (gcc, make, ...) and filesystem utilities (mount, e2fsprogs, ...), and the names of currently loaded kernel modules.
+
+It is useful to include the output of the \fBxeno-info\fP command in any bug report to the Xenomai project.

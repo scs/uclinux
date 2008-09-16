@@ -1,0 +1,278 @@
+This file is a troubleshooting guide about various known issues
+regarding Xenomai (aka "Xenomai"), addressed in a Q&A form. The
+material is divided into several sections, depending on whether it is
+arch-specific or generic.
+
+                           GENERIC
+===================================================================
+
+Q: Which CONFIG_* items are latency killers, and should be avoided ?
+
+A: Heres an enumeration.  Several of these are discussed in greater
+detail in following sections.
+
+CONFIG_CPU_FREQ: This allows the CPU frequency to be modulated with
+workload, but many CPUs change the TSC counting frequency also, which
+makes it useless for accurate timing when the CPU clock can change.
+Also some CPUs can take several milliseconds to ramp up to full speed.
+
+APM: The APM model assigns power management control to the BIOS, and
+BIOS code is never written with RT-latency in mind.  If configured,
+APM routines are invoked with SMI priority, which breaks the rule that
+adeos-ipipe must be in charge of such things.  DISABLE_SMI doesnt help
+here (more later).
+
+ACPI_PROCESSOR: For systems with ACPI support in the BIOS, this ACPI
+sub-option installs an 'idle' handler that uses ACPI C2 and C3
+processor states to save power.  The CPU must 'warm-up' from these
+sleep states, increasing latency in ways dependent upon both the
+BIOS's ACPI tables and code.  You may be able to suppress the sleeping
+with 'idle=poll' boot-arg, test to find out
+
+Summarizing, the latencies incurred here are dependent upon CPU, BIOS,
+and motherboard; ie they're hard to predict, so we are conservative.
+Feel free to test on your platform, (xeno-test runs testsuite/latency
+in 3 modes), but keep in mind that before you rely on the numbers, you
+must test with workloads that will exercise all the hardware used for
+your RT application.
+
+______________________________________________________________________
+
+Q: How do I adequately stress-test ?
+
+A: xeno-test has a very basic workload generator, whose main virtue is
+that its nearly universally available.
+
+    dd if=/dev/zero of=/dev/null
+
+You can change the input device (-d /dev/hda1) to get real device
+activity and interrupts, and/or -w 4 to run more workload tasks.  For
+more thorough testing, use -W <your-script>.
+
+If you are looking for real heavy loads, cache benchmarks tend to
+stress your system the most, http://www.cwi.nl/~manegold/Calibrator
+for example. Combine them with heavy i/o load (flood ping etc.) to
+generate device interrupts.  Also consider benchmarking software, such
+as bonnie++, cpuburn, lmbench.
+
+______________________________________________________________________
+
+Q: My user-space application has unexpected latencies which seem to
+appear when transitioning from primary (Xenomai) to secondary (native
+Linux) real-time modes. Why?
+
+A: Such transition requires to wake up the Linux task underlying your
+real-time thread when running in secondary mode, since the latter
+needs to leave the Xenomai domain for executing under the control of the
+regular Linux scheduler. Therefore, it all depends on the Linux kernel
+granularity, i.e. its ability to reach the next rescheduling point as
+soon as such wakeup has been requested. Additionally, the task wakeup
+request is performed from a virtual interrupt handler which has to be
+run from the Linux domain upon request from the Xenomai domain, so the
+time required to handle and dispatch this interrupt outside of any
+critical kernel section also needs to be accounted for. Even if the
+kernel granularity improves at each new release, there are still a few
+catches:
+
+o Although the use of DMA might induce additional interrupt latency
+due to bus bandwidth saturation, disabling it for disk I/O is a bad
+idea when using mixed real-time modes. This is due to the fact that
+using PIO often leads to lengthy non-preemptible sections of kernel
+code being run from e.g. IDE drivers, from which pending real-time
+mode transitions could be delayed. In the same vein, make sure that
+your IDE driver runs in unmasked IRQ mode. In any case, a quick check
+using the "hdparm" tool will help:
+
+# hdparm -v /dev/hda
+
+/dev/hda:
+ ...
+ unmaskirq    =  1 (on)
+ using_dma    =  1 (on)
+ ...
+
+Even if your application does not directly request disk I/O, remember
+that the kernel routinely performs housekeeping duties which do, like
+filesystem journal updates or VM commits to the backing store, so
+latencies due to improper disk settings may well trigger apparently
+randomly. Of course, if your application only operates in primary mode
+during all of its time critical duties, i.e. never request Linux
+syscalls, it will not be adversely affected by DMA deactivation or IDE
+masking, since it will remain in the Xenomai domain, and activities from
+such domain can preempt any activity from the Linux domain, including
+disk drivers.
+
+______________________________________________________________________
+
+Q: Any Xenomai syscall invoked by my user-space application fails with
+error code -38 (-ENOSYS).
+
+A1: In case you did not build the Xenomai sub-system statically into
+your kernel, did you load the required modules?  e.g. xeno_nucleus.ko
++ xeno_native.ko? Normally, you should be using a run script (see
+xeno-load) that does this for you; but if you don't, make sure to load
+this modules by hand before launching your application.
+
+A2: If those modules are loaded but the error persists, check that
+your Xenomai configuration enables the pervasive real-time support in
+user-space, in the top-level "Nucleus" menu
+(i.e. CONFIG_XENO_OPT_PERVASIVE).
+
+______________________________________________________________________
+
+Q: My user-space application unexpectedly reserves a lot of virtual
+memory, as reported by "top" or /proc/<pid>/maps. Sometimes OOM
+situations even appear during runtime on systems with limited memory,
+why?
+
+A: The Xenomai tasks are underlaid by native POSIX threads, for which a
+huge default amount of stack space memory is reserved by the native
+POSIX support, usually 8Mb per thread, so the overall allocated space
+is about 8Mb * nr_threads, which are likely to be locked using the
+mlockall() service, which in turn even commits such space to RAM.
+
+Unfortunately, this behaviour cannot be controlled by the "stacksize"
+parameter passed to the various thread creation routines, i.e. the
+latter is about limiting the addressable stack space on a per-thread
+basis, but does not affect the amount of stack memory initially
+reserved by the POSIX library.  A work-around consists of setting a
+lower user-limit for initial stack allocation, like calling "ulimit -s
+<initial-size-in-kbytes>" in your parent shell before running your
+application (defaults to 8192).
+
+======================================================================
+
+                             x86
+
+======================================================================
+
+Q: When looking at the kernel message log, I get a message in the
+console saying : "Xenomai: Intel chipset found and SMI workaround not
+enabled, you may encounter high interrupt latencies." What should I
+do?
+
+A: First you should run the latency test under some load and see if
+you experience any pathological latency ("pathological" meaning more
+than, say, 100 micro-seconds). If you do not observe any such latency,
+then this warning is harmless, and if you find it annoying, you may
+disable "SMI detection" in Xenomai's configuration menu. You can skip
+the rest of this section.
+
+If you observe any high latency then you have a problem with SMI, and
+this warning was intended for you. But the Xenomai configuration menu 
+allow you to enable two workarounds which may help you. These 
+workarounds may be found in the Machine/SMI workaround sub-menu of 
+Xenomai configuration menu.
+
+The first workaround which you should try is to disable all SMI
+sources. In order to do this, in the Xenomai configuration menu, select
+the options "Enable SMI workaround" and "Globally disable SMI". This
+option is the safest workaround, because when enabled, no SMI can
+interfere with hardware interrupt management behind your back and
+cause high latencies.  Once this workaround enabled, you should run
+the latency test again, verify that your high latency disappeared but
+most importantly, verify that every peripheral you intend to use with
+Xenomai is working properly. If everything is working properly, then you
+are done with SMI.
+
+If some peripheral is not working properly, then it probably needs
+SMI, in which case you can not simply disable SMI globally, you will
+need to disable all SMI sources on your system except the SMI needed
+by your peripheral. This is a much less safe choice, since Xenomai has
+to know all SMI sources to disable them, one by one. In order to
+choose this second workaround, unselect the option "Globally disable
+SMI", and select the option corresponding to your peripheral. For
+example, if you need legacy USB emulation to get your USB mouse
+working, select the option "Enable legacy USB emulation". You should
+then run the latency test again and verify that you do not observe any
+high latency and that all your peripherals are functioning
+correctly. If you can not find your peripheral in the list proposed in
+the Xenomai configuration menu, drop a mail to the Xenomai mailing
+list, we will try and possibly add the proper option if needed. If
+when running the latency test again, your peripheral is working
+properly and you still observe high latencies, then you are out of
+luck, the peripheral you want is likely to be the cause of such
+latencies.
+
+______________________________________________________________________
+
+
+Q: I have no SMI in the picture, but I'm still seeing high latency
+   spots.  What's next?
+
+A1: Do you have some legacy USB switch at BIOS configuration level? If
+    yes, switch it off, it is known to induce such latencies.
+
+A2: If no legacy USB switch appears in your BIOS configuration panel,
+    this does not necessarily mean that there is no support for it,
+    thus no potential for high latencies; this support might just be
+    forcibly enabled at boot time.
+
+To solve this, in case your machine has some USB controller hardware,
+make sure to enable the corresponding host controller driver support
+in your kernel configuration.  For instance, UHCI-compliant hardware
+needs CONFIG_USB_UHCI_HCD.  As part of its init chores, the driver
+should reset the host controller properly, kicking out the BIOS off
+the concerned hardware, and deactivate the USB legacy mode if set in
+the same move.
+
+______________________________________________________________________
+
+Q: I am seeing high latency spots when running under X-window, what 
+   can I do?
+
+A: Try disabling hardware acceleration in the X-window server 
+   configuration file; in the "Device" section of /etc/X11/XF86Config-4,
+   add the following line:
+
+   Option "NoAccel"
+
+______________________________________________________________________
+
+Q: Xenomai HAL's initialization fails with error: -1 no such device
+
+A: Dumping the kernel message log using "dmesg" will likely give you
+the reason.
+
+______________________________________________________________________
+
+Q: The kernel message log says:
+   "Xenomai: Local APIC absent or disabled!
+    Disable APIC support or pass "lapic" as bootparam."
+
+A: Xenomai sends this message if the kernel configuration Xenomai was
+   compiled against enables the local APIC support
+   (CONFIG_X86_LOCAL_APIC), but the processor status gathered at boot
+   time by the kernel says that no local APIC support is available.
+   There are two options for fixing this issue:
+
+   o either your CPU really has _no_ local APIC hw, then you need to
+     rebuild a kernel with LAPIC support disabled, before rebuilding
+     Xenomai against the latter;
+
+   o or it does have a local APIC but the kernel boot parameters did
+     not specify to activate it using the "lapic" option. The latter
+     is required since 2.6.9-rc4 for boxen which APIC hardware is
+     disabled by default by the BIOS. You may want to look at
+     the file Documentation/kernel-parameters.txt from the Linux
+     source tree, for more information about this parameter.
+
+======================================================================
+
+                           PowerPC
+
+======================================================================
+======================================================================
+
+                           ia64
+
+======================================================================
+======================================================================
+
+                           Blackfin
+
+======================================================================
+======================================================================
+
+Last Updated: Mon Mar 27 09:14:35 CEST 2006
+

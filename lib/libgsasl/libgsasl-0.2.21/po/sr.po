@@ -1,0 +1,298 @@
+# Serbian translation of `libgsasl'.
+# Copyright (C) 2006 Free Software Foundation, Inc.
+# This file is distributed under the same license as the `libgsasl' package.
+# Aleksandar Jelenak <jelenak@verizon.net>, 2006.
+msgid ""
+msgstr ""
+"Project-Id-Version: libgsasl 0.2.15\n"
+"Report-Msgid-Bugs-To: bug-gsasl@gnu.org\n"
+"POT-Creation-Date: 2007-08-22 12:39+0200\n"
+"PO-Revision-Date: 2006-09-05 10:44-0400\n"
+"Last-Translator: Aleksandar Jelenak <jelenak@verizon.net>\n"
+"Language-Team: Serbian <gnu@prevod.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Libgsasl success"
+msgstr "Libgsasl успешан"
+
+msgid "SASL mechanism needs more data"
+msgstr "SASL метод треба више података"
+
+msgid "Unknown SASL mechanism"
+msgstr "Непознат SASL метод"
+
+msgid "SASL mechanism called too many times"
+msgstr "SASL метод позван исувише пута"
+
+msgid "Memory allocation error in SASL library"
+msgstr "Грешка меморијске доделе у SASL библиотеци"
+
+msgid "Base 64 coding error in SASL library"
+msgstr "Грешка База-64 кодовања у SASL библиотеци"
+
+msgid "Low-level crypto error in SASL library"
+msgstr "Крипто грешка ниског нивоа у SASL библиотеци"
+
+msgid ""
+"GSSAPI library could not deallocate memory in gss_release_buffer() in SASL "
+"library.  This is a serious internal error."
+msgstr ""
+"GSSAPI библиотека није могла да поврати меморију са gss_release_buffer() из "
+"SASL библиотеке. Ово је озбиљна интерна грешка."
+
+#, fuzzy
+msgid ""
+"GSSAPI library could not understand a peer name in gss_import_name() in SASL "
+"library.  This is most likely due to incorrect service and/or hostnames."
+msgstr ""
+"GSSAPI библиотека није разумела име равноправног уређаја са gss_import_name"
+"() из SASL библиотеке. Ово је можда због погрешног корисничког уноса."
+
+msgid ""
+"GSSAPI error in client while negotiating security context in "
+"gss_init_sec_context() in SASL library.  This is most likely due "
+"insufficient credentials or malicious interactions."
+msgstr ""
+"GSSAPI грешка код клијента током уговарања заштитног склопа са "
+"gss_init_sec_context() из SASL библиотеке. Ово је највероватније због "
+"недовољних акредитива или злонамерних активности."
+
+msgid ""
+"GSSAPI error in server while negotiating security context in "
+"gss_init_sec_context() in SASL library.  This is most likely due "
+"insufficient credentials or malicious interactions."
+msgstr ""
+"GSSAPI грешка код сервера током уговарања заштитног склопа са "
+"gss_init_sec_context() из SASL библиотеке. Ово је највероватније због "
+"недовољних акредитива или злонамерних активности."
+
+msgid ""
+"GSSAPI error while decrypting or decoding data in gss_unwrap() in SASL "
+"library.  This is most likely due to data corruption."
+msgstr ""
+"GSSAPI грешка током дешифровања или декодовања података са gss_unwrap() из "
+"SASL библиотеке. Ово је највероватније због грешке у подацима."
+
+msgid ""
+"GSSAPI error while encrypting or encoding data in gss_wrap() in SASL library."
+msgstr ""
+"GSSAPI грешка током шифровања или кодовања података са gss_wrap() из SASL "
+"библиотеке."
+
+msgid ""
+"GSSAPI error acquiring credentials in gss_acquire_cred() in SASL library.  "
+"This is most likely due to not having the proper Kerberos key available in /"
+"etc/krb5.keytab on the server."
+msgstr ""
+"GSSAPI грешка прибављајући акредитиве са gss_acquire_cred() из SASL "
+"библиотеке. Ово је највероватније због немања одговарајућих керберос кључева "
+"у /etc/krb5.keytab на серверу."
+
+msgid ""
+"GSSAPI error creating a display name denoting the client in gss_display_name"
+"() in SASL library.  This is probably because the client supplied bad data."
+msgstr ""
+"GSSAPI грешка правећи име за клијента у gss_display_name() из SASL "
+"библиотеке. Ово је највероватније због лоших података од корисника."
+
+msgid ""
+"Other entity requested integrity or confidentiality protection in GSSAPI "
+"mechanism but this is currently not implemented."
+msgstr ""
+"Друга страна захтева заштиту целовитости или поверљивости од GSSAPI метода "
+"али ово тренутно није остварено."
+
+msgid "SASL mechanism could not parse input"
+msgstr "SASL метод није могао да рашчлани улаз"
+
+msgid "Error authenticating user"
+msgstr "Грешка аутентификовања корисника"
+
+msgid "Integrity error in application payload"
+msgstr "Подаци апликације нису целовити"
+
+msgid "Client-side functionality not available in library (application error)"
+msgstr ""
+"Функционалност на клијентовој страни није доступна у библиотеци (грешка "
+"апликације)"
+
+msgid "Server-side functionality not available in library (application error)"
+msgstr ""
+"Функционалност на серверовој страни није доступна у библиотеци (грешка "
+"апликације)"
+
+msgid "No callback specified by caller (application error)."
+msgstr "Позивач није навео повратни позив (грешка апликације)."
+
+msgid "Authentication failed because the anonymous token was not provided."
+msgstr "Аутентикација неуспешна јер анонимни токен није дат."
+
+msgid ""
+"Authentication failed because the authentication identity was not provided."
+msgstr "Аутентикација неуспешна јер идентитет није дат."
+
+msgid ""
+"Authentication failed because the authorization identity was not provided."
+msgstr "Аутентикација неуспешна јер идентитет ауторизатора није дат."
+
+msgid "Authentication failed because the password was not provided."
+msgstr "Аутентикација неуспешна јер лозинка није дата."
+
+msgid "Authentication failed because the passcode was not provided."
+msgstr "Аутентикација неуспешна јер лозинка-кôд није дат."
+
+msgid "Authentication failed because the pin code was not provided."
+msgstr "Аутентикација неуспешна јер пин-кôд није дат."
+
+msgid "Authentication failed because the service name was not provided."
+msgstr "Аутентикација неуспешна јер име сервиса није дато."
+
+msgid "Authentication failed because the host name was not provided."
+msgstr "Аутентикација неуспешна јер име домаћина није дато."
+
+msgid "Could not prepare internationalized (non-ASCII) string."
+msgstr "Није могао да припреми интернационализовану (не-ASCII) ниску."
+
+msgid "SASL function needs larger buffer (internal error)"
+msgstr "SASL функцији потребан већи бафер (унутрашња грешка)"
+
+msgid "Could not open file in SASL library"
+msgstr "Није могао да отвори датотеку у SASL библиотеци"
+
+msgid "Could not close file in SASL library"
+msgstr "Није могао да затвори датотеку у SASL библиотеци"
+
+msgid "Cannot get internal library handle (library error)"
+msgstr "Не може добити унутрашњу дршку библиотеке (грешка библиотеке)"
+
+msgid ""
+"SASL mechanism needs gsasl_client_callback_anonymous() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_client_callback_anonymous() повратни позив "
+"(грешка апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_client_callback_password() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_client_callback_password() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_client_callback_passcode() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_client_callback_passcode() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_client_callback_pin() callback (application error)"
+msgstr ""
+"SASL методу потребан gsasl_client_callback_pin() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_client_callback_authorization_id() callback "
+"(application error)"
+msgstr ""
+"SASL методу потребан gsasl_client_callback_authorization_id() повратни позив "
+"(грешка апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_client_callback_authentication_id() callback "
+"(application error)"
+msgstr ""
+"SASL методу потребан gsasl_client_callback_authentication_id() повратни "
+"позив (грешка апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_client_callback_service() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_client_callback_service() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_validate() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_validate() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_cram_md5() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_cram_md5() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_digest_md5() callback "
+"(application error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_digest_md5() повратни позив "
+"(грешка апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_anonymous() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_anonymous() повратни позив "
+"(грешка апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_external() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_external() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_realm() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_realm() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_securid() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_securid() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_service() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_service() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_gssapi() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_gssapi() повратни позив (грешка "
+"апликације)"
+
+msgid ""
+"SASL mechanism needs gsasl_server_callback_retrieve() callback (application "
+"error)"
+msgstr ""
+"SASL методу потребан gsasl_server_callback_retrieve() повратни позив (грешка "
+"апликације)"
+
+msgid "Failed to perform Unicode Normalization on string."
+msgstr "Неуспешна Уникод нормализација ниске."
+
+msgid "No more realms available (non-fatal)"
+msgstr "Без доступних домена више (није кобно)"
+
+msgid "The provided library handle was invalid (application error)"
+msgstr "Дата дршка библиотеке је неважећа (грешка апликације)"
+
+msgid "Libgsasl unknown error"
+msgstr "Libgsasl непозната грешка"

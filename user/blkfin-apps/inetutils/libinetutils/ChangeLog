@@ -1,0 +1,229 @@
+2002-12-22  Jeff Bailey  <jbailey@gnu.org>
+
+	* Makefile.am: Include new files in dist rules.
+
+2002-12-11  Jeff Bailey  <jbailey@gnu.org>
+
+	* getopt.h: New file from Gnulib CVS
+	* obstack.h: New file from Gnulib CVS
+	* setenv.h: New file from Gnulib CVS
+	* gettext.h: New file from Gnulib CVS
+	* xalloc.h: New file from Gnulib CVS
+	* xgetcwd.h: New file from Gnulib CVS
+	* malloc.c: New file from Gnulib CVS
+	* realloc.c: New file from Gnulib CVS
+	* getopt.c: Update from Gnulib CVS
+	* getopt1.c: Update from Gnulib CVS
+	* getpass.c: Update from Gnulib CVS
+	* getusershell.c: Update from Gnulib CVS
+	* memcmp.c: Update from Gnulib CVS
+	* memcpy.c: Update from Gnulib CVS
+	* memmove.c: Update from Gnulib CVS
+	* memset.c: Update from Gnulib CVS
+	* obstack.c: Update from Gnulib CVS
+	* pathmax.h: Update from Gnulib CVS
+	* setenv.c: Update from Gnulib CVS
+	* strcasecmp.c: Update from Gnulib CVS
+	* strdup.c: Update from Gnulib CVS
+	* strerror.c: Update from Gnulib CVS
+	* xgetcwd.c: Update from Gnulib CVS
+	* xmalloc.c: Update from Gnulib CVS
+	* xstrdup.c: Update from Gnulib CVS
+	
+2002-12-06  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* libinetutils/iruserok.c (iruserok): Removed unneded
+	  typecasts to (void).
+
+2002-05-14  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* herror.c: Checks for HAVE_DECL variables must read
+	  #if !HAVE_DECL_something, since AC_CHECK_DECLS always
+	  declares HAVE_DECL, either to 0 or to 1. 	  
+	* hstrerror.c: Likewise.
+	* logwtmp.c: Likewise.
+	* revoke.c: Likewise. 
+	* setenv.c: Likewise.
+	
+	* iruserok.c: Use HAVE_STRUCT_type_member instead
+	  of HAVE_type_member.
+	* logout.c: Likewise.
+	* ruserok.c: Likewise.
+	* utmp_init.c: Likewise.
+	* utmp_logout.c: Likewise.
+
+2002-04-21  Alfred M. Szmidt <ams@kemisten.nu>
+
+	* herror.c [HAVE_H_ERRNO_DECL]: Renamed to HAVE_DECL_H_ERRNO.
+	* hstrerror.c [HAVE_H_ERRLIST_DECL]: Renamed to HAVE_DECL_H_ERRLIST.
+	* logwtmp.c [HAVE_ERRNO_DECL]: Renamed to HAVE_DECL_ERRNO.
+	* revoke: Likewise.
+	* setenv.c: Likewise.
+	[HAVE_ENVIRON_DECL]: Renamed to HAVE_DECL_ENVIRON.
+
+2002-04-07  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* utmp_logout.c (utmp_logout): Bugfix: gettimeofday() (and
+	  time()) was used over a member of utx, instead of ut.
+	  Consequently, all sessions were recorded in wtmp as having
+	  zero duration.
+
+2002-04-05  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* libinetutils/obstack.c: new
+	* libinetutils/Makefile.am: Added obstack.c
+	
+	* libinetutils/utmp_init.c: Use ifdef UTMPX, instead of
+	  HAVE_UTMPX_H.
+	* libinetutils/utmp_logout.c: Likewise. (utmp_logout): fallback
+	  to logwtmp() if updwtmp() is not available.
+
+2002-02-10  Jeff Bailey  <jbailey@outpost.dnsalias.org>
+
+	* Makefile.am: Add -I$(top_builddir)/include to INCLUDES
+
+2001-12-25  Alain Magloire
+
+	* poll.c: Added <time.h>
+	* getpass.c: New file, getpass().
+	Bert De Knuydt <Bert.Deknuydt@esat.kuleuven.ac.be>.
+
+2001-11-03  Alain Magloire
+
+	* daemon.c: GNU coding style changes.
+	(waitdaemon): Try to find the number of file descriptor,
+	check _SC_OPEN_MAX, getdtablsize() before falling to the default.
+
+2001-11-02  Marcus Brinkmann  <marcus@gnu.org>
+
+	* utmp_logout.c (utmp_logout): Add a horde of conditionals to get
+	it working on FreeBSD.
+	* utmp_init.c (utmp_init): Likewise.
+
+2001-11-01  Sergey Poznyakoff
+
+	* ttymsg.c: Added missing %s to format spec
+
+2001-10-25  Sergey Poznyakoff
+
+	* argcv.c: (new) Simple string tokenizer. Needed by talkd acls.
+	* argcv.h: (new) Definitions for argcv.c
+	* regex.c: (new) Regex functions.
+	* regex.h: (new) Definitions for regex functions.
+	* Makefile.am: Added argcv.[ch], regex.[ch]
+
+2001-07-14  Sergey Poznyakoff  <gray@farlep.net>
+ 	* openpty.c: Set RMSGN|RPROTDAT on master side of pty pair, so it
+	can be read using read() call.
+
+2001-07-14  Sergey Poznyakoff  <gray@farlep.net>
+	* localhost.c: Return fully qualified domain name.
+	* login_tty.c: Rewritten from scratch. This version
+	works on systems lacking TIOCSCTTY ioctl (eg. Solaris).
+
+2001-02-26  Alain Magloire
+
+	* openpty.c (ptys_open) : ioctl of "pckt" should be done
+	on the master file descriptor.
+	Found by Joachim Gabler <Joachim.Gabler@germany.sun.com>
+
+2000-11-03  Marcus Brinkmann  <marcus@gnu.org>
+
+	* localhost.c (localhost): Make an initial guess of 256 for the
+	name length: SUSv2 says a hostname is up to 255 characters long,
+	and doesn't specify any error codes, so stay on the safe side.
+
+2000-10-31  Marcus Brinkmann  <marcus@gnu.org>
+
+	* localhost.c: Prototype xrealloc, not xalloc.
+	(localhost): Add missing parenthese.
+
+2000-10-30  Marcus Brinkmann  <marcus@gnu.org>
+
+	* utmp_init.c: Define __USE_GNU before including utmpx to get
+	prototype of updwtmpx.
+
+2000-08-24  Alain Magloire
+
+	* stub_tgetent.c: Prototype was wrong.
+	* openpty.c: Prototype was wrong.
+
+2000-08-15  Alain Magloire
+
+	* iruserok.c: use <signal> not <sys/signal.h>
+	Remove ruserok().
+
+	* ruserok.c: new funtion.
+
+2000-08-13  Alain Magloire
+
+	* ttymsg.c (fork2):  New function, that is doing a double
+	fork() when I/O is non-bloclking.
+
+2000-08-11  Alain Magloire
+
+	* poll.c: Update from James Antill.
+
+2000-08-08  Alain Magloire
+
+	* ttymsg.c: Formatting, bcopy() to memcpy().
+	Just check for '/' in the path for security attempts.
+
+	* poll.c: Typo in prototypes. Not including <sys/select.h>
+	* poll.h: Typos.
+
+2000-08-05  Alain Magloire
+
+	* daemon.c (waitdaemon):  We are using the double trick
+	to avoid zombies and control terminals.  So we're going
+	simply to pause() to avoid messing with waitpid().
+
+2000-08-05  Alain Magloire
+
+	* localhost.c: No longer use static buffers to cache the result.
+	This cause subtil bugs and make it impossible in non-threaded
+	environment if we ever move to it.
+
+2000-08-04  Alain Magloire
+
+	* iruserok.c (iruserok):  Typo in prototype.
+
+2000-08-03  Marcus Brinkmann  <marcus@gnu.org>
+
+	* daemon.c (waitdaemon): Add comment.
+	(waitdaemon_timeout): If child told us to go away, use _exit rather
+	than exit.
+
+2000-08-03  Marcus Brinkmann  <marcus@gnu.org>
+
+	* daemon.c (waitdaemon): New function from FreeBSD syslogd rev 1.66.
+	(waitdaemon_timeout): Likewise (but called timedout in FreeBSD syslogd).
+	(daemon): Redefine in terms of the more generic waitdaemon.
+
+2000-07-14 Alain Magloire
+
+	* openpty.c: ptys_open() call wrong arguments ...
+
+	* Makefile.am: AUTOMAKE_OPTIONS = ansi2knr
+	all the files are now prototype and we rely on ansi2knr
+	to the right thing.
+
+2000-07-05 Alain Magloire
+
+	* *: Clause 3 removed.
+	excerpt from email with RMS:
+	"UCB has agreed to drop the advertising clause from the license for all
+	BSD software.  The advertising clause is this one:
+
+	3. All advertising materials mentioning features or use of this software
+		must display the following acknowledgement:
+		This product includes software developed by the University of
+		California, Berkeley and its contributors.
+
+	This means that we can delete that paragraph from all files which give
+	the University of California as the only copyright holder."
+
+2000-03-28  Alain Magloire
+
+	* Makefile.am : added PATHDEF_WTMPX in INCLUDES.
+	* libinetutils/utmp_logout.c: WTMPX_FILE change for PATH_WTMPX.

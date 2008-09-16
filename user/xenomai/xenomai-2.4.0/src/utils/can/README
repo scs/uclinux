@@ -1,0 +1,150 @@
+Utilities for RT-Socket-CAN
+===========================
+
+For further information on RT-Socket-CAN, especially the kernel space
+part, please have a look to "ksrc/drivers/can/README".
+
+Installation:
+------------
+
+Please install the Xenomai user space part as described in the
+README.INSTALL.
+
+  $ export CROSS_COMPILE=ppc_82xx-
+  $ cd <xenomai-root>
+  $ ./configure --prefix=/usr/xenomai --host=ppc-linux
+  $ make
+  $ export DESTDIR=/opt/eldk/ppc_82xx
+  $ make install
+
+Utilities for RT-Socket-CAN are available in "src/drivers/can".
+With "make install" they get copied to the Xenomai installation
+directory.
+
+
+Running and using RT-Socket-CAN:
+-------------------------------
+
+Now boot the Xenomai enabled kernel on your target system.
+
+In case RT-Socket-CAN is built as kernel modules, you need to load
+them using modprobe or insmod, e.g. for this example build:
+
+  # export MODDIR=/lib/modules/2.4.25/kernel/drivers/xenomai/rtcan
+  # insmod $MODDIR/xeno_can.o
+  # insmod $MODDIR/mscan/xeno_can_mscan.o
+  # insmod $MODDIR/sja1000/xeno_can_sja1000.o
+  # insmod $MODDIR/sja1000/xeno_can_peak_pci.o
+
+Note that various kernel module parameters can be passed with insmod.
+Please use "modinfo" to list them or check the corresponding source
+code files for further information
+
+There are a few RT-Socket-CAN utilities to configure RTCAN and to send
+and receive CAN messages, which have been installed in the Xenomai
+installation directory with "make install":
+
+  # export XENO_ROOT=/usr/xenomai
+  # export PATH=$PATH:$XENO_ROOT/bin
+  # export LD_LIBRARY_PATH=$XENO_ROOT/lib
+
+  # rtcanconfig --help
+  Usage: rtcanconfig <can-interface> [Options] [up|down|start|stop|sleep]
+  Options:
+   -v, --verbose            be verbose
+   -h, --help               this help
+   -c, --ctrlmode=M1:M2:... listenonly or loopback mode
+   -b, --baudrate=BPS       baudrate in bits/sec
+   -B, --bittime=BTR0:BTR1  BTR or standard bit-time
+   -B, --bittime=BRP:PROP_SEG:PHASE_SEG1:PHASE_SEG2:SJW:SAM
+
+  # rtcanrecv --help
+  Usage: rtcanrecv <can-interface> [Options]
+  Options:
+   -f  --filter=id:mask[:id:mask]... apply filter
+   -e  --error=mask      receive error messages
+   -t, --timeout=MS      timeout in ms
+   -v, --verbose         be verbose
+   -p, --print=MODULO    print every MODULO message
+   -n, --name=STRING     name of the RT task
+   -h, --help            this help
+
+  # rtcansend --help
+  Usage: rtcansend <can-interface> [Options] <can-msg>
+  <can-msg> can consist of up to 8 bytes given as a space separated list
+  Options:
+   -i, --identifier=ID   CAN Identifier (default = 1)
+   -r  --rtr             send remote request
+   -e  --extended        send extended frame
+   -l  --loop=COUNT      send message COUNT times
+   -c, --count           message count in data[0-3]
+   -d, --delay=MS        delay in ms (default = 1ms)
+   -t, --timeout=MS      timeout in ms
+   -v, --verbose         be verbose
+   -p, --print=MODULO    print every MODULO message
+   -h, --help            this help
+
+Here are a few self-explanary commands:
+
+  # rtcanconfig rtcan0 --baudrate=125000 start
+
+  # rtcansend rtcan2 --verbose --identifier=0x123 0xde 0xad
+  <0x123> [2] de ad
+
+  # rtcanrecv rtcan0 --verbose
+  #1: <0x123> [2] de ad
+
+  bash-2.05b# rtcanrecv rtcan0 --filter=0x120:0x120
+  Filter #0: id=0x00000120 mask=0x00000120
+  #0: <0x124> [2] de ad
+  #1: <0x123> [3] 12 34 56
+  #2: <0x133> [4] 11 22 33 44
+
+  # rtcanrecv rtcan0 --error=0xffff
+  #1: !0x00000008! [8] 00 00 80 19 00 00 00 00 ERROR
+
+
+PROC filesystem: the followingfiles provide useful information
+on the status of the CAN controller, filter settings, registers,
+etc.
+
+  # cat /proc/rtcan/devices
+  Name___________ _Baudrate State___ TX_Counter RX_Counter ____Errors
+  rtcan0             125000 active            0          8          0
+  rtcan1             125000 active            0          8          0
+  rtcan2             125000 passive           8          0      14714
+
+  # cat /proc/rtcan/sockets
+  fd Name___________ Filter ErrMask RX_Timeout_ns TX_Timeout_ns RX_BufFull
+   0 rtcan0               1 0x0ffff      infinite      infinite          0
+   1 rtcan0               1 0x00000      infinite      infinite          0
+
+  # cat /proc/rtcan/rtcan2/info
+  Device     rtcan2
+  Controller SJA1000
+  Board      PEAK-PCI
+  Clock-Hz   8000000
+  Baudrate   125000
+  Bit-time   brp=4 prop_seg=0 phase_seg1=13 phase_seg2=2 sjw=1 sam=0
+  Ctrl-Mode
+  State      passive
+  TX-Counter 3
+  RX-Counter 0
+  Errors     45424
+  Refcount   0
+
+  # cat /proc/rtcan/rtcan0/filters
+  fd __CAN_ID__ _CAN_Mask_ MatchCount
+   0 0x00000000 0x00000000          0
+   1 0x00000120 0x00000120          3
+
+  # cat /proc/rtcan/rtcan0/registers
+  MSCAN registers at f0000900
+  canctl0  0x90 rxfrm synch
+  canctl1  0xc0 cane clksrc
+  ...
+
+  # cat /proc/rtcan/rtcan2/registers
+  SJA1000 registers
+  00: 00 00 4c 00 ff 00 03 1c 1a 00 00 02 d6 60 14 88
+  10: 02 26 60 de ad 04 04 00 ef c7 ef ef 40 00 00 c7

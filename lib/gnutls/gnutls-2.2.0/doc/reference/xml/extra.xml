@@ -1,0 +1,911 @@
+<?xml version="1.0"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" 
+               "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">
+<refentry id="gnutls-extra">
+<refmeta>
+<refentrytitle role="top_of_page">extra</refentrytitle>
+<manvolnum>3</manvolnum>
+<refmiscinfo>GNUTLS Library</refmiscinfo>
+</refmeta>
+
+<refnamediv>
+<refname>extra</refname>
+<refpurpose></refpurpose>
+<!--[<xref linkend="desc" endterm="desc.title"/>]-->
+</refnamediv>
+
+<refsynopsisdiv role="synopsis">
+<title role="synopsis.title">Synopsis</title>
+
+<synopsis>
+
+
+
+#define             <link linkend="LIBGNUTLS-EXTRA-VERSION:CAPS">LIBGNUTLS_EXTRA_VERSION</link>
+enum                <link linkend="gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</link>;
+<link linkend="int">int</link>                 (<link linkend="gnutls-openpgp-recv-key-func">*gnutls_openpgp_recv_key_func</link>)     (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         unsigned <link linkend="char">char</link> *keyfpr,
+                                                         unsigned <link linkend="int">int</link> keyfpr_length,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *key);
+<link linkend="void">void</link>                <link linkend="gnutls-openpgp-set-recv-key-function">gnutls_openpgp_set_recv_key_function</link>
+                                                        (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="gnutls-openpgp-recv-key-funcfunc">gnutls_openpgp_recv_key_funcfunc</link> );
+<link linkend="int">int</link>                 <link linkend="gnutls-certificate-set-openpgp-key-file">gnutls_certificate_set_openpgp_key_file</link>
+                                                        (<link linkend="gnutls-certificate-credentials-tres">gnutls_certificate_credentials_tres</link> ,
+                                                         const <link linkend="char">char</link> *CERTFILE,
+                                                         const <link linkend="char">char</link> *KEYFILE,
+                                                         <link linkend="gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</link> );
+<link linkend="int">int</link>                 <link linkend="gnutls-certificate-set-openpgp-key-mem">gnutls_certificate_set_openpgp_key_mem</link>
+                                                        (<link linkend="gnutls-certificate-credentials-tres">gnutls_certificate_credentials_tres</link> ,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *CERT,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *KEY,
+                                                         <link linkend="gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</link> );
+<link linkend="int">int</link>                 <link linkend="gnutls-certificate-set-openpgp-keyring-mem">gnutls_certificate_set_openpgp_keyring_mem</link>
+                                                        (<link linkend="gnutls-certificate-credentials-t">gnutls_certificate_credentials_t</link> c,
+                                                         unsigned <link linkend="char">char</link> *data,
+                                                         <link linkend="size-t">size_t</link> dlen,
+                                                         <link linkend="gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</link> );
+<link linkend="int">int</link>                 <link linkend="gnutls-certificate-set-openpgp-keyring-file">gnutls_certificate_set_openpgp_keyring_file</link>
+                                                        (<link linkend="gnutls-certificate-credentials-t">gnutls_certificate_credentials_t</link> c,
+                                                         const <link linkend="char">char</link> *file,
+                                                         <link linkend="gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</link> );
+enum                <link linkend="gnutls-ia-apptype-t">gnutls_ia_apptype_t</link>;
+<link linkend="int">int</link>                 (<link linkend="gnutls-ia-avp-func">*gnutls_ia_avp_func</link>)               (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="void">void</link> *ptr,
+                                                         const <link linkend="char">char</link> *last,
+                                                         <link linkend="size-t">size_t</link> lastlen,
+                                                         <link linkend="char">char</link> **next,
+                                                         <link linkend="size-t">size_t</link> *nextlen);
+<link linkend="void">void</link>                <link linkend="gnutls-ia-free-client-credentials">gnutls_ia_free_client_credentials</link>   (<link linkend="gnutls-ia-client-credentials-t">gnutls_ia_client_credentials_t</link> sc);
+<link linkend="int">int</link>                 <link linkend="gnutls-ia-allocate-client-credentials">gnutls_ia_allocate_client_credentials</link>
+                                                        (<link linkend="gnutls-ia-client-credentials-t">gnutls_ia_client_credentials_t</link> *sc);
+<link linkend="void">void</link>                <link linkend="gnutls-ia-free-server-credentials">gnutls_ia_free_server_credentials</link>   (<link linkend="gnutls-ia-server-credentials-t">gnutls_ia_server_credentials_t</link> sc);
+<link linkend="int">int</link>                 <link linkend="gnutls-ia-allocate-server-credentials">gnutls_ia_allocate_server_credentials</link>
+                                                        (<link linkend="gnutls-ia-server-credentials-t">gnutls_ia_server_credentials_t</link> *sc);
+<link linkend="void">void</link>                <link linkend="gnutls-ia-set-client-avp-function">gnutls_ia_set_client_avp_function</link>   (<link linkend="gnutls-ia-client-credentials-t">gnutls_ia_client_credentials_t</link> cred,
+                                                         <link linkend="gnutls-ia-avp-func">gnutls_ia_avp_func</link> avp_func);
+<link linkend="void">void</link>                <link linkend="gnutls-ia-set-client-avp-ptr">gnutls_ia_set_client_avp_ptr</link>        (<link linkend="gnutls-ia-client-credentials-t">gnutls_ia_client_credentials_t</link> cred,
+                                                         <link linkend="void">void</link> *ptr);
+<link linkend="void">void</link>*               <link linkend="gnutls-ia-get-client-avp-ptr">gnutls_ia_get_client_avp_ptr</link>        (<link linkend="gnutls-ia-client-credentials-tcred">gnutls_ia_client_credentials_tcred</link> );
+<link linkend="void">void</link>                <link linkend="gnutls-ia-set-server-avp-function">gnutls_ia_set_server_avp_function</link>   (<link linkend="gnutls-ia-server-credentials-t">gnutls_ia_server_credentials_t</link> cred,
+                                                         <link linkend="gnutls-ia-avp-func">gnutls_ia_avp_func</link> avp_func);
+<link linkend="void">void</link>                <link linkend="gnutls-ia-set-server-avp-ptr">gnutls_ia_set_server_avp_ptr</link>        (<link linkend="gnutls-ia-server-credentials-t">gnutls_ia_server_credentials_t</link> cred,
+                                                         <link linkend="void">void</link> *ptr);
+<link linkend="void">void</link>*               <link linkend="gnutls-ia-get-server-avp-ptr">gnutls_ia_get_server_avp_ptr</link>        (<link linkend="gnutls-ia-server-credentials-tcred">gnutls_ia_server_credentials_tcred</link> );
+<link linkend="int">int</link>                 <link linkend="gnutls-ia-handshake-p">gnutls_ia_handshake_p</link>               (<link linkend="gnutls-session-t">gnutls_session_t</link> session);
+<link linkend="int">int</link>                 <link linkend="gnutls-ia-handshake">gnutls_ia_handshake</link>                 (<link linkend="gnutls-session-t">gnutls_session_t</link> session);
+<link linkend="int">int</link>                 <link linkend="gnutls-ia-permute-inner-secret">gnutls_ia_permute_inner_secret</link>      (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="size-t">size_t</link> session_keys_size,
+                                                         const <link linkend="char">char</link> *session_keys);
+<link linkend="int">int</link>                 <link linkend="gnutls-ia-endphase-send">gnutls_ia_endphase_send</link>             (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="int">int</link> final_p);
+<link linkend="int">int</link>                 <link linkend="gnutls-ia-verify-endphase">gnutls_ia_verify_endphase</link>           (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         const <link linkend="char">char</link> *checksum);
+<link linkend="ssize-t">ssize_t</link>             <link linkend="gnutls-ia-send">gnutls_ia_send</link>                      (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         const <link linkend="char">char</link> *data,
+                                                         <link linkend="size-t">size_t</link> sizeofdata);
+<link linkend="ssize-t">ssize_t</link>             <link linkend="gnutls-ia-recv">gnutls_ia_recv</link>                      (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="char">char</link> *data,
+                                                         <link linkend="size-t">size_t</link> sizeofdata);
+<link linkend="int">int</link>                 <link linkend="gnutls-ia-generate-challenge">gnutls_ia_generate_challenge</link>        (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="size-t">size_t</link> buffer_size,
+                                                         <link linkend="char">char</link> *buffer);
+<link linkend="void">void</link>                <link linkend="gnutls-ia-extract-inner-secret">gnutls_ia_extract_inner_secret</link>      (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="char">char</link> *buffer);
+<link linkend="void">void</link>                <link linkend="gnutls-ia-enable">gnutls_ia_enable</link>                    (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="int">int</link> allow_skip_on_resume);
+<link linkend="int">int</link>                 <link linkend="gnutls-global-init-extra">gnutls_global_init_extra</link>            (void);
+const <link linkend="char">char</link>*         <link linkend="gnutls-extra-check-version">gnutls_extra_check_version</link>          (const <link linkend="char">char</link> *req_version);
+</synopsis>
+</refsynopsisdiv>
+
+
+
+
+
+
+
+
+
+<refsect1 role="desc">
+<title role="desc.title">Description</title>
+<para>
+
+</para>
+</refsect1>
+
+<refsect1 role="details">
+<title role="details.title">Details</title>
+<refsect2>
+<title><anchor id="LIBGNUTLS-EXTRA-VERSION:CAPS" role="macro"/>LIBGNUTLS_EXTRA_VERSION</title>
+<indexterm><primary>LIBGNUTLS_EXTRA_VERSION</primary></indexterm><programlisting>#define             LIBGNUTLS_EXTRA_VERSION</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="gnutls-openpgp-crt-fmt-t" role="enum"/>enum gnutls_openpgp_crt_fmt_t</title>
+<indexterm><primary>gnutls_openpgp_crt_fmt_t</primary></indexterm><programlisting>  typedef enum gnutls_openpgp_crt_fmt
+  { GNUTLS_OPENPGP_FMT_RAW,
+    GNUTLS_OPENPGP_FMT_BASE64
+  } gnutls_openpgp_crt_fmt_t;
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="gnutls-openpgp-recv-key-func" role="function"/>gnutls_openpgp_recv_key_func ()</title>
+<indexterm><primary>gnutls_openpgp_recv_key_func</primary></indexterm><programlisting><link linkend="int">int</link>                 (*gnutls_openpgp_recv_key_func)     (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         unsigned <link linkend="char">char</link> *keyfpr,
+                                                         unsigned <link linkend="int">int</link> keyfpr_length,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *key);</programlisting>
+<para>
+A callback of this type is used to retrieve OpenPGP keys.  Only
+useful on the server, and will only be used if the peer send a key
+fingerprint instead of a full key.  See also
+<link linkend="gnutls-openpgp-set-recv-key-function"><function>gnutls_openpgp_set_recv_key_function()</function></link>.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>keyfpr</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>keyfpr_length</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>key</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-openpgp-set-recv-key-function" role="function"/>gnutls_openpgp_set_recv_key_function ()</title>
+<indexterm><primary>gnutls_openpgp_set_recv_key_function</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_openpgp_set_recv_key_function
+                                                        (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="gnutls-openpgp-recv-key-funcfunc">gnutls_openpgp_recv_key_funcfunc</link> );</programlisting>
+<para>
+This funtion will set a key retrieval function for OpenPGP keys. This
+callback is only useful in server side, and will be used if the peer
+sent a key fingerprint instead of a full key.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>Param2</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-certificate-set-openpgp-key-file" role="function"/>gnutls_certificate_set_openpgp_key_file ()</title>
+<indexterm><primary>gnutls_certificate_set_openpgp_key_file</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_certificate_set_openpgp_key_file
+                                                        (<link linkend="gnutls-certificate-credentials-tres">gnutls_certificate_credentials_tres</link> ,
+                                                         const <link linkend="char">char</link> *CERTFILE,
+                                                         const <link linkend="char">char</link> *KEYFILE,
+                                                         <link linkend="gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</link> );</programlisting>
+<para>
+This funtion is used to load OpenPGP keys into the GnuTLS credentials structure.
+It doesn't matter whether the keys are armored or not, but the files
+should only contain one key which should not be encrypted.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>Param1</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>CERTFILE</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>KEYFILE</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>Param4</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-certificate-set-openpgp-key-mem" role="function"/>gnutls_certificate_set_openpgp_key_mem ()</title>
+<indexterm><primary>gnutls_certificate_set_openpgp_key_mem</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_certificate_set_openpgp_key_mem
+                                                        (<link linkend="gnutls-certificate-credentials-tres">gnutls_certificate_credentials_tres</link> ,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *CERT,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *KEY,
+                                                         <link linkend="gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</link> );</programlisting>
+<para>
+This funtion is used to load OpenPGP keys into the GnuTLS credential 
+structure.
+It doesn't matter whether the keys are armored or not, but the files
+should only contain one key which should not be encrypted.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>Param1</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>CERT</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>KEY</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>Param4</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-certificate-set-openpgp-keyring-mem" role="function"/>gnutls_certificate_set_openpgp_keyring_mem ()</title>
+<indexterm><primary>gnutls_certificate_set_openpgp_keyring_mem</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_certificate_set_openpgp_keyring_mem
+                                                        (<link linkend="gnutls-certificate-credentials-t">gnutls_certificate_credentials_t</link> c,
+                                                         unsigned <link linkend="char">char</link> *data,
+                                                         <link linkend="size-t">size_t</link> dlen,
+                                                         <link linkend="gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</link> );</programlisting>
+<para>
+The function is used to set keyrings that will be used internally
+by various OpenPGP functions. For example to find a key when it
+is needed for an operations. The keyring will also be used at the
+verification functions.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>c</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>dlen</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>Param4</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-certificate-set-openpgp-keyring-file" role="function"/>gnutls_certificate_set_openpgp_keyring_file ()</title>
+<indexterm><primary>gnutls_certificate_set_openpgp_keyring_file</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_certificate_set_openpgp_keyring_file
+                                                        (<link linkend="gnutls-certificate-credentials-t">gnutls_certificate_credentials_t</link> c,
+                                                         const <link linkend="char">char</link> *file,
+                                                         <link linkend="gnutls-openpgp-crt-fmt-t">gnutls_openpgp_crt_fmt_t</link> );</programlisting>
+<para>
+The function is used to set keyrings that will be used internally
+by various OpenPGP functions. For example to find a key when it
+is needed for an operations. The keyring will also be used at the
+verification functions.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>c</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>file</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>Param3</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-apptype-t" role="enum"/>enum gnutls_ia_apptype_t</title>
+<indexterm><primary>gnutls_ia_apptype_t</primary></indexterm><programlisting>  typedef enum
+  {
+    GNUTLS_IA_APPLICATION_PAYLOAD = 0,
+    GNUTLS_IA_INTERMEDIATE_PHASE_FINISHED = 1,
+    GNUTLS_IA_FINAL_PHASE_FINISHED = 2
+  } gnutls_ia_apptype_t;
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-avp-func" role="function"/>gnutls_ia_avp_func ()</title>
+<indexterm><primary>gnutls_ia_avp_func</primary></indexterm><programlisting><link linkend="int">int</link>                 (*gnutls_ia_avp_func)               (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="void">void</link> *ptr,
+                                                         const <link linkend="char">char</link> *last,
+                                                         <link linkend="size-t">size_t</link> lastlen,
+                                                         <link linkend="char">char</link> **next,
+                                                         <link linkend="size-t">size_t</link> *nextlen);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>ptr</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>last</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>lastlen</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>next</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>nextlen</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-free-client-credentials" role="function"/>gnutls_ia_free_client_credentials ()</title>
+<indexterm><primary>gnutls_ia_free_client_credentials</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_ia_free_client_credentials   (<link linkend="gnutls-ia-client-credentials-t">gnutls_ia_client_credentials_t</link> sc);</programlisting>
+<para>
+This structure is complex enough to manipulate directly thus this
+helper function is provided in order to free (deallocate) it.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>sc</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-allocate-client-credentials" role="function"/>gnutls_ia_allocate_client_credentials ()</title>
+<indexterm><primary>gnutls_ia_allocate_client_credentials</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_ia_allocate_client_credentials
+                                                        (<link linkend="gnutls-ia-client-credentials-t">gnutls_ia_client_credentials_t</link> *sc);</programlisting>
+<para>
+This structure is complex enough to manipulate directly thus this
+helper function is provided in order to allocate it.
+</para>
+<para>
+Adding this credential to a session will enable TLS/IA, and will
+require an Application Phase after the TLS handshake (if the server
+support TLS/IA).  Use <link linkend="gnutls-ia-require-inner-phase"><function>gnutls_ia_require_inner_phase()</function></link> to toggle the
+TLS/IA mode.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>sc</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-free-server-credentials" role="function"/>gnutls_ia_free_server_credentials ()</title>
+<indexterm><primary>gnutls_ia_free_server_credentials</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_ia_free_server_credentials   (<link linkend="gnutls-ia-server-credentials-t">gnutls_ia_server_credentials_t</link> sc);</programlisting>
+<para>
+This structure is complex enough to manipulate directly thus this
+helper function is provided in order to free (deallocate) it.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>sc</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-allocate-server-credentials" role="function"/>gnutls_ia_allocate_server_credentials ()</title>
+<indexterm><primary>gnutls_ia_allocate_server_credentials</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_ia_allocate_server_credentials
+                                                        (<link linkend="gnutls-ia-server-credentials-t">gnutls_ia_server_credentials_t</link> *sc);</programlisting>
+<para>
+This structure is complex enough to manipulate directly thus this
+helper function is provided in order to allocate it.
+</para>
+<para>
+Adding this credential to a session will enable TLS/IA, and will
+require an Application Phase after the TLS handshake (if the client
+support TLS/IA).  Use <link linkend="gnutls-ia-require-inner-phase"><function>gnutls_ia_require_inner_phase()</function></link> to toggle the
+TLS/IA mode.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>sc</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-set-client-avp-function" role="function"/>gnutls_ia_set_client_avp_function ()</title>
+<indexterm><primary>gnutls_ia_set_client_avp_function</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_ia_set_client_avp_function   (<link linkend="gnutls-ia-client-credentials-t">gnutls_ia_client_credentials_t</link> cred,
+                                                         <link linkend="gnutls-ia-avp-func">gnutls_ia_avp_func</link> avp_func);</programlisting>
+<para>
+Set the TLS/IA AVP callback handler used for the session.
+</para>
+<para>
+The AVP callback is called to process AVPs received from the
+server, and to get a new AVP to send to the server.
+</para>
+<para>
+The callback's function form is:
+int (*avp_func) (gnutls_session_t session, void *ptr,
+                 const char *last, size_t lastlen,
+                 char **next, size_t *nextlen);
+</para>
+<para>
+The <parameter>session</parameter> parameter is the <link linkend="gnutls-session-t"><type>gnutls_session_t</type></link> structure
+corresponding to the current session.  The <parameter>ptr</parameter> parameter is the
+application hook pointer, set through
+<link linkend="gnutls-ia-set-client-avp-ptr"><function>gnutls_ia_set_client_avp_ptr()</function></link>.  The AVP received from the server
+is present in <parameter>last</parameter> of <parameter>lastlen</parameter> size, which will be <link linkend="NULL:CAPS"><literal>NULL</literal></link> on the
+first invocation.  The newly allocated output AVP to send to the
+server should be placed in *<parameter>next</parameter> of *<parameter>nextlen</parameter> size.
+</para>
+<para>
+The callback may invoke <link linkend="gnutls-ia-permute-inner-secret"><function>gnutls_ia_permute_inner_secret()</function></link> to mix any
+generated session keys with the TLS/IA inner secret.
+</para>
+<para>
+Return 0 (<link linkend="GNUTLS-IA-APPLICATION-PAYLOAD:CAPS"><literal>GNUTLS_IA_APPLICATION_PAYLOAD</literal></link>) on success, or a negative
+error code to abort the TLS/IA handshake.
+</para>
+<para>
+Note that the callback must use allocate the <parameter>next</parameter> parameter using
+<link linkend="gnutls-malloc"><function>gnutls_malloc()</function></link>, because it is released via <link linkend="gnutls-free"><function>gnutls_free()</function></link> by the
+TLS/IA handshake function.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cred</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>avp_func</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-set-client-avp-ptr" role="function"/>gnutls_ia_set_client_avp_ptr ()</title>
+<indexterm><primary>gnutls_ia_set_client_avp_ptr</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_ia_set_client_avp_ptr        (<link linkend="gnutls-ia-client-credentials-t">gnutls_ia_client_credentials_t</link> cred,
+                                                         <link linkend="void">void</link> *ptr);</programlisting>
+<para>
+Sets the pointer that will be provided to the TLS/IA callback
+function as the first argument.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cred</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>ptr</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-get-client-avp-ptr" role="function"/>gnutls_ia_get_client_avp_ptr ()</title>
+<indexterm><primary>gnutls_ia_get_client_avp_ptr</primary></indexterm><programlisting><link linkend="void">void</link>*               gnutls_ia_get_client_avp_ptr        (<link linkend="gnutls-ia-client-credentials-tcred">gnutls_ia_client_credentials_tcred</link> );</programlisting>
+<para>
+</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>Param1</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-set-server-avp-function" role="function"/>gnutls_ia_set_server_avp_function ()</title>
+<indexterm><primary>gnutls_ia_set_server_avp_function</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_ia_set_server_avp_function   (<link linkend="gnutls-ia-server-credentials-t">gnutls_ia_server_credentials_t</link> cred,
+                                                         <link linkend="gnutls-ia-avp-func">gnutls_ia_avp_func</link> avp_func);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cred</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>avp_func</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-set-server-avp-ptr" role="function"/>gnutls_ia_set_server_avp_ptr ()</title>
+<indexterm><primary>gnutls_ia_set_server_avp_ptr</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_ia_set_server_avp_ptr        (<link linkend="gnutls-ia-server-credentials-t">gnutls_ia_server_credentials_t</link> cred,
+                                                         <link linkend="void">void</link> *ptr);</programlisting>
+<para>
+Sets the pointer that will be provided to the TLS/IA callback
+function as the first argument.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cred</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>ptr</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-get-server-avp-ptr" role="function"/>gnutls_ia_get_server_avp_ptr ()</title>
+<indexterm><primary>gnutls_ia_get_server_avp_ptr</primary></indexterm><programlisting><link linkend="void">void</link>*               gnutls_ia_get_server_avp_ptr        (<link linkend="gnutls-ia-server-credentials-tcred">gnutls_ia_server_credentials_tcred</link> );</programlisting>
+<para>
+</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>Param1</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-handshake-p" role="function"/>gnutls_ia_handshake_p ()</title>
+<indexterm><primary>gnutls_ia_handshake_p</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_ia_handshake_p               (<link linkend="gnutls-session-t">gnutls_session_t</link> session);</programlisting>
+<para>
+Predicate to be used after <link linkend="gnutls-handshake"><function>gnutls_handshake()</function></link> to decide whether to
+invoke <link linkend="gnutls-ia-handshake"><function>gnutls_ia_handshake()</function></link>.  Usable by both clients and servers.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-handshake" role="function"/>gnutls_ia_handshake ()</title>
+<indexterm><primary>gnutls_ia_handshake</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_ia_handshake                 (<link linkend="gnutls-session-t">gnutls_session_t</link> session);</programlisting>
+<para>
+Perform a TLS/IA handshake.  This should be called after
+<link linkend="gnutls-handshake"><function>gnutls_handshake()</function></link> iff <link linkend="gnutls-ia-handshake-p"><function>gnutls_ia_handshake_p()</function></link>.
+</para>
+<para>
+Return 0 on success, or an error code.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-permute-inner-secret" role="function"/>gnutls_ia_permute_inner_secret ()</title>
+<indexterm><primary>gnutls_ia_permute_inner_secret</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_ia_permute_inner_secret      (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="size-t">size_t</link> session_keys_size,
+                                                         const <link linkend="char">char</link> *session_keys);</programlisting>
+<para>
+Permute the inner secret using the generated session keys.
+</para>
+<para>
+This can be called in the TLS/IA AVP callback to mix any generated
+session keys with the TLS/IA inner secret.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>session_keys_size</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>session_keys</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-endphase-send" role="function"/>gnutls_ia_endphase_send ()</title>
+<indexterm><primary>gnutls_ia_endphase_send</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_ia_endphase_send             (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="int">int</link> final_p);</programlisting>
+<para>
+Send a TLS/IA end phase message.
+</para>
+<para>
+In the client, this should only be used to acknowledge an end phase
+message sent by the server.
+</para>
+<para>
+In the server, this can be called instead of <link linkend="gnutls-ia-send"><function>gnutls_ia_send()</function></link> if
+the server wishes to end an application phase.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>final_p</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-verify-endphase" role="function"/>gnutls_ia_verify_endphase ()</title>
+<indexterm><primary>gnutls_ia_verify_endphase</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_ia_verify_endphase           (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         const <link linkend="char">char</link> *checksum);</programlisting>
+<para>
+Verify TLS/IA end phase checksum data.  If verification fails, the
+<link linkend="GNUTLS-A-INNER-APPLICATION-VERIFICATION:CAPS"><literal>GNUTLS_A_INNER_APPLICATION_VERIFICATION</literal></link> alert is sent to the other
+sie.
+</para>
+<para>
+This function is called when <link linkend="gnutls-ia-recv"><function>gnutls_ia_recv()</function></link> return
+<link linkend="GNUTLS-E-WARNING-IA-IPHF-RECEIVED:CAPS"><literal>GNUTLS_E_WARNING_IA_IPHF_RECEIVED</literal></link> or
+<link linkend="GNUTLS-E-WARNING-IA-FPHF-RECEIVED:CAPS"><literal>GNUTLS_E_WARNING_IA_FPHF_RECEIVED</literal></link>.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>checksum</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-send" role="function"/>gnutls_ia_send ()</title>
+<indexterm><primary>gnutls_ia_send</primary></indexterm><programlisting><link linkend="ssize-t">ssize_t</link>             gnutls_ia_send                      (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         const <link linkend="char">char</link> *data,
+                                                         <link linkend="size-t">size_t</link> sizeofdata);</programlisting>
+<para>
+Send TLS/IA application payload data.  This function has the
+similar semantics with <link linkend="send"><function>send()</function></link>. The only difference is that is
+accepts a GNUTLS session, and uses different error codes.
+</para>
+<para>
+The TLS/IA protocol is synchronous, so you cannot send more than
+one packet at a time.  The client always send the first packet.
+</para>
+<para>
+To finish an application phase in the server, use
+<link linkend="gnutls-ia-endphase-send"><function>gnutls_ia_endphase_send()</function></link>.  The client cannot end an application
+phase unilaterally; rather, a client is required to respond with an
+endphase of its own if gnutls_ia_recv indicates that the server has
+sent one.
+</para>
+<para>
+If the EINTR is returned by the internal push function (the default
+is <link linkend="send"><function>send()</function></link>} then <link linkend="GNUTLS-E-INTERRUPTED:CAPS"><literal>GNUTLS_E_INTERRUPTED</literal></link> will be returned.  If
+<link linkend="GNUTLS-E-INTERRUPTED:CAPS"><literal>GNUTLS_E_INTERRUPTED</literal></link> or <link linkend="GNUTLS-E-AGAIN:CAPS"><literal>GNUTLS_E_AGAIN</literal></link> is returned, you must call
+this function again, with the same parameters; alternatively you
+could provide a <link linkend="NULL:CAPS"><literal>NULL</literal></link> pointer for data, and 0 for size.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>sizeofdata</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-recv" role="function"/>gnutls_ia_recv ()</title>
+<indexterm><primary>gnutls_ia_recv</primary></indexterm><programlisting><link linkend="ssize-t">ssize_t</link>             gnutls_ia_recv                      (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="char">char</link> *data,
+                                                         <link linkend="size-t">size_t</link> sizeofdata);</programlisting>
+<para>
+Receive TLS/IA data.  This function has the similar semantics with
+<link linkend="recv"><function>recv()</function></link>. The only difference is that is accepts a GNUTLS session,
+and uses different error codes.
+</para>
+<para>
+If the server attempt to finish an application phase, this function
+will return <link linkend="GNUTLS-E-WARNING-IA-IPHF-RECEIVED:CAPS"><literal>GNUTLS_E_WARNING_IA_IPHF_RECEIVED</literal></link> or
+<link linkend="GNUTLS-E-WARNING-IA-FPHF-RECEIVED:CAPS"><literal>GNUTLS_E_WARNING_IA_FPHF_RECEIVED</literal></link>.  The caller should then invoke
+<link linkend="gnutls-ia-verify-endphase"><function>gnutls_ia_verify_endphase()</function></link>, and if it runs the client side, also
+send an endphase message of its own using gnutls_ia_endphase_send.
+</para>
+<para>
+If EINTR is returned by the internal push function (the default is
+<parameter>code</parameter>{<link linkend="recv"><function>recv()</function></link>}) then GNUTLS_E_INTERRUPTED will be returned.  If
+GNUTLS_E_INTERRUPTED or GNUTLS_E_AGAIN is returned, you must call
+this function again, with the same parameters; alternatively you
+could provide a NULL pointer for data, and 0 for size.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>sizeofdata</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-generate-challenge" role="function"/>gnutls_ia_generate_challenge ()</title>
+<indexterm><primary>gnutls_ia_generate_challenge</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_ia_generate_challenge        (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="size-t">size_t</link> buffer_size,
+                                                         <link linkend="char">char</link> *buffer);</programlisting>
+<para>
+Generate an application challenge that the client cannot control or
+predict, based on the TLS/IA inner secret.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buffer_size</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buffer</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-extract-inner-secret" role="function"/>gnutls_ia_extract_inner_secret ()</title>
+<indexterm><primary>gnutls_ia_extract_inner_secret</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_ia_extract_inner_secret      (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="char">char</link> *buffer);</programlisting>
+<para>
+Copy the 48 bytes large inner secret into the specified buffer
+</para>
+<para>
+This function is typically used after the TLS/IA handshake has
+concluded.  The TLS/IA inner secret can be used as input to a PRF
+to derive session keys.  Do not use the inner secret directly as a
+session key, because for a resumed session that does not include an
+application phase, the inner secret will be identical to the inner
+secret in the original session.  It is important to include, for
+example, the client and server randomness when deriving a sesssion
+key from the inner secret.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buffer</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-ia-enable" role="function"/>gnutls_ia_enable ()</title>
+<indexterm><primary>gnutls_ia_enable</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_ia_enable                    (<link linkend="gnutls-session-t">gnutls_session_t</link> session,
+                                                         <link linkend="int">int</link> allow_skip_on_resume);</programlisting>
+<para>
+Specify whether we must advertise support for the TLS/IA extension
+during the handshake.
+</para>
+<para>
+At the client side, we always advertise TLS/IA if gnutls_ia_enable
+was called before the handshake; at the server side, we also
+require that the client has advertised that it wants to run TLS/IA
+before including the advertisement, as required by the protocol.
+</para>
+<para>
+Similarly, at the client side we always advertise that we allow
+TLS/IA to be skipped for resumed sessions if <parameter>allow_skip_on_resume</parameter>
+is non-zero; at the server side, we also require that the session
+is indeed resumable and that the client has also advertised that it
+allows TLS/IA to be skipped for resumed sessions.
+</para>
+<para>
+After the TLS handshake, call <link linkend="gnutls-ia-handshake-p"><function>gnutls_ia_handshake_p()</function></link> to find out
+whether both parties agreed to do a TLS/IA handshake, before
+calling <link linkend="gnutls-ia-handshake"><function>gnutls_ia_handshake()</function></link> or one of the lower level gnutls_ia_*
+functions.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>session</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>allow_skip_on_resume</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-global-init-extra" role="function"/>gnutls_global_init_extra ()</title>
+<indexterm><primary>gnutls_global_init_extra</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_global_init_extra            (void);</programlisting>
+<para>
+This function initializes the global state of gnutls-extra library
+to defaults.  Returns zero on success.
+</para>
+<para>
+Note that <link linkend="gnutls-global-init"><function>gnutls_global_init()</function></link> has to be called before this
+function.  If this function is not called then the gnutls-extra
+library will not be usable.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-extra-check-version" role="function"/>gnutls_extra_check_version ()</title>
+<indexterm><primary>gnutls_extra_check_version</primary></indexterm><programlisting>const <link linkend="char">char</link>*         gnutls_extra_check_version          (const <link linkend="char">char</link> *req_version);</programlisting>
+<para>
+Check that the version of the gnutls-extra library is at minimum
+the requested one and return the version string; return NULL if the
+condition is not satisfied.  If a NULL is passed to this function,
+no check is done, but the version string is simply returned.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>req_version</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+
+</refsect1>
+
+
+
+
+
+<refsect1><refsect2 /><refsect2 /></refsect1>
+</refentry>

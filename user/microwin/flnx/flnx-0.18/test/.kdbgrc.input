@@ -1,0 +1,23 @@
+# KDE Config File
+[Breakpoint 0]
+Enabled=true
+Temporary=false
+File=input.cxx
+Line=75
+[Breakpoint 1]
+Enabled=true
+Temporary=false
+File=Fl_x.cxx
+Line=468
+[Watches]
+Expr0=fl_key_vector
+Expr1=fl_key_vector[keycode/8]
+[Breakpoint 2]
+Enabled=true
+Temporary=false
+File=Fl_x.cxx
+Line=634
+[General]
+WorkingDirectory=
+FileVersion=1
+ProgramArgs=

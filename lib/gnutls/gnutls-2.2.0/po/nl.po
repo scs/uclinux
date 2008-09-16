@@ -1,0 +1,570 @@
+# Translation of gnutls-1.7.15 to Dutch.
+# Copyright (C) 2007 Free Software Foundation, Inc.
+# This file is distributed under the same license as the gnutls package.
+#
+# Benno Schulenberg <benno@vertaalt.nl>, 2007.
+msgid ""
+msgstr ""
+"Project-Id-Version: gnutls-1.7.15\n"
+"Report-Msgid-Bugs-To: bug-gnutls@gnu.org\n"
+"POT-Creation-Date: 2007-12-14 12:36+0100\n"
+"PO-Revision-Date: 2007-12-11 16:12+0100\n"
+"Last-Translator: Benno Schulenberg <benno@vertaalt.nl>\n"
+"Language-Team: Dutch <vertaling@vrijschrift.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Success."
+msgstr "Gelukt."
+
+msgid "Could not negotiate a supported cipher suite."
+msgstr "Kan geen gemeenschappelijke coderingsmethode overeenkomen."
+
+msgid "The cipher type is unsupported."
+msgstr "De coderingsmethode wordt niet ondersteund."
+
+msgid "The certificate and the given key do not match."
+msgstr "Het certificaat en de gegeven sleutel passen niet bij elkaar."
+
+msgid "Could not negotiate a supported compression method."
+msgstr "Kan geen gemeenschappelijke compressiemethode overeenkomen."
+
+msgid "An unknown public key algorithm was encountered."
+msgstr "Onbekend versleutelingsalgoritme gevonden."
+
+msgid "An algorithm that is not enabled was negotiated."
+msgstr "Er werd een uitgeschakeld algoritme overeengekomen."
+
+msgid "A large TLS record packet was received."
+msgstr ""
+
+msgid "A record packet with illegal version was received."
+msgstr ""
+
+msgid ""
+"The Diffie Hellman prime sent by the server is not acceptable (not long "
+"enough)."
+msgstr ""
+
+msgid "A TLS packet with unexpected length was received."
+msgstr ""
+
+msgid "The specified session has been invalidated for some reason."
+msgstr ""
+
+msgid "GnuTLS internal error."
+msgstr "**Interne fout** in GnuTLS."
+
+msgid "An illegal TLS extension was received."
+msgstr ""
+
+msgid "A TLS fatal alert has been received."
+msgstr ""
+
+msgid "An unexpected TLS packet was received."
+msgstr ""
+
+msgid "A TLS warning alert has been received."
+msgstr ""
+
+msgid "An error was encountered at the TLS Finished packet calculation."
+msgstr ""
+
+msgid "The peer did not send any certificate."
+msgstr ""
+
+msgid "No temporary RSA parameters were found."
+msgstr ""
+
+msgid "No temporary DH parameters were found."
+msgstr ""
+
+msgid "An unexpected TLS handshake packet was received."
+msgstr ""
+
+msgid "The scanning of a large integer has failed."
+msgstr ""
+
+msgid "Could not export a large integer."
+msgstr ""
+
+msgid "Decryption has failed."
+msgstr "Ontsleuteling is mislukt."
+
+msgid "Encryption has failed."
+msgstr "Versleuteling is mislukt."
+
+msgid "Public key decryption has failed."
+msgstr "Ontsleuteling met publieke sleutel is mislukt."
+
+msgid "Public key encryption has failed."
+msgstr "Versleuteling met publieke sleutel is mislukt."
+
+msgid "Public key signing has failed."
+msgstr "Ondertekenen met publieke sleutel is mislukt."
+
+msgid "Public key signature verification has failed."
+msgstr "Controle van ondertekening met publieke sleutel is mislukt."
+
+msgid "Decompression of the TLS record packet has failed."
+msgstr ""
+
+msgid "Compression of the TLS record packet has failed."
+msgstr ""
+
+msgid "Internal error in memory allocation."
+msgstr "**Interne fout** bij reserveren van geheugen."
+
+msgid "An unimplemented or disabled feature has been requested."
+msgstr ""
+
+msgid "Insufficient credentials for that request."
+msgstr ""
+
+msgid "Error in password file."
+msgstr "Fout in wachtwoordenbestand."
+
+msgid "Wrong padding in PKCS1 packet."
+msgstr "Onjuiste opvulbytes in PKCS1-pakket."
+
+msgid "The requested session has expired."
+msgstr "De gevraagde sessie is verlopen."
+
+msgid "Hashing has failed."
+msgstr "Hashen is mislukt."
+
+msgid "Base64 decoding error."
+msgstr "Base64-decoderingsfout."
+
+#, fuzzy
+msgid "Base64 unexpected header error."
+msgstr "Base64-decoderingsfout."
+
+msgid "Base64 encoding error."
+msgstr "Base64-coderingsfout."
+
+msgid "Parsing error in password file."
+msgstr "Fout in de indeling van wachtwoordenbestand."
+
+msgid "The requested data were not available."
+msgstr "De gevraagde gegevens zijn niet beschikbaar."
+
+msgid "Error in the pull function."
+msgstr "Fout in de 'pull'-functie."
+
+msgid "Error in the push function."
+msgstr "Fout in de 'push'-functie."
+
+msgid ""
+"The upper limit of record packet sequence numbers has been reached. Wow!"
+msgstr ""
+
+msgid "Error in the certificate."
+msgstr "Fout in het certificaat."
+
+msgid "Unknown Subject Alternative name in X.509 certificate."
+msgstr ""
+
+msgid "Unsupported critical extension in X.509 certificate."
+msgstr ""
+
+msgid "Key usage violation in certificate has been detected."
+msgstr ""
+
+msgid "Function was interrupted."
+msgstr "Functie werd onderbroken."
+
+msgid "Rehandshake was requested by the peer."
+msgstr ""
+
+msgid "TLS Application data were received, while expecting handshake data."
+msgstr ""
+
+msgid "Error in Database backend."
+msgstr ""
+
+msgid "The certificate type is not supported."
+msgstr "Het certificaattype wordt niet ondersteund."
+
+msgid "The given memory buffer is too short to hold parameters."
+msgstr "Beschikbare buffer is te klein voor de gegeven parameters."
+
+msgid "The request is invalid."
+msgstr "Het verzoek is ongeldig."
+
+msgid "An illegal parameter has been received."
+msgstr "Er werd een ongeoorloofde parameter ontvangen."
+
+msgid "Error while reading file."
+msgstr "Fout tijdens lezen van bestand."
+
+msgid "ASN1 parser: Element was not found."
+msgstr "ASN1-parser: Element niet gevonden."
+
+msgid "ASN1 parser: Identifier was not found"
+msgstr "ASN1-parser: Naam niet gevonden."
+
+msgid "ASN1 parser: Error in DER parsing."
+msgstr "ASN1-parser: Fout in ontleden van DER."
+
+msgid "ASN1 parser: Value was not found."
+msgstr "ASN1-parser: Waarde niet gevonden."
+
+msgid "ASN1 parser: Generic parsing error."
+msgstr "ASN1-parser: Algemene ontledingsfout."
+
+msgid "ASN1 parser: Value is not valid."
+msgstr "ASN1-parser: Waarde is ongeldig."
+
+msgid "ASN1 parser: Error in TAG."
+msgstr "ASN1-parser: Fout in TAG."
+
+msgid "ASN1 parser: error in implicit tag"
+msgstr "ASN1-parser: Fout in impliete tag."
+
+msgid "ASN1 parser: Error in type 'ANY'."
+msgstr "ASN1-parser: Fout in type 'ANY'."
+
+msgid "ASN1 parser: Syntax error."
+msgstr "ASN1-parser: Syntaxfout."
+
+msgid "ASN1 parser: Overflow in DER parsing."
+msgstr "ASN1-parser: Overloop in DER-ontleding."
+
+msgid "Too many empty record packets have been received."
+msgstr ""
+
+msgid "The initialization of GnuTLS-extra has failed."
+msgstr ""
+
+msgid ""
+"The GnuTLS library version does not match the GnuTLS-extra library version."
+msgstr ""
+
+msgid "The gcrypt library version is too old."
+msgstr ""
+
+msgid "The tasn1 library version is too old."
+msgstr ""
+
+msgid "Error loading the keyring."
+msgstr ""
+
+msgid "The initialization of LZO has failed."
+msgstr ""
+
+msgid "No supported compression algorithms have been found."
+msgstr ""
+
+msgid "No supported cipher suites have been found."
+msgstr ""
+
+msgid "Could not get OpenPGP key."
+msgstr ""
+
+msgid "The SRP username supplied is illegal."
+msgstr ""
+
+msgid "The OpenPGP fingerprint is not supported."
+msgstr ""
+
+msgid "The certificate has unsupported attributes."
+msgstr ""
+
+msgid "The OID is not supported."
+msgstr ""
+
+msgid "The hash algorithm is unknown."
+msgstr "Onbekend hash-algoritme."
+
+msgid "The PKCS structure's content type is unknown."
+msgstr ""
+
+msgid "The PKCS structure's bag type is unknown."
+msgstr ""
+
+msgid "The given password contains invalid characters."
+msgstr "Het opgegeven wachtwoord bevat ongeldige tekens."
+
+msgid "The Message Authentication Code verification failed."
+msgstr ""
+
+msgid "Some constraint limits were reached."
+msgstr ""
+
+msgid "Failed to acquire random data."
+msgstr "Kan geen willekeurige bits verkrijgen."
+
+msgid "Received a TLS/IA Intermediate Phase Finished message"
+msgstr ""
+
+msgid "Received a TLS/IA Final Phase Finished message"
+msgstr ""
+
+msgid "Verifying TLS/IA phase checksum failed"
+msgstr ""
+
+#, fuzzy
+msgid "The specified algorithm or protocol is unknown."
+msgstr "Onbekend hash-algoritme."
+
+#, c-format
+msgid "\t\t\tPath Length Constraint: %d\n"
+msgstr ""
+
+#, c-format
+msgid "\t\t\tPolicy Language: %s"
+msgstr ""
+
+msgid ""
+"\t\t\tPolicy:\n"
+"\t\t\t\tASCII: "
+msgstr ""
+
+msgid ""
+"\n"
+"\t\t\t\tHexdump: "
+msgstr ""
+
+msgid "\t\t\tDigital signature.\n"
+msgstr ""
+
+msgid "\t\t\tNon repudiation.\n"
+msgstr ""
+
+msgid "\t\t\tKey encipherment.\n"
+msgstr ""
+
+msgid "\t\t\tData encipherment.\n"
+msgstr ""
+
+msgid "\t\t\tKey agreement.\n"
+msgstr ""
+
+msgid "\t\t\tCertificate signing.\n"
+msgstr ""
+
+msgid "\t\t\tCRL signing.\n"
+msgstr ""
+
+msgid "\t\t\tKey encipher only.\n"
+msgstr ""
+
+msgid "\t\t\tKey decipher only.\n"
+msgstr ""
+
+msgid "\t\t\tTLS WWW Server.\n"
+msgstr ""
+
+msgid "\t\t\tTLS WWW Client.\n"
+msgstr ""
+
+msgid "\t\t\tCode signing.\n"
+msgstr ""
+
+msgid "\t\t\tEmail protection.\n"
+msgstr ""
+
+msgid "\t\t\tTime stamping.\n"
+msgstr ""
+
+msgid "\t\t\tOCSP signing.\n"
+msgstr ""
+
+msgid "\t\t\tAny purpose.\n"
+msgstr ""
+
+msgid "\t\t\tCertificate Authority (CA): FALSE\n"
+msgstr ""
+
+msgid "\t\t\tCertificate Authority (CA): TRUE\n"
+msgstr ""
+
+#, c-format
+msgid "\t\t\tXMPP Address: %.*s\n"
+msgstr ""
+
+#, c-format
+msgid "\t\t\totherName OID: %.*s\n"
+msgstr ""
+
+msgid "\t\t\totherName DER: "
+msgstr ""
+
+msgid ""
+"\n"
+"\t\t\totherName ASCII: "
+msgstr ""
+
+#, c-format
+msgid "\tVersion: %d\n"
+msgstr "\tVersie: %d\n"
+
+msgid "\tSerial Number (hex): "
+msgstr "\tSerienummer (hex): "
+
+#, c-format
+msgid "\tIssuer: %s\n"
+msgstr "\tUitgever: %s\n"
+
+msgid "\tValidity:\n"
+msgstr "\tGeldigheid:\n"
+
+#, c-format
+msgid "\t\tNot Before: %s\n"
+msgstr "\t\tNiet vóór: %s\n"
+
+#, c-format
+msgid "\t\tNot After: %s\n"
+msgstr "\t\tNiet na: %s\n"
+
+#, c-format
+msgid "\tSubject: %s\n"
+msgstr "\tOnderwerp: %s\n"
+
+#, c-format
+msgid "\tSubject Public Key Algorithm: %s\n"
+msgstr ""
+
+#, c-format
+msgid "\t\tModulus (bits %d):\n"
+msgstr "\t\tModulus (bits %d):\n"
+
+msgid "\t\tExponent:\n"
+msgstr "\t\tExponent:\n"
+
+#, c-format
+msgid "\t\tPublic key (bits %d):\n"
+msgstr "\t\tPublieke sleutel (bits %d):\n"
+
+msgid "\t\tP:\n"
+msgstr "\t\tP:\n"
+
+msgid "\t\tQ:\n"
+msgstr "\t\tQ:\n"
+
+msgid "\t\tG:\n"
+msgstr "\t\tG:\n"
+
+msgid "\tExtensions:\n"
+msgstr "\tExtensies:\n"
+
+#, c-format
+msgid "\t\tBasic Constraints (%s):\n"
+msgstr ""
+
+msgid "critical"
+msgstr "kritiek"
+
+msgid "not critical"
+msgstr "niet kritiek"
+
+#, c-format
+msgid "\t\tSubject Key Identifier (%s):\n"
+msgstr ""
+
+#, c-format
+msgid "\t\tAuthority Key Identifier (%s):\n"
+msgstr ""
+
+#, c-format
+msgid "\t\tKey Usage (%s):\n"
+msgstr "\t\tGebruik van sleutel (%s):\n"
+
+#, c-format
+msgid "\t\tKey Purpose (%s):\n"
+msgstr "\t\tDoel van sleutel (%s):\n"
+
+#, c-format
+msgid "\t\tSubject Alternative Name (%s):\n"
+msgstr ""
+
+#, c-format
+msgid "\t\tCRL Distribution points (%s):\n"
+msgstr ""
+
+#, c-format
+msgid "\t\tProxy Certificate Information (%s):\n"
+msgstr "\t\tInformatie over proxy-certificaat (%s):\n"
+
+#, c-format
+msgid "\t\tUnknown extension %s (%s):\n"
+msgstr "\t\tOnbekende extensie %s (%s):\n"
+
+msgid "\t\t\tASCII: "
+msgstr "\t\t\tASCII: "
+
+msgid "\t\t\tHexdump: "
+msgstr "\t\t\tHexdump: "
+
+#, c-format
+msgid "\tSignature Algorithm: %s\n"
+msgstr "\tOndertekeningsalgoritme: %s\n"
+
+msgid ""
+"warning: signed using a broken signature algorithm that can be forged.\n"
+msgstr "Waarschuwing: ondertekend met een algoritme dat vervalst kan worden.\n"
+
+msgid "\tSignature:\n"
+msgstr "\tOndertekening:\n"
+
+msgid ""
+"\tMD5 fingerprint:\n"
+"\t\t"
+msgstr ""
+"\tMD5-vingerafdruk:\n"
+"\t\t"
+
+msgid ""
+"\tSHA-1 fingerprint:\n"
+"\t\t"
+msgstr ""
+"\tSHA-1-vingerafdruk:\n"
+"\t\t"
+
+msgid ""
+"\tPublic Key Id:\n"
+"\t\t"
+msgstr ""
+"\tID van publieke sleutel:\n"
+"\t\t"
+
+msgid "X.509 Certificate Information:\n"
+msgstr "Informatie over X.509-certificaten:\n"
+
+msgid "Other Information:\n"
+msgstr "Andere informatie:\n"
+
+msgid "\tVersion: 1 (default)\n"
+msgstr "\tVersie: 1 (standaard)\n"
+
+msgid "\tUpdate dates:\n"
+msgstr "\tBijwerkingsdata:\n"
+
+#, c-format
+msgid "\t\tIssued: %s\n"
+msgstr "\t\tUitgegeven: %s\n"
+
+#, c-format
+msgid "\t\tNext at: %s\n"
+msgstr "\t\tVolgende op: %s\n"
+
+#, c-format
+msgid "\tRevoked certificates (%d):\n"
+msgstr "\tIngetrokken certificaten (%d):\n"
+
+msgid "\tNo revoked certificates.\n"
+msgstr "\tGeen ingetrokken certificaten.\n"
+
+msgid "\t\tSerial Number (hex): "
+msgstr "\t\tSerienummer (hex): "
+
+#, c-format
+msgid "\t\tRevoked at: %s\n"
+msgstr "\t\tIngetrokken op: %s\n"
+
+msgid "X.509 Certificate Revocation List Information:\n"
+msgstr "Informatie over ingetrokken X.509-certificaten:\n"

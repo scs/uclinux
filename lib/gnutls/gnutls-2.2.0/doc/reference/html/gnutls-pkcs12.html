@@ -1,0 +1,419 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>pkcs12</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.73.2">
+<link rel="start" href="index.html" title="GNU TLS API Reference Manual">
+<link rel="up" href="ch01.html" title="GNU TLS API Reference Manual">
+<link rel="prev" href="gnutls-x509.html" title="x509">
+<link rel="next" href="gnutls-openpgp.html" title="openpgp">
+<meta name="generator" content="GTK-Doc V1.9 (XML mode)">
+<link rel="stylesheet" href="style.css" type="text/css">
+<link rel="chapter" href="ch01.html" title="GNU TLS API Reference Manual">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table class="navigation" id="top" width="100%" summary="Navigation header" cellpadding="2" cellspacing="2">
+<tr valign="middle">
+<td><a accesskey="p" href="gnutls-x509.html"><img src="left.png" width="24" height="24" border="0" alt="Prev"></a></td>
+<td><a accesskey="u" href="ch01.html"><img src="up.png" width="24" height="24" border="0" alt="Up"></a></td>
+<td><a accesskey="h" href="index.html"><img src="home.png" width="24" height="24" border="0" alt="Home"></a></td>
+<th width="100%" align="center">GNU TLS API Reference Manual</th>
+<td><a accesskey="n" href="gnutls-openpgp.html"><img src="right.png" width="24" height="24" border="0" alt="Next"></a></td>
+</tr>
+<tr><td colspan="5" class="shortcuts"><nobr><a href="#id2532675" class="shortcut">Top</a>
+                  &#160;|&#160;
+                  <a href="#id2614769" class="shortcut">Description</a></nobr></td></tr>
+</table>
+<div class="refentry" lang="en">
+<a name="gnutls-pkcs12"></a><div class="titlepage"></div>
+<div class="refnamediv"><table width="100%"><tr>
+<td valign="top">
+<h2>
+<a name="id2532675"></a><span class="refentrytitle">pkcs12</span>
+</h2>
+<p>pkcs12</p>
+</td>
+<td valign="top" align="right"></td>
+</tr></table></div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<pre class="synopsis">
+
+
+
+enum                <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-type-t">gnutls_pkcs12_bag_type_t</a>;
+#define             <a class="link" href="gnutls-pkcs12.html#MAX-BAG-ELEMENTS:CAPS">MAX_BAG_ELEMENTS</a>
+#define             <a class="link" href="gnutls-pkcs12.html#BAG-PKCS8-KEY:CAPS">BAG_PKCS8_KEY</a>
+#define             <a class="link" href="gnutls-pkcs12.html#BAG-PKCS8-ENCRYPTED-KEY:CAPS">BAG_PKCS8_ENCRYPTED_KEY</a>
+#define             <a class="link" href="gnutls-pkcs12.html#BAG-CERTIFICATE:CAPS">BAG_CERTIFICATE</a>
+#define             <a class="link" href="gnutls-pkcs12.html#BAG-CRL:CAPS">BAG_CRL</a>
+#define             <a class="link" href="gnutls-pkcs12.html#DATA-OID:CAPS">DATA_OID</a>
+#define             <a class="link" href="gnutls-pkcs12.html#ENC-DATA-OID:CAPS">ENC_DATA_OID</a>
+#define             <a class="link" href="gnutls-pkcs12.html#FRIENDLY-NAME-OID:CAPS">FRIENDLY_NAME_OID</a>
+#define             <a class="link" href="gnutls-pkcs12.html#KEY-ID-OID:CAPS">KEY_ID_OID</a>
+typedef             <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-t">gnutls_pkcs12_t</a>;
+typedef             <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</a>;
+int                 <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-init">gnutls_pkcs12_init</a>                  (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-t">gnutls_pkcs12_t</a> *pkcs12);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-deinit">gnutls_pkcs12_deinit</a>                (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-t">gnutls_pkcs12_t</a> pkcs12);
+int                 <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-import">gnutls_pkcs12_import</a>                (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-t">gnutls_pkcs12_t</a> pkcs12,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format,
+                                                         unsigned int flags);
+int                 <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-get-bag">gnutls_pkcs12_get_bag</a>               (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-t">gnutls_pkcs12_t</a> pkcs12,
+                                                         int indx,
+                                                         <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</a> bag);
+int                 <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-init">gnutls_pkcs12_bag_init</a>              (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</a> *bag);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-deinit">gnutls_pkcs12_bag_deinit</a>            (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</a> bag);
+enum                <a class="link" href="gnutls-pkcs12.html#schema-id">schema_id</a>;
+</pre>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2614769"></a><h2>Description</h2>
+<p>
+
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2614785"></a><h2>Details</h2>
+<div class="refsect2" lang="en">
+<a name="id2614796"></a><h3>
+<a name="gnutls-pkcs12-bag-type-t"></a>enum gnutls_pkcs12_bag_type_t</h3>
+<a class="indexterm" name="id2582463"></a><pre class="programlisting">typedef enum gnutls_pkcs12_bag_type_t
+{
+  GNUTLS_BAG_EMPTY = 0,
+
+  GNUTLS_BAG_PKCS8_ENCRYPTED_KEY = 1,
+  GNUTLS_BAG_PKCS8_KEY,
+  GNUTLS_BAG_CERTIFICATE,
+  GNUTLS_BAG_CRL,
+  GNUTLS_BAG_ENCRYPTED = 10,
+  GNUTLS_BAG_UNKNOWN = 20
+} gnutls_pkcs12_bag_type_t;
+</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2582482"></a><h3>
+<a name="MAX-BAG-ELEMENTS:CAPS"></a>MAX_BAG_ELEMENTS</h3>
+<a class="indexterm" name="id2582494"></a><pre class="programlisting">#define             MAX_BAG_ELEMENTS</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2582510"></a><h3>
+<a name="BAG-PKCS8-KEY:CAPS"></a>BAG_PKCS8_KEY</h3>
+<a class="indexterm" name="id2582522"></a><pre class="programlisting">#define             BAG_PKCS8_KEY</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2582537"></a><h3>
+<a name="BAG-PKCS8-ENCRYPTED-KEY:CAPS"></a>BAG_PKCS8_ENCRYPTED_KEY</h3>
+<a class="indexterm" name="id2582549"></a><pre class="programlisting">#define             BAG_PKCS8_ENCRYPTED_KEY</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2582564"></a><h3>
+<a name="BAG-CERTIFICATE:CAPS"></a>BAG_CERTIFICATE</h3>
+<a class="indexterm" name="id2582575"></a><pre class="programlisting">#define             BAG_CERTIFICATE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2582591"></a><h3>
+<a name="BAG-CRL:CAPS"></a>BAG_CRL</h3>
+<a class="indexterm" name="id2629842"></a><pre class="programlisting">#define             BAG_CRL</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2629857"></a><h3>
+<a name="DATA-OID:CAPS"></a>DATA_OID</h3>
+<a class="indexterm" name="id2629870"></a><pre class="programlisting">#define             DATA_OID</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2629885"></a><h3>
+<a name="ENC-DATA-OID:CAPS"></a>ENC_DATA_OID</h3>
+<a class="indexterm" name="id2629897"></a><pre class="programlisting">#define             ENC_DATA_OID</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2629913"></a><h3>
+<a name="FRIENDLY-NAME-OID:CAPS"></a>FRIENDLY_NAME_OID</h3>
+<a class="indexterm" name="id2629924"></a><pre class="programlisting">#define             FRIENDLY_NAME_OID</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2629940"></a><h3>
+<a name="KEY-ID-OID:CAPS"></a>KEY_ID_OID</h3>
+<a class="indexterm" name="id2629952"></a><pre class="programlisting">#define             KEY_ID_OID</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2629967"></a><h3>
+<a name="gnutls-pkcs12-t"></a>gnutls_pkcs12_t</h3>
+<a class="indexterm" name="id2587022"></a><p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587032"></a><h3>
+<a name="gnutls-pkcs12-bag-t"></a>gnutls_pkcs12_bag_t</h3>
+<a class="indexterm" name="id2587044"></a><p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587054"></a><h3>
+<a name="gnutls-pkcs12-init"></a>gnutls_pkcs12_init ()</h3>
+<a class="indexterm" name="id2587066"></a><pre class="programlisting">int                 gnutls_pkcs12_init                  (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-t">gnutls_pkcs12_t</a> *pkcs12);</pre>
+<p>
+This function will initialize a PKCS12 structure. PKCS12 structures
+usually contain lists of X.509 Certificates and X.509 Certificate
+revocation lists.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>pkcs12</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587129"></a><h3>
+<a name="gnutls-pkcs12-deinit"></a>gnutls_pkcs12_deinit ()</h3>
+<a class="indexterm" name="id2587140"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                gnutls_pkcs12_deinit                (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-t">gnutls_pkcs12_t</a> pkcs12);</pre>
+<p>
+This function will deinitialize a PKCS12 structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>pkcs12</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2606721"></a><h3>
+<a name="gnutls-pkcs12-import"></a>gnutls_pkcs12_import ()</h3>
+<a class="indexterm" name="id2606732"></a><pre class="programlisting">int                 gnutls_pkcs12_import                (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-t">gnutls_pkcs12_t</a> pkcs12,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format,
+                                                         unsigned int flags);</pre>
+<p>
+This function will convert the given DER or PEM encoded PKCS12
+to the native gnutls_pkcs12_t format. The output will be stored in 'pkcs12'.
+</p>
+<p>
+If the PKCS12 is PEM encoded it should have a header of "PKCS12".</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>pkcs12</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>flags</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2628738"></a><h3>
+<a name="gnutls-pkcs12-get-bag"></a>gnutls_pkcs12_get_bag ()</h3>
+<a class="indexterm" name="id2628749"></a><pre class="programlisting">int                 gnutls_pkcs12_get_bag               (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-t">gnutls_pkcs12_t</a> pkcs12,
+                                                         int indx,
+                                                         <a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</a> bag);</pre>
+<p>
+This function will return a Bag from the PKCS12 structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>pkcs12</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>indx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>bag</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2628853"></a><h3>
+<a name="gnutls-pkcs12-bag-init"></a>gnutls_pkcs12_bag_init ()</h3>
+<a class="indexterm" name="id2628864"></a><pre class="programlisting">int                 gnutls_pkcs12_bag_init              (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</a> *bag);</pre>
+<p>
+This function will initialize a PKCS12 bag structure. PKCS12 Bags
+usually contain private keys, lists of X.509 Certificates and X.509 Certificate
+revocation lists.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>bag</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2583134"></a><h3>
+<a name="gnutls-pkcs12-bag-deinit"></a>gnutls_pkcs12_bag_deinit ()</h3>
+<a class="indexterm" name="id2583145"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                gnutls_pkcs12_bag_deinit            (<a class="link" href="gnutls-pkcs12.html#gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</a> bag);</pre>
+<p>
+This function will deinitialize a PKCS12 Bag structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>bag</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2583196"></a><h3>
+<a name="schema-id"></a>enum schema_id</h3>
+<a class="indexterm" name="id2583208"></a><pre class="programlisting">typedef enum schema_id
+{
+  PBES2,			/* the stuff in PKCS #5 */
+  PKCS12_3DES_SHA1,		/* the fucking stuff in PKCS #12 */
+  PKCS12_ARCFOUR_SHA1,
+  PKCS12_RC2_40_SHA1
+} schema_id;
+</pre>
+<p>
+
+</p>
+</div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2583228"></a><div class="refsect2" lang="en"><a name="id2583229"></a></div>
+<hr>
+<div class="refsect2" lang="en"><a name="id2583230"></a></div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,59 @@
+CONFIG_BLACKFIN_USE_FLAT
+  Build all libraries and applicaions to produce flat binaries.
+  FLAT binaries tend to be smaller. Their load time tend to be shorter.
+  This option must match the choice made for the C library; when configuring
+  uClibc, select the 'bfin' target.
+
+CONFIG_FMT_USE_SHARED_FLAT
+  Build all libraries and applicaions with -mid-shared-library.
+  This option must match the choice made for the C library; when configuring
+  uClibc, select the 'bfin' target.
+
+CONFIG_FMT_USE_FDPIC_ELF
+  Build all libraries and applicaions with -mfdpic to produce ELF binaries
+  rather than the default flat binaries.  ELF binaries tend to be larger,
+  but have more capabilities, such as support for dlopen.
+  This option must match the choice made for the C library; when configuring
+  uClibc, select either the 'bfin' target for flat binaries, or 'bfinfdpic'
+  for ELF.
+
+CONFIG_INSTALL_ELF_SHARED_LIBS
+  If you wish to use some ELF binaries on a system with mostly flat binaries,
+  enable this option to get the shared libraries from the toolchain
+  distribution installed in the romfs.
+
+CONFIG_INSTALL_FLAT_SHARED_LIBS
+  If the majority of binaries in your system uses either static flat or ELF
+  binaries, but there are some applications built against shared flat
+  libraries, enable this option to get the shared flat libraries from the
+  toolchain distribution installed in the romfs.
+
+CONFIG_BLACKFIN_CHECK_STACKFLOW
+  Build all libraries and applicaions with -mstack-check-l1.
+
+CONFIG_USER_INETUTILS_RCP
+  RCP utility. Part of the InetUtils package.
+  Approx. binary size: 49.5k
+
+CONFIG_USER_INETUTILS_RSH
+  RSH utility. Part of the InetUtils packge.
+  Approx. binary size: 43k
+
+CONFIG_USER_INETUTILS_RSHD
+  RSH server. Part of the InetUtils packge.
+  Approx. binary size: 53k
+
+CONFIG_LIB_DMALLOC_FORCE
+  Debug Malloc Library.
+
+CONFIG_USER_DAGRAB_DAGRAB
+  Fixed point cd ripper
+
+CONFIG_USER_OPENNTPD
+  Simple ntpd daemon: http://www.openntpd.org/
+
+CONFIG_USER_MDMA_KO
+  Execute memory dma's with little overhead from userspace.
+  See the example programs in user/blkfin-apps/mdma/ for more
+  information.  Also check out the documentation:
+  http://docs.blackfin.uclinux.org/doku.php?id=2d-dma

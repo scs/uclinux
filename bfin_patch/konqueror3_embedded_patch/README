@@ -1,0 +1,6 @@
+		Konqueror3 Embedded 0.2(20060121) patch for blackfin/uClinux
+			Sonic Zhang <sonic.zhang@analog.com>
+				Mar 21th, 2006
+
+This is a Konqueror3 embedded 0.2 patch for blackfin/uCLinux. After you apply this patch to the source tree of the Konqueror3 embedded version 0.2(20060121), you can build to run on blackfin/uCLinux. The Konqueror3 embedded 0.2(20060121) source tarball can be downloaded from http://www.cirulla.net/kdenox-snapshots/. Please look at the documents at http://docs.blackfin.uclinux.org/doku.php?id=browsers for details to configure and build.
+

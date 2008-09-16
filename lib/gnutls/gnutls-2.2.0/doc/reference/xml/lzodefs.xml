@@ -1,0 +1,1572 @@
+<?xml version="1.0"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" 
+               "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">
+<refentry id="gnutls-lzodefs">
+<refmeta>
+<refentrytitle role="top_of_page">lzodefs</refentrytitle>
+<manvolnum>3</manvolnum>
+<refmiscinfo>GNUTLS Library</refmiscinfo>
+</refmeta>
+
+<refnamediv>
+<refname>lzodefs</refname>
+<refpurpose></refpurpose>
+<!--[<xref linkend="desc" endterm="desc.title"/>]-->
+</refnamediv>
+
+<refsynopsisdiv role="synopsis">
+<title role="synopsis.title">Synopsis</title>
+
+<synopsis>
+
+
+
+#define             <link linkend="LZO-0xffffL">LZO_0xffffL</link>
+#define             <link linkend="LZO-0xffffffffL">LZO_0xffffffffL</link>
+#define             <link linkend="MSDOS:CAPS">MSDOS</link>
+#define             <link linkend="ptrdiff-t">ptrdiff_t</link>
+#define             <link linkend="LZO-BROKEN-CDECL-ALT-SYNTAX:CAPS">LZO_BROKEN_CDECL_ALT_SYNTAX</link>
+#define             <link linkend="LZO-BROKEN-INTEGRAL-CONSTANTS:CAPS">LZO_BROKEN_INTEGRAL_CONSTANTS</link>
+#define             <link linkend="LZO-BROKEN-INTEGRAL-PROMOTION:CAPS">LZO_BROKEN_INTEGRAL_PROMOTION</link>
+#define             <link linkend="LZO-BROKEN-SIZEOF:CAPS">LZO_BROKEN_SIZEOF</link>
+#define             <link linkend="LZO-CPP-STRINGIZE:CAPS">LZO_CPP_STRINGIZE</link>                   (x)
+#define             <link linkend="LZO-CPP-MACRO-EXPAND:CAPS">LZO_CPP_MACRO_EXPAND</link>                (x)
+#define             <link linkend="LZO-CPP-CONCAT2:CAPS">LZO_CPP_CONCAT2</link>                     (a,b)
+#define             <link linkend="LZO-CPP-CONCAT3:CAPS">LZO_CPP_CONCAT3</link>                     (a,b,c)
+#define             <link linkend="LZO-CPP-CONCAT4:CAPS">LZO_CPP_CONCAT4</link>                     (a,b,c,d)
+#define             <link linkend="LZO-CPP-CONCAT5:CAPS">LZO_CPP_CONCAT5</link>                     (a,b,c,d,e)
+#define             <link linkend="LZO-CPP-ECONCAT2:CAPS">LZO_CPP_ECONCAT2</link>                    (a,b)
+#define             <link linkend="LZO-CPP-ECONCAT3:CAPS">LZO_CPP_ECONCAT3</link>                    (a,b,c)
+#define             <link linkend="LZO-CPP-ECONCAT4:CAPS">LZO_CPP_ECONCAT4</link>                    (a,b,c,d)
+#define             <link linkend="LZO-CPP-ECONCAT5:CAPS">LZO_CPP_ECONCAT5</link>                    (a,b,c,d,e)
+#define             <link linkend="LZO-EXTERN-C:CAPS">LZO_EXTERN_C</link>
+#define             <link linkend="LZO-INFO-OS:CAPS">LZO_INFO_OS</link>
+#define             <link linkend="LZO-OS-CYGWIN:CAPS">LZO_OS_CYGWIN</link>
+#define             <link linkend="LZO-OS-EMX:CAPS">LZO_OS_EMX</link>
+#define             <link linkend="LZO-OS-BEOS:CAPS">LZO_OS_BEOS</link>
+#define             <link linkend="LZO-OS-LYNXOS:CAPS">LZO_OS_LYNXOS</link>
+#define             <link linkend="LZO-OS-OS400:CAPS">LZO_OS_OS400</link>
+#define             <link linkend="LZO-OS-QNX:CAPS">LZO_OS_QNX</link>
+#define             <link linkend="LZO-OS-DOS32:CAPS">LZO_OS_DOS32</link>
+#define             <link linkend="LZO-OS-DOS16:CAPS">LZO_OS_DOS16</link>
+#define             <link linkend="LZO-OS-OS216:CAPS">LZO_OS_OS216</link>
+#define             <link linkend="LZO-OS-OS2:CAPS">LZO_OS_OS2</link>
+#define             <link linkend="LZO-OS-WIN64:CAPS">LZO_OS_WIN64</link>
+#define             <link linkend="LZO-OS-WIN32:CAPS">LZO_OS_WIN32</link>
+#define             <link linkend="LZO-OS-WIN16:CAPS">LZO_OS_WIN16</link>
+#define             <link linkend="LZO-OS-PALMOS:CAPS">LZO_OS_PALMOS</link>
+#define             <link linkend="LZO-OS-TOS:CAPS">LZO_OS_TOS</link>
+#define             <link linkend="LZO-OS-MACCLASSIC:CAPS">LZO_OS_MACCLASSIC</link>
+#define             <link linkend="LZO-OS-VMS:CAPS">LZO_OS_VMS</link>
+#define             <link linkend="LZO-OS-CONSOLE:CAPS">LZO_OS_CONSOLE</link>
+#define             <link linkend="LZO-OS-CONSOLE-PS2:CAPS">LZO_OS_CONSOLE_PS2</link>
+#define             <link linkend="LZO-INFO-OS-CONSOLE:CAPS">LZO_INFO_OS_CONSOLE</link>
+#define             <link linkend="LZO-OS-CONSOLE-PSP:CAPS">LZO_OS_CONSOLE_PSP</link>
+#define             <link linkend="LZO-OS-POSIX:CAPS">LZO_OS_POSIX</link>
+#define             <link linkend="LZO-OS-POSIX-AIX:CAPS">LZO_OS_POSIX_AIX</link>
+#define             <link linkend="LZO-INFO-OS-POSIX:CAPS">LZO_INFO_OS_POSIX</link>
+#define             <link linkend="LZO-OS-POSIX-FREEBSD:CAPS">LZO_OS_POSIX_FREEBSD</link>
+#define             <link linkend="LZO-OS-POSIX-HPUX:CAPS">LZO_OS_POSIX_HPUX</link>
+#define             <link linkend="LZO-OS-POSIX-INTERIX:CAPS">LZO_OS_POSIX_INTERIX</link>
+#define             <link linkend="LZO-OS-POSIX-IRIX:CAPS">LZO_OS_POSIX_IRIX</link>
+#define             <link linkend="LZO-OS-POSIX-LINUX:CAPS">LZO_OS_POSIX_LINUX</link>
+#define             <link linkend="LZO-OS-POSIX-MACOSX:CAPS">LZO_OS_POSIX_MACOSX</link>
+#define             <link linkend="LZO-OS-POSIX-NETBSD:CAPS">LZO_OS_POSIX_NETBSD</link>
+#define             <link linkend="LZO-OS-POSIX-OPENBSD:CAPS">LZO_OS_POSIX_OPENBSD</link>
+#define             <link linkend="LZO-OS-POSIX-OSF:CAPS">LZO_OS_POSIX_OSF</link>
+#define             <link linkend="LZO-OS-POSIX-SOLARIS:CAPS">LZO_OS_POSIX_SOLARIS</link>
+#define             <link linkend="LZO-OS-POSIX-SUNOS:CAPS">LZO_OS_POSIX_SUNOS</link>
+#define             <link linkend="LZO-OS-POSIX-ULTRIX:CAPS">LZO_OS_POSIX_ULTRIX</link>
+#define             <link linkend="LZO-OS-POSIX-UNKNOWN:CAPS">LZO_OS_POSIX_UNKNOWN</link>
+#define             <link linkend="LZO-CC-CILLY:CAPS">LZO_CC_CILLY</link>
+#define             <link linkend="LZO-INFO-CC:CAPS">LZO_INFO_CC</link>
+#define             <link linkend="LZO-INFO-CCVER:CAPS">LZO_INFO_CCVER</link>
+#define             <link linkend="LZO-CC-SDCC:CAPS">LZO_CC_SDCC</link>
+#define             <link linkend="LZO-CC-PATHSCALE:CAPS">LZO_CC_PATHSCALE</link>
+#define             <link linkend="LZO-CC-INTELC:CAPS">LZO_CC_INTELC</link>
+#define             <link linkend="LZO-CC-PELLESC:CAPS">LZO_CC_PELLESC</link>
+#define             <link linkend="LZO-CC-LLVM:CAPS">LZO_CC_LLVM</link>
+#define             <link linkend="LZO-CC-GNUC:CAPS">LZO_CC_GNUC</link>
+#define             <link linkend="LZO-CC-AZTECC:CAPS">LZO_CC_AZTECC</link>
+#define             <link linkend="LZO-CC-BORLANDC:CAPS">LZO_CC_BORLANDC</link>
+#define             <link linkend="LZO-CC-DMC:CAPS">LZO_CC_DMC</link>
+#define             <link linkend="LZO-CC-DECC:CAPS">LZO_CC_DECC</link>
+#define             <link linkend="LZO-CC-HIGHC:CAPS">LZO_CC_HIGHC</link>
+#define             <link linkend="LZO-CC-IBMC:CAPS">LZO_CC_IBMC</link>
+#define             <link linkend="LZO-CC-KEILC:CAPS">LZO_CC_KEILC</link>
+#define             <link linkend="LZO-CC-LCCWIN32:CAPS">LZO_CC_LCCWIN32</link>
+#define             <link linkend="LZO-CC-LCC:CAPS">LZO_CC_LCC</link>
+#define             <link linkend="LZO-CC-MSC:CAPS">LZO_CC_MSC</link>
+#define             <link linkend="LZO-CC-MWERKS:CAPS">LZO_CC_MWERKS</link>
+#define             <link linkend="LZO-CC-NDPC:CAPS">LZO_CC_NDPC</link>
+#define             <link linkend="LZO-CC-PACIFICC:CAPS">LZO_CC_PACIFICC</link>
+#define             <link linkend="LZO-CC-PGI:CAPS">LZO_CC_PGI</link>
+#define             <link linkend="LZO-CC-PUREC:CAPS">LZO_CC_PUREC</link>
+#define             <link linkend="LZO-CC-SYMANTECC:CAPS">LZO_CC_SYMANTECC</link>
+#define             <link linkend="LZO-CC-SUNPROC:CAPS">LZO_CC_SUNPROC</link>
+#define             <link linkend="LZO-CC-TINYC:CAPS">LZO_CC_TINYC</link>
+#define             <link linkend="LZO-CC-TOPSPEEDC:CAPS">LZO_CC_TOPSPEEDC</link>
+#define             <link linkend="LZO-CC-WATCOMC:CAPS">LZO_CC_WATCOMC</link>
+#define             <link linkend="LZO-CC-TURBOC:CAPS">LZO_CC_TURBOC</link>
+#define             <link linkend="LZO-CC-ZORTECHC:CAPS">LZO_CC_ZORTECHC</link>
+#define             <link linkend="LZO-CC-UNKNOWN:CAPS">LZO_CC_UNKNOWN</link>
+#define             <link linkend="LZO-INFO-ARCH:CAPS">LZO_INFO_ARCH</link>
+#define             <link linkend="LZO-ARCH-I086:CAPS">LZO_ARCH_I086</link>
+#define             <link linkend="LZO-ARCH-IA16:CAPS">LZO_ARCH_IA16</link>
+#define             <link linkend="LZO-ARCH-ALPHA:CAPS">LZO_ARCH_ALPHA</link>
+#define             <link linkend="LZO-ARCH-AMD64:CAPS">LZO_ARCH_AMD64</link>
+#define             <link linkend="LZO-ARCH-ARM:CAPS">LZO_ARCH_ARM</link>
+#define             <link linkend="LZO-ARCH-ARM-THUMB:CAPS">LZO_ARCH_ARM_THUMB</link>
+#define             <link linkend="LZO-ARCH-AVR:CAPS">LZO_ARCH_AVR</link>
+#define             <link linkend="LZO-ARCH-BLACKFIN:CAPS">LZO_ARCH_BLACKFIN</link>
+#define             <link linkend="LZO-ARCH-C166:CAPS">LZO_ARCH_C166</link>
+#define             <link linkend="LZO-ARCH-CRIS:CAPS">LZO_ARCH_CRIS</link>
+#define             <link linkend="LZO-ARCH-H8300:CAPS">LZO_ARCH_H8300</link>
+#define             <link linkend="LZO-ARCH-HPPA:CAPS">LZO_ARCH_HPPA</link>
+#define             <link linkend="LZO-ARCH-I386:CAPS">LZO_ARCH_I386</link>
+#define             <link linkend="LZO-ARCH-IA32:CAPS">LZO_ARCH_IA32</link>
+#define             <link linkend="LZO-ARCH-IA64:CAPS">LZO_ARCH_IA64</link>
+#define             <link linkend="LZO-ARCH-M32R:CAPS">LZO_ARCH_M32R</link>
+#define             <link linkend="LZO-ARCH-M68K:CAPS">LZO_ARCH_M68K</link>
+#define             <link linkend="LZO-ARCH-MCS251:CAPS">LZO_ARCH_MCS251</link>
+#define             <link linkend="LZO-ARCH-MCS51:CAPS">LZO_ARCH_MCS51</link>
+#define             <link linkend="LZO-ARCH-MIPS:CAPS">LZO_ARCH_MIPS</link>
+#define             <link linkend="LZO-ARCH-POWERPC:CAPS">LZO_ARCH_POWERPC</link>
+#define             <link linkend="LZO-ARCH-S390:CAPS">LZO_ARCH_S390</link>
+#define             <link linkend="LZO-ARCH-SH:CAPS">LZO_ARCH_SH</link>
+#define             <link linkend="LZO-ARCH-SPARC:CAPS">LZO_ARCH_SPARC</link>
+#define             <link linkend="LZO-ARCH-Z80:CAPS">LZO_ARCH_Z80</link>
+#define             <link linkend="LZO-ARCH-UNKNOWN:CAPS">LZO_ARCH_UNKNOWN</link>
+#define             <link linkend="LZO-ARCH-I086PM:CAPS">LZO_ARCH_I086PM</link>
+#define             <link linkend="LZO-ARCH-IA16PM:CAPS">LZO_ARCH_IA16PM</link>
+#define             <link linkend="LZO-MM-TINY:CAPS">LZO_MM_TINY</link>
+#define             <link linkend="LZO-MM-HUGE:CAPS">LZO_MM_HUGE</link>
+#define             <link linkend="LZO-MM-SMALL:CAPS">LZO_MM_SMALL</link>
+#define             <link linkend="LZO-MM-MEDIUM:CAPS">LZO_MM_MEDIUM</link>
+#define             <link linkend="LZO-MM-COMPACT:CAPS">LZO_MM_COMPACT</link>
+#define             <link linkend="LZO-MM-LARGE:CAPS">LZO_MM_LARGE</link>
+#define             <link linkend="LZO-HAVE-MM-HUGE-PTR:CAPS">LZO_HAVE_MM_HUGE_PTR</link>
+#define             <link linkend="LZO-HAVE-MM-HUGE-ARRAY:CAPS">LZO_HAVE_MM_HUGE_ARRAY</link>
+#define             <link linkend="LZO-MM-AHSHIFT:CAPS">LZO_MM_AHSHIFT</link>
+#define             <link linkend="LZO-MM-XTINY:CAPS">LZO_MM_XTINY</link>
+#define             <link linkend="LZO-MM-XSMALL:CAPS">LZO_MM_XSMALL</link>
+#define             <link linkend="LZO-MM-FLAT:CAPS">LZO_MM_FLAT</link>
+#define             <link linkend="LZO-INFO-MM:CAPS">LZO_INFO_MM</link>
+#define             <link linkend="LZO-SIZEOF-SHORT:CAPS">LZO_SIZEOF_SHORT</link>
+#define             <link linkend="LZO-SIZEOF-INT:CAPS">LZO_SIZEOF_INT</link>
+#define             <link linkend="LZO-SIZEOF-LONG:CAPS">LZO_SIZEOF_LONG</link>
+#define             <link linkend="LZO-SIZEOF-LONG-LONG:CAPS">LZO_SIZEOF_LONG_LONG</link>
+#define             <link linkend="LZO-SIZEOF---INT16:CAPS">LZO_SIZEOF___INT16</link>
+#define             <link linkend="LZO-SIZEOF---INT32:CAPS">LZO_SIZEOF___INT32</link>
+#define             <link linkend="LZO-SIZEOF---INT64:CAPS">LZO_SIZEOF___INT64</link>
+#define             <link linkend="LZO-SIZEOF-VOID-P:CAPS">LZO_SIZEOF_VOID_P</link>
+#define             <link linkend="LZO-SIZEOF-SIZE-T:CAPS">LZO_SIZEOF_SIZE_T</link>
+#define             <link linkend="LZO-SIZEOF-PTRDIFF-T:CAPS">LZO_SIZEOF_PTRDIFF_T</link>
+#define             <link linkend="LZO-ABI-LITTLE-ENDIAN:CAPS">LZO_ABI_LITTLE_ENDIAN</link>
+#define             <link linkend="LZO-ABI-BIG-ENDIAN:CAPS">LZO_ABI_BIG_ENDIAN</link>
+#define             <link linkend="LZO-INFO-ABI-ENDIAN:CAPS">LZO_INFO_ABI_ENDIAN</link>
+#define             <link linkend="LZO-ABI-I8LP16:CAPS">LZO_ABI_I8LP16</link>
+#define             <link linkend="LZO-INFO-ABI-PM:CAPS">LZO_INFO_ABI_PM</link>
+#define             <link linkend="LZO-ABI-ILP16:CAPS">LZO_ABI_ILP16</link>
+#define             <link linkend="LZO-ABI-ILP32:CAPS">LZO_ABI_ILP32</link>
+#define             <link linkend="LZO-ABI-LLP64:CAPS">LZO_ABI_LLP64</link>
+#define             <link linkend="LZO-ABI-LP64:CAPS">LZO_ABI_LP64</link>
+#define             <link linkend="LZO-ABI-ILP64:CAPS">LZO_ABI_ILP64</link>
+#define             <link linkend="LZO-ABI-IP32L64:CAPS">LZO_ABI_IP32L64</link>
+#define             <link linkend="LZO-INFO-LIBC:CAPS">LZO_INFO_LIBC</link>
+#define             <link linkend="LZO-LIBC-DIETLIBC:CAPS">LZO_LIBC_DIETLIBC</link>
+#define             <link linkend="LZO-LIBC-NEWLIB:CAPS">LZO_LIBC_NEWLIB</link>
+#define             <link linkend="LZO-LIBC-UCLIBC:CAPS">LZO_LIBC_UCLIBC</link>
+#define             <link linkend="LZO-LIBC-GLIBC:CAPS">LZO_LIBC_GLIBC</link>
+#define             <link linkend="LZO-LIBC-MSL:CAPS">LZO_LIBC_MSL</link>
+#define             <link linkend="LZO-LIBC-DEFAULT:CAPS">LZO_LIBC_DEFAULT</link>
+#define             <link linkend="lzo-alignof">lzo_alignof</link>                         (e)
+#define             <link linkend="LZO-UNUSED:CAPS">LZO_UNUSED</link>                          (var)
+#define             <link linkend="LZO-UNUSED-FUNC:CAPS">LZO_UNUSED_FUNC</link>                     (func)
+#define             <link linkend="LZO-UNUSED-LABEL:CAPS">LZO_UNUSED_LABEL</link>                    (l)
+#define             <link linkend="LZO-COMPILE-TIME-ASSERT-HEADER:CAPS">LZO_COMPILE_TIME_ASSERT_HEADER</link>      (e)
+#define             <link linkend="LZO-COMPILE-TIME-ASSERT:CAPS">LZO_COMPILE_TIME_ASSERT</link>             (e)
+#define             <link linkend="LZO-HAVE-WINDOWS-H:CAPS">LZO_HAVE_WINDOWS_H</link>
+#define             <link linkend="LZO-OPT-AVOID-UINT-INDEX:CAPS">LZO_OPT_AVOID_UINT_INDEX</link>
+#define             <link linkend="LZO-OPT-AVOID-SHORT:CAPS">LZO_OPT_AVOID_SHORT</link>
+#define             <link linkend="LZO-OPT-AVOID-USHORT:CAPS">LZO_OPT_AVOID_USHORT</link>
+#define             <link linkend="LZO-OPT-AVOID-INT-INDEX:CAPS">LZO_OPT_AVOID_INT_INDEX</link>
+#define             <link linkend="LZO-OPT-PREFER-POSTINC:CAPS">LZO_OPT_PREFER_POSTINC</link>
+#define             <link linkend="LZO-OPT-PREFER-PREDEC:CAPS">LZO_OPT_PREFER_PREDEC</link>
+#define             <link linkend="LZO-OPT-PREFER-PREINC:CAPS">LZO_OPT_PREFER_PREINC</link>
+#define             <link linkend="LZO-CFG-NO-INLINE-ASM:CAPS">LZO_CFG_NO_INLINE_ASM</link>
+#define             <link linkend="LZO-CFG-NO-UNALIGNED:CAPS">LZO_CFG_NO_UNALIGNED</link>
+#define             <link linkend="LZO-ASM-SYNTAX-MSC:CAPS">LZO_ASM_SYNTAX_MSC</link>
+#define             <link linkend="LZO-ASM-SYNTAX-GNUC:CAPS">LZO_ASM_SYNTAX_GNUC</link>
+#define             <link linkend="LZO-INFO-STRING:CAPS">LZO_INFO_STRING</link>
+</synopsis>
+</refsynopsisdiv>
+
+
+
+
+
+
+
+
+
+<refsect1 role="desc">
+<title role="desc.title">Description</title>
+<para>
+
+</para>
+</refsect1>
+
+<refsect1 role="details">
+<title role="details.title">Details</title>
+<refsect2>
+<title><anchor id="LZO-0xffffL" role="macro"/>LZO_0xffffL</title>
+<indexterm><primary>LZO_0xffffL</primary></indexterm><programlisting>#define             LZO_0xffffL</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-0xffffffffL" role="macro"/>LZO_0xffffffffL</title>
+<indexterm><primary>LZO_0xffffffffL</primary></indexterm><programlisting>#define             LZO_0xffffffffL</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="MSDOS:CAPS" role="macro"/>MSDOS</title>
+<indexterm><primary>MSDOS</primary></indexterm><programlisting>#    define MSDOS 1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="ptrdiff-t" role="macro"/>ptrdiff_t</title>
+<indexterm><primary>ptrdiff_t</primary></indexterm><programlisting>#  define ptrdiff_t long
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-BROKEN-CDECL-ALT-SYNTAX:CAPS" role="macro"/>LZO_BROKEN_CDECL_ALT_SYNTAX</title>
+<indexterm><primary>LZO_BROKEN_CDECL_ALT_SYNTAX</primary></indexterm><programlisting>#define             LZO_BROKEN_CDECL_ALT_SYNTAX</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-BROKEN-INTEGRAL-CONSTANTS:CAPS" role="macro"/>LZO_BROKEN_INTEGRAL_CONSTANTS</title>
+<indexterm><primary>LZO_BROKEN_INTEGRAL_CONSTANTS</primary></indexterm><programlisting>#define             LZO_BROKEN_INTEGRAL_CONSTANTS</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-BROKEN-INTEGRAL-PROMOTION:CAPS" role="macro"/>LZO_BROKEN_INTEGRAL_PROMOTION</title>
+<indexterm><primary>LZO_BROKEN_INTEGRAL_PROMOTION</primary></indexterm><programlisting>#define             LZO_BROKEN_INTEGRAL_PROMOTION</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-BROKEN-SIZEOF:CAPS" role="macro"/>LZO_BROKEN_SIZEOF</title>
+<indexterm><primary>LZO_BROKEN_SIZEOF</primary></indexterm><programlisting>#define             LZO_BROKEN_SIZEOF</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-STRINGIZE:CAPS" role="macro"/>LZO_CPP_STRINGIZE()</title>
+<indexterm><primary>LZO_CPP_STRINGIZE</primary></indexterm><programlisting>#define LZO_CPP_STRINGIZE(x)            #x
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>x</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-MACRO-EXPAND:CAPS" role="macro"/>LZO_CPP_MACRO_EXPAND()</title>
+<indexterm><primary>LZO_CPP_MACRO_EXPAND</primary></indexterm><programlisting>#define LZO_CPP_MACRO_EXPAND(x)         LZO_CPP_STRINGIZE(x)
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>x</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-CONCAT2:CAPS" role="macro"/>LZO_CPP_CONCAT2()</title>
+<indexterm><primary>LZO_CPP_CONCAT2</primary></indexterm><programlisting>#define LZO_CPP_CONCAT2(a,b)            a ## b
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>a</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>b</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-CONCAT3:CAPS" role="macro"/>LZO_CPP_CONCAT3()</title>
+<indexterm><primary>LZO_CPP_CONCAT3</primary></indexterm><programlisting>#define LZO_CPP_CONCAT3(a,b,c)          a ## b ## c
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>a</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>b</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>c</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-CONCAT4:CAPS" role="macro"/>LZO_CPP_CONCAT4()</title>
+<indexterm><primary>LZO_CPP_CONCAT4</primary></indexterm><programlisting>#define LZO_CPP_CONCAT4(a,b,c,d)        a ## b ## c ## d
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>a</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>b</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>c</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>d</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-CONCAT5:CAPS" role="macro"/>LZO_CPP_CONCAT5()</title>
+<indexterm><primary>LZO_CPP_CONCAT5</primary></indexterm><programlisting>#define LZO_CPP_CONCAT5(a,b,c,d,e)      a ## b ## c ## d ## e
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>a</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>b</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>c</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>d</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>e</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-ECONCAT2:CAPS" role="macro"/>LZO_CPP_ECONCAT2()</title>
+<indexterm><primary>LZO_CPP_ECONCAT2</primary></indexterm><programlisting>#define LZO_CPP_ECONCAT2(a,b)           LZO_CPP_CONCAT2(a,b)
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>a</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>b</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-ECONCAT3:CAPS" role="macro"/>LZO_CPP_ECONCAT3()</title>
+<indexterm><primary>LZO_CPP_ECONCAT3</primary></indexterm><programlisting>#define LZO_CPP_ECONCAT3(a,b,c)         LZO_CPP_CONCAT3(a,b,c)
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>a</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>b</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>c</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-ECONCAT4:CAPS" role="macro"/>LZO_CPP_ECONCAT4()</title>
+<indexterm><primary>LZO_CPP_ECONCAT4</primary></indexterm><programlisting>#define LZO_CPP_ECONCAT4(a,b,c,d)       LZO_CPP_CONCAT4(a,b,c,d)
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>a</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>b</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>c</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>d</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-CPP-ECONCAT5:CAPS" role="macro"/>LZO_CPP_ECONCAT5()</title>
+<indexterm><primary>LZO_CPP_ECONCAT5</primary></indexterm><programlisting>#define LZO_CPP_ECONCAT5(a,b,c,d,e)     LZO_CPP_CONCAT5(a,b,c,d,e)
+</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>a</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>b</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>c</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>d</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>e</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-EXTERN-C:CAPS" role="macro"/>LZO_EXTERN_C</title>
+<indexterm><primary>LZO_EXTERN_C</primary></indexterm><programlisting>#define             LZO_EXTERN_C</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-OS:CAPS" role="macro"/>LZO_INFO_OS</title>
+<indexterm><primary>LZO_INFO_OS</primary></indexterm><programlisting>#define             LZO_INFO_OS</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-CYGWIN:CAPS" role="macro"/>LZO_OS_CYGWIN</title>
+<indexterm><primary>LZO_OS_CYGWIN</primary></indexterm><programlisting>#  define LZO_OS_CYGWIN         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-EMX:CAPS" role="macro"/>LZO_OS_EMX</title>
+<indexterm><primary>LZO_OS_EMX</primary></indexterm><programlisting>#  define LZO_OS_EMX            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-BEOS:CAPS" role="macro"/>LZO_OS_BEOS</title>
+<indexterm><primary>LZO_OS_BEOS</primary></indexterm><programlisting>#  define LZO_OS_BEOS           1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-LYNXOS:CAPS" role="macro"/>LZO_OS_LYNXOS</title>
+<indexterm><primary>LZO_OS_LYNXOS</primary></indexterm><programlisting>#  define LZO_OS_LYNXOS         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-OS400:CAPS" role="macro"/>LZO_OS_OS400</title>
+<indexterm><primary>LZO_OS_OS400</primary></indexterm><programlisting>#  define LZO_OS_OS400          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-QNX:CAPS" role="macro"/>LZO_OS_QNX</title>
+<indexterm><primary>LZO_OS_QNX</primary></indexterm><programlisting>#  define LZO_OS_QNX            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-DOS32:CAPS" role="macro"/>LZO_OS_DOS32</title>
+<indexterm><primary>LZO_OS_DOS32</primary></indexterm><programlisting>#define             LZO_OS_DOS32</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-DOS16:CAPS" role="macro"/>LZO_OS_DOS16</title>
+<indexterm><primary>LZO_OS_DOS16</primary></indexterm><programlisting>#define             LZO_OS_DOS16</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-OS216:CAPS" role="macro"/>LZO_OS_OS216</title>
+<indexterm><primary>LZO_OS_OS216</primary></indexterm><programlisting>#    define LZO_OS_OS216        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-OS2:CAPS" role="macro"/>LZO_OS_OS2</title>
+<indexterm><primary>LZO_OS_OS2</primary></indexterm><programlisting>#    define LZO_OS_OS2          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-WIN64:CAPS" role="macro"/>LZO_OS_WIN64</title>
+<indexterm><primary>LZO_OS_WIN64</primary></indexterm><programlisting>#  define LZO_OS_WIN64          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-WIN32:CAPS" role="macro"/>LZO_OS_WIN32</title>
+<indexterm><primary>LZO_OS_WIN32</primary></indexterm><programlisting>#define             LZO_OS_WIN32</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-WIN16:CAPS" role="macro"/>LZO_OS_WIN16</title>
+<indexterm><primary>LZO_OS_WIN16</primary></indexterm><programlisting>#    define LZO_OS_WIN16        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-PALMOS:CAPS" role="macro"/>LZO_OS_PALMOS</title>
+<indexterm><primary>LZO_OS_PALMOS</primary></indexterm><programlisting>#  define LZO_OS_PALMOS         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-TOS:CAPS" role="macro"/>LZO_OS_TOS</title>
+<indexterm><primary>LZO_OS_TOS</primary></indexterm><programlisting>#  define LZO_OS_TOS            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-MACCLASSIC:CAPS" role="macro"/>LZO_OS_MACCLASSIC</title>
+<indexterm><primary>LZO_OS_MACCLASSIC</primary></indexterm><programlisting>#  define LZO_OS_MACCLASSIC     1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-VMS:CAPS" role="macro"/>LZO_OS_VMS</title>
+<indexterm><primary>LZO_OS_VMS</primary></indexterm><programlisting>#  define LZO_OS_VMS            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-CONSOLE:CAPS" role="macro"/>LZO_OS_CONSOLE</title>
+<indexterm><primary>LZO_OS_CONSOLE</primary></indexterm><programlisting>#define             LZO_OS_CONSOLE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-CONSOLE-PS2:CAPS" role="macro"/>LZO_OS_CONSOLE_PS2</title>
+<indexterm><primary>LZO_OS_CONSOLE_PS2</primary></indexterm><programlisting>#  define LZO_OS_CONSOLE_PS2    1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-OS-CONSOLE:CAPS" role="macro"/>LZO_INFO_OS_CONSOLE</title>
+<indexterm><primary>LZO_INFO_OS_CONSOLE</primary></indexterm><programlisting>#define             LZO_INFO_OS_CONSOLE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-CONSOLE-PSP:CAPS" role="macro"/>LZO_OS_CONSOLE_PSP</title>
+<indexterm><primary>LZO_OS_CONSOLE_PSP</primary></indexterm><programlisting>#  define LZO_OS_CONSOLE_PSP    1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX:CAPS" role="macro"/>LZO_OS_POSIX</title>
+<indexterm><primary>LZO_OS_POSIX</primary></indexterm><programlisting>#  define LZO_OS_POSIX          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-AIX:CAPS" role="macro"/>LZO_OS_POSIX_AIX</title>
+<indexterm><primary>LZO_OS_POSIX_AIX</primary></indexterm><programlisting>#    define LZO_OS_POSIX_AIX        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-OS-POSIX:CAPS" role="macro"/>LZO_INFO_OS_POSIX</title>
+<indexterm><primary>LZO_INFO_OS_POSIX</primary></indexterm><programlisting>#define             LZO_INFO_OS_POSIX</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-FREEBSD:CAPS" role="macro"/>LZO_OS_POSIX_FREEBSD</title>
+<indexterm><primary>LZO_OS_POSIX_FREEBSD</primary></indexterm><programlisting>#    define LZO_OS_POSIX_FREEBSD    1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-HPUX:CAPS" role="macro"/>LZO_OS_POSIX_HPUX</title>
+<indexterm><primary>LZO_OS_POSIX_HPUX</primary></indexterm><programlisting>#    define LZO_OS_POSIX_HPUX       1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-INTERIX:CAPS" role="macro"/>LZO_OS_POSIX_INTERIX</title>
+<indexterm><primary>LZO_OS_POSIX_INTERIX</primary></indexterm><programlisting>#    define LZO_OS_POSIX_INTERIX    1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-IRIX:CAPS" role="macro"/>LZO_OS_POSIX_IRIX</title>
+<indexterm><primary>LZO_OS_POSIX_IRIX</primary></indexterm><programlisting>#    define LZO_OS_POSIX_IRIX       1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-LINUX:CAPS" role="macro"/>LZO_OS_POSIX_LINUX</title>
+<indexterm><primary>LZO_OS_POSIX_LINUX</primary></indexterm><programlisting>#    define LZO_OS_POSIX_LINUX      1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-MACOSX:CAPS" role="macro"/>LZO_OS_POSIX_MACOSX</title>
+<indexterm><primary>LZO_OS_POSIX_MACOSX</primary></indexterm><programlisting>#    define LZO_OS_POSIX_MACOSX     1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-NETBSD:CAPS" role="macro"/>LZO_OS_POSIX_NETBSD</title>
+<indexterm><primary>LZO_OS_POSIX_NETBSD</primary></indexterm><programlisting>#    define LZO_OS_POSIX_NETBSD     1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-OPENBSD:CAPS" role="macro"/>LZO_OS_POSIX_OPENBSD</title>
+<indexterm><primary>LZO_OS_POSIX_OPENBSD</primary></indexterm><programlisting>#    define LZO_OS_POSIX_OPENBSD    1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-OSF:CAPS" role="macro"/>LZO_OS_POSIX_OSF</title>
+<indexterm><primary>LZO_OS_POSIX_OSF</primary></indexterm><programlisting>#    define LZO_OS_POSIX_OSF        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-SOLARIS:CAPS" role="macro"/>LZO_OS_POSIX_SOLARIS</title>
+<indexterm><primary>LZO_OS_POSIX_SOLARIS</primary></indexterm><programlisting>#      define LZO_OS_POSIX_SOLARIS  1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-SUNOS:CAPS" role="macro"/>LZO_OS_POSIX_SUNOS</title>
+<indexterm><primary>LZO_OS_POSIX_SUNOS</primary></indexterm><programlisting>#      define LZO_OS_POSIX_SUNOS    1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-ULTRIX:CAPS" role="macro"/>LZO_OS_POSIX_ULTRIX</title>
+<indexterm><primary>LZO_OS_POSIX_ULTRIX</primary></indexterm><programlisting>#    define LZO_OS_POSIX_ULTRIX     1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OS-POSIX-UNKNOWN:CAPS" role="macro"/>LZO_OS_POSIX_UNKNOWN</title>
+<indexterm><primary>LZO_OS_POSIX_UNKNOWN</primary></indexterm><programlisting>#    define LZO_OS_POSIX_UNKNOWN    1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-CILLY:CAPS" role="macro"/>LZO_CC_CILLY</title>
+<indexterm><primary>LZO_CC_CILLY</primary></indexterm><programlisting>#  define LZO_CC_CILLY          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-CC:CAPS" role="macro"/>LZO_INFO_CC</title>
+<indexterm><primary>LZO_INFO_CC</primary></indexterm><programlisting>#define             LZO_INFO_CC</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-CCVER:CAPS" role="macro"/>LZO_INFO_CCVER</title>
+<indexterm><primary>LZO_INFO_CCVER</primary></indexterm><programlisting>#define             LZO_INFO_CCVER</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-SDCC:CAPS" role="macro"/>LZO_CC_SDCC</title>
+<indexterm><primary>LZO_CC_SDCC</primary></indexterm><programlisting>#  define LZO_CC_SDCC           1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-PATHSCALE:CAPS" role="macro"/>LZO_CC_PATHSCALE</title>
+<indexterm><primary>LZO_CC_PATHSCALE</primary></indexterm><programlisting>#  define LZO_CC_PATHSCALE      (__PATHCC__ * 0x10000L + __PATHCC_MINOR__ * 0x100 + __PATHCC_PATCHLEVEL__)
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-INTELC:CAPS" role="macro"/>LZO_CC_INTELC</title>
+<indexterm><primary>LZO_CC_INTELC</primary></indexterm><programlisting>#  define LZO_CC_INTELC         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-PELLESC:CAPS" role="macro"/>LZO_CC_PELLESC</title>
+<indexterm><primary>LZO_CC_PELLESC</primary></indexterm><programlisting>#  define LZO_CC_PELLESC        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-LLVM:CAPS" role="macro"/>LZO_CC_LLVM</title>
+<indexterm><primary>LZO_CC_LLVM</primary></indexterm><programlisting>#  define LZO_CC_LLVM           1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-GNUC:CAPS" role="macro"/>LZO_CC_GNUC</title>
+<indexterm><primary>LZO_CC_GNUC</primary></indexterm><programlisting>#define             LZO_CC_GNUC</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-AZTECC:CAPS" role="macro"/>LZO_CC_AZTECC</title>
+<indexterm><primary>LZO_CC_AZTECC</primary></indexterm><programlisting>#  define LZO_CC_AZTECC         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-BORLANDC:CAPS" role="macro"/>LZO_CC_BORLANDC</title>
+<indexterm><primary>LZO_CC_BORLANDC</primary></indexterm><programlisting>#  define LZO_CC_BORLANDC       1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-DMC:CAPS" role="macro"/>LZO_CC_DMC</title>
+<indexterm><primary>LZO_CC_DMC</primary></indexterm><programlisting>#  define LZO_CC_DMC            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-DECC:CAPS" role="macro"/>LZO_CC_DECC</title>
+<indexterm><primary>LZO_CC_DECC</primary></indexterm><programlisting>#  define LZO_CC_DECC           1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-HIGHC:CAPS" role="macro"/>LZO_CC_HIGHC</title>
+<indexterm><primary>LZO_CC_HIGHC</primary></indexterm><programlisting>#  define LZO_CC_HIGHC          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-IBMC:CAPS" role="macro"/>LZO_CC_IBMC</title>
+<indexterm><primary>LZO_CC_IBMC</primary></indexterm><programlisting>#  define LZO_CC_IBMC           1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-KEILC:CAPS" role="macro"/>LZO_CC_KEILC</title>
+<indexterm><primary>LZO_CC_KEILC</primary></indexterm><programlisting>#  define LZO_CC_KEILC          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-LCCWIN32:CAPS" role="macro"/>LZO_CC_LCCWIN32</title>
+<indexterm><primary>LZO_CC_LCCWIN32</primary></indexterm><programlisting>#  define LZO_CC_LCCWIN32       1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-LCC:CAPS" role="macro"/>LZO_CC_LCC</title>
+<indexterm><primary>LZO_CC_LCC</primary></indexterm><programlisting>#  define LZO_CC_LCC            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-MSC:CAPS" role="macro"/>LZO_CC_MSC</title>
+<indexterm><primary>LZO_CC_MSC</primary></indexterm><programlisting>#  define LZO_CC_MSC            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-MWERKS:CAPS" role="macro"/>LZO_CC_MWERKS</title>
+<indexterm><primary>LZO_CC_MWERKS</primary></indexterm><programlisting>#  define LZO_CC_MWERKS         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-NDPC:CAPS" role="macro"/>LZO_CC_NDPC</title>
+<indexterm><primary>LZO_CC_NDPC</primary></indexterm><programlisting>#  define LZO_CC_NDPC           1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-PACIFICC:CAPS" role="macro"/>LZO_CC_PACIFICC</title>
+<indexterm><primary>LZO_CC_PACIFICC</primary></indexterm><programlisting>#  define LZO_CC_PACIFICC       1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-PGI:CAPS" role="macro"/>LZO_CC_PGI</title>
+<indexterm><primary>LZO_CC_PGI</primary></indexterm><programlisting>#  define LZO_CC_PGI            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-PUREC:CAPS" role="macro"/>LZO_CC_PUREC</title>
+<indexterm><primary>LZO_CC_PUREC</primary></indexterm><programlisting>#  define LZO_CC_PUREC          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-SYMANTECC:CAPS" role="macro"/>LZO_CC_SYMANTECC</title>
+<indexterm><primary>LZO_CC_SYMANTECC</primary></indexterm><programlisting>#  define LZO_CC_SYMANTECC      1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-SUNPROC:CAPS" role="macro"/>LZO_CC_SUNPROC</title>
+<indexterm><primary>LZO_CC_SUNPROC</primary></indexterm><programlisting>#  define LZO_CC_SUNPROC        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-TINYC:CAPS" role="macro"/>LZO_CC_TINYC</title>
+<indexterm><primary>LZO_CC_TINYC</primary></indexterm><programlisting>#  define LZO_CC_TINYC          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-TOPSPEEDC:CAPS" role="macro"/>LZO_CC_TOPSPEEDC</title>
+<indexterm><primary>LZO_CC_TOPSPEEDC</primary></indexterm><programlisting>#  define LZO_CC_TOPSPEEDC      1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-WATCOMC:CAPS" role="macro"/>LZO_CC_WATCOMC</title>
+<indexterm><primary>LZO_CC_WATCOMC</primary></indexterm><programlisting>#  define LZO_CC_WATCOMC        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-TURBOC:CAPS" role="macro"/>LZO_CC_TURBOC</title>
+<indexterm><primary>LZO_CC_TURBOC</primary></indexterm><programlisting>#  define LZO_CC_TURBOC         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-ZORTECHC:CAPS" role="macro"/>LZO_CC_ZORTECHC</title>
+<indexterm><primary>LZO_CC_ZORTECHC</primary></indexterm><programlisting>#  define LZO_CC_ZORTECHC       1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CC-UNKNOWN:CAPS" role="macro"/>LZO_CC_UNKNOWN</title>
+<indexterm><primary>LZO_CC_UNKNOWN</primary></indexterm><programlisting>#  define LZO_CC_UNKNOWN        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-ARCH:CAPS" role="macro"/>LZO_INFO_ARCH</title>
+<indexterm><primary>LZO_INFO_ARCH</primary></indexterm><programlisting>#define             LZO_INFO_ARCH</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-I086:CAPS" role="macro"/>LZO_ARCH_I086</title>
+<indexterm><primary>LZO_ARCH_I086</primary></indexterm><programlisting>#  define LZO_ARCH_I086             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-IA16:CAPS" role="macro"/>LZO_ARCH_IA16</title>
+<indexterm><primary>LZO_ARCH_IA16</primary></indexterm><programlisting>#  define LZO_ARCH_IA16             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-ALPHA:CAPS" role="macro"/>LZO_ARCH_ALPHA</title>
+<indexterm><primary>LZO_ARCH_ALPHA</primary></indexterm><programlisting>#  define LZO_ARCH_ALPHA            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-AMD64:CAPS" role="macro"/>LZO_ARCH_AMD64</title>
+<indexterm><primary>LZO_ARCH_AMD64</primary></indexterm><programlisting>#  define LZO_ARCH_AMD64            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-ARM:CAPS" role="macro"/>LZO_ARCH_ARM</title>
+<indexterm><primary>LZO_ARCH_ARM</primary></indexterm><programlisting>#define             LZO_ARCH_ARM</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-ARM-THUMB:CAPS" role="macro"/>LZO_ARCH_ARM_THUMB</title>
+<indexterm><primary>LZO_ARCH_ARM_THUMB</primary></indexterm><programlisting>#  define LZO_ARCH_ARM_THUMB        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-AVR:CAPS" role="macro"/>LZO_ARCH_AVR</title>
+<indexterm><primary>LZO_ARCH_AVR</primary></indexterm><programlisting>#  define LZO_ARCH_AVR              1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-BLACKFIN:CAPS" role="macro"/>LZO_ARCH_BLACKFIN</title>
+<indexterm><primary>LZO_ARCH_BLACKFIN</primary></indexterm><programlisting>#  define LZO_ARCH_BLACKFIN         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-C166:CAPS" role="macro"/>LZO_ARCH_C166</title>
+<indexterm><primary>LZO_ARCH_C166</primary></indexterm><programlisting>#  define LZO_ARCH_C166             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-CRIS:CAPS" role="macro"/>LZO_ARCH_CRIS</title>
+<indexterm><primary>LZO_ARCH_CRIS</primary></indexterm><programlisting>#  define LZO_ARCH_CRIS             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-H8300:CAPS" role="macro"/>LZO_ARCH_H8300</title>
+<indexterm><primary>LZO_ARCH_H8300</primary></indexterm><programlisting>#  define LZO_ARCH_H8300            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-HPPA:CAPS" role="macro"/>LZO_ARCH_HPPA</title>
+<indexterm><primary>LZO_ARCH_HPPA</primary></indexterm><programlisting>#  define LZO_ARCH_HPPA             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-I386:CAPS" role="macro"/>LZO_ARCH_I386</title>
+<indexterm><primary>LZO_ARCH_I386</primary></indexterm><programlisting>#define             LZO_ARCH_I386</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-IA32:CAPS" role="macro"/>LZO_ARCH_IA32</title>
+<indexterm><primary>LZO_ARCH_IA32</primary></indexterm><programlisting>#define             LZO_ARCH_IA32</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-IA64:CAPS" role="macro"/>LZO_ARCH_IA64</title>
+<indexterm><primary>LZO_ARCH_IA64</primary></indexterm><programlisting>#  define LZO_ARCH_IA64             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-M32R:CAPS" role="macro"/>LZO_ARCH_M32R</title>
+<indexterm><primary>LZO_ARCH_M32R</primary></indexterm><programlisting>#  define LZO_ARCH_M32R             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-M68K:CAPS" role="macro"/>LZO_ARCH_M68K</title>
+<indexterm><primary>LZO_ARCH_M68K</primary></indexterm><programlisting>#  define LZO_ARCH_M68K             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-MCS251:CAPS" role="macro"/>LZO_ARCH_MCS251</title>
+<indexterm><primary>LZO_ARCH_MCS251</primary></indexterm><programlisting>#  define LZO_ARCH_MCS251           1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-MCS51:CAPS" role="macro"/>LZO_ARCH_MCS51</title>
+<indexterm><primary>LZO_ARCH_MCS51</primary></indexterm><programlisting>#  define LZO_ARCH_MCS51            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-MIPS:CAPS" role="macro"/>LZO_ARCH_MIPS</title>
+<indexterm><primary>LZO_ARCH_MIPS</primary></indexterm><programlisting>#  define LZO_ARCH_MIPS             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-POWERPC:CAPS" role="macro"/>LZO_ARCH_POWERPC</title>
+<indexterm><primary>LZO_ARCH_POWERPC</primary></indexterm><programlisting>#  define LZO_ARCH_POWERPC          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-S390:CAPS" role="macro"/>LZO_ARCH_S390</title>
+<indexterm><primary>LZO_ARCH_S390</primary></indexterm><programlisting>#  define LZO_ARCH_S390             1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-SH:CAPS" role="macro"/>LZO_ARCH_SH</title>
+<indexterm><primary>LZO_ARCH_SH</primary></indexterm><programlisting>#  define LZO_ARCH_SH               1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-SPARC:CAPS" role="macro"/>LZO_ARCH_SPARC</title>
+<indexterm><primary>LZO_ARCH_SPARC</primary></indexterm><programlisting>#  define LZO_ARCH_SPARC            1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-Z80:CAPS" role="macro"/>LZO_ARCH_Z80</title>
+<indexterm><primary>LZO_ARCH_Z80</primary></indexterm><programlisting>#  define LZO_ARCH_Z80              1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-UNKNOWN:CAPS" role="macro"/>LZO_ARCH_UNKNOWN</title>
+<indexterm><primary>LZO_ARCH_UNKNOWN</primary></indexterm><programlisting>#  define LZO_ARCH_UNKNOWN          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-I086PM:CAPS" role="macro"/>LZO_ARCH_I086PM</title>
+<indexterm><primary>LZO_ARCH_I086PM</primary></indexterm><programlisting>#define             LZO_ARCH_I086PM</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ARCH-IA16PM:CAPS" role="macro"/>LZO_ARCH_IA16PM</title>
+<indexterm><primary>LZO_ARCH_IA16PM</primary></indexterm><programlisting>#define             LZO_ARCH_IA16PM</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-TINY:CAPS" role="macro"/>LZO_MM_TINY</title>
+<indexterm><primary>LZO_MM_TINY</primary></indexterm><programlisting>#define             LZO_MM_TINY</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-HUGE:CAPS" role="macro"/>LZO_MM_HUGE</title>
+<indexterm><primary>LZO_MM_HUGE</primary></indexterm><programlisting>#  define LZO_MM_HUGE           1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-SMALL:CAPS" role="macro"/>LZO_MM_SMALL</title>
+<indexterm><primary>LZO_MM_SMALL</primary></indexterm><programlisting>#define             LZO_MM_SMALL</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-MEDIUM:CAPS" role="macro"/>LZO_MM_MEDIUM</title>
+<indexterm><primary>LZO_MM_MEDIUM</primary></indexterm><programlisting>#define             LZO_MM_MEDIUM</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-COMPACT:CAPS" role="macro"/>LZO_MM_COMPACT</title>
+<indexterm><primary>LZO_MM_COMPACT</primary></indexterm><programlisting>#define             LZO_MM_COMPACT</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-LARGE:CAPS" role="macro"/>LZO_MM_LARGE</title>
+<indexterm><primary>LZO_MM_LARGE</primary></indexterm><programlisting>#define             LZO_MM_LARGE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-HAVE-MM-HUGE-PTR:CAPS" role="macro"/>LZO_HAVE_MM_HUGE_PTR</title>
+<indexterm><primary>LZO_HAVE_MM_HUGE_PTR</primary></indexterm><programlisting>#define LZO_HAVE_MM_HUGE_PTR        1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-HAVE-MM-HUGE-ARRAY:CAPS" role="macro"/>LZO_HAVE_MM_HUGE_ARRAY</title>
+<indexterm><primary>LZO_HAVE_MM_HUGE_ARRAY</primary></indexterm><programlisting>#define LZO_HAVE_MM_HUGE_ARRAY      1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-AHSHIFT:CAPS" role="macro"/>LZO_MM_AHSHIFT</title>
+<indexterm><primary>LZO_MM_AHSHIFT</primary></indexterm><programlisting>#define             LZO_MM_AHSHIFT</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-XTINY:CAPS" role="macro"/>LZO_MM_XTINY</title>
+<indexterm><primary>LZO_MM_XTINY</primary></indexterm><programlisting>#define             LZO_MM_XTINY</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-XSMALL:CAPS" role="macro"/>LZO_MM_XSMALL</title>
+<indexterm><primary>LZO_MM_XSMALL</primary></indexterm><programlisting>#define             LZO_MM_XSMALL</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-MM-FLAT:CAPS" role="macro"/>LZO_MM_FLAT</title>
+<indexterm><primary>LZO_MM_FLAT</primary></indexterm><programlisting>#  define LZO_MM_FLAT           1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-MM:CAPS" role="macro"/>LZO_INFO_MM</title>
+<indexterm><primary>LZO_INFO_MM</primary></indexterm><programlisting>#define             LZO_INFO_MM</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF-SHORT:CAPS" role="macro"/>LZO_SIZEOF_SHORT</title>
+<indexterm><primary>LZO_SIZEOF_SHORT</primary></indexterm><programlisting>#define             LZO_SIZEOF_SHORT</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF-INT:CAPS" role="macro"/>LZO_SIZEOF_INT</title>
+<indexterm><primary>LZO_SIZEOF_INT</primary></indexterm><programlisting>#define             LZO_SIZEOF_INT</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF-LONG:CAPS" role="macro"/>LZO_SIZEOF_LONG</title>
+<indexterm><primary>LZO_SIZEOF_LONG</primary></indexterm><programlisting>#define             LZO_SIZEOF_LONG</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF-LONG-LONG:CAPS" role="macro"/>LZO_SIZEOF_LONG_LONG</title>
+<indexterm><primary>LZO_SIZEOF_LONG_LONG</primary></indexterm><programlisting>#define             LZO_SIZEOF_LONG_LONG</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF---INT16:CAPS" role="macro"/>LZO_SIZEOF___INT16</title>
+<indexterm><primary>LZO_SIZEOF___INT16</primary></indexterm><programlisting>#  define LZO_SIZEOF___INT16        (SIZEOF___INT16)
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF---INT32:CAPS" role="macro"/>LZO_SIZEOF___INT32</title>
+<indexterm><primary>LZO_SIZEOF___INT32</primary></indexterm><programlisting>#  define LZO_SIZEOF___INT32        (SIZEOF___INT32)
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF---INT64:CAPS" role="macro"/>LZO_SIZEOF___INT64</title>
+<indexterm><primary>LZO_SIZEOF___INT64</primary></indexterm><programlisting>#define             LZO_SIZEOF___INT64</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF-VOID-P:CAPS" role="macro"/>LZO_SIZEOF_VOID_P</title>
+<indexterm><primary>LZO_SIZEOF_VOID_P</primary></indexterm><programlisting>#define             LZO_SIZEOF_VOID_P</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF-SIZE-T:CAPS" role="macro"/>LZO_SIZEOF_SIZE_T</title>
+<indexterm><primary>LZO_SIZEOF_SIZE_T</primary></indexterm><programlisting>#define             LZO_SIZEOF_SIZE_T</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-SIZEOF-PTRDIFF-T:CAPS" role="macro"/>LZO_SIZEOF_PTRDIFF_T</title>
+<indexterm><primary>LZO_SIZEOF_PTRDIFF_T</primary></indexterm><programlisting>#define             LZO_SIZEOF_PTRDIFF_T</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ABI-LITTLE-ENDIAN:CAPS" role="macro"/>LZO_ABI_LITTLE_ENDIAN</title>
+<indexterm><primary>LZO_ABI_LITTLE_ENDIAN</primary></indexterm><programlisting>#define             LZO_ABI_LITTLE_ENDIAN</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ABI-BIG-ENDIAN:CAPS" role="macro"/>LZO_ABI_BIG_ENDIAN</title>
+<indexterm><primary>LZO_ABI_BIG_ENDIAN</primary></indexterm><programlisting>#define             LZO_ABI_BIG_ENDIAN</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-ABI-ENDIAN:CAPS" role="macro"/>LZO_INFO_ABI_ENDIAN</title>
+<indexterm><primary>LZO_INFO_ABI_ENDIAN</primary></indexterm><programlisting>#define             LZO_INFO_ABI_ENDIAN</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ABI-I8LP16:CAPS" role="macro"/>LZO_ABI_I8LP16</title>
+<indexterm><primary>LZO_ABI_I8LP16</primary></indexterm><programlisting>#  define LZO_ABI_I8LP16         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-ABI-PM:CAPS" role="macro"/>LZO_INFO_ABI_PM</title>
+<indexterm><primary>LZO_INFO_ABI_PM</primary></indexterm><programlisting>#define             LZO_INFO_ABI_PM</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ABI-ILP16:CAPS" role="macro"/>LZO_ABI_ILP16</title>
+<indexterm><primary>LZO_ABI_ILP16</primary></indexterm><programlisting>#  define LZO_ABI_ILP16         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ABI-ILP32:CAPS" role="macro"/>LZO_ABI_ILP32</title>
+<indexterm><primary>LZO_ABI_ILP32</primary></indexterm><programlisting>#  define LZO_ABI_ILP32         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ABI-LLP64:CAPS" role="macro"/>LZO_ABI_LLP64</title>
+<indexterm><primary>LZO_ABI_LLP64</primary></indexterm><programlisting>#  define LZO_ABI_LLP64         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ABI-LP64:CAPS" role="macro"/>LZO_ABI_LP64</title>
+<indexterm><primary>LZO_ABI_LP64</primary></indexterm><programlisting>#  define LZO_ABI_LP64          1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ABI-ILP64:CAPS" role="macro"/>LZO_ABI_ILP64</title>
+<indexterm><primary>LZO_ABI_ILP64</primary></indexterm><programlisting>#  define LZO_ABI_ILP64         1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ABI-IP32L64:CAPS" role="macro"/>LZO_ABI_IP32L64</title>
+<indexterm><primary>LZO_ABI_IP32L64</primary></indexterm><programlisting>#  define LZO_ABI_IP32L64       1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-LIBC:CAPS" role="macro"/>LZO_INFO_LIBC</title>
+<indexterm><primary>LZO_INFO_LIBC</primary></indexterm><programlisting>#define             LZO_INFO_LIBC</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-LIBC-DIETLIBC:CAPS" role="macro"/>LZO_LIBC_DIETLIBC</title>
+<indexterm><primary>LZO_LIBC_DIETLIBC</primary></indexterm><programlisting>#  define LZO_LIBC_DIETLIBC     1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-LIBC-NEWLIB:CAPS" role="macro"/>LZO_LIBC_NEWLIB</title>
+<indexterm><primary>LZO_LIBC_NEWLIB</primary></indexterm><programlisting>#  define LZO_LIBC_NEWLIB       1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-LIBC-UCLIBC:CAPS" role="macro"/>LZO_LIBC_UCLIBC</title>
+<indexterm><primary>LZO_LIBC_UCLIBC</primary></indexterm><programlisting>#define             LZO_LIBC_UCLIBC</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-LIBC-GLIBC:CAPS" role="macro"/>LZO_LIBC_GLIBC</title>
+<indexterm><primary>LZO_LIBC_GLIBC</primary></indexterm><programlisting>#  define LZO_LIBC_GLIBC        (__GLIBC__ * 0x10000L + __GLIBC_MINOR__ * 0x100)
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-LIBC-MSL:CAPS" role="macro"/>LZO_LIBC_MSL</title>
+<indexterm><primary>LZO_LIBC_MSL</primary></indexterm><programlisting>#  define LZO_LIBC_MSL          __MSL__
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-LIBC-DEFAULT:CAPS" role="macro"/>LZO_LIBC_DEFAULT</title>
+<indexterm><primary>LZO_LIBC_DEFAULT</primary></indexterm><programlisting>#  define LZO_LIBC_DEFAULT      1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="lzo-alignof" role="macro"/>lzo_alignof()</title>
+<indexterm><primary>lzo_alignof</primary></indexterm><programlisting>#define             lzo_alignof(e)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>e</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-UNUSED:CAPS" role="macro"/>LZO_UNUSED()</title>
+<indexterm><primary>LZO_UNUSED</primary></indexterm><programlisting>#define             LZO_UNUSED(var)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>var</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-UNUSED-FUNC:CAPS" role="macro"/>LZO_UNUSED_FUNC()</title>
+<indexterm><primary>LZO_UNUSED_FUNC</primary></indexterm><programlisting>#define             LZO_UNUSED_FUNC(func)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>func</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-UNUSED-LABEL:CAPS" role="macro"/>LZO_UNUSED_LABEL()</title>
+<indexterm><primary>LZO_UNUSED_LABEL</primary></indexterm><programlisting>#define             LZO_UNUSED_LABEL(l)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>l</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-COMPILE-TIME-ASSERT-HEADER:CAPS" role="macro"/>LZO_COMPILE_TIME_ASSERT_HEADER()</title>
+<indexterm><primary>LZO_COMPILE_TIME_ASSERT_HEADER</primary></indexterm><programlisting>#define             LZO_COMPILE_TIME_ASSERT_HEADER(e)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>e</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-COMPILE-TIME-ASSERT:CAPS" role="macro"/>LZO_COMPILE_TIME_ASSERT()</title>
+<indexterm><primary>LZO_COMPILE_TIME_ASSERT</primary></indexterm><programlisting>#define             LZO_COMPILE_TIME_ASSERT(e)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>e</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="LZO-HAVE-WINDOWS-H:CAPS" role="macro"/>LZO_HAVE_WINDOWS_H</title>
+<indexterm><primary>LZO_HAVE_WINDOWS_H</primary></indexterm><programlisting>#    define LZO_HAVE_WINDOWS_H 1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OPT-AVOID-UINT-INDEX:CAPS" role="macro"/>LZO_OPT_AVOID_UINT_INDEX</title>
+<indexterm><primary>LZO_OPT_AVOID_UINT_INDEX</primary></indexterm><programlisting>#define             LZO_OPT_AVOID_UINT_INDEX</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OPT-AVOID-SHORT:CAPS" role="macro"/>LZO_OPT_AVOID_SHORT</title>
+<indexterm><primary>LZO_OPT_AVOID_SHORT</primary></indexterm><programlisting>#define             LZO_OPT_AVOID_SHORT</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OPT-AVOID-USHORT:CAPS" role="macro"/>LZO_OPT_AVOID_USHORT</title>
+<indexterm><primary>LZO_OPT_AVOID_USHORT</primary></indexterm><programlisting>#define             LZO_OPT_AVOID_USHORT</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OPT-AVOID-INT-INDEX:CAPS" role="macro"/>LZO_OPT_AVOID_INT_INDEX</title>
+<indexterm><primary>LZO_OPT_AVOID_INT_INDEX</primary></indexterm><programlisting>#define             LZO_OPT_AVOID_INT_INDEX</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OPT-PREFER-POSTINC:CAPS" role="macro"/>LZO_OPT_PREFER_POSTINC</title>
+<indexterm><primary>LZO_OPT_PREFER_POSTINC</primary></indexterm><programlisting>#define             LZO_OPT_PREFER_POSTINC</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OPT-PREFER-PREDEC:CAPS" role="macro"/>LZO_OPT_PREFER_PREDEC</title>
+<indexterm><primary>LZO_OPT_PREFER_PREDEC</primary></indexterm><programlisting>#define             LZO_OPT_PREFER_PREDEC</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-OPT-PREFER-PREINC:CAPS" role="macro"/>LZO_OPT_PREFER_PREINC</title>
+<indexterm><primary>LZO_OPT_PREFER_PREINC</primary></indexterm><programlisting>#  define LZO_OPT_PREFER_PREINC     1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CFG-NO-INLINE-ASM:CAPS" role="macro"/>LZO_CFG_NO_INLINE_ASM</title>
+<indexterm><primary>LZO_CFG_NO_INLINE_ASM</primary></indexterm><programlisting>#  define LZO_CFG_NO_INLINE_ASM 1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-CFG-NO-UNALIGNED:CAPS" role="macro"/>LZO_CFG_NO_UNALIGNED</title>
+<indexterm><primary>LZO_CFG_NO_UNALIGNED</primary></indexterm><programlisting>#  define LZO_CFG_NO_UNALIGNED 1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ASM-SYNTAX-MSC:CAPS" role="macro"/>LZO_ASM_SYNTAX_MSC</title>
+<indexterm><primary>LZO_ASM_SYNTAX_MSC</primary></indexterm><programlisting>#  define LZO_ASM_SYNTAX_MSC 1
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-ASM-SYNTAX-GNUC:CAPS" role="macro"/>LZO_ASM_SYNTAX_GNUC</title>
+<indexterm><primary>LZO_ASM_SYNTAX_GNUC</primary></indexterm><programlisting>#define             LZO_ASM_SYNTAX_GNUC</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="LZO-INFO-STRING:CAPS" role="macro"/>LZO_INFO_STRING</title>
+<indexterm><primary>LZO_INFO_STRING</primary></indexterm><programlisting>#define             LZO_INFO_STRING</programlisting>
+<para>
+
+</para></refsect2>
+
+</refsect1>
+
+
+
+
+
+<refsect1><refsect2 /><refsect2 /></refsect1>
+</refentry>

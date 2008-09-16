@@ -1,0 +1,63 @@
+# Make some example applications using can4linux device driver
+# (c) 2003-2006 port GmbH oe@port.de
+#
+# This can be used building stand alone applications on a PC Linux
+
+
+CC=powerpc-linux-gcc
+CC=m68k-elf-gcc
+CC=gcc
+
+CFLAGS = -Wall -I../can4linux -DUSE_RT_SCHEDULING
+
+CTAGS =	ctags --c-types=dtvf
+CTAGS =	elvtags -tsevl
+
+all: ctest baud can_send acceptance noiser receive transmit \
+	can_verify receive-select transmit-select \
+	transmitblock
+
+
+
+
+
+# simple applications, using the simple build-in make rule
+ctest:			ctest.o
+can_send:		can_send.o
+can_verify:		can_verify.o
+baud:			baud.o
+acceptance:		acceptance.o
+noiser:			noiser.o
+receive:		receive.o
+receive-select:		receive-select.o
+transmit-select:	transmit-select.o
+transmit:		transmit.o
+transmitblock:		transmitblock.o
+transmit2:		transmit2.o
+transmit3:		transmit3.o
+
+
+ctags:
+	$(CTAGS) can_send.c ../src/can4linux.h
+
+# create a shared object file for TCL
+# (tested with SWIG1.1-883, must be installed)
+# Test with canLtwo.tcl
+canLtwo.so:	canLtwo.c canLtwo.i ../src/can4linux.h
+	swig -tcl canLtwo.i
+	$(CC) $(CFLAGS) -c -fpic -I/usr/local/include \
+	    canLtwo.c canLtwo_wrap.c
+	$(CC) -shared canLtwo.o canLtwo_wrap.o -o $@
+
+clean:
+	-rm *.o \
+		ctest acceptance baud can_verify \
+		transmit transmit2 transmit3 \
+		transmit-select \
+		can_send \
+		receive \
+		receive-select \
+		noiser \
+		#canLtwo.so
+
+

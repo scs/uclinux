@@ -1,0 +1,267 @@
+This is inetutils.info, produced by makeinfo version 4.3 from
+../../inetutils/doc/inetutils.texi.
+
+START-INFO-DIR-ENTRY
+* networking(inet) utilities: (inetutils).      GNU networking utilities.
+* ftp: (inetutils)ftp invocation.               File Transfer Protocol.
+* ftpd: (inetutils)ftpd invocation.             FTP Daemon.
+* inetd: (inetutils)inetd invocation.           Interner super-server.
+* ping: (inetutils)ping invocation.             Packets to network hosts.
+* rcp: (inetutils)rcp invocation.               Strip non-directory suffix.
+* rexecd: (inetutils)rexecd invocation.         Remote execution server.
+* rlogin: (inetutils)rlogin invocation.         Remote login.
+* rlogind: (inetutils)rlogind invocation.       Remote login server.
+* rsh: (inetutils)rsh invocation.               Remote shell.
+* rshd: (inetutils)rshd invocation.             Remote shell server.
+* logger: (inetutils)logger invocation.         Logger.
+* syslogd: (inetutils)syslogd invocation.       Syslog server.
+* talk: (inetutils)talk invocation.             Talk client.
+* talkd: (inetutils)talkd invocation.           Talk server.
+* tftp: (inetutils)tftp invocation.             Trivial FTP.
+END-INFO-DIR-ENTRY
+
+   This file documents the GNU networking utilities.
+
+   Copyright (C) 1994, 95, 96, 2000, 2001 Free Software Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+
+File: inetutils.info,  Node: Concept Index,  Next: Index,  Prev: Reporting Bugs,  Up: Top
+
+Concept Index
+*************
+
+   This is a general index of all issues discussed in this manual, with
+the exception of the commands and command-line options.
+
+* Menu:
+
+* --8-bit:                               rlogin.
+* --acl:                                 talkd.
+* --address:                             ping.
+* --allow-root:                          rlogind.
+* --anonymous-only:                      ftpd.
+* --auth:                                ftpd.
+* --count:                               ping.
+* --d:                                   talkd.
+* --daemon <1>:                          rlogind.
+* --daemon:                              ftpd.
+* --debug <1>:                           talkd.
+* --debug <2>:                           syslogd.
+* --debug <3>:                           rsh.
+* --debug <4>:                           rlogin.
+* --debug <5>:                           ping.
+* --debug <6>:                           inetd.
+* --debug <7>:                           ftpd.
+* --debug:                               ftp.
+* --echo:                                ping.
+* --encrypt <1>:                         rshd.
+* --encrypt <2>:                         rsh.
+* --encrypt <3>:                         rlogind.
+* --encrypt <4>:                         rlogin.
+* --encrypt:                             rcp.
+* --escape:                              rlogin.
+* --file=FILE:                           logger.
+* --flood:                               ping.
+* --help <1>:                            rshd.
+* --help <2>:                            rlogind.
+* --help:                                Introduction.
+* --hop:                                 syslogd.
+* --idle-timeout:                        talkd.
+* --inet:                                syslogd.
+* --interval:                            ping.
+* --kerberos <1>:                        rshd.
+* --kerberos <2>:                        rsh.
+* --kerberos <3>:                        rlogind.
+* --kerberos <4>:                        rlogin.
+* --kerberos:                            rcp.
+* --local-domain <1>:                    rshd.
+* --local-domain:                        rlogind.
+* --logging:                             ftpd.
+* --mark:                                syslogd.
+* --max-timeout:                         ftpd.
+* --nignore-routingo-klog:               ping.
+* --no-detach:                           syslogd.
+* --no-escape:                           rlogin.
+* --no-forward:                          syslogd.
+* --no-glob:                             ftp.
+* --no-keepalive <1>:                    rshd.
+* --no-keepalive:                        rlogind.
+* --no-klog:                             syslogd.
+* --no-login:                            ftp.
+* --no-prompt:                           ftp.
+* --no-rhosts <1>:                       rshd.
+* --no-rhosts:                           rlogind.
+* --no-unixaf:                           syslogd.
+* --no-version:                          ftpd.
+* --ntimestamp:                          ping.
+* --numeric:                             ping.
+* --pattern:                             ping.
+* --pidfile <1>:                         syslogd.
+* --pidfile:                             ftpd.
+* --port:                                rlogind.
+* --preload:                             ping.
+* --preserve:                            rcp.
+* --priority=PRIORITY:                   logger.
+* --prompt:                              ftp.
+* --quiet:                               ping.
+* --r:                                   inetd.
+* --rate:                                inetd.
+* --rcfile:                              syslogd.
+* --realm <1>:                           rsh.
+* --realm <2>:                           rlogin.
+* --realm:                               rcp.
+* --recursive:                           rcp.
+* --request-ttl:                         talkd.
+* --reverse-required:                    rlogind.
+* --route:                               ping.
+* --router:                              ping.
+* --size:                                ping.
+* --socket:                              syslogd.
+* --tag=TAG:                             logger.
+* --timeout <1>:                         talkd.
+* --timeout:                             ftpd.
+* --trace:                               ftp.
+* --umask:                               ftpd.
+* --user:                                rsh.
+* --verbose <1>:                         ping.
+* --verbose:                             ftp.
+* --verify-hostname <1>:                 rshd.
+* --verify-hostname:                     rlogind.
+* --version <1>:                         rshd.
+* --version <2>:                         rlogind.
+* --version:                             Introduction.
+* -8:                                    rlogin.
+* -a <1>:                                talkd.
+* -a <2>:                                rshd.
+* -a <3>:                                rlogind.
+* -a:                                    ftpd.
+* -A:                                    ftpd.
+* -c:                                    ping.
+* -d:                                    syslogd.
+* -D:                                    rshd.
+* -d:                                    rsh.
+* -D:                                    rlogind.
+* -d <1>:                                rlogind.
+* -d <2>:                                rlogin.
+* -d <3>:                                ping.
+* -d <4>:                                inetd.
+* -d:                                    ftpd.
+* -D:                                    ftpd.
+* -d:                                    ftp.
+* -debug <1>:                            rshd.
+* -debug:                                rlogind.
+* -e:                                    rlogin.
+* -E:                                    rlogin.
+* -f <1>:                                syslogd.
+* -f:                                    ping.
+* -f FILE:                               logger.
+* -g:                                    ftp.
+* -h <1>:                                syslogd.
+* -h <2>:                                rshd.
+* -h:                                    rlogind.
+* -i <1>:                                talkd.
+* -i <2>:                                logger.
+* -i <3>:                                ping.
+* -i:                                    ftp.
+* -k <1>:                                rshd.
+* -k:                                    rsh.
+* -K:                                    rsh.
+* -k <1>:                                rlogind.
+* -k:                                    rlogin.
+* -K:                                    rlogin.
+* -k:                                    rcp.
+* -K:                                    rcp.
+* -l:                                    syslogd.
+* -L:                                    rshd.
+* -l <1>:                                rshd.
+* -l:                                    rsh.
+* -L:                                    rlogind.
+* -l <1>:                                rlogind.
+* -l <2>:                                ping.
+* -l:                                    ftpd.
+* -m:                                    syslogd.
+* -n <1>:                                syslogd.
+* -n <2>:                                rshd.
+* -n <3>:                                rlogind.
+* -n <4>:                                ping.
+* -n:                                    ftp.
+* -o:                                    rlogind.
+* -p <1>:                                syslogd.
+* -p <2>:                                rlogind.
+* -p <3>:                                rcp.
+* -p <4>:                                ping.
+* -p <5>:                                ftpd.
+* -p:                                    ftp.
+* -p PRIORITY:                           logger.
+* -q <1>:                                ping.
+* -q:                                    ftpd.
+* -r <1>:                                talkd.
+* -r <2>:                                syslogd.
+* -r <3>:                                rlogind.
+* -r:                                    rcp.
+* -R:                                    ping.
+* -r:                                    ping.
+* -s <1>:                                syslogd.
+* -s <2>:                                logger.
+* -s:                                    ping.
+* -t <1>:                                talkd.
+* -t:                                    ftpd.
+* -T:                                    ftpd.
+* -t:                                    ftp.
+* -t TAG:                                logger.
+* -u:                                    ftpd.
+* -V <1>:                                rshd.
+* -V:                                    rlogind.
+* -v <1>:                                ping.
+* -v:                                    ftp.
+* -x <1>:                                rshd.
+* -x <2>:                                rsh.
+* -x <3>:                                rlogind.
+* -x <4>:                                rlogin.
+* -x:                                    rcp.
+* Bugs, reporting:                       Reporting Bugs.
+* ftp:                                   ftp.
+* ftpd:                                  ftpd.
+* help, online:                          Introduction.
+* inetd:                                 inetd.
+* introduction:                          Introduction.
+* logger:                                logger.
+* networking utilities:                  Top.
+* ping:                                  ping.
+* rcp:                                   rcp.
+* rexecd:                                rexecd.
+* rlogin:                                rlogin.
+* rlogind:                               rlogind.
+* rsh:                                   rsh.
+* rshd:                                  rshd.
+* syslogd:                               syslogd.
+* talk:                                  talk.
+* talkd:                                 talkd.
+* tftp:                                  tftp.
+* version number, finding:               Introduction.
+
+
+File: inetutils.info,  Node: Index,  Prev: Concept Index,  Up: Top
+
+Index
+*****
+
+   This is an alphabetical list of all commands, command-line options,
+and environment variables.
+
+* Menu:
+

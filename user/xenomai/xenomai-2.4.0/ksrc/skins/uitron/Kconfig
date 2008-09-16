@@ -1,0 +1,22 @@
+menuconfig XENO_SKIN_UITRON
+	depends on XENO_OPT_NUCLEUS
+	select XENO_OPT_TIMING_PERIODIC
+	select XENO_OPT_MAP
+	tristate "uITRON API"
+	help
+
+	This skin implements the uITRON API. 
+
+config XENO_OPT_UITRON_PERIOD
+	depends on XENO_SKIN_UITRON
+	int "Base period (us)"
+	default 1000
+	help
+	Duration of the base periodic tick (in microseconds).
+
+	The uITRON skin expresses all delays and timeouts as
+	counts of ticks. This parameter defines the duration
+	of a uITRON clock tick expressed in microseconds.
+
+	The base period can be overriden at runtime using the
+	"tick_arg" module parameter when loading the uITRON skin.

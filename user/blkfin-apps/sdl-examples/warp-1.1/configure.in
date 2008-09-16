@@ -1,0 +1,21 @@
+ss this file with autoconf to produce a configure script.
+AC_INIT(README)
+
+dnl Setup for automake
+AM_INIT_AUTOMAKE(warp, 1.1)
+
+dnl Check for tools
+
+AC_PROG_CC
+
+dnl Check for SDL
+SDL_VERSION=1.0.1
+AM_PATH_SDL($SDL_VERSION,
+            :,
+	    AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
+)
+CFLAGS="$CFLAGS $SDL_CFLAGS"
+LIBS="$LIBS $SDL_LIBS"
+
+# Finally create all the generated files
+AC_OUTPUT([Makefile])

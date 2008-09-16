@@ -1,0 +1,56 @@
+mainmenu_option next_comment
+comment 'Real-time sub-system'
+
+if [ "$CONFIG_APM" = "m" -o "$CONFIG_APM" = "y" -o "$CONFIG_ACPI_PROCESSOR" = "y" -o "$CONFIG_ACPI_PROCESSOR" = "m" ]; then
+    comment "WARNING! You enabled APM or ACPI 'processor' option"
+    comment "These options are known to cause troubles with Xenomai"
+fi
+
+if [ "$CONFIG_IPIPE" = "n" ]; then
+    comment "Xenomai depends on Adeos interrupt pipeline"
+else
+    bool 'Xenomai' CONFIG_XENOMAI
+
+    source kernel/xenomai/Config.in
+
+    if [ "$CONFIG_XENOMAI" = "y" -a "$CONFIG_XENO_OPT_NUCLEUS" != "n" ]; then
+
+	mainmenu_option next_comment
+	comment 'Machine'
+	bool 'Enable FPU support' CONFIG_XENO_HW_FPU
+
+	if [ "$CONFIG_X86_LOCAL_APIC" = "y" ]; then
+	   mainmenu_option next_comment
+	   comment 'NMI watchdog'
+	   bool 'Enable NMI watchdog' CONFIG_XENO_HW_NMI_DEBUG_LATENCY
+	   if [ "$CONFIG_XENO_HW_NMI_DEBUG_LATENCY" != "n" ]; then
+	       int 'NMI watchdog latency threshold (us)' CONFIG_XENO_HW_NMI_DEBUG_LATENCY_MAX 0
+	   fi
+	   endmenu
+	fi
+	mainmenu_option next_comment
+	comment 'SMI workaround'
+	bool 'Disable SMI detection' CONFIG_XENO_HW_SMI_DETECT_DISABLE
+	if [ "$CONFIG_XENO_HW_SMI_DETECT_DISABLE" != "y" ]; then
+	   define_bool CONFIG_XENO_HW_SMI_DETECT y
+	   bool 'Enable SMI workaround' CONFIG_XENO_HW_SMI_WORKAROUND
+	   if [ "$CONFIG_XENO_HW_SMI_WORKAROUND" != "n" ]; then
+	      bool 'Globally disable SMI' CONFIG_XENO_HW_SMI_ALL
+	      if [ "$CONFIG_XENO_HW_SMI_ALL" != "y" ]; then
+	         bool 'Enable Intel-Specific USB2 SMI' CONFIG_XENO_HW_SMI_INTEL_USB2
+	         bool 'Enable legacy USB2 SMI' CONFIG_XENO_HW_SMI_LEGACY_USB2
+	         bool 'Enable periodic SMI' CONFIG_XENO_HW_SMI_PERIODIC
+	         bool 'Enable TCO SMI' CONFIG_XENO_HW_SMI_TCO
+	         bool 'Enable microcontroller SMI' CONFIG_XENO_HW_SMI_MC
+	         bool 'Enable APM SMI' CONFIG_XENO_HW_SMI_APMC
+	         bool 'Enable legacy USB SMI' CONFIG_XENO_HW_SMI_LEGACY_USB
+	         bool 'Enable ACPI BIOS SMI' CONFIG_XENO_HW_SMI_BIOS
+              fi
+	   fi
+	fi
+	endmenu
+	endmenu
+    fi
+fi
+
+endmenu

@@ -1,0 +1,38 @@
+<html>
+<head><title>FtpGet</title></head>
+<body>
+
+<h1>FtpGet</h1>
+<p>Retreive a file from the remote system.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpGet(const char *output, const char *path, char mode, netbuf *nControl);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>output</b>
+<dd>Name of a local file to receive the contents of the remote file.
+
+<dt><b>path</b>
+<dd>Name of remote file to be retrieved.
+
+<dt><b>mode</b>
+<dd>Specifies the transfer mode as FTPLIB_ASCII or FTPLIB_IMAGE.
+
+<dt><b>nControl</b>
+<dd>A handle returned by <a href="FtpConnect.html">FtpConnect()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>FtpGet() copies the contents of a remote file to a local file.
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if successful or 0 on error.
+
+</body>
+</html>

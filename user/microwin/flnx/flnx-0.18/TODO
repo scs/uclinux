@@ -1,0 +1,18 @@
+flnx 0.15 - 2nd Nov 2000 - jeffm@censoft.com
+- Does not always show correct colors (See Microsoft Window Sytle).
+  Note: It does call for the correct color "numbers", it just doesn't
+  show them on the screen correctly.
+flnx 0.14 - 2nd Nov 2000 - jeffm@censoft.com
+- Find and fix any memory leaks.
+- Add 2 byte character support.
+- Make sure XPM's do not crash under framebuffer mode.
+- Nano-X window managers do not handle resizing from child windows
+  (hence the resizeborder and the fullscreen demos cannot work correctly).
+- The Nano-X X11 mouse driver does not always catch mouse release events.
+  For example, if you wildly drag up and down on scroll bars, the
+  FL_RELEASE is never sent. Therefore the FL_DRAG holds indefinitely untill
+  your next mouse click.
+- Obtain bitmaps for all FLTK supported cursors.
+- Make sure the colors for all FLTK supported cursors change to the correct
+  foreground and background colors. Sometimes you'll want the bitmap to be
+  the foreground and other times the mask.

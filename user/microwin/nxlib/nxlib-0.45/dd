@@ -1,0 +1,2 @@
+
+/usr2/microwin/src/bin/nano-X & /usr2/microwin/src/bin/nanowm & /usr2/microwin/src/bin/nxmag & ./testarc; kbd_mode -a; stty sane

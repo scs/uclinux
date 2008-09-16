@@ -1,0 +1,1 @@
+cyclictest:posix:!@exec_prefix@/bin/cyclictest -p 99 -n;popall:control_c

@@ -1,0 +1,1 @@
+clocktest:posix:!@exec_prefix@/bin/clocktest;popall:control_c

@@ -1,0 +1,150 @@
+.\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for runinfo
+.\"
+.\" Copyright (C) 2005, 2006 Romain Lenglet <rlenglet@users.forge.objectweb.org>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH RUNINFO 5 "2005-10-18" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+runinfo \- Format of the .runinfo files used by xeno-load(1) to execute applications based on Xenomai
+.SH DESCRIPTION
+A \fB.runinfo\fP file describes the possible targets for executing an application based on Xenomai.
+Each target is defined on one line, with the following format:
+.RS
+.sp
+\fIname\fP:\fImodulenames\fP:\fIactions\fP:\fImessage\fP
+.sp
+.RE
+The meanings of the fields are:
+.TP
+.I name
+The name of the target.
+.TP
+.I modulenames
+The list of names of modules to be loaded by \fBxeno-load\fP(1) before executing the application, and unloaded after execution.
+If several module names are specified, they must be separated by pluses (\fB+\fP).
+Order is important: modules are loaded in the same order as in the list, and unloaded in the reverse order.
+Every module is loaded and unloaded only once, so duplicate module names are allowed in the list.
+
+A module name can be that of any Linux kernel module, or of one of Xenomai's modules.
+In the latter case, the name of a Xenomai module must be specified without the \fBxeno_\fP name prefix, e.g. \fBnative\fP must be specified in order to load/unload Xenomai's \fBxeno_native\fP module.
+Modules \fBxeno_hal\fP and \fBxeno_nucleus\fP are always loaded/unloaded by \fBxeno-load\fP(1): there is no need to explicitly specify them.
+
+Xenomai modules are loaded directly using \fBinsmod\fP(8), and other modules are loaded using \fBmodprobe\fP(8).
+All modules are unloaded after execution using \fBrmmod\fP(8).
+
+.TP
+.I actions
+Sequence of actions to execute the application.
+In the simplest case, this is only the command line to execute.
+More generally, this field is a sequence of actions separated by semi-colons (\fB;\fP).
+Any number of the following actions are allowed, in any order:
+.RS
+.TP
+\fBpush\fP \fImodulename\fP
+Loads the module with the specified name, using \fBinsmod\fP(8).
+If a module with that name exists in the application-specific module directory (as specified in \fBuser_moddir\fP, see below), that module is loaded.
+Otherwise, \fImodulename\fP must be a sufficiently qualified relative file name, or an absolute file name.
+.TP
+[\fBexec\fP|\fBspawn\fP] [\fB!\fP] \fIcommandline\fP [\fB&\fP]
+Executes the specified \fIcommandline\fP.
+The \fIargs\fP arguments passed to the \fBxeno-load\fP(1) command are appended to the \fIcommandline\fP, so that invariable arguments can be "hard-coded" in the target \fIcommandline\fP, and variable arguments can be passed as \fIargs\fP to \fBxeno-load\fP(1).
+
+The \fBexec\fP and \fBspawn\fP keywords are equivalent to having no keyword, hence have no effect.
+
+If the \fB!\fP option is specified, the application is executed as \fBroot\fP using \fBsudo\fP(8), hence the user may have to enter a password.
+Otherwise, the application is directly executed as the user that executes \fBxeno-load\fP(1).
+
+If the \fB&\fP option is specified, the application is executed as a background shell job; otherwise it is executed as a foreground job.
+.TP
+\fBklog\fP [\fIargs\fP] ...
+A shortcut equivalent to the following action, which displays logging messages from the kernel:
+.sp
+.B ! tail -f /var/log/messages
+.sp
+Arguments following the \fBklog\fP keyword are ignored.
+.TP
+\fBpop\fP [\fImodulename\fP] ...
+Unloads the modules with the specified names (separated by spaces). If no module name is specified, the lastly loaded module (e.g. loaded by the last \fBpush\fP action) is unloaded.
+.TP
+\fBpopall\fP | \fBflush\fP
+Terminates any currently executing actions, especially background jobs (started with the \fB&\fP option, see above), unloads all modules loaded by \fBpush\fP actions, and unloads all modules listed in the \fImodulenames\fP field of the target.
+\fBpopall\fP and \fBflush\fP are synomous.
+
+It is recommended to terminate every target action list by a \fBpopall\fP or \fBflush\fP action, in order to unload all loaded modules after the application execution is terminated.
+A \fBpopall\fP action is executed when \fBxeno-load\fP(1) receives a SIGINT signal (e.g. the user typed \fBCONTROL-C\fP); then it terminates.
+.RE
+.TP
+.I message
+A message that is printed at target startup. As a shortcut, if the \fImessage\fP is \fBcontrol_c\fP, it is replaced by:
+.sp
+.B Type ^C to stop this application.
+.sp
+.RE
+One or more such targets can be defined in a \fB.runinfo\fP file, one per line.
+The first defined target is the default target.
+
+In addition to lines defining targets, a \fB.runinfo\fP file can contain lines that define paths to directory containg module files.
+The following optional line defines the path to Xenomai's kernel module files, referred to in targets' \fImodulenames\fP fields.
+By default, if no such line is specified, the path is Xenomai's modules installation path.
+.RS
+.sp
+\fBxeno_moddir=\fP\fIdirectory\fP
+.sp
+.RE
+The following optional line defines the path to the application's kernel module files to be loaded.
+This path is used by \fBpush\fP actions.
+.RS
+.sp
+\fBuser_moddir=\fP\fIdirectory\fP
+.sp
+.RE
+
+Module names specified in the \fImodulenames\fP target fields or as parameters to \fBpush\fP and \fBpop\fP actions must be specified without the kernel module file extension (e.g.: \fB.ko\fP).
+
+.SH EXAMPLES
+This is the \fB.runinfo\fP file for the \fBlatency\fP test program distributed with Xenomai:
+.RS
+.sp
+latency:native:!./latency;popall:control_c
+.sp
+.RE
+This file defines a single target, called \fBlatency\fP.
+This target uses Xenomai's \fBxeno_native\fP module (the \fBnative\fP name is specified, without the \fBxeno_\fP name prefix).
+The application is executed by two actions. Fist, the \fBlatency\fP command is executed, as \fBroot\fP using \fBsudo\fP(8) (since the \fB!\fP option is specified). Then, the \fBpopall\fP action is executed, to unload all modules (\fBxeno_native\fP, etc.).
+The message to be displayed before the application is executed is:
+.RS
+.sp
+Type ^C to stop this application.
+.sp
+.RE
+since \fBcontrol_c\fP is a shortcut for that common message.
+
+This is a more complex \fB.runinfo\fP file, with multiple targets and module paths definitions:
+.RS
+.sp
+.nf
+.ne 6
+### Target definitions ###
+userspace:posix+native:exec ./app1;popall:control_c
+kernelspace:native:push mymodule;exec !./app2;pop mymodule;popall:control_c
+debug:native:push mymodule;klog:Type ^C to stop printing logging messages.
+
+### Modules directories ###
+xeno_moddir=/usr/realtime/modules
+user_moddir=/usr/local/lib/mymodules
+.fi
+.sp
+.RE
+In this example, target \fBuserspace\fP is the default target, since it is the first defined.
+.SH "SEE ALSO"
+.BR xeno-load (1),
+.BR sudo (8),
+.BR insmod (8),
+.BR modprobe (8),
+.BR rmmod (8)

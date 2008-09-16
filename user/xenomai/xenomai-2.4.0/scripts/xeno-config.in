@@ -1,0 +1,118 @@
+#! /bin/sh
+
+staging=${DESTDIR}
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+libdir="@libdir@"
+datarootdir="@datarootdir@"
+datadir="@datadir@"
+pkgdatadir="${datadir}/@PACKAGE@"
+includedir="@includedir@"
+
+XENO_VERSION="@PACKAGE_VERSION@"
+XENO_PREFIX="${staging}${prefix}"
+XENO_CC="@CC@"
+XENO_TARGET_ARCH="@XENO_TARGET_ARCH@"
+XENO_BASE_CFLAGS="-I${staging}${includedir} @XENO_USER_APP_CFLAGS@ -D__XENO__"
+XENO_BASE_LDFLAGS="-L${staging}${libdir} -lpthread @XENO_USER_APP_LDFLAGS@"
+XENO_POSIX_CFLAGS="-I${staging}${includedir} -I${staging}${includedir}/posix @XENO_USER_APP_CFLAGS@ -D__XENO__"
+XENO_POSIX_LDFLAGS="-L${staging}${libdir} -lpthread_rt -lpthread -lrt @XENO_USER_APP_LDFLAGS@"
+XENO_POSIX_WRAPPERS="${staging}${libdir}/posix.wrappers"
+XENO_POSIX_FAST_WRAPPING="@LD_FILE_OPTION@"
+XENO_LIBRARY_DIR="${staging}${libdir}"
+
+unset prefix exec_prefix libdir datadir datarootdir pkgdatadir includedir
+
+usage ()
+{
+cat <<EOF
+Usage xeno-config OPTIONS
+Options :
+        --help
+        --v,--verbose
+        --version
+        --cc
+        --arch
+        --prefix
+        --xeno-cflags
+        --xeno-ldflags
+        --posix-cflags
+        --posix-ldflags
+        --lib*-dir,--libdir,--user-libdir
+EOF
+    exit $1
+}
+
+verbose ()
+{
+    echo xeno-config --verbose
+    echo "   " --version="\"${XENO_VERSION}\""
+    echo "   " --cc="\"$XENO_CC\""
+    echo "   " --arch="\"$XENO_TARGET_ARCH\""
+    echo "   " --prefix="\"$XENO_PREFIX\""
+    echo "   " --xeno-cflags="\"$XENO_BASE_CFLAGS\""
+    echo "   " --xeno-ldflags="\"$XENO_BASE_LDFLAGS\""
+    echo "   " --posix-cflags="\"$XENO_POSIX_CFLAGS\""
+    echo "   " --posix-ldflags="\"$XENO_POSIX_LDFLAGS\""
+    echo "   " --library-dir="\"$XENO_LIBRARY_DIR\""
+}
+
+if test $# -eq 0; then
+    verbose $*
+    usage 1 1>&2
+fi
+
+while test $# -gt 0; do
+    case "$1" in
+        --v|--verbose)
+            verbose $*
+            exit 0
+            ;;
+        --version)
+            echo ${XENO_VERSION}
+            ;;
+        --cc)
+            echo $XENO_CC
+            ;;
+        --arch)
+            echo $XENO_TARGET_ARCH
+            ;;
+        --prefix)
+            echo $XENO_PREFIX
+            ;;
+        --xeno-cflags)
+            echo $XENO_BASE_CFLAGS
+            ;;
+        --xeno-ldflags)
+            echo $XENO_BASE_LDFLAGS
+            ;;
+        --posix-cflags)
+            echo $XENO_POSIX_CFLAGS
+            ;;
+        --posix-ldflags)
+            if test \! -r $XENO_POSIX_WRAPPERS; then
+               echo "POSIX support is not available" >&2
+               exit 1
+            fi
+            if test "$XENO_POSIX_FAST_WRAPPING" = "yes"; then
+                echo "-Wl,@$XENO_POSIX_WRAPPERS $XENO_POSIX_LDFLAGS"
+            else
+                wrappers=`cat $XENO_POSIX_WRAPPERS | \
+                    while read wrap_option symbol; do \
+                        echo -n "-Wl,$wrap_option,$symbol " ; \
+                    done`
+                echo "$wrappers $XENO_POSIX_LDFLAGS"
+            fi
+            ;;
+        --lib*-dir|--libdir|--user-libdir)
+            echo $XENO_LIBRARY_DIR
+            ;;
+        --help)
+            usage 0 1>&2
+            ;;
+        *)
+         usage 1 1>&2
+         ;;
+    esac
+    shift
+done

@@ -1,0 +1,53 @@
+http://directfb.org/mantis/view.php?id=79
+
+--- src/core/core.c
++++ src/core/core.c
+@@ -31,7 +31,6 @@
+ #include <stdlib.h>
+ #include <unistd.h>
+ #include <dirent.h>
+-#include <dlfcn.h>
+ #include <errno.h>
+ 
+ #include <pthread.h>
+@@ -72,6 +71,10 @@
+ #include <misc/conf.h>
+ #include <misc/util.h>
+ 
++#if defined(DFB_DYNAMIC_LINKING) && defined(SOPATH)
++#include <dlfcn.h>
++#endif
++
+ D_DEBUG_DOMAIN( DirectFB_Core, "DirectFB/Core", "DirectFB Core" );
+ 
+ /******************************************************************************/
+--- lib/direct/interface.c
++++ lib/direct/interface.c
+@@ -30,9 +30,6 @@
+ 
+ #include <pthread.h>
+ #include <dirent.h>
+-#ifndef USE_KOS
+-#include <dlfcn.h>
+-#endif
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <errno.h>
+@@ -50,6 +47,7 @@
+ 
+ #ifdef PIC
+ #define DYNAMIC_LINKING
++#include <dlfcn.h>
+ #endif
+ 
+ typedef struct {
+--- systems/vnc/vncinput.c
++++ systems/vnc/vncinput.c
+@@ -19,7 +19,6 @@
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+-#include <dlfcn.h>
+ 
+ #include <directfb.h>
+ 

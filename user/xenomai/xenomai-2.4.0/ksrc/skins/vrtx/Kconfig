@@ -1,0 +1,24 @@
+menuconfig XENO_SKIN_VRTX
+	depends on XENO_OPT_NUCLEUS
+	select XENO_OPT_TIMING_PERIODIC
+	select XENO_OPT_MAP
+	tristate "VRTX emulator"
+	select XENO_OPT_REGISTRY if XENO_OPT_PERVASIVE
+	help
+
+	This API skin emulates Mentor Graphics's VRTX operating
+	system.
+
+config XENO_OPT_VRTX_PERIOD
+	depends on XENO_SKIN_VRTX
+	int "Base period (us)"
+	default 1000
+	help
+	Duration of the base periodic tick (in microseconds).
+
+	The VRTX skin expresses all delays and timeouts as
+	counts of ticks. This parameter defines the duration
+	of a VRTX clock tick expressed in microseconds.
+
+	The base period can be overriden at runtime using the
+	"tick_arg" module parameter when loading the VRTX skin.

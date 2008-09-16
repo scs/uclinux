@@ -1,0 +1,42 @@
+NXLIB build and installation instructions
+Version 0.44, May 30, 2003
+
+1. Modify Makefile to set Microwindows and X11 include and lib directories
+	MWIN=/usr2/microwin/src
+	X11=/usr/X11R6
+
+	Microwindows v0.90 or later must be used.
+
+2. Modify Makefile to set X11 PCF font search directories (2)
+	X11_FONT_DIR1=/usr/lib/X11/fonts/100dpi
+	X11_FONT_DIR2=/usr/lib/X11/fonts/misc
+
+3. Modify Makefile to set rgb.txt file location
+	X11_RGBTXT=/usr/lib/X11/rgb.txt
+
+4. Modify Makefile to enable X11 shared library and version if desired
+	SHAREDLIB=Y
+	LIBNAME = X11
+	SOLIBREV = 6.2
+	CFLAGS += -DXCONST=_Xconst
+
+	Because of X11 hdr version inconstencies, you may need to set 
+		CFLAGS += -DXCONST=_Xconst  or  CFLAGS += -DXCONST=
+	to compile _Xconst in or out of a couple of function declarations.
+
+5. Type "make".
+	This builds the library using your already-installed X11 headers.
+	If DEBUG = -g, a larger library will be built with debug information.
+	If INCLUDE_XRM=Y, unmodified Xrm database routines will be included.
+
+6. DO NOT "make install" UNTIL YOU BACK UP THE FOLLOWING LIBRARIES.
+   NOTE "make install" WILL BY DEFAULT OVERWRITE THE FOLLOWING FILES:
+
+	/usr/X11R6/lib/libX11.so.*
+	(/usr/X11R6/lib/libX11.so /usr/X11R6/lib/libX11.so.6 /usr/X11R6/lib/libX11.so.6.2)
+
+For more information, visit http://microwindows.org or email <greg@censoft.com>
+
+Have fun!
+
+Greg Haerr

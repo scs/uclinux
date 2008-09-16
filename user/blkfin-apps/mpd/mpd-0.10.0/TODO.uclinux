@@ -1,0 +1,14 @@
+Look for bugs.
+
+Fix bugs.
+
+Optimize.
+
+Add some features that embedded users might need.
+
+Remove unneeded features.
+
+Clean up code, integrate with mainline.
+
+Fix state_file handling (broken by buffer)
+

@@ -1,0 +1,92 @@
+Real-Time Serial Driver for 16550A-Compatible Devices
+=====================================================
+
+Driver revision: 1.5.0
+
+
+Preparation
+-----------
+
+ - Decide which serial ports are to be managed by the real-time driver.
+
+ - Identify their I/O addresses and IRQ numbers:
+
+   setserial /dev/ttyS<N>
+
+ - Disable the Linux driver for all these devices:
+
+   setserial /dev/ttyS<N> uart none
+
+
+Configuration
+-------------
+
+ - Enable CONFIG_XENO_DRIVERS_16550A in kernel configuration. The typical
+   setup is modularised (see below for built-in configuration).
+
+ - Pick I/O access mode. For standard-PCs, CONFIG_XENO_DRIVERS_16550A_PIO is
+   recommended. Memory-mapped 16550A controllers (may be found on non-x86
+   systems, or special PCI adapters) require either
+   CONFIG_XENO_DRIVERS_16550A_MMIO or CONFIG_XENO_DRIVERS_16550A_ANY.
+
+
+Invocation
+----------
+
+Port-base I/O:
+(CONFIG_XENO_DRIVERS_16550A_PIO or CONFIG_XENO_DRIVERS_16550A_ANY)
+
+modprobe xeno_16550A io=<io1>[,<io2>...]] [irq=<irq1>[,<irq2>...]]
+                     [baud_base=<base1>[,<base2>...]]
+                     [tx_fifo=<len1>[,<len2>...]] [start_index=<index>]
+
+Memory-mapped I/O:
+(CONFIG_XENO_DRIVERS_16550A_MMIO or CONFIG_XENO_DRIVERS_16550A_ANY)
+
+modprobe xeno_16550A mem=<mem1>[,<mem2>...] irq=<irq1>[,<irq2>...] ...
+
+Mixed I/O:
+(CONFIG_XENO_DRIVERS_16550A_ANY)
+
+modprobe xeno_16550A io=<io1>[,<io2>...]] mem=<mem1>[,<mem2>...] ...
+
+Arguments:
+    io          - Port-based I/O addresses of the devices, comma separated
+                  (e.g. "0x3f8,0x2f8")
+    mem         - Memory-mapped I/O addresses of the device, comma separated
+                  (e.g. "0xe0001000,0xe0001020")
+    irq         - interrupt numbers of the devices, comma separated (e.g.
+                  "4,3"), may be omitted if device and kernel support PnP
+    baud_base   - Maximum baud rates of the devices, comma separated, default
+                  is 115200
+    tx_fifo     - Transmitter FIFO sizes of the devices in bytes, comma
+                  separated, default is 16
+    start_index - First device instance number to be used, default is 0
+                  (=> "rtser0")
+
+Examples:
+
+modprobe xeno_16550A io=0x3f8,0x2f8 irq=4,3
+(first two standard-PC UART ports on rtser0 and rtser1)
+
+modprobe xeno_16550A io=0x2f8,0 mem=0,0xe0001000 irq=3,9
+(second standard-PC UART on rtser0, some memory-mapped UART at 0xe0001000
+using IRQ #9 on rtser1)
+
+
+In-Kernel Driver Setup
+----------------------
+(kernel 2.6 only!)
+
+If you prefer to compile xeno_16550A into the kernel, the arguments listed
+above have to be provided as kernel parameter. Just prepend the prefix
+"xeno_16550A.", e.g. "xeno_16550A.io=0x3f8,0x2f8". To control the standard
+Linux 8250 serial driver, either disable it at compile time or set the number
+of managed ports via "8250.nr_uarts=N".
+
+
+Usage
+-----
+
+The API is described in the API documentation under Modules -> Real-Time
+Driver Model -> Device Profiles -> Serial Devices.

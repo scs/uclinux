@@ -1,0 +1,22 @@
+Usage:
+
+semtool  c 5
+semtool  l 0
+semtool  u 0
+semtool  m 660
+semtool  d
+
+shmtool  w   test
+shmtool  w   "This is a test"
+shmtool  r   
+shmtool  d
+shmtool  m   660
+
+msgtool  s   1 test
+msgtool  s   5 test
+msgtool  s   1 "This is a test"
+msgtool  r   1
+msgtool  d
+msgtool  m   660
+
+For more info, see http://www.tldp.org/LDP/lpg/node21.html#SECTION00740000000000000000.

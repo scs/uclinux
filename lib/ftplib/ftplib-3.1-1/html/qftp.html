@@ -1,0 +1,94 @@
+<html><head><title>qftp</title></head>
+<body>
+
+<h1>qftp</h1>
+
+<p><i>qftp</i> is a utility that performs file transfers using
+<i>ftplib</i> based on instructions presented on the command line.
+
+<h2>Format</h2>
+
+<pre>
+    qftp &lt;action&gt; &lt;host&gt; [ -l user [ -p pass ] ] { options/files }...
+
+    Actions: send, get, dir, list, rm
+
+    Options:
+        -v level        Set verbosity
+        -r rootpath     Change remote working directory
+	-m umask        Set umask for created files
+        -a | -i         Set ascii/image transfer mode
+</pre>
+
+<dl>
+
+<dt>action
+<dd>Specifies what <i>qftp</i> is to do.  <i>qftp</i> can <b>send</b>
+files to a remote system, <b>get</b> files from a remote system, remove
+(<b>rm</b>) files from a remote system, or retreive a <b>dir</b>ectory
+of files or a <b>list</b> of files on a remote system.
+
+<dt>host
+<dd>Specifies the name of the remote system.  An alternate port may be
+specified by appending a colon and the port name or number to the host
+name.
+
+<dt>-l user
+<dd>Specifies the username to log in with on <b>host</b>.
+
+<dt>-p pass
+<dd>Specifies the password to log in with on <b>host</b>.
+
+<p>If <b>user</b> is not specified, <i>qftp</i> will use
+<b>anonymous</b>.  If <b>pass</b> is also not specified, <i>qftp</i> 
+attempts to build a password from the translation of the environment
+variable "USER" and the string returned by gethostname() separated by an
+"@".
+
+<dt>-v level
+<dd>Specifies the verbosity level.  A level of 1 will cause <i>qftp</i>
+to display messages indicating successful transfers.  A level of 2 will
+cause FTP protocol responses to be displayed.  A level of 3 will cause
+FTP protocol commands to be displayed.
+
+<dt>-r rootpath
+<dd>Sends a 'change directory' request to the remote server.  All
+subsequent file names on the command line will be parsed relative to this
+new directory.
+
+<dt>-m umask
+<dd>Sends a request to change the umask to the remote server.  This may
+not be supported by all servers.  It is implemented using the 'SITE'
+command in the FTP protocol.
+
+<dt>-a
+<dd>Requests that subsequent files be sent in ascii mode.
+
+<dt>-i
+<dd>Requests that subsequent files be sent in image mode.
+
+</dl>
+
+<p><i>qftp</i> may optionally be invoked through a softlink.  <i>qftp</i>
+searches the command which invoked it for 'send', 'get' or 'dir' and, if
+found, performs the requested function.  In this case, leave off the
+<b>action</b> argument on the command line.
+
+<p>For example; I use the following softlinks:
+
+<pre>
+    ln -s qftp ftpsend
+    ln -s qftp ftpget
+    ln -s qftp ftpdir
+    ln -s qftp ftplist
+    ln -s qftp ftprm
+</pre>
+
+<p> and then invoke transfers with 'ftpsend' instead of 'qftp send', etc.
+
+<p>If no file names are specified on the command line, <i>qftp</i> will
+read file names from stdin.  Use your favorite utility to generate a list
+of files to send/retreive or type them interactively.
+
+</body>
+</html>

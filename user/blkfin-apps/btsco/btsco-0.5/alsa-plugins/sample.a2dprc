@@ -1,0 +1,49 @@
+[a2dpd]
+#
+# Rate
+# use 32000 if your headset seems to not support 44100 (HP works well at 44100, Sonorix at 32000)
+# However, 44100 is mandatory
+#
+rate=44100
+#rate=32000
+
+#
+# plugin-rate default is the rate used between the plugin and the daemon
+# if this value is 0 then 
+# if this value is not 0 then alsa will convert all stream to the specified rate and then send it to the daemon
+# if this value is 0, then alsa will do no conversion at all, the daemon will do it's own resampling.
+# This "features" is disabled because of the crappy quality of the daemon resampler
+# To test a2dpd resampling from 32000 to 44100 use plugin-rate=32000 and rate=44100
+#plugin-rate=32000
+
+# Recommended
+enablereversestereo=1
+
+#
+# AVRCP Commands to run
+# If these entries are emptied, then some keyboard entry will be sent to /dev/uinput
+#
+cmdplay=xmms --play
+cmdpause=xmms --pause
+cmdprev=xmms --rew
+cmdnext=xmms --fwd
+cmdnew=xmms --play
+# Put to 0 to ignore AVRCP (if your computer freezes when commands are received)
+enableavrcp=1
+
+#
+# Audio routing
+#
+# If set to 1 (at a2dp startup only) a2dp will reread configuration file
+# for audio routing changes each second
+enablerereadconfig=1
+
+# 0 => Bluetooth A2DP Sink
+# 1 => Alsa
+enableredirectalsa=0
+
+# Your bluetooth headset address
+address=00:1A:45:4A:EA:39
+
+# Address of your alsa output (default : plughw:0,0) you have to know what to do
+alsaoutput=

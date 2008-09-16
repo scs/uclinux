@@ -1,0 +1,1303 @@
+<!-- ##### SECTION Title ##### -->
+lzodefs
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### MACRO LZO_0xffffL ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_0xffffffffL ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO MSDOS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO ptrdiff_t ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_BROKEN_CDECL_ALT_SYNTAX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_BROKEN_INTEGRAL_CONSTANTS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_BROKEN_INTEGRAL_PROMOTION ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_BROKEN_SIZEOF ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CPP_STRINGIZE ##### -->
+<para>
+
+</para>
+
+@x: 
+
+
+<!-- ##### MACRO LZO_CPP_MACRO_EXPAND ##### -->
+<para>
+
+</para>
+
+@x: 
+
+
+<!-- ##### MACRO LZO_CPP_CONCAT2 ##### -->
+<para>
+
+</para>
+
+@a: 
+@b: 
+
+
+<!-- ##### MACRO LZO_CPP_CONCAT3 ##### -->
+<para>
+
+</para>
+
+@a: 
+@b: 
+@c: 
+
+
+<!-- ##### MACRO LZO_CPP_CONCAT4 ##### -->
+<para>
+
+</para>
+
+@a: 
+@b: 
+@c: 
+@d: 
+
+
+<!-- ##### MACRO LZO_CPP_CONCAT5 ##### -->
+<para>
+
+</para>
+
+@a: 
+@b: 
+@c: 
+@d: 
+@e: 
+
+
+<!-- ##### MACRO LZO_CPP_ECONCAT2 ##### -->
+<para>
+
+</para>
+
+@a: 
+@b: 
+
+
+<!-- ##### MACRO LZO_CPP_ECONCAT3 ##### -->
+<para>
+
+</para>
+
+@a: 
+@b: 
+@c: 
+
+
+<!-- ##### MACRO LZO_CPP_ECONCAT4 ##### -->
+<para>
+
+</para>
+
+@a: 
+@b: 
+@c: 
+@d: 
+
+
+<!-- ##### MACRO LZO_CPP_ECONCAT5 ##### -->
+<para>
+
+</para>
+
+@a: 
+@b: 
+@c: 
+@d: 
+@e: 
+
+
+<!-- ##### MACRO LZO_EXTERN_C ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_OS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_CYGWIN ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_EMX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_BEOS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_LYNXOS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_OS400 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_QNX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_DOS32 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_DOS16 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_OS216 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_OS2 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_WIN64 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_WIN32 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_WIN16 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_PALMOS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_TOS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_MACCLASSIC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_VMS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_CONSOLE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_CONSOLE_PS2 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_OS_CONSOLE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_CONSOLE_PSP ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_AIX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_OS_POSIX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_FREEBSD ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_HPUX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_INTERIX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_IRIX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_LINUX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_MACOSX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_NETBSD ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_OPENBSD ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_OSF ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_SOLARIS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_SUNOS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_ULTRIX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OS_POSIX_UNKNOWN ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_CILLY ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_CC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_CCVER ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_SDCC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_PATHSCALE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_INTELC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_PELLESC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_LLVM ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_GNUC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_AZTECC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_BORLANDC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_DMC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_DECC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_HIGHC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_IBMC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_KEILC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_LCCWIN32 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_LCC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_MSC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_MWERKS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_NDPC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_PACIFICC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_PGI ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_PUREC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_SYMANTECC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_SUNPROC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_TINYC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_TOPSPEEDC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_WATCOMC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_TURBOC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_ZORTECHC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CC_UNKNOWN ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_ARCH ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_I086 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_IA16 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_ALPHA ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_AMD64 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_ARM ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_ARM_THUMB ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_AVR ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_BLACKFIN ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_C166 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_CRIS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_H8300 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_HPPA ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_I386 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_IA32 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_IA64 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_M32R ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_M68K ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_MCS251 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_MCS51 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_MIPS ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_POWERPC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_S390 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_SH ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_SPARC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_Z80 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_UNKNOWN ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_I086PM ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ARCH_IA16PM ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_TINY ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_HUGE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_SMALL ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_MEDIUM ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_COMPACT ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_LARGE ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_HAVE_MM_HUGE_PTR ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_HAVE_MM_HUGE_ARRAY ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_AHSHIFT ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_XTINY ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_XSMALL ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_MM_FLAT ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_MM ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF_SHORT ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF_INT ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF_LONG ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF_LONG_LONG ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF___INT16 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF___INT32 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF___INT64 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF_VOID_P ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF_SIZE_T ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_SIZEOF_PTRDIFF_T ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ABI_LITTLE_ENDIAN ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ABI_BIG_ENDIAN ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_ABI_ENDIAN ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ABI_I8LP16 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_ABI_PM ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ABI_ILP16 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ABI_ILP32 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ABI_LLP64 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ABI_LP64 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ABI_ILP64 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ABI_IP32L64 ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_LIBC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_LIBC_DIETLIBC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_LIBC_NEWLIB ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_LIBC_UCLIBC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_LIBC_GLIBC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_LIBC_MSL ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_LIBC_DEFAULT ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO lzo_alignof ##### -->
+<para>
+
+</para>
+
+@e: 
+
+
+<!-- ##### MACRO LZO_UNUSED ##### -->
+<para>
+
+</para>
+
+@var: 
+
+
+<!-- ##### MACRO LZO_UNUSED_FUNC ##### -->
+<para>
+
+</para>
+
+@func: 
+
+
+<!-- ##### MACRO LZO_UNUSED_LABEL ##### -->
+<para>
+
+</para>
+
+@l: 
+
+
+<!-- ##### MACRO LZO_COMPILE_TIME_ASSERT_HEADER ##### -->
+<para>
+
+</para>
+
+@e: 
+
+
+<!-- ##### MACRO LZO_COMPILE_TIME_ASSERT ##### -->
+<para>
+
+</para>
+
+@e: 
+
+
+<!-- ##### MACRO LZO_HAVE_WINDOWS_H ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OPT_AVOID_UINT_INDEX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OPT_AVOID_SHORT ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OPT_AVOID_USHORT ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OPT_AVOID_INT_INDEX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OPT_PREFER_POSTINC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OPT_PREFER_PREDEC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_OPT_PREFER_PREINC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CFG_NO_INLINE_ASM ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_CFG_NO_UNALIGNED ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ASM_SYNTAX_MSC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_ASM_SYNTAX_GNUC ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO LZO_INFO_STRING ##### -->
+<para>
+
+</para>
+
+
+

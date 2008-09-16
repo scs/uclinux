@@ -1,0 +1,1452 @@
+diff -urN linux-2.6.18-mh7/include/net/bluetooth/hci_core.h linux-2.6.18-mh7-sco/include/net/bluetooth/hci_core.h
+--- linux-2.6.18-mh7/include/net/bluetooth/hci_core.h	2006-11-02 07:45:31.000000000 -0700
++++ linux-2.6.18-mh7-sco/include/net/bluetooth/hci_core.h	2006-11-02 07:53:44.000000000 -0700
+@@ -25,6 +25,8 @@
+ #ifndef __HCI_CORE_H
+ #define __HCI_CORE_H
+ 
++#include <linux/hrtimer.h>
++
+ #include <net/bluetooth/hci.h>
+ 
+ /* HCI upper protocols */
+@@ -88,12 +90,18 @@
+ 	unsigned long	quirks;
+ 
+ 	atomic_t	cmd_cnt;
++	/* Number of available controller buffers for ACL packets */
+ 	unsigned int	acl_cnt;
+-	unsigned int	sco_cnt;
++	/* Number of available controller buffers for SCO packets */
++	atomic_t	sco_cnt;
+ 
++	/* Maximum transmition unit for ACL packets */
+ 	unsigned int	acl_mtu;
++	/* Maximum transmition unit for SCO packets */
+ 	unsigned int	sco_mtu;
++	/* Maximum number of ACL packets the controller is able to buffer */
+ 	unsigned int	acl_pkts;
++	/* Maximum number of SCO packets the controller is able to buffer */
+ 	unsigned int	sco_pkts;
+ 
+ 	unsigned long	cmd_last_tx;
+@@ -145,7 +153,6 @@
+ 	struct list_head list;
+ 
+ 	atomic_t	 refcnt;
+-	spinlock_t	 lock;
+ 
+ 	bdaddr_t	 dst;
+ 	__u16		 handle;
+@@ -162,10 +169,19 @@
+ 	__u8             power_save;
+ 	unsigned long	 pend;
+ 
+-	unsigned int	 sent;
+-
+-	struct sk_buff_head data_q;
+-
++	/* sent represents the number of packets this connections
++           has "on the wire" : .... oh f.... there are no wire
++           with bluetooth. By on the wire, i mean packets that have been sent
++	   to the HCI device, and that are still in its buffers */
++	atomic_t	 sent;
++
++	struct sk_buff_head out_q;
++	/* This is only used for SCO for now */
++	void (*pkt_sent_cb)(struct hci_conn *conn);
++
++	/* tx timer : used only for SCO */
++	struct hrtimer tx_timer;
++	/* Disconnect timer */
+ 	struct timer_list disc_timer;
+ 	struct timer_list idle_timer;
+ 
+@@ -614,7 +630,10 @@
+ 
+ int hci_send_cmd(struct hci_dev *hdev, __u16 ogf, __u16 ocf, __u32 plen, void *param);
+ int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
+-int hci_send_sco(struct hci_conn *conn, struct sk_buff *skb);
++int hci_send_sco(struct hci_conn *conn, 
++			struct sk_buff *skb, 
++			int sndbufsize, 
++			void (*send_complete_cb)(struct hci_conn *conn));
+ 
+ void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 ogf, __u16 ocf);
+ 
+diff -urN linux-2.6.18-mh7/include/net/bluetooth/hci_core.h~ linux-2.6.18-mh7-sco/include/net/bluetooth/hci_core.h~
+--- linux-2.6.18-mh7/include/net/bluetooth/hci_core.h~	1969-12-31 17:00:00.000000000 -0700
++++ linux-2.6.18-mh7-sco/include/net/bluetooth/hci_core.h~	2006-11-02 07:51:09.000000000 -0700
+@@ -0,0 +1,661 @@
++/* 
++   BlueZ - Bluetooth protocol stack for Linux
++   Copyright (C) 2000-2001 Qualcomm Incorporated
++
++   Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License version 2 as
++   published by the Free Software Foundation;
++
++   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
++   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
++   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
++   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
++   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
++   OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
++
++   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
++   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
++   SOFTWARE IS DISCLAIMED.
++*/
++
++#ifndef __HCI_CORE_H
++#define __HCI_CORE_H
++
++#include <linux/hrtimer.h>
++
++#include <net/bluetooth/hci.h>
++
++/* HCI upper protocols */
++#define HCI_PROTO_L2CAP	0
++#define HCI_PROTO_SCO	1
++
++/* HCI Core structures */
++struct inquiry_data {
++	bdaddr_t	bdaddr;
++	__u8		pscan_rep_mode;
++	__u8		pscan_period_mode;
++	__u8		pscan_mode;
++	__u8		dev_class[3];
++	__le16		clock_offset;
++	__s8		rssi;
++};
++
++struct inquiry_entry {
++	struct inquiry_entry 	*next;
++	__u32			timestamp;
++	struct inquiry_data	data;
++};
++
++struct inquiry_cache {
++	spinlock_t 		lock;
++	__u32			timestamp;
++	struct inquiry_entry 	*list;
++};
++
++struct hci_conn_hash {
++	struct list_head list;
++	spinlock_t       lock;
++	unsigned int     acl_num;
++	unsigned int     sco_num;
++};
++
++struct hci_dev {
++	struct list_head list;
++	spinlock_t	lock;
++	atomic_t	refcnt;
++
++	char		name[8];
++	unsigned long	flags;
++	__u16		id;
++	__u8		type;
++	bdaddr_t	bdaddr;
++	__u8		features[8];
++	__u8		hci_ver;
++	__u16		hci_rev;
++	__u16		manufacturer;
++	__u16		voice_setting;
++
++	__u16		pkt_type;
++	__u16		link_policy;
++	__u16		link_mode;
++
++	__u32		idle_timeout;
++	__u16		sniff_min_interval;
++	__u16		sniff_max_interval;
++
++	unsigned long	quirks;
++
++	atomic_t	cmd_cnt;
++	/* Number of available controller buffers for ACL packets */
++	unsigned int	acl_cnt;
++	/* Number of available controller buffers for SCO packets */
++	atomic_t	sco_cnt;
++
++	/* Maximum transmition unit for ACL packets */
++	unsigned int	acl_mtu;
++	/* Maximum transmition unit for SCO packets */
++	unsigned int	sco_mtu;
++	/* Maximum number of ACL packets the controller is able to buffer */
++	unsigned int	acl_pkts;
++	/* Maximum number of SCO packets the controller is able to buffer */
++	unsigned int	sco_pkts;
++
++	unsigned long	cmd_last_tx;
++	unsigned long	acl_last_tx;
++	unsigned long	sco_last_tx;
++
++	struct tasklet_struct	cmd_task;
++	struct tasklet_struct	rx_task;
++	struct tasklet_struct	tx_task;
++
++	struct sk_buff_head	rx_q;
++	struct sk_buff_head	raw_q;
++	struct sk_buff_head	cmd_q;
++
++	struct sk_buff		*sent_cmd;
++
++	struct semaphore	req_lock;
++	wait_queue_head_t	req_wait_q;
++	__u32			req_status;
++	__u32			req_result;
++
++	struct inquiry_cache	inq_cache;
++	struct hci_conn_hash	conn_hash;
++
++	struct hci_dev_stats	stat;
++
++	struct sk_buff_head	driver_init;
++
++	void			*driver_data;
++	void			*core_data;
++
++	atomic_t 		promisc;
++
++	struct device		*parent;
++	struct device		dev;
++
++	struct module 		*owner;
++
++	int (*open)(struct hci_dev *hdev);
++	int (*close)(struct hci_dev *hdev);
++	int (*flush)(struct hci_dev *hdev);
++	int (*send)(struct sk_buff *skb);
++	void (*destruct)(struct hci_dev *hdev);
++	void (*notify)(struct hci_dev *hdev, unsigned int evt);
++	int (*ioctl)(struct hci_dev *hdev, unsigned int cmd, unsigned long arg);
++};
++
++struct hci_conn {
++	struct list_head list;
++
++	atomic_t	 refcnt;
++
++	bdaddr_t	 dst;
++	__u16		 handle;
++	__u16		 state;
++	__u8             mode;
++	__u8		 type;
++	__u8		 out;
++	__u8		 attempt;
++	__u8		 dev_class[3];
++	__u8             features[8];
++	__u16            interval;
++	__u16            link_policy;
++	__u32		 link_mode;
++	__u8             power_save;
++	unsigned long	 pend;
++
++	struct timer_list disc_timer;
++	struct timer_list idle_timer;
++
++	struct work_struct work;
++
++	struct device	dev;
++
++	struct hci_dev	*hdev;
++	void		*l2cap_data;
++	void		*sco_data;
++	void		*priv;
++
++	struct hci_conn	*link;
++};
++
++extern struct hci_proto *hci_proto[];
++extern struct list_head hci_dev_list;
++extern struct list_head hci_cb_list;
++extern rwlock_t hci_dev_list_lock;
++extern rwlock_t hci_cb_list_lock;
++
++/* ----- Inquiry cache ----- */
++#define INQUIRY_CACHE_AGE_MAX   (HZ*30)   // 30 seconds
++#define INQUIRY_ENTRY_AGE_MAX   (HZ*60)   // 60 seconds
++
++#define inquiry_cache_lock(c)		spin_lock(&c->lock)
++#define inquiry_cache_unlock(c)		spin_unlock(&c->lock)
++#define inquiry_cache_lock_bh(c)	spin_lock_bh(&c->lock)
++#define inquiry_cache_unlock_bh(c)	spin_unlock_bh(&c->lock)
++
++static inline void inquiry_cache_init(struct hci_dev *hdev)
++{
++	struct inquiry_cache *c = &hdev->inq_cache;
++	spin_lock_init(&c->lock);
++	c->list = NULL;
++}
++
++static inline int inquiry_cache_empty(struct hci_dev *hdev)
++{
++	struct inquiry_cache *c = &hdev->inq_cache;
++	return (c->list == NULL);
++}
++
++static inline long inquiry_cache_age(struct hci_dev *hdev)
++{
++	struct inquiry_cache *c = &hdev->inq_cache;
++	return jiffies - c->timestamp;
++}
++
++static inline long inquiry_entry_age(struct inquiry_entry *e)
++{
++	return jiffies - e->timestamp;
++}
++
++struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr);
++void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data);
++
++/* ----- HCI Connections ----- */
++enum {
++	HCI_CONN_AUTH_PEND,
++	HCI_CONN_ENCRYPT_PEND,
++	HCI_CONN_RSWITCH_PEND,
++	HCI_CONN_MODE_CHANGE_PEND,
++};
++
++static inline void hci_conn_hash_init(struct hci_dev *hdev)
++{
++	struct hci_conn_hash *h = &hdev->conn_hash;
++	INIT_LIST_HEAD(&h->list);
++	spin_lock_init(&h->lock);
++	h->acl_num = 0;
++	h->sco_num = 0;
++}
++
++static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
++{
++	struct hci_conn_hash *h = &hdev->conn_hash;
++	list_add(&c->list, &h->list);
++	if (c->type == ACL_LINK)
++		h->acl_num++;
++	else
++		h->sco_num++;
++}
++
++static inline void hci_conn_hash_del(struct hci_dev *hdev, struct hci_conn *c)
++{
++	struct hci_conn_hash *h = &hdev->conn_hash;
++	list_del(&c->list);
++	if (c->type == ACL_LINK)
++		h->acl_num--;
++	else
++		h->sco_num--;
++}
++
++static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,
++					__u16 handle)
++{
++	struct hci_conn_hash *h = &hdev->conn_hash;
++	struct list_head *p;
++	struct hci_conn  *c;
++
++	list_for_each(p, &h->list) {
++		c = list_entry(p, struct hci_conn, list);
++		if (c->handle == handle)
++			return c;
++	}
++	return NULL;
++}
++
++static inline struct hci_conn *hci_conn_hash_lookup_ba(struct hci_dev *hdev,
++					__u8 type, bdaddr_t *ba)
++{
++	struct hci_conn_hash *h = &hdev->conn_hash;
++	struct list_head *p;
++	struct hci_conn  *c;
++
++	list_for_each(p, &h->list) {
++		c = list_entry(p, struct hci_conn, list);
++		if (c->type == type && !bacmp(&c->dst, ba))
++			return c;
++	}
++	return NULL;
++}
++
++static inline struct hci_conn *hci_conn_hash_lookup_state(struct hci_dev *hdev,
++					__u8 type, __u16 state)
++{
++	struct hci_conn_hash *h = &hdev->conn_hash;
++	struct list_head *p;
++	struct hci_conn  *c;
++
++	list_for_each(p, &h->list) {
++		c = list_entry(p, struct hci_conn, list);
++		if (c->type == type && c->state == state)
++			return c;
++	}
++	return NULL;
++}
++
++void hci_acl_connect(struct hci_conn *conn);
++void hci_acl_disconn(struct hci_conn *conn, __u8 reason);
++void hci_add_sco(struct hci_conn *conn, __u16 handle);
++
++struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst);
++int    hci_conn_del(struct hci_conn *conn);
++void   hci_conn_hash_flush(struct hci_dev *hdev);
++
++struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *src);
++int hci_conn_auth(struct hci_conn *conn);
++int hci_conn_encrypt(struct hci_conn *conn);
++int hci_conn_change_link_key(struct hci_conn *conn);
++int hci_conn_switch_role(struct hci_conn *conn, uint8_t role);
++
++void hci_conn_enter_active_mode(struct hci_conn *conn);
++void hci_conn_enter_sniff_mode(struct hci_conn *conn);
++
++static inline void hci_conn_hold(struct hci_conn *conn)
++{
++	atomic_inc(&conn->refcnt);
++	del_timer(&conn->disc_timer);
++}
++
++static inline void hci_conn_put(struct hci_conn *conn)
++{
++	if (atomic_dec_and_test(&conn->refcnt)) {
++		unsigned long timeo;
++		if (conn->type == ACL_LINK) {
++			del_timer(&conn->idle_timer);
++			if (conn->state == BT_CONNECTED) {
++				timeo = msecs_to_jiffies(HCI_DISCONN_TIMEOUT);
++				if (!conn->out)
++					timeo *= 2;
++			} else
++				timeo = msecs_to_jiffies(10);
++		} else
++			timeo = msecs_to_jiffies(10);
++		mod_timer(&conn->disc_timer, jiffies + timeo);
++	}
++}
++
++/* ----- HCI tasks ----- */
++static inline void hci_sched_cmd(struct hci_dev *hdev)
++{
++	tasklet_schedule(&hdev->cmd_task);
++}
++
++static inline void hci_sched_rx(struct hci_dev *hdev)
++{
++	tasklet_schedule(&hdev->rx_task);
++}
++
++static inline void hci_sched_tx(struct hci_dev *hdev)
++{
++	tasklet_schedule(&hdev->tx_task);
++}
++
++/* ----- HCI Devices ----- */
++static inline void __hci_dev_put(struct hci_dev *d)
++{
++	if (atomic_dec_and_test(&d->refcnt))
++		d->destruct(d);
++}
++
++static inline void hci_dev_put(struct hci_dev *d)
++{ 
++	__hci_dev_put(d);
++	module_put(d->owner);
++}
++
++static inline struct hci_dev *__hci_dev_hold(struct hci_dev *d)
++{
++	atomic_inc(&d->refcnt);
++	return d;
++}
++
++static inline struct hci_dev *hci_dev_hold(struct hci_dev *d)
++{
++	if (try_module_get(d->owner))
++		return __hci_dev_hold(d);
++	return NULL;
++}
++
++#define hci_dev_lock(d)		spin_lock(&d->lock)
++#define hci_dev_unlock(d)	spin_unlock(&d->lock)
++#define hci_dev_lock_bh(d)	spin_lock_bh(&d->lock)
++#define hci_dev_unlock_bh(d)	spin_unlock_bh(&d->lock)
++
++struct hci_dev *hci_dev_get(int index);
++struct hci_dev *hci_get_route(bdaddr_t *src, bdaddr_t *dst);
++
++struct hci_dev *hci_alloc_dev(void);
++void hci_free_dev(struct hci_dev *hdev);
++int hci_register_dev(struct hci_dev *hdev);
++int hci_unregister_dev(struct hci_dev *hdev);
++int hci_suspend_dev(struct hci_dev *hdev);
++int hci_resume_dev(struct hci_dev *hdev);
++int hci_dev_open(__u16 dev);
++int hci_dev_close(__u16 dev);
++int hci_dev_reset(__u16 dev);
++int hci_dev_reset_stat(__u16 dev);
++int hci_dev_cmd(unsigned int cmd, void __user *arg);
++int hci_get_dev_list(void __user *arg);
++int hci_get_dev_info(void __user *arg);
++int hci_get_conn_list(void __user *arg);
++int hci_get_conn_info(struct hci_dev *hdev, void __user *arg);
++int hci_inquiry(void __user *arg);
++
++void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
++
++/* Receive frame from HCI drivers */
++static inline int hci_recv_frame(struct sk_buff *skb)
++{
++	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
++	if (!hdev || (!test_bit(HCI_UP, &hdev->flags) 
++			&& !test_bit(HCI_INIT, &hdev->flags))) {
++		kfree_skb(skb);
++		return -ENXIO;
++	}
++
++	/* Incomming skb */
++	bt_cb(skb)->incoming = 1;
++
++	/* Time stamp */
++	__net_timestamp(skb);
++
++	/* Queue frame for rx task */
++	skb_queue_tail(&hdev->rx_q, skb);
++	hci_sched_rx(hdev);
++	return 0;
++}
++
++int hci_register_sysfs(struct hci_dev *hdev);
++void hci_unregister_sysfs(struct hci_dev *hdev);
++void hci_conn_add_sysfs(struct hci_conn *conn);
++void hci_conn_del_sysfs(struct hci_conn *conn);
++
++#define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->parent = (pdev))
++
++/* ----- LMP capabilities ----- */
++#define lmp_rswitch_capable(dev)   ((dev)->features[0] & LMP_RSWITCH)
++#define lmp_encrypt_capable(dev)   ((dev)->features[0] & LMP_ENCRYPT)
++#define lmp_sniff_capable(dev)     ((dev)->features[0] & LMP_SNIFF)
++#define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
++
++/* ----- HCI protocols ----- */
++struct hci_proto {
++	char 		*name;
++	unsigned int	id;
++	unsigned long	flags;
++
++	void		*priv;
++
++	int (*connect_ind) 	(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type);
++	int (*connect_cfm)	(struct hci_conn *conn, __u8 status);
++	int (*disconn_ind)	(struct hci_conn *conn, __u8 reason);
++	int (*recv_acldata)	(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
++	int (*recv_scodata)	(struct hci_conn *conn, struct sk_buff *skb);
++	int (*auth_cfm)		(struct hci_conn *conn, __u8 status);
++	int (*encrypt_cfm)	(struct hci_conn *conn, __u8 status);
++};
++
++static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type)
++{
++	register struct hci_proto *hp;
++	int mask = 0;
++	
++	hp = hci_proto[HCI_PROTO_L2CAP];
++	if (hp && hp->connect_ind)
++		mask |= hp->connect_ind(hdev, bdaddr, type);
++
++	hp = hci_proto[HCI_PROTO_SCO];
++	if (hp && hp->connect_ind)
++		mask |= hp->connect_ind(hdev, bdaddr, type);
++
++	return mask;
++}
++
++static inline void hci_proto_connect_cfm(struct hci_conn *conn, __u8 status)
++{
++	register struct hci_proto *hp;
++
++	hp = hci_proto[HCI_PROTO_L2CAP];
++	if (hp && hp->connect_cfm)
++		hp->connect_cfm(conn, status);
++
++	hp = hci_proto[HCI_PROTO_SCO];
++	if (hp && hp->connect_cfm)
++		hp->connect_cfm(conn, status);
++}
++
++static inline void hci_proto_disconn_ind(struct hci_conn *conn, __u8 reason)
++{
++	register struct hci_proto *hp;
++
++	hp = hci_proto[HCI_PROTO_L2CAP];
++	if (hp && hp->disconn_ind)
++		hp->disconn_ind(conn, reason);
++
++	hp = hci_proto[HCI_PROTO_SCO];
++	if (hp && hp->disconn_ind)
++		hp->disconn_ind(conn, reason);
++}
++
++static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
++{
++	register struct hci_proto *hp;
++
++	hp = hci_proto[HCI_PROTO_L2CAP];
++	if (hp && hp->auth_cfm)
++		hp->auth_cfm(conn, status);
++
++	hp = hci_proto[HCI_PROTO_SCO];
++	if (hp && hp->auth_cfm)
++		hp->auth_cfm(conn, status);
++}
++
++static inline void hci_proto_encrypt_cfm(struct hci_conn *conn, __u8 status)
++{
++	register struct hci_proto *hp;
++
++	hp = hci_proto[HCI_PROTO_L2CAP];
++	if (hp && hp->encrypt_cfm)
++		hp->encrypt_cfm(conn, status);
++
++	hp = hci_proto[HCI_PROTO_SCO];
++	if (hp && hp->encrypt_cfm)
++		hp->encrypt_cfm(conn, status);
++}
++
++int hci_register_proto(struct hci_proto *hproto);
++int hci_unregister_proto(struct hci_proto *hproto);
++
++/* ----- HCI callbacks ----- */
++struct hci_cb {
++	struct list_head list;
++
++	char *name;
++
++	void (*auth_cfm)	(struct hci_conn *conn, __u8 status);
++	void (*encrypt_cfm)	(struct hci_conn *conn, __u8 status, __u8 encrypt);
++	void (*key_change_cfm)	(struct hci_conn *conn, __u8 status);
++	void (*role_switch_cfm)	(struct hci_conn *conn, __u8 status, __u8 role);
++};
++
++static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
++{
++	struct list_head *p;
++
++	hci_proto_auth_cfm(conn, status);
++
++	read_lock_bh(&hci_cb_list_lock);
++	list_for_each(p, &hci_cb_list) {
++		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
++		if (cb->auth_cfm)
++			cb->auth_cfm(conn, status);
++	}
++	read_unlock_bh(&hci_cb_list_lock);
++}
++
++static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status, __u8 encrypt)
++{
++	struct list_head *p;
++
++	hci_proto_encrypt_cfm(conn, status);
++
++	read_lock_bh(&hci_cb_list_lock);
++	list_for_each(p, &hci_cb_list) {
++		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
++		if (cb->encrypt_cfm)
++			cb->encrypt_cfm(conn, status, encrypt);
++	}
++	read_unlock_bh(&hci_cb_list_lock);
++}
++
++static inline void hci_key_change_cfm(struct hci_conn *conn, __u8 status)
++{
++	struct list_head *p;
++
++	read_lock_bh(&hci_cb_list_lock);
++	list_for_each(p, &hci_cb_list) {
++		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
++		if (cb->key_change_cfm)
++			cb->key_change_cfm(conn, status);
++	}
++	read_unlock_bh(&hci_cb_list_lock);
++}
++
++static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status, __u8 role)
++{
++	struct list_head *p;
++
++	read_lock_bh(&hci_cb_list_lock);
++	list_for_each(p, &hci_cb_list) {
++		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
++		if (cb->role_switch_cfm)
++			cb->role_switch_cfm(conn, status, role);
++	}
++	read_unlock_bh(&hci_cb_list_lock);
++}
++
++int hci_register_cb(struct hci_cb *hcb);
++int hci_unregister_cb(struct hci_cb *hcb);
++
++int hci_register_notifier(struct notifier_block *nb);
++int hci_unregister_notifier(struct notifier_block *nb);
++
++int hci_send_cmd(struct hci_dev *hdev, __u16 ogf, __u16 ocf, __u32 plen, void *param);
++int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
++int hci_send_sco(struct hci_conn *conn, 
++			struct sk_buff *skb, 
++			int sndbufsize, 
++			void (*send_complete_cb)(struct hci_conn *conn));
++
++void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 ogf, __u16 ocf);
++
++void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data);
++
++/* ----- HCI Sockets ----- */
++void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb);
++
++/* HCI info for socket */
++#define hci_pi(sk) ((struct hci_pinfo *) sk)
++
++struct hci_pinfo {
++	struct bt_sock    bt;
++	struct hci_dev    *hdev;
++	struct hci_filter filter;
++	__u32             cmsg_mask;
++};
++
++/* HCI security filter */
++#define HCI_SFLT_MAX_OGF  5
++
++struct hci_sec_filter {
++	__u32 type_mask;
++	__u32 event_mask[2];
++	__u32 ocf_mask[HCI_SFLT_MAX_OGF + 1][4];
++};
++
++/* ----- HCI requests ----- */
++#define HCI_REQ_DONE	  0
++#define HCI_REQ_PEND	  1
++#define HCI_REQ_CANCELED  2
++
++#define hci_req_lock(d)		down(&d->req_lock)
++#define hci_req_unlock(d)	up(&d->req_lock)
++
++void hci_req_complete(struct hci_dev *hdev, int result);
++
++#endif /* __HCI_CORE_H */
+diff -urN linux-2.6.18-mh7/include/net/bluetooth/hci.h linux-2.6.18-mh7-sco/include/net/bluetooth/hci.h
+--- linux-2.6.18-mh7/include/net/bluetooth/hci.h	2006-11-02 07:45:31.000000000 -0700
++++ linux-2.6.18-mh7-sco/include/net/bluetooth/hci.h	2006-11-02 07:48:08.000000000 -0700
+@@ -767,6 +767,9 @@
+ 	__u32 byte_tx;
+ };
+ 
++/* Fields down there are mostly the same as hci_dev,
++   as this structure is meant to communicate info
++   to userspace */
+ struct hci_dev_info {
+ 	__u16 dev_id;
+ 	char  name[8];
+@@ -782,9 +785,13 @@
+ 	__u32 link_policy;
+ 	__u32 link_mode;
+ 
++	/* Maximum transmition unit for ACL packets */
+ 	__u16 acl_mtu;
++	/* Number of ACL packets the baseband is able to buffer */
+ 	__u16 acl_pkts;
++	/* Maximum transmition unit for SCO packets */
+ 	__u16 sco_mtu;
++	/* Number of SCO packets the baseband is able to buffer */
+ 	__u16 sco_pkts;
+ 
+ 	struct hci_dev_stats stat;
+diff -urN linux-2.6.18-mh7/include/net/bluetooth/sco.h linux-2.6.18-mh7-sco/include/net/bluetooth/sco.h
+--- linux-2.6.18-mh7/include/net/bluetooth/sco.h	2006-09-19 21:42:06.000000000 -0600
++++ linux-2.6.18-mh7-sco/include/net/bluetooth/sco.h	2006-11-02 07:48:08.000000000 -0700
+@@ -26,12 +26,7 @@
+ #define __SCO_H
+ 
+ /* SCO defaults */
+-#define SCO_DEFAULT_MTU		500
+-#define SCO_DEFAULT_FLUSH_TO	0xFFFF
+-
+ #define SCO_CONN_TIMEOUT	(HZ * 40)
+-#define SCO_DISCONN_TIMEOUT	(HZ * 2)
+-#define SCO_CONN_IDLE_TIMEOUT	(HZ * 60)
+ 
+ /* SCO socket address */
+ struct sockaddr_sco {
+@@ -51,6 +46,9 @@
+ 	__u8  dev_class[3];
+ };
+ 
++#define SCO_TXBUFS	0x03
++#define SCO_RXBUFS	0x04
++
+ /* ---- SCO connections ---- */
+ struct sco_conn {
+ 	struct hci_conn	*hcon;
+diff -urN linux-2.6.18-mh7/net/bluetooth/hci_conn.c linux-2.6.18-mh7-sco/net/bluetooth/hci_conn.c
+--- linux-2.6.18-mh7/net/bluetooth/hci_conn.c	2006-11-02 07:45:31.000000000 -0700
++++ linux-2.6.18-mh7-sco/net/bluetooth/hci_conn.c	2006-11-02 07:48:08.000000000 -0700
+@@ -184,7 +184,10 @@
+ 
+ 	conn->power_save = 1;
+ 
+-	skb_queue_head_init(&conn->data_q);
++	conn->pkt_sent_cb = NULL;
++	skb_queue_head_init(&conn->out_q);
++
++	hrtimer_init(&conn->tx_timer, CLOCK_MONOTONIC, HRTIMER_NORESTART);
+ 
+ 	init_timer(&conn->disc_timer);
+ 	conn->disc_timer.function = hci_conn_timeout;
+@@ -195,6 +198,7 @@
+ 	conn->idle_timer.data = (unsigned long) conn;
+ 
+ 	atomic_set(&conn->refcnt, 0);
++	atomic_set(&conn->sent, 0);
+ 
+ 	hci_dev_hold(hdev);
+ 
+@@ -221,6 +225,8 @@
+ 
+ 	del_timer(&conn->disc_timer);
+ 
++	hrtimer_cancel(&conn->tx_timer);
++
+ 	if (conn->type == SCO_LINK) {
+ 		struct hci_conn *acl = conn->link;
+ 		if (acl) {
+@@ -233,7 +239,7 @@
+ 			sco->link = NULL;
+ 
+ 		/* Unacked frames */
+-		hdev->acl_cnt += conn->sent;
++		hdev->acl_cnt += atomic_read(&conn->sent);
+ 	}
+ 
+ 	tasklet_disable(&hdev->tx_task);
+@@ -246,7 +252,7 @@
+ 
+ 	tasklet_enable(&hdev->tx_task);
+ 
+-	skb_queue_purge(&conn->data_q);
++	skb_queue_purge(&conn->out_q);
+ 
+ 	hci_dev_put(hdev);
+ 
+diff -urN linux-2.6.18-mh7/net/bluetooth/hci_core.c linux-2.6.18-mh7-sco/net/bluetooth/hci_core.c
+--- linux-2.6.18-mh7/net/bluetooth/hci_core.c	2006-11-02 07:45:31.000000000 -0700
++++ linux-2.6.18-mh7-sco/net/bluetooth/hci_core.c	2006-11-02 07:48:08.000000000 -0700
+@@ -619,8 +619,9 @@
+ 	if (hdev->flush)
+ 		hdev->flush(hdev);
+ 
+-	atomic_set(&hdev->cmd_cnt, 1); 
+-	hdev->acl_cnt = 0; hdev->sco_cnt = 0;
++	atomic_set(&hdev->cmd_cnt, 1);
++	atomic_set(&hdev->sco_cnt, 0); 
++	hdev->acl_cnt = 0; 
+ 
+ 	if (!test_bit(HCI_RAW, &hdev->flags))
+ 		ret = __hci_request(hdev, hci_reset_req, 0,
+@@ -1096,7 +1097,7 @@
+ 		/* Non fragmented */
+ 		BT_DBG("%s nonfrag skb %p len %d", hdev->name, skb, skb->len);
+ 
+-		skb_queue_tail(&conn->data_q, skb);
++		skb_queue_tail(&conn->out_q, skb);
+ 	} else {
+ 		/* Fragmented */
+ 		BT_DBG("%s frag %p len %d", hdev->name, skb, skb->len);
+@@ -1104,9 +1105,9 @@
+ 		skb_shinfo(skb)->frag_list = NULL;
+ 
+ 		/* Queue all fragments atomically */
+-		spin_lock_bh(&conn->data_q.lock);
++		spin_lock_bh(&conn->out_q.lock);
+ 
+-		__skb_queue_tail(&conn->data_q, skb);
++		__skb_queue_tail(&conn->out_q, skb);
+ 		do {
+ 			skb = list; list = list->next;
+ 			
+@@ -1116,10 +1117,10 @@
+ 
+ 			BT_DBG("%s frag %p len %d", hdev->name, skb, skb->len);
+ 
+-			__skb_queue_tail(&conn->data_q, skb);
++			__skb_queue_tail(&conn->out_q, skb);
+ 		} while (list);
+ 
+-		spin_unlock_bh(&conn->data_q.lock);
++		spin_unlock_bh(&conn->out_q.lock);
+ 	}
+ 
+ 	hci_sched_tx(hdev);
+@@ -1127,41 +1128,49 @@
+ }
+ EXPORT_SYMBOL(hci_send_acl);
+ 
+-/* Send SCO data */
+-int hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
++static inline void __hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
+ {
+-	struct hci_dev *hdev = conn->hdev;
+ 	struct hci_sco_hdr hdr;
+ 
+-	BT_DBG("%s len %d", hdev->name, skb->len);
+-
+-	if (skb->len > hdev->sco_mtu) {
+-		kfree_skb(skb);
+-		return -EINVAL;
+-	}
+-
++	BT_DBG("skb %p len %d", skb, skb->len);
++	/* preparing frame */
+ 	hdr.handle = __cpu_to_le16(conn->handle);
+ 	hdr.dlen   = skb->len;
+ 
+ 	skb->h.raw = skb_push(skb, HCI_SCO_HDR_SIZE);
+ 	memcpy(skb->h.raw, &hdr, HCI_SCO_HDR_SIZE);
+ 
+-	skb->dev = (void *) hdev;
++	skb->dev = (void *) conn->hdev;
+ 	bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
+-	skb_queue_tail(&conn->data_q, skb);
+-	hci_sched_tx(hdev);
+-	return 0;
++
++	skb_queue_tail(&conn->out_q, skb);
++
++	hci_sched_tx(conn->hdev);
++}
++
++int hci_send_sco(struct hci_conn *conn, struct sk_buff *skb, 
++		int sndbufsize, void (*send_complete_cb)(struct hci_conn *conn))
++{
++	BT_DBG("conn %p skb %p sndbufsize %d", conn, skb, sndbufsize);
++	if(skb_queue_len(&conn->out_q) < sndbufsize) {
++		__hci_send_sco(conn, skb);
++		conn->pkt_sent_cb = send_complete_cb;
++		return 0;
++	}
++	else {
++		return -EAGAIN;
++	}
+ }
+ EXPORT_SYMBOL(hci_send_sco);
+ 
+ /* ---- HCI TX task (outgoing data) ---- */
+ 
+-/* HCI Connection scheduler */
+-static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int *quote)
++/* HCI ACL Connection scheduler */
++static inline struct hci_conn *hci_low_sent_acl(struct hci_dev *hdev, int *quote)
+ {
+ 	struct hci_conn_hash *h = &hdev->conn_hash;
+ 	struct hci_conn  *conn = NULL;
+-	int num = 0, min = ~0;
++	unsigned int num = 0, min = ~0;
+ 	struct list_head *p;
+ 
+ 	/* We don't have to lock device here. Connections are always 
+@@ -1170,20 +1179,22 @@
+ 		struct hci_conn *c;
+ 		c = list_entry(p, struct hci_conn, list);
+ 
+-		if (c->type != type || c->state != BT_CONNECTED
+-				|| skb_queue_empty(&c->data_q))
++		BT_DBG("c->type %d c->state %d len(c->out_q) %d min %d c->sent %d", 
++			c->type, c->state, skb_queue_len(&c->out_q), min, atomic_read(&c->sent));
++
++		if (c->type != ACL_LINK || c->state != BT_CONNECTED
++				|| skb_queue_empty(&c->out_q))
+ 			continue;
+ 		num++;
+ 
+-		if (c->sent < min) {
+-			min  = c->sent;
++		if (atomic_read(&c->sent) < min) {
++			min  = atomic_read(&c->sent);
+ 			conn = c;
+ 		}
+ 	}
+ 
+ 	if (conn) {
+-		int cnt = (type == ACL_LINK ? hdev->acl_cnt : hdev->sco_cnt);
+-		int q = cnt / num;
++		int q = hdev->acl_cnt / num;
+ 		*quote = q ? q : 1;
+ 	} else
+ 		*quote = 0;
+@@ -1203,7 +1214,7 @@
+ 	/* Kill stalled connections */
+ 	list_for_each(p, &h->list) {
+ 		c = list_entry(p, struct hci_conn, list);
+-		if (c->type == ACL_LINK && c->sent) {
++		if (c->type == ACL_LINK && atomic_read(&c->sent)) {
+ 			BT_ERR("%s killing stalled ACL connection %s",
+ 				hdev->name, batostr(&c->dst));
+ 			hci_acl_disconn(c, 0x13);
+@@ -1226,8 +1237,8 @@
+ 			hci_acl_tx_to(hdev);
+ 	}
+ 
+-	while (hdev->acl_cnt && (conn = hci_low_sent(hdev, ACL_LINK, &quote))) {
+-		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
++	while (hdev->acl_cnt && (conn = hci_low_sent_acl(hdev, &quote))) {
++		while (quote-- && (skb = skb_dequeue(&conn->out_q))) {
+ 			BT_DBG("skb %p len %d", skb, skb->len);
+ 
+ 			hci_conn_enter_active_mode(conn);
+@@ -1236,28 +1247,87 @@
+ 			hdev->acl_last_tx = jiffies;
+ 
+ 			hdev->acl_cnt--;
+-			conn->sent++;
++			atomic_inc(&conn->sent);
+ 		}
+ 	}
+ }
+ 
+-/* Schedule SCO */
+-static inline void hci_sched_sco(struct hci_dev *hdev)
++/* HCI SCO tx timer */
++
++static int hci_sco_tx_timer(struct hrtimer *timer)
+ {
+-	struct hci_conn *conn;
+-	struct sk_buff *skb;
+-	int quote;
++	struct hci_conn *conn = container_of(timer, struct hci_conn, tx_timer);
++#ifdef CONFIG_BT_HCI_CORE_DEBUG
++	ktime_t now = timer->base->get_time();
++#endif
+ 
+-	BT_DBG("%s", hdev->name);
++	BT_DBG("%s, conn %p, time %5lu.%06lu", conn->hdev->name, conn,
++		(unsigned long) now.tv64, 
++		do_div(now.tv64, NSEC_PER_SEC) / 1000);
+ 
+-	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, SCO_LINK, &quote))) {
+-		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
+-			BT_DBG("skb %p len %d", skb, skb->len);
+-			hci_send_frame(skb);
++	if(atomic_read(&conn->sent) > 0) {
++		atomic_dec(&conn->sent);
++		atomic_inc(&conn->hdev->sco_cnt);
++		hci_sched_tx(conn->hdev);
++	}
++	/* Wake up writers */
++	if(conn->pkt_sent_cb) {
++		conn->pkt_sent_cb(conn);
++	}
++	return HRTIMER_NORESTART;
++}
++ 
++/* HCI SCO Connection scheduler */
+ 
+-			conn->sent++;
+-			if (conn->sent == ~0)
+-				conn->sent = 0;
++static inline void hci_sched_sco(struct hci_dev *hdev)
++{
++	struct hci_conn_hash *h = &hdev->conn_hash;
++	struct sk_buff *skb;
++	struct list_head *p;
++	struct hci_conn *c;
++	
++	BT_DBG("%s", hdev->name);
++  
++	/* We don't have to lock device here. Connections are always 
++	 * added and removed with TX task disabled. */
++	list_for_each(p, &h->list) {
++		c = list_entry(p, struct hci_conn, list);
++  
++		/* SCO scheduling algorithm makes sure there is never more than
++		   1 outstanding packet for each connection */
++		if (c->type == SCO_LINK && atomic_read(&c->sent) < 1  && c->state == BT_CONNECTED)
++		{
++			if(atomic_read(&hdev->sco_cnt) > 0) {
++				if((skb = skb_dequeue(&c->out_q)) != NULL) {
++					ktime_t now, pkt_time;
++
++					hci_send_frame(skb);
++ 
++					atomic_inc(&c->sent);			
++					atomic_dec(&hdev->sco_cnt);
++
++					c->tx_timer.function = hci_sco_tx_timer;
++					
++					pkt_time =
++						ktime_set(0, NSEC_PER_SEC / 16000 * (skb->len - HCI_SCO_HDR_SIZE));
++					now = c->tx_timer.base->get_time();
++
++					if(c->tx_timer.expires.tv64 == 0) {
++						c->tx_timer.expires = now;
++					}
++
++					c->tx_timer.expires.tv64 += pkt_time.tv64;
++					if(c->tx_timer.expires.tv64 > now.tv64) {
++						hrtimer_restart(&c->tx_timer);
++					}
++					else {
++						/* Timer is to expire in the past - this can happen if timer base
++						 precision is less than pkt_time. In this case we force timer
++						 expiration by calling its expires function */
++						c->tx_timer.function(&c->tx_timer);
++					}
++				}
++			}
+ 		}
+ 	}
+ }
+@@ -1269,14 +1339,14 @@
+ 
+ 	read_lock(&hci_task_lock);
+ 
+-	BT_DBG("%s acl %d sco %d", hdev->name, hdev->acl_cnt, hdev->sco_cnt);
++	BT_DBG("%s acl %d sco %d", hdev->name, hdev->acl_cnt, atomic_read(&hdev->sco_cnt));
+ 
+ 	/* Schedule queues and send stuff to HCI driver */
+ 
+-	hci_sched_acl(hdev);
+-
+ 	hci_sched_sco(hdev);
+ 
++	hci_sched_acl(hdev);
++
+ 	/* Send next queued raw (unknown type) packet */
+ 	while ((skb = skb_dequeue(&hdev->raw_q)))
+ 		hci_send_frame(skb);
+diff -urN linux-2.6.18-mh7/net/bluetooth/hci_event.c linux-2.6.18-mh7-sco/net/bluetooth/hci_event.c
+--- linux-2.6.18-mh7/net/bluetooth/hci_event.c	2006-11-02 07:45:31.000000000 -0700
++++ linux-2.6.18-mh7-sco/net/bluetooth/hci_event.c	2006-11-02 07:48:08.000000000 -0700
+@@ -310,7 +310,7 @@
+ 		lv = (struct hci_rp_read_loc_version *) skb->data;
+ 
+ 		if (lv->status) {
+-			BT_DBG("%s READ_LOCAL_VERSION failed %d", hdev->name, lf->status);
++			BT_DBG("%s READ_LOCAL_VERSION failed %d", hdev->name, lv->status);
+ 			break;
+ 		}
+ 
+@@ -372,7 +372,7 @@
+ 		}
+ 
+ 		hdev->acl_cnt = hdev->acl_pkts;
+-		hdev->sco_cnt = hdev->sco_pkts;
++		atomic_set(&hdev->sco_cnt, hdev->sco_pkts);
+ 
+ 		BT_DBG("%s mtu: acl %d, sco %d max_pkt: acl %d, sco %d", hdev->name,
+ 			hdev->acl_mtu, hdev->sco_mtu, hdev->acl_pkts, hdev->sco_pkts);
+@@ -861,15 +861,15 @@
+ 
+ 		conn = hci_conn_hash_lookup_handle(hdev, handle);
+ 		if (conn) {
+-			conn->sent -= count;
++			atomic_sub(count, &conn->sent);
+ 
+-			if (conn->type == SCO_LINK) {
+-				if ((hdev->sco_cnt += count) > hdev->sco_pkts)
+-					hdev->sco_cnt = hdev->sco_pkts;
+-			} else {
++			if (conn->type == ACL_LINK) {
+ 				if ((hdev->acl_cnt += count) > hdev->acl_pkts)
+ 					hdev->acl_cnt = hdev->acl_pkts;
+ 			}
++			/* Note : we do not use the "number of completed packets" event
++			to increment hdev->sco_cnt, as this feature is only optionnally support
++			by bluetooth controllers. So there is no if branch for SCO_LINK packets */
+ 		}
+ 	}
+ 	hci_sched_tx(hdev);
+diff -urN linux-2.6.18-mh7/net/bluetooth/sco.c linux-2.6.18-mh7-sco/net/bluetooth/sco.c
+--- linux-2.6.18-mh7/net/bluetooth/sco.c	2006-11-02 07:45:31.000000000 -0700
++++ linux-2.6.18-mh7-sco/net/bluetooth/sco.c	2006-11-02 07:48:08.000000000 -0700
+@@ -53,7 +53,13 @@
+ #define BT_DBG(D...)
+ #endif
+ 
+-#define VERSION "0.5"
++#define VERSION "0.6"
++
++#define MAX_SCO_TXBUFS 200
++#define MAX_SCO_RXBUFS 200
++
++#define DEFAULT_SCO_TXBUFS 5
++#define DEFAULT_SCO_RXBUFS 5
+ 
+ static const struct proto_ops sco_sock_ops;
+ 
+@@ -61,6 +67,8 @@
+ 	.lock = RW_LOCK_UNLOCKED
+ };
+ 
++/* Local functions declaration */
++
+ static void __sco_chan_add(struct sco_conn *conn, struct sock *sk, struct sock *parent);
+ static void sco_chan_del(struct sock *sk, int err);
+ 
+@@ -69,6 +77,10 @@
+ static void sco_sock_close(struct sock *sk);
+ static void sco_sock_kill(struct sock *sk);
+ 
++static void sco_sock_rfree(struct sk_buff *skb);
++
++static int sco_sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
++
+ /* ---- SCO timers ---- */
+ static void sco_sock_timeout(unsigned long arg)
+ {
+@@ -230,31 +242,64 @@
+ 	return err;
+ }
+ 
++static void sco_send_complete_cb(struct hci_conn *hcon)
++{
++	struct sco_conn *conn = hcon->sco_data;
++	struct sock *sk = conn->sk;
++	BT_DBG("conn %p, sock %p", conn, sk);
++
++	if(sk) {
++		bh_lock_sock(sk);
++		read_lock(&sk->sk_callback_lock);
++
++		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
++			wake_up_interruptible(sk->sk_sleep);
++
++		sk_wake_async(sk, 2, POLL_OUT);
++
++		read_unlock(&sk->sk_callback_lock);
++		bh_unlock_sock(sk);
++	}
++}
++
+ static inline int sco_send_frame(struct sock *sk, struct msghdr *msg, int len)
+ {
+ 	struct sco_conn *conn = sco_pi(sk)->conn;
+ 	struct sk_buff *skb;
+-	int err, count;
++	int err;
+ 
+ 	/* Check outgoing MTU */
+ 	if (len > conn->mtu)
+-		return -EINVAL;
++		return -EMSGSIZE;
+ 
+ 	BT_DBG("sk %p len %d", sk, len);
+ 
+-	count = min_t(unsigned int, conn->mtu, len);
+-	if (!(skb = bt_skb_send_alloc(sk, count, msg->msg_flags & MSG_DONTWAIT, &err)))
+-		return err;
++	if (!(skb = bt_skb_alloc(len, GFP_KERNEL)))
++		return -ENOBUFS;
+ 
+-	if (memcpy_fromiovec(skb_put(skb, count), msg->msg_iov, count)) {
++	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+ 		err = -EFAULT;
+ 		goto fail;
+ 	}
+ 
+-	if ((err = hci_send_sco(conn->hcon, skb)) < 0)
+-		return err;
++	if(msg->msg_flags & MSG_DONTWAIT) {
++		err = hci_send_sco(conn->hcon, skb, sk->sk_sndbuf, sco_send_complete_cb);
++	}
++	else {
++		err = wait_event_interruptible(*sk->sk_sleep, 
++			(sk->sk_state != BT_CONNECTED) ||
++			(hci_send_sco(conn->hcon, skb, sk->sk_sndbuf, sco_send_complete_cb) == 0)
++			);
++		/* It is possible that we have been waken up because the peer closed the SCO connection */
++		if(sk->sk_state != BT_CONNECTED) {
++			err = -ENOTCONN;
++		}
++	}
++
++	if (err < 0)
++		goto fail;
+ 
+-	return count;
++	return len;
+ 
+ fail:
+ 	kfree_skb(skb);
+@@ -273,8 +318,9 @@
+ 	if (sk->sk_state != BT_CONNECTED)
+ 		goto drop;
+ 
+-	if (!sock_queue_rcv_skb(sk, skb))
++	if (sco_sock_queue_rcv_skb(sk, skb) == 0) {
+ 		return;
++	}
+ 
+ drop:
+ 	kfree_skb(skb);
+@@ -328,7 +374,6 @@
+ 	BT_DBG("sk %p", sk);
+ 
+ 	skb_queue_purge(&sk->sk_receive_queue);
+-	skb_queue_purge(&sk->sk_write_queue);
+ }
+ 
+ static void sco_sock_cleanup_listen(struct sock *parent)
+@@ -360,6 +405,8 @@
+ 	/* Kill poor orphan */
+ 	bt_sock_unlink(&sco_sk_list, sk);
+ 	sock_set_flag(sk, SOCK_DEAD);
++	
++	/* release socket */
+ 	sock_put(sk);
+ }
+ 
+@@ -376,7 +423,7 @@
+ 
+ 	conn = sco_pi(sk)->conn;
+ 
+-	BT_DBG("sk %p state %d conn %p socket %p", sk, sk->sk_state, conn, sk->sk_socket);
++	BT_DBG("sk %p state %d conn %p socket %p refcnt %d", sk, sk->sk_state, conn, sk->sk_socket, atomic_read(&sk->sk_refcnt));
+ 
+ 	switch (sk->sk_state) {
+ 	case BT_LISTEN:
+@@ -426,6 +473,14 @@
+ 	INIT_LIST_HEAD(&bt_sk(sk)->accept_q);
+ 
+ 	sk->sk_destruct = sco_sock_destruct;
++
++       /* Put sensible values for a voice link (i.e. not too big),
++          as sysctl_rmem_default & sysctl_wmem_default are
++           really not designed for that -- In our case we use sk_**buf to
++           store a count of SCO packets, not a number of bytes as most of other type of
++           sockets do */
++	sk->sk_sndbuf = DEFAULT_SCO_TXBUFS;
++	sk->sk_rcvbuf = DEFAULT_SCO_RXBUFS;
+ 	sk->sk_sndtimeo = SCO_CONN_TIMEOUT;
+ 
+ 	sock_reset_flag(sk, SOCK_ZAPPED);
+@@ -656,6 +711,7 @@
+ static int sco_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+ {
+ 	struct sock *sk = sock->sk;
++	u32 opt;
+ 	int err = 0;
+ 
+ 	BT_DBG("sk %p", sk);
+@@ -663,6 +719,30 @@
+ 	lock_sock(sk);
+ 
+ 	switch (optname) {
++	case SCO_TXBUFS:
++		if (get_user(opt, (u32 __user *) optval)) {
++			err = -EFAULT;
++			break;
++		}
++		if(opt > MAX_SCO_TXBUFS) {
++			err = -EINVAL;
++			break;
++		}
++
++		sk->sk_sndbuf = opt;
++		break;
++	case SCO_RXBUFS:
++		if (get_user(opt, (u32 __user *) optval)) {
++			err = -EFAULT;
++			break;
++		}
++		if(opt > MAX_SCO_RXBUFS) {
++			err = -EINVAL;
++			break;
++		}
++
++		sk->sk_rcvbuf = opt;
++		break;
+ 	default:
+ 		err = -ENOPROTOOPT;
+ 		break;
+@@ -677,7 +757,8 @@
+ 	struct sock *sk = sock->sk;
+ 	struct sco_options opts;
+ 	struct sco_conninfo cinfo;
+-	int len, err = 0; 
++	int len, err = 0;
++	int val;
+ 
+ 	BT_DBG("sk %p", sk);
+ 
+@@ -687,6 +768,24 @@
+ 	lock_sock(sk);
+ 
+ 	switch (optname) {
++	case SCO_RXBUFS:
++		val = sk->sk_rcvbuf;
++
++		len = min_t(unsigned int, len, sizeof(val));
++		if (copy_to_user(optval, (char *)&val, len))
++			err = -EFAULT;
++
++		break;
++
++	case SCO_TXBUFS:
++		val = sk->sk_sndbuf;
++
++		len = min_t(unsigned int, len, sizeof(val));
++		if (copy_to_user(optval, (char *)&val, len))
++			err = -EFAULT;
++
++		break;
++
+ 	case SCO_OPTIONS:
+ 		if (sk->sk_state != BT_CONNECTED) {
+ 			err = -ENOTCONN;
+@@ -891,6 +990,42 @@
+ 	return 0;
+ }
+ 
++static int sco_sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
++{
++       int err = 0;
++
++       /* Cast skb->rcvbuf to unsigned... It's pointless, but reduces
++          number of warnings when compiling with -W --ANK
++        */
++       if (atomic_read(&sk->sk_rmem_alloc) + 1 >
++           (unsigned)sk->sk_rcvbuf) {
++               err = -ENOMEM;
++               goto out;
++       }
++
++       skb->dev = NULL;
++       skb->sk = sk;
++       skb->destructor = sco_sock_rfree;
++       atomic_add(1, &sk->sk_rmem_alloc);
++
++       skb_queue_tail(&sk->sk_receive_queue, skb);
++
++       if (!sock_flag(sk, SOCK_DEAD))
++               sk->sk_data_ready(sk, 1);
++out:
++       return err;
++}
++
++static void sco_sock_rfree(struct sk_buff *skb)
++{
++       struct sock *sk = skb->sk;
++
++       atomic_sub(1, &sk->sk_rmem_alloc);
++}
++
++
++/* ------- Others ------- */
++
+ static ssize_t sco_sysfs_show(struct class *dev, char *buf)
+ {
+ 	struct sock *sk;

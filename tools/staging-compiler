@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# Append -isystem for our staging includes when compiling
+# Append -L for our staging libs when linking
+#
+# We do it here rather than in CFLAGS/CPPFLAGS/LDFLAGS so we dont have to
+# deal with situations where the build system gets the flag order wrong
+#
+
+tool=${0##*/}
+mypath=${0%/${tool}}
+ccache=""
+
+if [ -d "${STAGEDIR}" ] ; then
+	i=false l=false
+	case ${tool} in
+		*-cpp) i=true;;
+		*-ld)  l=true;;
+		*)     i=true l=true;;
+	esac
+	if ${i} ; then
+		for p in /usr/local/include /usr/include ; do
+			[ -d "${STAGEDIR}${p}" ] && set -- "$@" -isystem "${STAGEDIR}${p}"
+		done
+
+		if [ -n "${UCLINUX_USE_CCACHE}" ] ; then
+			if ccache -V > /dev/null 2>&1 ; then
+				export CCACHE_DIR="${ROOTDIR}/ccache"
+				ccache="ccache"
+			fi
+		fi
+	fi
+	if ${l} ; then
+		for p in /usr/local/lib /usr/lib /lib ; do
+			[ -d "${STAGEDIR}${p}" ] && set -- "$@" -L "${STAGEDIR}${p}" 
+			case "$@" in
+				"-c "*|*" -c "*|*" -c") ;;
+				"-E "*|*" -E "*|*" -E") ;;
+				"-S "*|*" -S "*|*" -S") ;;
+				"-v "*|*" -v "*|*" -v") ;;
+				"-MM "*|*" -MM "*|*" -MM") ;;
+				*)
+					if ${i} ; then
+						set -- "$@" -Wl,-rpath-link,"${STAGEDIR}${p}"
+					else
+						set -- "$@" -rpath-link "${STAGEDIR}${p}"
+					fi
+					;;
+			esac
+		done
+	fi
+fi
+
+IFS=":"
+for p in ${PATH} ; do
+	[ "${p}" = "${mypath}" ] && continue
+	[ ! -x "${p}/${tool}" ] && continue
+	exec ${ccache} "${p}/${tool}" "$@"
+done
+
+echo "${tool}: command not found; perhaps you need to fix your PATH?" 1>&2
+exit 127

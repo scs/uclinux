@@ -1,0 +1,17 @@
+XXX: hack need to rethink ...
+
+--- MPlayer-1.0rc1/configure
++++ MPlayer-1.0rc1/configure
+@@ -3796,9 +3821,9 @@
+ echocheck "X11 headers presence"
+   for I in `echo $_inc_extra | sed s/-I//g` /usr/X11/include /usr/X11R6/include /usr/include/X11R6 /usr/include /usr/openwin/include ; do
+     if test -f "$I/X11/Xlib.h" ; then
+-      _inc_x11="-I$I"
+-      _x11_headers="yes"
+-      _res_comment="using $I"
++#      _inc_x11="-I$I"
++#      _x11_headers="yes"
++#      _res_comment="using $I"
+       break
+     fi
+   done

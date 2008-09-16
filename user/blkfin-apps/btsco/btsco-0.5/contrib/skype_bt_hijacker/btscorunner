@@ -1,0 +1,10 @@
+#!/bin/bash
+
+HEADSETADDR=00:0A:94:93:74:B7
+SWITCHFILE="/tmp/switch_dsp"
+
+while true; do
+	rm -f "${SWITCHFILE}"
+	while [ x"$(hcitool name "$HEADSETADDR")" == x"" ]; do sleep 60; done
+	btsco -s "$HEADSETADDR"
+done

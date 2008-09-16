@@ -1,0 +1,49 @@
+0.2.2:
+- GPL v2 or later, for LGPLv3 compatibility
+0.2.1:
+-joystick support for hiscore (up/down change letter, right next char,
+button 2 delete, button 1 finish)
+-ugly credits screen (just to do something from TODO list)
+-windowed mode is now default (thanks to Ben Anderman for his feedback)
+-while playing with joysticks, 2nd button is pause
+-menu can be used with 1st joystick (1st button accept, 2nd button exit)
+-support for two joysticks
+-hiscore it's shown only when needed
+-fix: hall of fame (thanks to Richard Andersson for his feedback) 
+0.2:
+-stage 2 ready
+-boss 2 ready
+-stage 1 ready
+-boss 1 added
+-boss bg music added
+-fix: pause key works also when joystick is used
+-fix: screenshot key works also when joystick is used
+-fix: now you don't need to restart the game to change controls
+0.1:
+-game pause ('p' key)
+-graphic changes
+-gets current bpp to set the video mode
+-artwork by Aida Martínez Salamanca
+-weapon change now is level-1 (previous releases did level/2)
+-energy is now somewhat more useful (shied up +3)
+-added another ship
+-added some FX
+-Little 'finetune' in enemies AI
+-demo.act renamed to game.act. That won't be a demo
+stage anymore.
+-fix in configuration screen when you start DD2 with
+no sound and later change to sound
+-fixes in score (3nd -> 3rd uh)
+-some safety checks added
+0.0.3:
+-some fixes in README
+-added hall of fame screen
+-added exit and hall of fame menu entries
+-added hi-score support (screen and save/load)
+-added special vefx 'stage'
+0.0.2:
+-better user interface (menus, configuration screen)
+-experimental joystick support enabled
+0.0.1:
+-initial public release
+

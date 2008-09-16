@@ -1,0 +1,104 @@
+Irattach - Attaches the Linux-IrDA stack to a specified device
+
+     Copyright (c) 2000 Dag Brattli <dagb@cs.uit.no>, 
+     All Rights Reserved.
+     
+     This program is free software; you can redistribute it and/or 
+     modify it under the terms of the GNU General Public License as 
+     published by the Free Software Foundation; either version 2 of 
+     the License, or (at your option) any later version.
+  
+     This program is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+     GNU General Public License for more details.
+ 
+     You should have received a copy of the GNU General Public License 
+     along with this program; if not, write to the Free Software 
+     Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+     MA 02111-1307 USA
+
+
+irattach is used to bind the Linux-IrDA stack to a device driver. So this
+is something you must do in order to use IrDA on your Linux machine.
+irattach must be run as root or installed setuid root, as it requires root
+privileges
+
+Usage: irattach <dev> [-d dongle] [-s]
+
+where
+       <dev>        usually the name of a tty, but can also be a FIR device
+       -d dongle    attaches a dongle driver (see below for more info)
+       -s           starts discovery of remote IrDA devices
+
+Dongles:
+
+The currently known dongles are:
+
+tekram      Tekram IrMate IR-210B dongle
+esi         Extended Systems JetEye PC (ESI-9680) dongle
+actisys     ACTiSYS IR-220L dongle
+actisys+    ACTiSYS IR-220L+ dongle
+girbil      Greenwich GIrBIL dongle
+litelink    Parallax LiteLink dongle
+airport
+old_belkin  Belkin (old) SmartBeam dongle
+
+Modules:
+
+If you have compiled the IrDA stack as modules (recommended), then you will
+need to add these entries to your /etc/modules.conf file
+
+# IrDA over a normal serial port, or a serial port compatible IrDA port
+alias tty-ldisc-11 irtty
+
+# IrCOMM (for printing, PPP, Minicom etc)
+alias char-major-161 ircomm-tty
+
+# To be able to attach some dongles
+alias irda-dongle-0 tekram
+alias irda-dongle-1 esi
+alias irda-dongle-2 actisys
+alias irda-dongle-3 actisys
+alias irda-dongle-4 girbil
+alias irda-dongle-5 litelink
+alias irda-dongle-6 airport
+alias irda-dongle-7 old_belkin
+
+# To use the NSC driver on a Thinkpad laptop
+options nsc-ircc dongle_id=0x09
+alias irda0 nsc-ircc
+
+Examples
+
+Attach the IrDA stack to the second serial port and start discovery
+
+$ ./irattach /dev/ttyS1 -s
+
+Attach the IrDA stack to the first serial port where you have an ACTiSYS
+dongle and start discovery
+
+$ ./irattach /dev/ttyS0 -d actisys -s
+
+Attach the IrDA stack to the NSC FIR (4Mbps) device driver on a Thinkpad
+laptop. You must also add some entries to /etc/conf.modules (see above)
+
+$ ./irattach irda0 -s 1
+
+Device entries you will need to use IrCOMM:
+
+mknod /dev/ircomm0 c 161 0
+mknod /dev/ircomm1 c 161 1
+mknod /dev/irlpt0 c 161 17
+mknod /dev/irlpt1 c 161 17
+
+Afterwards, then "ll /dev/ir*" should look like this:
+
+crw-r--r--    1 root     161,   0 Dec 22 14:15 /dev/ircomm0
+crw-r--r--    1 root     161,   1 Nov  5 08:36 /dev/ircomm1
+crw-r--r--    1 root     161,  16 Nov  5 08:36 /dev/irlpt0
+crw-r--r--    1 root     161,  17 Nov  5 08:36 /dev/irlpt1
+
+
+
+                                  Dag Brattli (Wed Jan 19 11:25:17 2000)

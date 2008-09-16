@@ -1,0 +1,155 @@
+menuconfig XENO_SKIN_NATIVE
+	depends on XENO_OPT_NUCLEUS
+	tristate "Native API"
+	default y
+	help
+
+	The native Xenomai API.
+
+if XENO_SKIN_NATIVE
+
+config XENO_OPT_NATIVE_PERIOD
+	int "Base period (us)" if XENO_OPT_TIMING_PERIODIC
+	default 0
+	help
+	Duration of the base periodic tick (in microseconds).
+
+	The native skin can express all delays and timeouts either as
+	counts of ticks (i.e. jiffy-based), or directly in
+	nanoseconds in a tick-less fashion. This paramater defines the
+	duration of the base period in microseconds; a null value
+	selects the tick-less mode.
+
+	The base period can be overriden at runtime using the
+	"tick_arg" module parameter when loading the native skin.
+
+	If in doubt, leave zero in this field.
+
+config XENO_OPT_NATIVE_PIPE
+	bool "Message pipes"
+	select XENO_OPT_PIPE
+	default y
+	help
+	
+	Message pipes are bi-directional FIFO communication
+	channels allowing data exchange between real-time tasks
+	and regular user-space processes. Pipes natively preserve
+	message boundaries, but can also be used in byte stream mode
+	from kernel to user space.
+
+	The maximum number of pipes available in the system can be
+	configured using the XENO_OPT_PIPE_NRDEV option from the
+	Nucleus menu.
+
+config XENO_OPT_NATIVE_PIPE_BUFSZ
+	int "Bytes in buffer space"
+	depends on XENO_OPT_NATIVE_PIPE
+	default 1024
+	help
+	
+	This option sets the memory size available for per-pipe
+	buffering when message pipes are used in byte stream mode.
+
+config XENO_OPT_NATIVE_REGISTRY
+	bool
+	prompt "Registry support" if !XENO_OPT_PERVASIVE
+	select XENO_OPT_REGISTRY
+	default y
+	help
+	
+	The registry is used to bind real-time objects to symbolic names,
+	so that these objects can be further retrieved and shared by
+	real-time applications regardless of their runtime space (i.e.
+	kernel or user). Each named object occupies a registry slot.
+
+config XENO_OPT_NATIVE_SEM
+	bool "Counting semaphores"
+	default y
+	help
+	
+	Counting semaphore are synchronization objects granting Xenomai
+	tasks a concurrent access to a given number of resources
+	maintained in an internal counter variable.
+
+config XENO_OPT_NATIVE_EVENT
+	bool "Event flags"
+	default y
+	help
+	
+	Event flag groups are synchronization objects represented by a
+	long-word structure; every available bit in such word can be used
+	to map a user-defined event flag Xenomai tasks can wait for.
+
+config XENO_OPT_NATIVE_MUTEX
+	bool "Mutexes"
+	default y if XENO_OPT_NATIVE_COND
+	help
+	
+	Mutexes are MUTual EXclusion objects, useful for protecting
+	shared data structures from concurrent modifications, and
+	implementing critical sections and monitors.
+
+config XENO_OPT_NATIVE_COND
+	bool "Condition variables"
+	default y
+	enable XENO_OPT_NATIVE_MUTEX
+	help
+	
+	Condition variables are synchronization objects which
+	allow Xenomai tasks to suspend execution until some predicate on
+	shared data is satisfied. 
+
+config XENO_OPT_NATIVE_QUEUE
+	bool "Message queues"
+	default y
+	help
+	
+	Message queueing is a method by which real-time tasks can
+	exchange or pass data through a xeno-managed queue of
+	messages. Messages can vary in length and be assigned
+	different types or usages.
+
+config XENO_OPT_NATIVE_HEAP
+	bool "Memory heaps"
+	default y
+	help
+
+	Memory heaps are regions of memory used for dynamic memory
+	allocation in a time-bounded fashion.
+
+config XENO_OPT_NATIVE_ALARM
+	bool "Alarms"
+	default y
+	help
+	
+	Alarms are general watchdog timers allowing to run
+	user-defined handlers after a specified delay has elapsed.
+
+config XENO_OPT_NATIVE_MPS
+	bool "Message passing support"
+	default y
+	help
+	
+	This simple message passing interface allows to exchange
+	variable-sized messages in a synchronous fashion between Xenomai
+	tasks.
+
+config XENO_OPT_NATIVE_INTR
+	bool "Interrupts"
+	help
+	
+	This option provides a simple API to deal with interrupts,
+	both in kernel and user-space contexts. Note that the preferred
+	way of implementing generic drivers usable across all Xenomai
+	interfaces is defined by the Real-Time Driver Model (RTDM).
+
+config XENO_OPT_DEBUG_NATIVE
+	bool "Debugging support"
+	depends on XENO_OPT_DEBUG
+	default y
+	help
+
+	When enabled, this option makes the skin warn about
+	auto-clean operations executed upon process termination.
+
+endif

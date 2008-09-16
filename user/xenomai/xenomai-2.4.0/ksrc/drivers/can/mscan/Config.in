@@ -1,0 +1,18 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+if [ "$CONFIG_MPC5200" = "y" ]; then
+
+dep_tristate 'MSCAN driver for MPC5200' CONFIG_XENO_DRIVERS_CAN_MSCAN $CONFIG_XENO_DRIVERS_CAN
+
+if [ "$CONFIG_XENO_DRIVERS_CAN_MSCAN" != "n" ]; then
+    bool 'Enable CAN 1' CONFIG_XENO_DRIVERS_CAN_MSCAN_1
+    bool 'Enable CAN 2' CONFIG_XENO_DRIVERS_CAN_MSCAN_2
+    int 'Clock Frequency in Hz' CONFIG_XENO_DRIVERS_CAN_MSCAN_CLOCK 66000000
+    choice 'Pin Configuration' \
+    "I2C1/TMR01 CONFIG_XENO_DRIVERS_CAN_MSCAN_ALT \
+     PSC2       CONFIG_XENO_DRIVERS_CAN_MSCAN_PSC2" I2C1/TMR01
+fi
+
+fi

@@ -1,0 +1,144 @@
+
+The new Xenomai project has its roots in both the original Xenomai [1]
+and RTAI [2] projects, which combined their skills in order to produce
+a pervasive and highly integrated real-time framework for the
+GNU/Linux environment. The resulting development effort started in
+April 2004 has been initially hosted as an experimental branch of the
+RTAI project, called RTAI/fusion. Since October 2005, this effort is
+independently led by its original major contributors as the revamped
+Xenomai project [1].
+
+This file is an attempt to give proper credit to the people who have
+contributed to this project so far. List entries are sorted by name
+and provide the usual tags for automated processing.
+
+See also "ksrc/drivers/<subsystem>/CREDITS" for further contributors.
+
+[1] http://www.xenomai.org/
+[2] http://www.rtai.org/
+
+-- Philippe
+
+N: Dmitry Adamushko
+E: dmitry.adamushko@gmail.com
+D: Various fixes in the nucleus and the native skin.
+D: Scalable scheduler implementation and other optimizations.
+D: Message pipes sanitization.
+D: Shared interrupt support.
+
+N: Edelhard Becker
+E: ebecker@software-manufaktur.de
+D: Debian package for RTAI/fusion. 80486 fixes.
+
+N: Alexis Berlemont
+E: berlemont.hauw@free.fr
+D: LTT support maintainer. ia64 port. Comedi over fusion.
+
+N: Marco Cavallini
+E: rtai@koansoftware.com
+D: VxWorks demo.
+
+N: Gilles Chanteperdrix
+E: gilles.chanteperdrix@laposte.net
+D: POSIX and VxWorks skins author and maintainer. Autoconfiscation
+D: janitor. SMP support. ia64 port. Fixes and improvements all over
+D: the map.
+D: ARM port maintainer.
+
+N: Paul Corner
+E: paul_c@gna.org
+D: Debianization.
+
+N: Jim Cromie
+E: jim.cromie@gmail.com
+D: Comprehensive statistics collection for the testsuite.
+D: Validation test script. Various script fixes and sanitization.
+
+N: Pierre Ficheux
+E: contact@ficheux.com
+D: Quick Installation guide.
+
+N: Stephane Fillod
+E: stephane.fillod@thomson.net
+D: Compatibility skin fixes and extensions.
+
+N: Philippe Gerum
+E: rpm@xenomai.org
+D: Core stuff here and there.
+
+N: Niklaus Giger
+E: niklaus.giger@member.fsf.org
+D: ppc32 port and VxWorks debugging.
+D: Xenomai buildbot maintainer.
+
+N: Wolfgang Grandegger
+E: wg@grandegger.com
+D: Real-time socket CAN.
+D: Various ppc32 contributions.
+
+N: Panagiotis Issaris
+E: panagiotis.issaris@mech.kuleuven.ac.be
+D: RTAI LiveCD author and maintainer. Code sanity checks.
+D: Documentation proof-reading.
+W: http://issaris.org/rtai/
+
+N: Jan Kiszka
+E: kiszka@rts.uni-hannover.de
+D: RTDM author and maintainer. 16550A UART driver and
+   benchmark suite over RTDM. Latency tracer.
+D: Various cleanups and fixes.
+D: Real-time socket CAN.
+
+N: Marc Kleine-Budde
+E: kleine-budde@gmx.de
+D: Miscellaneous nucleus updates.
+
+N: Max Krasnyansky
+E: maxk@qualcomm.com
+D: Context-switch time determination test.
+
+N: Romain Lenglet
+E: <rlenglet@users.forge.objectweb.org>
+D: Man pages. Improvement of kernel preparation script.
+
+N: Heikki Lindholm
+E: holindho@cs.helsinki.fi
+D: ppc64 port author and maintainer.
+
+N: Hannes Mayer
+E: realtime@captain.at
+D: Maintainer of various programming resources.
+W: http://www.captain.at/xenomai.php
+
+N: Thomas Necker
+E: <Thomas.Necker@marconi.com>
+D: Various contributions to the direct syscall interface for pSOS
+
+N: Andrew Noren
+E: Andrew.Noren@xerox.com
+D: User-space POSIX tortur^H^H^H^H^H^Hesting.
+
+N: Julien Pinon
+D: Original VRTX skin author.
+
+N: Ivan Raikov
+E: raikov@cc.gatech.edu
+D: Autoconf and script-related fixes.
+
+N: Bruno Rouchouse
+E: bsd@neuf.fr
+D: WEB site author and documentation maintainer.
+W: http://www.xenomai.org/
+
+N: Sebastian Smolorz
+E: ssm@emlix.com
+D: Real-time socket CAN.
+D: Support for Samsung S3C24xx.
+
+N: Evgeny Sinelnikov
+E: linux4sin@mail.ru
+D: Autoconf-related fixes.
+
+N: Frederic Villeneuve
+E: frederic.villeneuve@laposte.net
+D: udev support for message pipes.

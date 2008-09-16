@@ -1,0 +1,92 @@
+uClinux support for 4MB flash memory on the Bluetechnix CM-BF537E boards
+(tested with uClinux Release 06 RC2)
+
+
+1.	Build instructions
+
+•	Get the patch for the flash driver from [to be inserted]
+
+•	In the uClinux-dist/vendors/Bluetechnix/patches directory, issue patch -p1 < downloaded_patchfile to apply the patch (2 files will be patched).
+
+•	Configure flash support in the kernel. Start with make menuconfig.
+	
+Vendor/Product Selection  --->
+Vendor "Bluetechnix"
+Product "CM-BF537E"
+Kernel/Library/Defaults Selection  --->
+[*] Check Customize Kernel Settings
+[*] Customize Vendor/User Settings
+
+Exit and save.
+
+•	Linux kernel configuration:
+Set the following options:
+Device Drivers  --->
+Memory Technology Devices (MTD)  --->
+<*> Memory Technology Device (MTD) support
+		[*]   MTD partitioning support
+		<*>   Direct char device access to MTD devices
+		<*>   Caching block device access to MTD devices
+		RAM/ROM/Flash chip drivers  --->
+			<*> Detect flash chips by Common Flash Interface (CFI) probe
+			<*> Support for Intel/Sharp flash chips
+			<*> Support for RAM chips in bus mapping
+			<*> Support for ROM chips in bus mapping
+		Mapping drivers for chip access  --->
+			<*> CFI Flash device in physical memory map
+			(0x20000000) Physical start address of flash mapping
+			(0x400000) Physical length of flash mapping
+			(2)   Bank width in octets
+			<*> Generic uClinux RAM/ROM filesystem support
+Kernel hacking  --->
+[ ] Compiled-in Kernel Boot Parameter (unset this option!)
+
+Exit and save.
+
+•	uClinux configuration:
+If you want to use the JFFS2 (Journaling Flash File System), then set the following options:
+Flash Tools  --->
+	[*] mtd-utils
+	[*]   mkfs.jff2
+
+Exit and save.
+
+•	Setting up partitions in flash memory:
+
+Adjust the file uClinux-dist/linux-2.6.x/drivers/mtd/maps/physmap.c.
+At the beginning of the file, enter partitions according to your wishes. Don't forget to set the number of partitions!
+
+If you use more than 3 partitions on flash, edit the file uClinux-dist/vendors/Bluetechnix/CM-BF537E/device-table.txt and add mtdX and mtdblockX devices. You must have one more device of each than you have flash partitions.
+
+•	Adjust u-boot configuration:
+	
+You must set the bootargs variable in u-boot depending on the number of partitions you have set up, e.g. if you defined 3 partitions, these will be accessed by device files
+/dev/mtdblock0
+/dev/mtdblock1
+/dev/mtdblock2
+The RAM-based filesystem included in the kernel image will then be accessible through to next available device file. Here, it is
+/dev/mtdblock3
+
+Change the bootargs variable by entering “setenv bootargs root=/dev/mtdblock... rw ...” (check previous setting before by issuing printenv).
+
+•	Once the kernel has started up, you can get information about your MTD devices in files
+/proc/mtd
+/proc/partitions
+
+Your flash partitions are available through the block device files /dev/mtdblockX.
+
+2.	Flashing U-boot/uClinux images
+
+You can flash a kernel image (uImage) by entering cat .../uImage > /dev/mtdblock1
+Flashing the u-boot is analogous.
+
+3.	Using JFFS2
+
+If you want to set up a file system on a flash partition, erase the sectors first (e.g. with u-boot). Then simply type
+mount -t jffs2 /dev/mtdblock2 /mnt
+to mount it. JFFS2 will automatically set up the required structure.
+Don't forget to unmount the file system if you need to be sure that everything was saved to flash (caching!).
+
+•	Using JFFS2 as root file system
+There is a very good documentation page on blackfin.uclinux.org: http://docs.blackfin.uclinux.org/doku.php?id=enabling_jffs2
+

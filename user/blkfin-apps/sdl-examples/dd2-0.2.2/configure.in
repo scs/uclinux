@@ -1,0 +1,24 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(Makefile.am)
+
+AM_INIT_AUTOMAKE(dd2, 0.2.2)
+
+AC_PROG_CC
+
+AC_CHECK_LIB(m, main,, AC_MSG_ERROR(math lib is needed))
+
+CFLAGS="$CFLAGS -Wall"
+
+AM_PATH_SDL(1.2.0,, AC_MSG_ERROR(SDL library is needed))
+CFLAGS="$CFLAGS $SDL_CFLAGS"
+LIBS="$LIBS $SDL_LIBS"
+
+AC_CHECK_LIB(SDL_mixer, main,, 
+AC_MSG_ERROR(SDL_Mixer library is needed for sound support))
+
+AC_ARG_ENABLE(alternate-fire-key,
+[  --enable-alternate-fire-key Use 'm' key instead RIGHT CONTROL for fire],
+	[CFLAGS="$CFLAGS -DALT_FIRE"])
+
+AC_OUTPUT(Makefile src/Makefile src/data/Makefile)
+

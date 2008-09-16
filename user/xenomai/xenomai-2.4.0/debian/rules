@@ -1,0 +1,158 @@
+#!/usr/bin/make -f
+
+# Author: Paul Corner <paul_c@gna.org>
+# Created on: Sat Mar 3 12:00 GMT 2007
+# License: GPL Ver. 2
+
+#export DH_VERBOSE=1
+
+# This is the debhelper compatability version to use.
+export DH_COMPAT=5
+
+DEB_BUILD_GNU_CPU ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_CPU)
+DEB_BUILD_ARCH ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH)
+
+ifeq ($(DEB_BUILD_ARCH), i386)
+# Note: Would like to use --includedir=/usr/include/xenomai, but
+# there appears to be a `make install` problem.
+	CONFIG_OPTS = \
+	            --enable-x86-tsc
+endif
+ifeq ($(DEB_BUILD_ARCH), amd64)
+	CONFIG_OPTS = \
+	            --enable-smp \
+	            --enable-x86-tsc \
+	            --enable-x86-sep
+endif
+ifeq ($(DEB_BUILD_ARCH), powerpc)
+	CONFIG_OPTS =
+endif
+ifeq ($(DEB_BUILD_ARCH), arm)
+	CONFIG_OPTS =
+endif
+	CONFIG_OPTS += --prefix=/usr \
+	            --includedir=/usr/include/xenomai \
+	            --mandir=/usr/share/man
+
+build: build-stamp patch-stamp
+	$(MAKE)
+
+patch-stamp:
+	dh_testdir
+	touch patch-stamp
+#	The kernel patches get generated next - Need to revisit again
+#	when 2.6.24 ipipe patch is released.
+	$(CURDIR)/debian/prepare-patch.sh arm i386 powerpc x86_64
+
+build-stamp:
+	dh_testdir
+	touch build-stamp
+	./configure $(CONFIG_OPTS)
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f *-stamp
+	dh_clean
+	if test -f Makefile ; then \
+	    $(MAKE) distclean 2>/dev/null ; \
+	fi
+	rm -fR $(CURDIR)/tmp
+	rm -f $(CURDIR)/*.patch
+	rm -f $(CURDIR)/debian/*.kpatches
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp/
+#	Don't install *.la files..
+	rm -f $(CURDIR)/debian/tmp/usr/lib/*.la
+#	Move dev libs & headers to xenomai-dev
+	mkdir -p $(CURDIR)/debian/xenomai-dev/usr/lib
+	mv -f $(CURDIR)/debian/tmp/usr/lib/*.a $(CURDIR)/debian/xenomai-dev/usr/lib
+	mv -f $(CURDIR)/debian/tmp/usr/include $(CURDIR)/debian/xenomai-dev/usr/
+#	Need posix.wrappers for xeno-config
+	mv -f $(CURDIR)/debian/tmp/usr/lib/posix.wrappers $(CURDIR)/debian/xenomai-dev/usr/lib
+#	The xeno-config only makes sense with headers & stuff.
+	mkdir -p $(CURDIR)/debian/xenomai-dev/usr/bin
+	mv -f $(CURDIR)/debian/tmp/usr/bin/xeno-config $(CURDIR)/debian/xenomai-dev/usr/bin
+#	Now for the documentation.
+	mkdir -p $(CURDIR)/debian/xenomai-docs/usr/share/
+	mv -f $(CURDIR)/debian/tmp/usr/share/doc $(CURDIR)/debian/xenomai-docs/usr/share/
+	mv -f $(CURDIR)/debian/tmp/usr/share/man $(CURDIR)/debian/xenomai-docs/usr/share/
+#	Finally the core user space libraries
+	mkdir -p $(CURDIR)/debian/xenomai/usr/lib
+	mv -f $(CURDIR)/debian/tmp/usr/lib/lib*.* $(CURDIR)/debian/xenomai/usr/lib
+#	Utilities..
+	mkdir -p $(CURDIR)/debian/xenomai/usr/bin
+	mv -f $(CURDIR)/debian/tmp/usr/bin/* $(CURDIR)/debian/xenomai/usr/bin
+	mkdir -p $(CURDIR)/debian/xenomai/usr/sbin
+	mv -f $(CURDIR)/debian/tmp/usr/sbin/* $(CURDIR)/debian/xenomai/usr/sbin
+#	test applications.
+	mkdir -p $(CURDIR)/debian/xenomai/usr/share
+	mv -f $(CURDIR)/debian/tmp/usr/share/xenomai $(CURDIR)/debian/xenomai/usr/share
+#	install $(CURDIR)/ksrc/nucleus/udev/*.rules $(CURDIR)/debian/xenomai/etc/udev
+	mkdir -p $(CURDIR)/debian/xenomai/etc/udev
+	for f in $(CURDIR)/ksrc/nucleus/udev/*.rules ; do \
+	    cat $$f >> $(CURDIR)/debian/xenomai/etc/udev/xenomai.rules ; \
+	done
+#	Install examples in the dev package.
+	mkdir -p $(CURDIR)/debian/xenomai-dev/usr/share/xenomai
+	cp -fR $(CURDIR)/examples $(CURDIR)/debian/xenomai-dev/usr/share/xenomai
+#	 then kernel demos & snippets
+	cd $(CURDIR)/ksrc && find . -name demos -o  -name snippets | \
+	    while read d ; do \
+	        mkdir -p $(CURDIR)/debian/xenomai-dev/usr/share/xenomai/examples/kernel/$$d ; \
+	        install -m 0644 $$d/* $(CURDIR)/debian/xenomai-dev/usr/share/xenomai/examples/kernel/$$d ; \
+	    done ; \
+	cd $(CURDIR)
+#	The kernel patches get installed next..
+	dh_installkpatches
+#	Add CREDITS, ChangeLog, and READMEs to all packages.
+	for p in linux-patch-xenomai xenomai xenomai-dev xenomai-docs ; do \
+	    mkdir -p $(CURDIR)/debian/$$p/usr/share/doc/$$p ; \
+	    for f in CREDITS README.INSTALL TROUBLESHOOTING ; do \
+	        install -m 0644 $$f $(CURDIR)/debian/$$p/usr/share/doc/$$p/ ; \
+	    done ; \
+	    install -m 0644 -T ChangeLog $(CURDIR)/debian/$$p/usr/share/doc/$$p/changelog ; \
+	done
+
+# Build architecture-independent files here.
+binary-indep: install
+	dh_testdir
+	dh_testroot
+	dh_installdocs
+	dh_installchangelogs
+	dh_link
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_makeshlibs
+	dh_shlibdeps -L xenomai -L xenomai-dev
+#	dh_shlibdeps
+	dh_gencontrol
+#	 Here follows a little hackery to insert the patch list        
+#	 into the control file for linux-patch-xenomai
+	cat $(CURDIR)/debian/linux-patch-xenomai.kpatches | \
+	    awk 'NR>4 {sub(/^/," ");print}' >> \
+	        $(CURDIR)/debian/linux-patch-xenomai/DEBIAN/control
+#	 Echo config options to control.
+	echo " ." >> $(CURDIR)/debian/xenomai/DEBIAN/control
+	echo " Compiled with the following options." >> \
+	        $(CURDIR)/debian/xenomai/DEBIAN/control
+	echo "$(CONFIG_OPTS)" | awk '{ for ( i=1 ; i<=NF ; i++ ) print "   "$$i }' >> \
+	        $(CURDIR)/debian/xenomai/DEBIAN/control
+#	 End of hackery.
+	dh_md5sums
+	dh_builddeb
+
+# Build architecture-dependent files here.
+binary-arch: binary-indep
+
+# We have nothing to do by default.
+
+binary: binary-indep
+.PHONY: build clean binary-indep binary-arch binary install

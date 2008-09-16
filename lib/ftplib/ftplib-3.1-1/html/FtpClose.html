@@ -1,0 +1,30 @@
+<html>
+<head><title>FtpClose</title></head>
+<body>
+
+<h1>FtpClose</h1>
+<p>Close a data connection.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpClose(netbuf *nData);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>nData</b>
+<dd>A handle returned by <a href="FtpAccess.html">FtpAccess()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>Closes the data connection specified by 'nData' and frees associated
+resources.
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if successful or 0 on error.
+
+</body>
+</html>

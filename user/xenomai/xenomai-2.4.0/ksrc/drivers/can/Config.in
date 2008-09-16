@@ -1,0 +1,24 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+mainmenu_option next_comment
+comment 'CAN drivers'
+
+dep_tristate 'RT-Socket-CAN, CAN raw socket interface' CONFIG_XENO_DRIVERS_CAN $CONFIG_XENO_SKIN_RTDM
+
+if [ "$CONFIG_XENO_DRIVERS_CAN" != "n" ]; then 
+   bool 'Enable debug output' CONFIG_XENO_DRIVERS_CAN_DEBUG
+   bool 'Enable TX loopback to local sockets' CONFIG_XENO_DRIVERS_CAN_LOOPBACK
+   int 'Size of receive ring buffers (must be 2^N)' CONFIG_XENO_DRIVERS_CAN_RXBUF_SIZE 1024
+   int 'Maximum number of devices' CONFIG_XENO_DRIVERS_CAN_MAX_DEVICES 4
+   int 'Maximum number of receive filters per device' CONFIG_XENO_DRIVERS_CAN_MAX_RECEIVERS 16
+
+   dep_tristate 'Virtual CAN bus driver' CONFIG_XENO_DRIVERS_CAN_VIRT $CONFIG_XENO_DRIVERS_CAN
+
+   source drivers/xenomai/can/mscan/Config.in
+   source drivers/xenomai/can/sja1000/Config.in
+
+fi
+
+endmenu

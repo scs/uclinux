@@ -1,0 +1,290 @@
+<?xml version="1.0"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" 
+               "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">
+<refentry id="gnutls-pkcs12">
+<refmeta>
+<refentrytitle role="top_of_page">pkcs12</refentrytitle>
+<manvolnum>3</manvolnum>
+<refmiscinfo>GNUTLS Library</refmiscinfo>
+</refmeta>
+
+<refnamediv>
+<refname>pkcs12</refname>
+<refpurpose></refpurpose>
+<!--[<xref linkend="desc" endterm="desc.title"/>]-->
+</refnamediv>
+
+<refsynopsisdiv role="synopsis">
+<title role="synopsis.title">Synopsis</title>
+
+<synopsis>
+
+
+
+enum                <link linkend="gnutls-pkcs12-bag-type-t">gnutls_pkcs12_bag_type_t</link>;
+#define             <link linkend="MAX-BAG-ELEMENTS:CAPS">MAX_BAG_ELEMENTS</link>
+#define             <link linkend="BAG-PKCS8-KEY:CAPS">BAG_PKCS8_KEY</link>
+#define             <link linkend="BAG-PKCS8-ENCRYPTED-KEY:CAPS">BAG_PKCS8_ENCRYPTED_KEY</link>
+#define             <link linkend="BAG-CERTIFICATE:CAPS">BAG_CERTIFICATE</link>
+#define             <link linkend="BAG-CRL:CAPS">BAG_CRL</link>
+#define             <link linkend="DATA-OID:CAPS">DATA_OID</link>
+#define             <link linkend="ENC-DATA-OID:CAPS">ENC_DATA_OID</link>
+#define             <link linkend="FRIENDLY-NAME-OID:CAPS">FRIENDLY_NAME_OID</link>
+#define             <link linkend="KEY-ID-OID:CAPS">KEY_ID_OID</link>
+typedef             <link linkend="gnutls-pkcs12-t">gnutls_pkcs12_t</link>;
+typedef             <link linkend="gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</link>;
+<link linkend="int">int</link>                 <link linkend="gnutls-pkcs12-init">gnutls_pkcs12_init</link>                  (<link linkend="gnutls-pkcs12-t">gnutls_pkcs12_t</link> *pkcs12);
+<link linkend="void">void</link>                <link linkend="gnutls-pkcs12-deinit">gnutls_pkcs12_deinit</link>                (<link linkend="gnutls-pkcs12-t">gnutls_pkcs12_t</link> pkcs12);
+<link linkend="int">int</link>                 <link linkend="gnutls-pkcs12-import">gnutls_pkcs12_import</link>                (<link linkend="gnutls-pkcs12-t">gnutls_pkcs12_t</link> pkcs12,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *data,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format,
+                                                         unsigned <link linkend="int">int</link> flags);
+<link linkend="int">int</link>                 <link linkend="gnutls-pkcs12-get-bag">gnutls_pkcs12_get_bag</link>               (<link linkend="gnutls-pkcs12-t">gnutls_pkcs12_t</link> pkcs12,
+                                                         <link linkend="int">int</link> indx,
+                                                         <link linkend="gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</link> bag);
+<link linkend="int">int</link>                 <link linkend="gnutls-pkcs12-bag-init">gnutls_pkcs12_bag_init</link>              (<link linkend="gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</link> *bag);
+<link linkend="void">void</link>                <link linkend="gnutls-pkcs12-bag-deinit">gnutls_pkcs12_bag_deinit</link>            (<link linkend="gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</link> bag);
+enum                <link linkend="schema-id">schema_id</link>;
+</synopsis>
+</refsynopsisdiv>
+
+
+
+
+
+
+
+
+
+<refsect1 role="desc">
+<title role="desc.title">Description</title>
+<para>
+
+</para>
+</refsect1>
+
+<refsect1 role="details">
+<title role="details.title">Details</title>
+<refsect2>
+<title><anchor id="gnutls-pkcs12-bag-type-t" role="enum"/>enum gnutls_pkcs12_bag_type_t</title>
+<indexterm><primary>gnutls_pkcs12_bag_type_t</primary></indexterm><programlisting>typedef enum gnutls_pkcs12_bag_type_t
+{
+  GNUTLS_BAG_EMPTY = 0,
+
+  GNUTLS_BAG_PKCS8_ENCRYPTED_KEY = 1,
+  GNUTLS_BAG_PKCS8_KEY,
+  GNUTLS_BAG_CERTIFICATE,
+  GNUTLS_BAG_CRL,
+  GNUTLS_BAG_ENCRYPTED = 10,
+  GNUTLS_BAG_UNKNOWN = 20
+} gnutls_pkcs12_bag_type_t;
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="MAX-BAG-ELEMENTS:CAPS" role="macro"/>MAX_BAG_ELEMENTS</title>
+<indexterm><primary>MAX_BAG_ELEMENTS</primary></indexterm><programlisting>#define             MAX_BAG_ELEMENTS</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="BAG-PKCS8-KEY:CAPS" role="macro"/>BAG_PKCS8_KEY</title>
+<indexterm><primary>BAG_PKCS8_KEY</primary></indexterm><programlisting>#define             BAG_PKCS8_KEY</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="BAG-PKCS8-ENCRYPTED-KEY:CAPS" role="macro"/>BAG_PKCS8_ENCRYPTED_KEY</title>
+<indexterm><primary>BAG_PKCS8_ENCRYPTED_KEY</primary></indexterm><programlisting>#define             BAG_PKCS8_ENCRYPTED_KEY</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="BAG-CERTIFICATE:CAPS" role="macro"/>BAG_CERTIFICATE</title>
+<indexterm><primary>BAG_CERTIFICATE</primary></indexterm><programlisting>#define             BAG_CERTIFICATE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="BAG-CRL:CAPS" role="macro"/>BAG_CRL</title>
+<indexterm><primary>BAG_CRL</primary></indexterm><programlisting>#define             BAG_CRL</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="DATA-OID:CAPS" role="macro"/>DATA_OID</title>
+<indexterm><primary>DATA_OID</primary></indexterm><programlisting>#define             DATA_OID</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="ENC-DATA-OID:CAPS" role="macro"/>ENC_DATA_OID</title>
+<indexterm><primary>ENC_DATA_OID</primary></indexterm><programlisting>#define             ENC_DATA_OID</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="FRIENDLY-NAME-OID:CAPS" role="macro"/>FRIENDLY_NAME_OID</title>
+<indexterm><primary>FRIENDLY_NAME_OID</primary></indexterm><programlisting>#define             FRIENDLY_NAME_OID</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="KEY-ID-OID:CAPS" role="macro"/>KEY_ID_OID</title>
+<indexterm><primary>KEY_ID_OID</primary></indexterm><programlisting>#define             KEY_ID_OID</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="gnutls-pkcs12-t" role="typedef"/>gnutls_pkcs12_t</title>
+<indexterm><primary>gnutls_pkcs12_t</primary></indexterm><para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="gnutls-pkcs12-bag-t" role="typedef"/>gnutls_pkcs12_bag_t</title>
+<indexterm><primary>gnutls_pkcs12_bag_t</primary></indexterm><para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="gnutls-pkcs12-init" role="function"/>gnutls_pkcs12_init ()</title>
+<indexterm><primary>gnutls_pkcs12_init</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_pkcs12_init                  (<link linkend="gnutls-pkcs12-t">gnutls_pkcs12_t</link> *pkcs12);</programlisting>
+<para>
+This function will initialize a PKCS12 structure. PKCS12 structures
+usually contain lists of X.509 Certificates and X.509 Certificate
+revocation lists.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>pkcs12</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-pkcs12-deinit" role="function"/>gnutls_pkcs12_deinit ()</title>
+<indexterm><primary>gnutls_pkcs12_deinit</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_pkcs12_deinit                (<link linkend="gnutls-pkcs12-t">gnutls_pkcs12_t</link> pkcs12);</programlisting>
+<para>
+This function will deinitialize a PKCS12 structure.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>pkcs12</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-pkcs12-import" role="function"/>gnutls_pkcs12_import ()</title>
+<indexterm><primary>gnutls_pkcs12_import</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_pkcs12_import                (<link linkend="gnutls-pkcs12-t">gnutls_pkcs12_t</link> pkcs12,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *data,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format,
+                                                         unsigned <link linkend="int">int</link> flags);</programlisting>
+<para>
+This function will convert the given DER or PEM encoded PKCS12
+to the native gnutls_pkcs12_t format. The output will be stored in 'pkcs12'.
+</para>
+<para>
+If the PKCS12 is PEM encoded it should have a header of "PKCS12".</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>pkcs12</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>format</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>flags</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-pkcs12-get-bag" role="function"/>gnutls_pkcs12_get_bag ()</title>
+<indexterm><primary>gnutls_pkcs12_get_bag</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_pkcs12_get_bag               (<link linkend="gnutls-pkcs12-t">gnutls_pkcs12_t</link> pkcs12,
+                                                         <link linkend="int">int</link> indx,
+                                                         <link linkend="gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</link> bag);</programlisting>
+<para>
+This function will return a Bag from the PKCS12 structure.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>pkcs12</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>indx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>bag</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-pkcs12-bag-init" role="function"/>gnutls_pkcs12_bag_init ()</title>
+<indexterm><primary>gnutls_pkcs12_bag_init</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_pkcs12_bag_init              (<link linkend="gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</link> *bag);</programlisting>
+<para>
+This function will initialize a PKCS12 bag structure. PKCS12 Bags
+usually contain private keys, lists of X.509 Certificates and X.509 Certificate
+revocation lists.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>bag</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-pkcs12-bag-deinit" role="function"/>gnutls_pkcs12_bag_deinit ()</title>
+<indexterm><primary>gnutls_pkcs12_bag_deinit</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_pkcs12_bag_deinit            (<link linkend="gnutls-pkcs12-bag-t">gnutls_pkcs12_bag_t</link> bag);</programlisting>
+<para>
+This function will deinitialize a PKCS12 Bag structure.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>bag</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="schema-id" role="enum"/>enum schema_id</title>
+<indexterm><primary>schema_id</primary></indexterm><programlisting>typedef enum schema_id
+{
+  PBES2,			/* the stuff in PKCS #5 */
+  PKCS12_3DES_SHA1,		/* the fucking stuff in PKCS #12 */
+  PKCS12_ARCFOUR_SHA1,
+  PKCS12_RC2_40_SHA1
+} schema_id;
+</programlisting>
+<para>
+
+</para></refsect2>
+
+</refsect1>
+
+
+
+
+
+<refsect1><refsect2 /><refsect2 /></refsect1>
+</refentry>

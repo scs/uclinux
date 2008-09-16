@@ -1,0 +1,13 @@
+To install sdlroids, you need SDL 1.1.0 or newer. You optionally want
+SDL_mixer as well. It's not required however. 
+
+You can find them both at http://www.libsdl.org/ 
+
+Compilation steps:
+
+	1) Run ./configure
+	2) Run make
+	3) Run make install
+
+If you install from CVS, you need to run ./autogen.sh prior to the
+steps above.

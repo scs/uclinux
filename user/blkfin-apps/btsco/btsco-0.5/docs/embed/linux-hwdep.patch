@@ -1,0 +1,10 @@
+--- sound/drivers/Kconfig.orig	2005-04-23 11:02:51.000000000 -0600
++++ sound/drivers/Kconfig	2005-04-22 21:18:14.000000000 -0600
+@@ -29,6 +29,7 @@
+ 	tristate "Dummy (/dev/null) soundcard"
+ 	depends on SND
+ 	select SND_PCM
++	select SND_HWDEP
+ 	help
+ 	  Say Y here to include the dummy driver.  This driver does
+ 	  nothing, but emulates various mixer controls and PCM devices.

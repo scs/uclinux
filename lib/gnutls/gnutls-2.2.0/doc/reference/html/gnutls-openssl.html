@@ -1,0 +1,2933 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>openssl</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.73.2">
+<link rel="start" href="index.html" title="GNU TLS API Reference Manual">
+<link rel="up" href="ch01.html" title="GNU TLS API Reference Manual">
+<link rel="prev" href="gnutls-openpgp.html" title="openpgp">
+<link rel="next" href="gnutls-opencdk.html" title="opencdk">
+<meta name="generator" content="GTK-Doc V1.9 (XML mode)">
+<link rel="stylesheet" href="style.css" type="text/css">
+<link rel="chapter" href="ch01.html" title="GNU TLS API Reference Manual">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table class="navigation" id="top" width="100%" summary="Navigation header" cellpadding="2" cellspacing="2">
+<tr valign="middle">
+<td><a accesskey="p" href="gnutls-openpgp.html"><img src="left.png" width="24" height="24" border="0" alt="Prev"></a></td>
+<td><a accesskey="u" href="ch01.html"><img src="up.png" width="24" height="24" border="0" alt="Up"></a></td>
+<td><a accesskey="h" href="index.html"><img src="home.png" width="24" height="24" border="0" alt="Home"></a></td>
+<th width="100%" align="center">GNU TLS API Reference Manual</th>
+<td><a accesskey="n" href="gnutls-opencdk.html"><img src="right.png" width="24" height="24" border="0" alt="Next"></a></td>
+</tr>
+<tr><td colspan="5" class="shortcuts"><nobr><a href="#id2586237" class="shortcut">Top</a>
+                  &#160;|&#160;
+                  <a href="#id2644800" class="shortcut">Description</a></nobr></td></tr>
+</table>
+<div class="refentry" lang="en">
+<a name="gnutls-openssl"></a><div class="titlepage"></div>
+<div class="refnamediv"><table width="100%"><tr>
+<td valign="top">
+<h2>
+<a name="id2586237"></a><span class="refentrytitle">openssl</span>
+</h2>
+<p>openssl</p>
+</td>
+<td valign="top" align="right"></td>
+</tr></table></div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<pre class="synopsis">
+
+
+
+#define             <a class="link" href="gnutls-openssl.html#GNUTLS-X509-CN-SIZE:CAPS">GNUTLS_X509_CN_SIZE</a>
+#define             <a class="link" href="gnutls-openssl.html#GNUTLS-X509-C-SIZE:CAPS">GNUTLS_X509_C_SIZE</a>
+#define             <a class="link" href="gnutls-openssl.html#GNUTLS-X509-O-SIZE:CAPS">GNUTLS_X509_O_SIZE</a>
+#define             <a class="link" href="gnutls-openssl.html#GNUTLS-X509-OU-SIZE:CAPS">GNUTLS_X509_OU_SIZE</a>
+#define             <a class="link" href="gnutls-openssl.html#GNUTLS-X509-L-SIZE:CAPS">GNUTLS_X509_L_SIZE</a>
+#define             <a class="link" href="gnutls-openssl.html#GNUTLS-X509-S-SIZE:CAPS">GNUTLS_X509_S_SIZE</a>
+#define             <a class="link" href="gnutls-openssl.html#GNUTLS-X509-EMAIL-SIZE:CAPS">GNUTLS_X509_EMAIL_SIZE</a>
+#define             <a class="link" href="gnutls-openssl.html#OPENSSL-VERSION-NUMBER:CAPS">OPENSSL_VERSION_NUMBER</a>
+#define             <a class="link" href="gnutls-openssl.html#SSLEAY-VERSION-NUMBER:CAPS">SSLEAY_VERSION_NUMBER</a>
+#define             <a class="link" href="gnutls-openssl.html#OPENSSL-VERSION-TEXT:CAPS">OPENSSL_VERSION_TEXT</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-ERROR-NONE:CAPS">SSL_ERROR_NONE</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-ERROR-SSL:CAPS">SSL_ERROR_SSL</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-ERROR-WANT-READ:CAPS">SSL_ERROR_WANT_READ</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-ERROR-WANT-WRITE:CAPS">SSL_ERROR_WANT_WRITE</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-ERROR-SYSCALL:CAPS">SSL_ERROR_SYSCALL</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-ERROR-ZERO-RETURN:CAPS">SSL_ERROR_ZERO_RETURN</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-FILETYPE-PEM:CAPS">SSL_FILETYPE_PEM</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-VERIFY-NONE:CAPS">SSL_VERIFY_NONE</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-ST-OK:CAPS">SSL_ST_OK</a>
+#define             <a class="link" href="gnutls-openssl.html#X509-V-ERR-CERT-NOT-YET-VALID:CAPS">X509_V_ERR_CERT_NOT_YET_VALID</a>
+#define             <a class="link" href="gnutls-openssl.html#X509-V-ERR-CERT-HAS-EXPIRED:CAPS">X509_V_ERR_CERT_HAS_EXPIRED</a>
+#define             <a class="link" href="gnutls-openssl.html#X509-V-ERR-DEPTH-ZERO-SELF-SIGNED-CERT:CAPS">X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-OP-ALL:CAPS">SSL_OP_ALL</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-OP-NO-TLSv1">SSL_OP_NO_TLSv1</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-MODE-ENABLE-PARTIAL-WRITE:CAPS">SSL_MODE_ENABLE_PARTIAL_WRITE</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-MODE-ACCEPT-MOVING-WRITE-BUFFER:CAPS">SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-MODE-AUTO-RETRY:CAPS">SSL_MODE_AUTO_RETRY</a>
+typedef             <a class="link" href="gnutls-openssl.html#X509-NAME:CAPS">X509_NAME</a>;
+typedef             <a class="link" href="gnutls-openssl.html#X509:CAPS">X509</a>;
+                    <a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a>;
+#define             <a class="link" href="gnutls-openssl.html#current-cert">current_cert</a>
+#define             <a class="link" href="gnutls-openssl.html#X509-STORE-CTX-get-current-cert">X509_STORE_CTX_get_current_cert</a>     (ctx)
+int                 <a class="link" href="gnutls-openssl.html#verify-callback">verify_callback</a>                     (...,
+                                                         X509_STORE_CTX *);
+#define             <a class="link" href="gnutls-openssl.html#rbio">rbio</a>
+struct              <a class="link" href="gnutls-openssl.html#RSA:CAPS">RSA</a>;
+#define             <a class="link" href="gnutls-openssl.html#MD5-CTX:CAPS">MD5_CTX</a>
+#define             <a class="link" href="gnutls-openssl.html#RIPEMD160-CTX:CAPS">RIPEMD160_CTX</a>
+#define             <a class="link" href="gnutls-openssl.html#OpenSSL-add-ssl-algorithms">OpenSSL_add_ssl_algorithms</a>          ()
+#define             <a class="link" href="gnutls-openssl.html#SSLeay-add-ssl-algorithms">SSLeay_add_ssl_algorithms</a>           ()
+#define             <a class="link" href="gnutls-openssl.html#SSLeay-add-all-algorithms">SSLeay_add_all_algorithms</a>           ()
+#define             <a class="link" href="gnutls-openssl.html#SSL-get-cipher-name">SSL_get_cipher_name</a>                 (ssl)
+#define             <a class="link" href="gnutls-openssl.html#SSL-get-cipher">SSL_get_cipher</a>                      (ssl)
+#define             <a class="link" href="gnutls-openssl.html#SSL-get-cipher-bits">SSL_get_cipher_bits</a>                 (ssl,bp)
+#define             <a class="link" href="gnutls-openssl.html#SSL-get-cipher-version">SSL_get_cipher_version</a>              (ssl)
+int                 <a class="link" href="gnutls-openssl.html#SSL-library-init">SSL_library_init</a>                    (void);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#OpenSSL-add-all-algorithms">OpenSSL_add_all_algorithms</a>          (void);
+SSL_CTX*            <a class="link" href="gnutls-openssl.html#SSL-CTX-new">SSL_CTX_new</a>                         (SSL_METHOD *method);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#SSL-CTX-free">SSL_CTX_free</a>                        (SSL_CTX *ctx);
+int                 <a class="link" href="gnutls-openssl.html#SSL-CTX-set-default-verify-paths">SSL_CTX_set_default_verify_paths</a>    (SSL_CTX *ctx);
+int                 <a class="link" href="gnutls-openssl.html#SSL-CTX-use-certificate-file">SSL_CTX_use_certificate_file</a>        (SSL_CTX *ctx,
+                                                         const char *certfile,
+                                                         int type);
+int                 <a class="link" href="gnutls-openssl.html#SSL-CTX-use-PrivateKey-file">SSL_CTX_use_PrivateKey_file</a>         (SSL_CTX *ctx,
+                                                         const char *keyfile,
+                                                         int type);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#SSL-CTX-set-verify">SSL_CTX_set_verify</a>                  (SSL_CTX *ctx,
+                                                         int verify_mode,
+                                                         int (verify_callbackint, X509_STORE_CTX *) ());
+unsigned long       <a class="link" href="gnutls-openssl.html#SSL-CTX-set-options">SSL_CTX_set_options</a>                 (SSL_CTX *ctx,
+                                                         unsigned long  options);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-set-mode">SSL_CTX_set_mode</a>                    (SSL_CTX *ctx,
+                                                         long mode );
+int                 <a class="link" href="gnutls-openssl.html#SSL-CTX-set-cipher-list">SSL_CTX_set_cipher_list</a>             (SSL_CTX *ctx,
+                                                         const char *list);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-number">SSL_CTX_sess_number</a>                 (SSL_CTX *ctx);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-connect">SSL_CTX_sess_connect</a>                (SSL_CTX *ctx);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-connect-good">SSL_CTX_sess_connect_good</a>           (SSL_CTX *ctx);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-connect-renegotiate">SSL_CTX_sess_connect_renegotiate</a>    (SSL_CTX *ctx);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-accept">SSL_CTX_sess_accept</a>                 (SSL_CTX *ctx);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-accept-good">SSL_CTX_sess_accept_good</a>            (SSL_CTX *ctx);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-accept-renegotiate">SSL_CTX_sess_accept_renegotiate</a>     (SSL_CTX *ctx);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-hits">SSL_CTX_sess_hits</a>                   (SSL_CTX *ctx);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-misses">SSL_CTX_sess_misses</a>                 (SSL_CTX *ctx);
+long                <a class="link" href="gnutls-openssl.html#SSL-CTX-sess-timeouts">SSL_CTX_sess_timeouts</a>               (SSL_CTX *ctx);
+<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a>*                <a class="link" href="gnutls-openssl.html#SSL-new">SSL_new</a>                             (SSL_CTX *ctx);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#SSL-free">SSL_free</a>                            (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#SSL-load-error-strings">SSL_load_error_strings</a>              (void);
+int                 <a class="link" href="gnutls-openssl.html#SSL-get-error">SSL_get_error</a>                       (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int ret);
+int                 <a class="link" href="gnutls-openssl.html#SSL-set-fd">SSL_set_fd</a>                          (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int fd);
+int                 <a class="link" href="gnutls-openssl.html#SSL-set-rfd">SSL_set_rfd</a>                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int fd);
+int                 <a class="link" href="gnutls-openssl.html#SSL-set-wfd">SSL_set_wfd</a>                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int fd);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#SSL-set-bio">SSL_set_bio</a>                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         BIO *rbio,
+                                                         BIO *wbio);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#SSL-set-connect-state">SSL_set_connect_state</a>               (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);
+int                 <a class="link" href="gnutls-openssl.html#SSL-pending">SSL_pending</a>                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#SSL-set-verify">SSL_set_verify</a>                      (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int verify_mode,
+                                                         int (verify_callbackint, X509_STORE_CTX *) ());
+const <a class="link" href="gnutls-openssl.html#X509:CAPS">X509</a>*         <a class="link" href="gnutls-openssl.html#SSL-get-peer-certificate">SSL_get_peer_certificate</a>            (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);
+int                 <a class="link" href="gnutls-openssl.html#SSL-connect">SSL_connect</a>                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);
+int                 <a class="link" href="gnutls-openssl.html#SSL-accept">SSL_accept</a>                          (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);
+int                 <a class="link" href="gnutls-openssl.html#SSL-shutdown">SSL_shutdown</a>                        (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);
+int                 <a class="link" href="gnutls-openssl.html#SSL-read">SSL_read</a>                            (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int len);
+int                 <a class="link" href="gnutls-openssl.html#SSL-write">SSL_write</a>                           (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         const <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int len);
+int                 <a class="link" href="gnutls-openssl.html#SSL-want">SSL_want</a>                            (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);
+#define             <a class="link" href="gnutls-openssl.html#SSL-NOTHING:CAPS">SSL_NOTHING</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-WRITING:CAPS">SSL_WRITING</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-READING:CAPS">SSL_READING</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-X509-LOOKUP:CAPS">SSL_X509_LOOKUP</a>
+#define             <a class="link" href="gnutls-openssl.html#SSL-want-nothing">SSL_want_nothing</a>                    (s)
+#define             <a class="link" href="gnutls-openssl.html#SSL-want-read">SSL_want_read</a>                       (s)
+#define             <a class="link" href="gnutls-openssl.html#SSL-want-write">SSL_want_write</a>                      (s)
+#define             <a class="link" href="gnutls-openssl.html#SSL-want-x509-lookup">SSL_want_x509_lookup</a>                (s)
+SSL_METHOD*         <a class="link" href="gnutls-openssl.html#SSLv23-client-method">SSLv23_client_method</a>                (void);
+SSL_METHOD*         <a class="link" href="gnutls-openssl.html#SSLv23-server-method">SSLv23_server_method</a>                (void);
+SSL_METHOD*         <a class="link" href="gnutls-openssl.html#SSLv3-client-method">SSLv3_client_method</a>                 (void);
+SSL_METHOD*         <a class="link" href="gnutls-openssl.html#SSLv3-server-method">SSLv3_server_method</a>                 (void);
+SSL_METHOD*         <a class="link" href="gnutls-openssl.html#TLSv1-client-method">TLSv1_client_method</a>                 (void);
+SSL_METHOD*         <a class="link" href="gnutls-openssl.html#TLSv1-server-method">TLSv1_server_method</a>                 (void);
+SSL_CIPHER*         <a class="link" href="gnutls-openssl.html#SSL-get-current-cipher">SSL_get_current_cipher</a>              (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);
+const char*         <a class="link" href="gnutls-openssl.html#SSL-CIPHER-get-name">SSL_CIPHER_get_name</a>                 (SSL_CIPHER *cipher);
+int                 <a class="link" href="gnutls-openssl.html#SSL-CIPHER-get-bits">SSL_CIPHER_get_bits</a>                 (SSL_CIPHER *cipher,
+                                                         int *bits);
+const char*         <a class="link" href="gnutls-openssl.html#SSL-CIPHER-get-version">SSL_CIPHER_get_version</a>              (SSL_CIPHER *cipher);
+char*               <a class="link" href="gnutls-openssl.html#SSL-CIPHER-description">SSL_CIPHER_description</a>              (SSL_CIPHER *cipher,
+                                                         char *buf,
+                                                         int size);
+<a class="link" href="gnutls-openssl.html#X509-NAME:CAPS">X509_NAME</a>*          <a class="link" href="gnutls-openssl.html#X509-get-subject-name">X509_get_subject_name</a>               (const <a class="link" href="gnutls-openssl.html#X509:CAPS">X509</a> *cert);
+<a class="link" href="gnutls-openssl.html#X509-NAME:CAPS">X509_NAME</a>*          <a class="link" href="gnutls-openssl.html#X509-get-issuer-name">X509_get_issuer_name</a>                (const <a class="link" href="gnutls-openssl.html#X509:CAPS">X509</a> *cert);
+char*               <a class="link" href="gnutls-openssl.html#X509-NAME-oneline">X509_NAME_oneline</a>                   (gnutls_x509_dn *name,
+                                                         char *buf,
+                                                         int len);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#X509-free">X509_free</a>                           (const <a class="link" href="gnutls-openssl.html#X509:CAPS">X509</a> *cert);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#BIO-get-fd">BIO_get_fd</a>                          (<a class="link" href="gnutls-gnutls.html#gnutls-session-t">gnutls_session_t</a> gnutls_state,
+                                                         int *fd);
+BIO*                <a class="link" href="gnutls-openssl.html#BIO-new-socket">BIO_new_socket</a>                      (int sock,
+                                                         int close_flag);
+unsigned long       <a class="link" href="gnutls-openssl.html#ERR-get-error">ERR_get_error</a>                       (void);
+const char*         <a class="link" href="gnutls-openssl.html#ERR-error-string">ERR_error_string</a>                    (unsigned long  e,
+                                                         char *buf);
+int                 <a class="link" href="gnutls-openssl.html#RAND-status">RAND_status</a>                         (void);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#RAND-seed">RAND_seed</a>                           (const <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int num);
+int                 <a class="link" href="gnutls-openssl.html#RAND-bytes">RAND_bytes</a>                          (unsigned char *buf,
+                                                         int num);
+const char*         <a class="link" href="gnutls-openssl.html#RAND-file-name">RAND_file_name</a>                      (char *buf,
+                                                         size_t len);
+int                 <a class="link" href="gnutls-openssl.html#RAND-load-file">RAND_load_file</a>                      (const char *name,
+                                                         long maxbytes );
+int                 <a class="link" href="gnutls-openssl.html#RAND-write-file">RAND_write_file</a>                     (const char *name);
+int                 <a class="link" href="gnutls-openssl.html#RAND-egd-bytes">RAND_egd_bytes</a>                      (const char *path,
+                                                         int bytes);
+#define             <a class="link" href="gnutls-openssl.html#RAND-egd">RAND_egd</a>                            (p)
+#define             <a class="link" href="gnutls-openssl.html#MD5-DIGEST-LENGTH:CAPS">MD5_DIGEST_LENGTH</a>
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#MD5-Init">MD5_Init</a>                            (<a class="link" href="gnutls-openssl.html#MD5-CTX:CAPS">MD5_CTX</a> *ctx);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#MD5-Update">MD5_Update</a>                          (<a class="link" href="gnutls-openssl.html#MD5-CTX:CAPS">MD5_CTX</a> *ctx,
+                                                         const <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int len);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#MD5-Final">MD5_Final</a>                           (unsigned char *md,
+                                                         <a class="link" href="gnutls-openssl.html#MD5-CTX:CAPS">MD5_CTX</a> *ctx);
+unsigned char*      <a class="link" href="gnutls-openssl.html#MD5:CAPS">MD5</a>                                 (unsigned char *buf,
+                                                         unsigned long  len,
+                                                         unsigned char *md);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#RIPEMD160-Init">RIPEMD160_Init</a>                      (<a class="link" href="gnutls-openssl.html#RIPEMD160-CTX:CAPS">RIPEMD160_CTX</a> *ctx);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#RIPEMD160-Update">RIPEMD160_Update</a>                    (<a class="link" href="gnutls-openssl.html#RIPEMD160-CTX:CAPS">RIPEMD160_CTX</a> *ctx,
+                                                         const <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int len);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-openssl.html#RIPEMD160-Final">RIPEMD160_Final</a>                     (unsigned char *md,
+                                                         <a class="link" href="gnutls-openssl.html#RIPEMD160-CTX:CAPS">RIPEMD160_CTX</a> *ctx);
+unsigned char*      <a class="link" href="gnutls-openssl.html#RIPEMD160:CAPS">RIPEMD160</a>                           (unsigned char *buf,
+                                                         unsigned long  len,
+                                                         unsigned char *md);
+</pre>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2644800"></a><h2>Description</h2>
+<p>
+
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2644815"></a><h2>Details</h2>
+<div class="refsect2" lang="en">
+<a name="id2644826"></a><h3>
+<a name="GNUTLS-X509-CN-SIZE:CAPS"></a>GNUTLS_X509_CN_SIZE</h3>
+<a class="indexterm" name="id2644838"></a><pre class="programlisting">#define             GNUTLS_X509_CN_SIZE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2644854"></a><h3>
+<a name="GNUTLS-X509-C-SIZE:CAPS"></a>GNUTLS_X509_C_SIZE</h3>
+<a class="indexterm" name="id2644866"></a><pre class="programlisting">#define             GNUTLS_X509_C_SIZE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2644882"></a><h3>
+<a name="GNUTLS-X509-O-SIZE:CAPS"></a>GNUTLS_X509_O_SIZE</h3>
+<a class="indexterm" name="id2644893"></a><pre class="programlisting">#define             GNUTLS_X509_O_SIZE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2644910"></a><h3>
+<a name="GNUTLS-X509-OU-SIZE:CAPS"></a>GNUTLS_X509_OU_SIZE</h3>
+<a class="indexterm" name="id2644921"></a><pre class="programlisting">#define             GNUTLS_X509_OU_SIZE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2644938"></a><h3>
+<a name="GNUTLS-X509-L-SIZE:CAPS"></a>GNUTLS_X509_L_SIZE</h3>
+<a class="indexterm" name="id2644949"></a><pre class="programlisting">#define             GNUTLS_X509_L_SIZE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2644965"></a><h3>
+<a name="GNUTLS-X509-S-SIZE:CAPS"></a>GNUTLS_X509_S_SIZE</h3>
+<a class="indexterm" name="id2644977"></a><pre class="programlisting">#define             GNUTLS_X509_S_SIZE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2644993"></a><h3>
+<a name="GNUTLS-X509-EMAIL-SIZE:CAPS"></a>GNUTLS_X509_EMAIL_SIZE</h3>
+<a class="indexterm" name="id2645004"></a><pre class="programlisting">#define             GNUTLS_X509_EMAIL_SIZE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645020"></a><h3>
+<a name="OPENSSL-VERSION-NUMBER:CAPS"></a>OPENSSL_VERSION_NUMBER</h3>
+<a class="indexterm" name="id2645032"></a><pre class="programlisting">#define             OPENSSL_VERSION_NUMBER</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645047"></a><h3>
+<a name="SSLEAY-VERSION-NUMBER:CAPS"></a>SSLEAY_VERSION_NUMBER</h3>
+<a class="indexterm" name="id2645059"></a><pre class="programlisting">#define             SSLEAY_VERSION_NUMBER</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645074"></a><h3>
+<a name="OPENSSL-VERSION-TEXT:CAPS"></a>OPENSSL_VERSION_TEXT</h3>
+<a class="indexterm" name="id2645086"></a><pre class="programlisting">#define             OPENSSL_VERSION_TEXT</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645102"></a><h3>
+<a name="SSL-ERROR-NONE:CAPS"></a>SSL_ERROR_NONE</h3>
+<a class="indexterm" name="id2645114"></a><pre class="programlisting">#define             SSL_ERROR_NONE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645130"></a><h3>
+<a name="SSL-ERROR-SSL:CAPS"></a>SSL_ERROR_SSL</h3>
+<a class="indexterm" name="id2645142"></a><pre class="programlisting">#define             SSL_ERROR_SSL</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645159"></a><h3>
+<a name="SSL-ERROR-WANT-READ:CAPS"></a>SSL_ERROR_WANT_READ</h3>
+<a class="indexterm" name="id2645170"></a><pre class="programlisting">#define             SSL_ERROR_WANT_READ</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645186"></a><h3>
+<a name="SSL-ERROR-WANT-WRITE:CAPS"></a>SSL_ERROR_WANT_WRITE</h3>
+<a class="indexterm" name="id2645198"></a><pre class="programlisting">#define             SSL_ERROR_WANT_WRITE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645214"></a><h3>
+<a name="SSL-ERROR-SYSCALL:CAPS"></a>SSL_ERROR_SYSCALL</h3>
+<a class="indexterm" name="id2645225"></a><pre class="programlisting">#define             SSL_ERROR_SYSCALL</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645241"></a><h3>
+<a name="SSL-ERROR-ZERO-RETURN:CAPS"></a>SSL_ERROR_ZERO_RETURN</h3>
+<a class="indexterm" name="id2645253"></a><pre class="programlisting">#define             SSL_ERROR_ZERO_RETURN</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645268"></a><h3>
+<a name="SSL-FILETYPE-PEM:CAPS"></a>SSL_FILETYPE_PEM</h3>
+<a class="indexterm" name="id2645280"></a><pre class="programlisting">#define             SSL_FILETYPE_PEM</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645296"></a><h3>
+<a name="SSL-VERIFY-NONE:CAPS"></a>SSL_VERIFY_NONE</h3>
+<a class="indexterm" name="id2645308"></a><pre class="programlisting">#define             SSL_VERIFY_NONE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645324"></a><h3>
+<a name="SSL-ST-OK:CAPS"></a>SSL_ST_OK</h3>
+<a class="indexterm" name="id2645337"></a><pre class="programlisting">#define             SSL_ST_OK</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645352"></a><h3>
+<a name="X509-V-ERR-CERT-NOT-YET-VALID:CAPS"></a>X509_V_ERR_CERT_NOT_YET_VALID</h3>
+<a class="indexterm" name="id2645366"></a><pre class="programlisting">#define             X509_V_ERR_CERT_NOT_YET_VALID</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645382"></a><h3>
+<a name="X509-V-ERR-CERT-HAS-EXPIRED:CAPS"></a>X509_V_ERR_CERT_HAS_EXPIRED</h3>
+<a class="indexterm" name="id2645395"></a><pre class="programlisting">#define             X509_V_ERR_CERT_HAS_EXPIRED</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645411"></a><h3>
+<a name="X509-V-ERR-DEPTH-ZERO-SELF-SIGNED-CERT:CAPS"></a>X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT</h3>
+<a class="indexterm" name="id2645425"></a><pre class="programlisting">#define             X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645442"></a><h3>
+<a name="SSL-OP-ALL:CAPS"></a>SSL_OP_ALL</h3>
+<a class="indexterm" name="id2645455"></a><pre class="programlisting">#define             SSL_OP_ALL</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645470"></a><h3>
+<a name="SSL-OP-NO-TLSv1"></a>SSL_OP_NO_TLSv1</h3>
+<a class="indexterm" name="id2645482"></a><pre class="programlisting">#define             SSL_OP_NO_TLSv1</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645498"></a><h3>
+<a name="SSL-MODE-ENABLE-PARTIAL-WRITE:CAPS"></a>SSL_MODE_ENABLE_PARTIAL_WRITE</h3>
+<a class="indexterm" name="id2645511"></a><pre class="programlisting">#define             SSL_MODE_ENABLE_PARTIAL_WRITE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645528"></a><h3>
+<a name="SSL-MODE-ACCEPT-MOVING-WRITE-BUFFER:CAPS"></a>SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER</h3>
+<a class="indexterm" name="id2645542"></a><pre class="programlisting">#define             SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645559"></a><h3>
+<a name="SSL-MODE-AUTO-RETRY:CAPS"></a>SSL_MODE_AUTO_RETRY</h3>
+<a class="indexterm" name="id2645571"></a><pre class="programlisting">#define             SSL_MODE_AUTO_RETRY</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645586"></a><h3>
+<a name="X509-NAME:CAPS"></a>X509_NAME</h3>
+<a class="indexterm" name="id2645599"></a><p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645608"></a><h3>
+<a name="X509:CAPS"></a>X509</h3>
+<a class="indexterm" name="id2645620"></a><p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645630"></a><h3>
+<a name="SSL:CAPS"></a>SSL</h3>
+<a class="indexterm" name="id2645642"></a><pre class="programlisting">typedef struct {
+    gnutls_session_t gnutls_state;
+
+    gnutls_certificate_client_credentials gnutls_cred;
+
+    SSL_CTX *ctx;
+    SSL_CIPHER ciphersuite;
+
+    int last_error;
+    int shutdown;
+    int state;
+    unsigned long options;
+
+    int (*verify_callback) (int, X509_STORE_CTX *);
+    int verify_mode;
+
+    gnutls_transport_ptr_t rfd;
+    gnutls_transport_ptr_t wfd;
+} SSL;
+</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645663"></a><h3>
+<a name="current-cert"></a>current_cert</h3>
+<a class="indexterm" name="id2645676"></a><pre class="programlisting">#define             current_cert</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645692"></a><h3>
+<a name="X509-STORE-CTX-get-current-cert"></a>X509_STORE_CTX_get_current_cert()</h3>
+<a class="indexterm" name="id2645705"></a><pre class="programlisting">#define             X509_STORE_CTX_get_current_cert(ctx)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645741"></a><h3>
+<a name="verify-callback"></a>verify_callback ()</h3>
+<a class="indexterm" name="id2645753"></a><pre class="programlisting">int                 verify_callback                     (...,
+                                                         X509_STORE_CTX *);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>...</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>Param2</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645825"></a><h3>
+<a name="rbio"></a>rbio</h3>
+<a class="indexterm" name="id2645837"></a><pre class="programlisting">#define             rbio</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645853"></a><h3>
+<a name="RSA:CAPS"></a>struct RSA</h3>
+<a class="indexterm" name="id2645865"></a><pre class="programlisting">struct RSA;</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645880"></a><h3>
+<a name="MD5-CTX:CAPS"></a>MD5_CTX</h3>
+<a class="indexterm" name="id2645893"></a><pre class="programlisting">#define             MD5_CTX</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645908"></a><h3>
+<a name="RIPEMD160-CTX:CAPS"></a>RIPEMD160_CTX</h3>
+<a class="indexterm" name="id2645920"></a><pre class="programlisting">#define             RIPEMD160_CTX</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645936"></a><h3>
+<a name="OpenSSL-add-ssl-algorithms"></a>OpenSSL_add_ssl_algorithms()</h3>
+<a class="indexterm" name="id2645948"></a><pre class="programlisting">#define             OpenSSL_add_ssl_algorithms()</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645964"></a><h3>
+<a name="SSLeay-add-ssl-algorithms"></a>SSLeay_add_ssl_algorithms()</h3>
+<a class="indexterm" name="id2645976"></a><pre class="programlisting">#define             SSLeay_add_ssl_algorithms()</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2645992"></a><h3>
+<a name="SSLeay-add-all-algorithms"></a>SSLeay_add_all_algorithms()</h3>
+<a class="indexterm" name="id2646003"></a><pre class="programlisting">#define             SSLeay_add_all_algorithms()</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646019"></a><h3>
+<a name="SSL-get-cipher-name"></a>SSL_get_cipher_name()</h3>
+<a class="indexterm" name="id2646031"></a><pre class="programlisting">#define             SSL_get_cipher_name(ssl)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646066"></a><h3>
+<a name="SSL-get-cipher"></a>SSL_get_cipher()</h3>
+<a class="indexterm" name="id2646078"></a><pre class="programlisting">#define             SSL_get_cipher(ssl)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646114"></a><h3>
+<a name="SSL-get-cipher-bits"></a>SSL_get_cipher_bits()</h3>
+<a class="indexterm" name="id2646126"></a><pre class="programlisting">#define             SSL_get_cipher_bits(ssl,bp)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>bp</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646175"></a><h3>
+<a name="SSL-get-cipher-version"></a>SSL_get_cipher_version()</h3>
+<a class="indexterm" name="id2646186"></a><pre class="programlisting">#define             SSL_get_cipher_version(ssl)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646221"></a><h3>
+<a name="SSL-library-init"></a>SSL_library_init ()</h3>
+<a class="indexterm" name="id2646234"></a><pre class="programlisting">int                 SSL_library_init                    (void);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646270"></a><h3>
+<a name="OpenSSL-add-all-algorithms"></a>OpenSSL_add_all_algorithms ()</h3>
+<a class="indexterm" name="id2646282"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                OpenSSL_add_all_algorithms          (void);</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646303"></a><h3>
+<a name="SSL-CTX-new"></a>SSL_CTX_new ()</h3>
+<a class="indexterm" name="id2646315"></a><pre class="programlisting">SSL_CTX*            SSL_CTX_new                         (SSL_METHOD *method);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>method</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646372"></a><h3>
+<a name="SSL-CTX-free"></a>SSL_CTX_free ()</h3>
+<a class="indexterm" name="id2646384"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                SSL_CTX_free                        (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646431"></a><h3>
+<a name="SSL-CTX-set-default-verify-paths"></a>SSL_CTX_set_default_verify_paths ()</h3>
+<a class="indexterm" name="id2646444"></a><pre class="programlisting">int                 SSL_CTX_set_default_verify_paths    (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646501"></a><h3>
+<a name="SSL-CTX-use-certificate-file"></a>SSL_CTX_use_certificate_file ()</h3>
+<a class="indexterm" name="id2646514"></a><pre class="programlisting">int                 SSL_CTX_use_certificate_file        (SSL_CTX *ctx,
+                                                         const char *certfile,
+                                                         int type);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>certfile</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>type</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646614"></a><h3>
+<a name="SSL-CTX-use-PrivateKey-file"></a>SSL_CTX_use_PrivateKey_file ()</h3>
+<a class="indexterm" name="id2646626"></a><pre class="programlisting">int                 SSL_CTX_use_PrivateKey_file         (SSL_CTX *ctx,
+                                                         const char *keyfile,
+                                                         int type);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>keyfile</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>type</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646725"></a><h3>
+<a name="SSL-CTX-set-verify"></a>SSL_CTX_set_verify ()</h3>
+<a class="indexterm" name="id2646738"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                SSL_CTX_set_verify                  (SSL_CTX *ctx,
+                                                         int verify_mode,
+                                                         int (verify_callbackint, X509_STORE_CTX *) ());</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>verify_mode</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>verify_callback</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646827"></a><h3>
+<a name="SSL-CTX-set-options"></a>SSL_CTX_set_options ()</h3>
+<a class="indexterm" name="id2646839"></a><pre class="programlisting">unsigned long       SSL_CTX_set_options                 (SSL_CTX *ctx,
+                                                         unsigned long  options);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>options</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2646918"></a><h3>
+<a name="SSL-CTX-set-mode"></a>SSL_CTX_set_mode ()</h3>
+<a class="indexterm" name="id2646931"></a><pre class="programlisting">long                SSL_CTX_set_mode                    (SSL_CTX *ctx,
+                                                         long mode );</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>Param2</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647009"></a><h3>
+<a name="SSL-CTX-set-cipher-list"></a>SSL_CTX_set_cipher_list ()</h3>
+<a class="indexterm" name="id2647020"></a><pre class="programlisting">int                 SSL_CTX_set_cipher_list             (SSL_CTX *ctx,
+                                                         const char *list);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>list</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647098"></a><h3>
+<a name="SSL-CTX-sess-number"></a>SSL_CTX_sess_number ()</h3>
+<a class="indexterm" name="id2647111"></a><pre class="programlisting">long                SSL_CTX_sess_number                 (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647167"></a><h3>
+<a name="SSL-CTX-sess-connect"></a>SSL_CTX_sess_connect ()</h3>
+<a class="indexterm" name="id2647178"></a><pre class="programlisting">long                SSL_CTX_sess_connect                (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647235"></a><h3>
+<a name="SSL-CTX-sess-connect-good"></a>SSL_CTX_sess_connect_good ()</h3>
+<a class="indexterm" name="id2647247"></a><pre class="programlisting">long                SSL_CTX_sess_connect_good           (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647303"></a><h3>
+<a name="SSL-CTX-sess-connect-renegotiate"></a>SSL_CTX_sess_connect_renegotiate ()</h3>
+<a class="indexterm" name="id2647316"></a><pre class="programlisting">long                SSL_CTX_sess_connect_renegotiate    (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647374"></a><h3>
+<a name="SSL-CTX-sess-accept"></a>SSL_CTX_sess_accept ()</h3>
+<a class="indexterm" name="id2647386"></a><pre class="programlisting">long                SSL_CTX_sess_accept                 (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647443"></a><h3>
+<a name="SSL-CTX-sess-accept-good"></a>SSL_CTX_sess_accept_good ()</h3>
+<a class="indexterm" name="id2647454"></a><pre class="programlisting">long                SSL_CTX_sess_accept_good            (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647510"></a><h3>
+<a name="SSL-CTX-sess-accept-renegotiate"></a>SSL_CTX_sess_accept_renegotiate ()</h3>
+<a class="indexterm" name="id2647524"></a><pre class="programlisting">long                SSL_CTX_sess_accept_renegotiate     (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647581"></a><h3>
+<a name="SSL-CTX-sess-hits"></a>SSL_CTX_sess_hits ()</h3>
+<a class="indexterm" name="id2647593"></a><pre class="programlisting">long                SSL_CTX_sess_hits                   (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2647650"></a><h3>
+<a name="SSL-CTX-sess-misses"></a>SSL_CTX_sess_misses ()</h3>
+<a class="indexterm" name="id2647662"></a><pre class="programlisting">long                SSL_CTX_sess_misses                 (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648511"></a><h3>
+<a name="SSL-CTX-sess-timeouts"></a>SSL_CTX_sess_timeouts ()</h3>
+<a class="indexterm" name="id2648522"></a><pre class="programlisting">long                SSL_CTX_sess_timeouts               (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648579"></a><h3>
+<a name="SSL-new"></a>SSL_new ()</h3>
+<a class="indexterm" name="id2648591"></a><pre class="programlisting"><a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a>*                SSL_new                             (SSL_CTX *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648648"></a><h3>
+<a name="SSL-free"></a>SSL_free ()</h3>
+<a class="indexterm" name="id2648660"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                SSL_free                            (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648706"></a><h3>
+<a name="SSL-load-error-strings"></a>SSL_load_error_strings ()</h3>
+<a class="indexterm" name="id2648717"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                SSL_load_error_strings              (void);</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648738"></a><h3>
+<a name="SSL-get-error"></a>SSL_get_error ()</h3>
+<a class="indexterm" name="id2648750"></a><pre class="programlisting">int                 SSL_get_error                       (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int ret);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ret</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648828"></a><h3>
+<a name="SSL-set-fd"></a>SSL_set_fd ()</h3>
+<a class="indexterm" name="id2648840"></a><pre class="programlisting">int                 SSL_set_fd                          (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int fd);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>fd</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2648918"></a><h3>
+<a name="SSL-set-rfd"></a>SSL_set_rfd ()</h3>
+<a class="indexterm" name="id2648930"></a><pre class="programlisting">int                 SSL_set_rfd                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int fd);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>fd</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649008"></a><h3>
+<a name="SSL-set-wfd"></a>SSL_set_wfd ()</h3>
+<a class="indexterm" name="id2649020"></a><pre class="programlisting">int                 SSL_set_wfd                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int fd);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>fd</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649098"></a><h3>
+<a name="SSL-set-bio"></a>SSL_set_bio ()</h3>
+<a class="indexterm" name="id2649110"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                SSL_set_bio                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         BIO *rbio,
+                                                         BIO *wbio);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>rbio</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>wbio</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649199"></a><h3>
+<a name="SSL-set-connect-state"></a>SSL_set_connect_state ()</h3>
+<a class="indexterm" name="id2649210"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                SSL_set_connect_state               (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649256"></a><h3>
+<a name="SSL-pending"></a>SSL_pending ()</h3>
+<a class="indexterm" name="id2649268"></a><pre class="programlisting">int                 SSL_pending                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649324"></a><h3>
+<a name="SSL-set-verify"></a>SSL_set_verify ()</h3>
+<a class="indexterm" name="id2649337"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                SSL_set_verify                      (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         int verify_mode,
+                                                         int (verify_callbackint, X509_STORE_CTX *) ());</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>verify_mode</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>verify_callback</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649426"></a><h3>
+<a name="SSL-get-peer-certificate"></a>SSL_get_peer_certificate ()</h3>
+<a class="indexterm" name="id2649437"></a><pre class="programlisting">const <a class="link" href="gnutls-openssl.html#X509:CAPS">X509</a>*         SSL_get_peer_certificate            (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649495"></a><h3>
+<a name="SSL-connect"></a>SSL_connect ()</h3>
+<a class="indexterm" name="id2649507"></a><pre class="programlisting">int                 SSL_connect                         (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649564"></a><h3>
+<a name="SSL-accept"></a>SSL_accept ()</h3>
+<a class="indexterm" name="id2649576"></a><pre class="programlisting">int                 SSL_accept                          (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649633"></a><h3>
+<a name="SSL-shutdown"></a>SSL_shutdown ()</h3>
+<a class="indexterm" name="id2649645"></a><pre class="programlisting">int                 SSL_shutdown                        (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649702"></a><h3>
+<a name="SSL-read"></a>SSL_read ()</h3>
+<a class="indexterm" name="id2649714"></a><pre class="programlisting">int                 SSL_read                            (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int len);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>len</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649813"></a><h3>
+<a name="SSL-write"></a>SSL_write ()</h3>
+<a class="indexterm" name="id2649825"></a><pre class="programlisting">int                 SSL_write                           (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl,
+                                                         const <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int len);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>len</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649924"></a><h3>
+<a name="SSL-want"></a>SSL_want ()</h3>
+<a class="indexterm" name="id2649936"></a><pre class="programlisting">int                 SSL_want                            (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2649993"></a><h3>
+<a name="SSL-NOTHING:CAPS"></a>SSL_NOTHING</h3>
+<a class="indexterm" name="id2650006"></a><pre class="programlisting">#define             SSL_NOTHING</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650021"></a><h3>
+<a name="SSL-WRITING:CAPS"></a>SSL_WRITING</h3>
+<a class="indexterm" name="id2650034"></a><pre class="programlisting">#define             SSL_WRITING</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650049"></a><h3>
+<a name="SSL-READING:CAPS"></a>SSL_READING</h3>
+<a class="indexterm" name="id2650062"></a><pre class="programlisting">#define             SSL_READING</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650078"></a><h3>
+<a name="SSL-X509-LOOKUP:CAPS"></a>SSL_X509_LOOKUP</h3>
+<a class="indexterm" name="id2650089"></a><pre class="programlisting">#define             SSL_X509_LOOKUP</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650105"></a><h3>
+<a name="SSL-want-nothing"></a>SSL_want_nothing()</h3>
+<a class="indexterm" name="id2650118"></a><pre class="programlisting">#define             SSL_want_nothing(s)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>s</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650153"></a><h3>
+<a name="SSL-want-read"></a>SSL_want_read()</h3>
+<a class="indexterm" name="id2650165"></a><pre class="programlisting">#define             SSL_want_read(s)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>s</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650201"></a><h3>
+<a name="SSL-want-write"></a>SSL_want_write()</h3>
+<a class="indexterm" name="id2650213"></a><pre class="programlisting">#define             SSL_want_write(s)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>s</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650248"></a><h3>
+<a name="SSL-want-x509-lookup"></a>SSL_want_x509_lookup()</h3>
+<a class="indexterm" name="id2650259"></a><pre class="programlisting">#define             SSL_want_x509_lookup(s)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>s</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650294"></a><h3>
+<a name="SSLv23-client-method"></a>SSLv23_client_method ()</h3>
+<a class="indexterm" name="id2650305"></a><pre class="programlisting">SSL_METHOD*         SSLv23_client_method                (void);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650342"></a><h3>
+<a name="SSLv23-server-method"></a>SSLv23_server_method ()</h3>
+<a class="indexterm" name="id2650353"></a><pre class="programlisting">SSL_METHOD*         SSLv23_server_method                (void);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650389"></a><h3>
+<a name="SSLv3-client-method"></a>SSLv3_client_method ()</h3>
+<a class="indexterm" name="id2650402"></a><pre class="programlisting">SSL_METHOD*         SSLv3_client_method                 (void);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650438"></a><h3>
+<a name="SSLv3-server-method"></a>SSLv3_server_method ()</h3>
+<a class="indexterm" name="id2650450"></a><pre class="programlisting">SSL_METHOD*         SSLv3_server_method                 (void);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650486"></a><h3>
+<a name="TLSv1-client-method"></a>TLSv1_client_method ()</h3>
+<a class="indexterm" name="id2650499"></a><pre class="programlisting">SSL_METHOD*         TLSv1_client_method                 (void);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650535"></a><h3>
+<a name="TLSv1-server-method"></a>TLSv1_server_method ()</h3>
+<a class="indexterm" name="id2650548"></a><pre class="programlisting">SSL_METHOD*         TLSv1_server_method                 (void);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650584"></a><h3>
+<a name="SSL-get-current-cipher"></a>SSL_get_current_cipher ()</h3>
+<a class="indexterm" name="id2650595"></a><pre class="programlisting">SSL_CIPHER*         SSL_get_current_cipher              (<a class="link" href="gnutls-openssl.html#SSL:CAPS">SSL</a> *ssl);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ssl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650651"></a><h3>
+<a name="SSL-CIPHER-get-name"></a>SSL_CIPHER_get_name ()</h3>
+<a class="indexterm" name="id2650664"></a><pre class="programlisting">const char*         SSL_CIPHER_get_name                 (SSL_CIPHER *cipher);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cipher</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650722"></a><h3>
+<a name="SSL-CIPHER-get-bits"></a>SSL_CIPHER_get_bits ()</h3>
+<a class="indexterm" name="id2650734"></a><pre class="programlisting">int                 SSL_CIPHER_get_bits                 (SSL_CIPHER *cipher,
+                                                         int *bits);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cipher</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>bits</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650812"></a><h3>
+<a name="SSL-CIPHER-get-version"></a>SSL_CIPHER_get_version ()</h3>
+<a class="indexterm" name="id2650823"></a><pre class="programlisting">const char*         SSL_CIPHER_get_version              (SSL_CIPHER *cipher);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cipher</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650881"></a><h3>
+<a name="SSL-CIPHER-description"></a>SSL_CIPHER_description ()</h3>
+<a class="indexterm" name="id2650892"></a><pre class="programlisting">char*               SSL_CIPHER_description              (SSL_CIPHER *cipher,
+                                                         char *buf,
+                                                         int size);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cipher</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>size</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2650991"></a><h3>
+<a name="X509-get-subject-name"></a>X509_get_subject_name ()</h3>
+<a class="indexterm" name="id2651002"></a><pre class="programlisting"><a class="link" href="gnutls-openssl.html#X509-NAME:CAPS">X509_NAME</a>*          X509_get_subject_name               (const <a class="link" href="gnutls-openssl.html#X509:CAPS">X509</a> *cert);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651058"></a><h3>
+<a name="X509-get-issuer-name"></a>X509_get_issuer_name ()</h3>
+<a class="indexterm" name="id2651070"></a><pre class="programlisting"><a class="link" href="gnutls-openssl.html#X509-NAME:CAPS">X509_NAME</a>*          X509_get_issuer_name                (const <a class="link" href="gnutls-openssl.html#X509:CAPS">X509</a> *cert);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651126"></a><h3>
+<a name="X509-NAME-oneline"></a>X509_NAME_oneline ()</h3>
+<a class="indexterm" name="id2651139"></a><pre class="programlisting">char*               X509_NAME_oneline                   (gnutls_x509_dn *name,
+                                                         char *buf,
+                                                         int len);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>name</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>len</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651238"></a><h3>
+<a name="X509-free"></a>X509_free ()</h3>
+<a class="indexterm" name="id2651250"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                X509_free                           (const <a class="link" href="gnutls-openssl.html#X509:CAPS">X509</a> *cert);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651296"></a><h3>
+<a name="BIO-get-fd"></a>BIO_get_fd ()</h3>
+<a class="indexterm" name="id2651308"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                BIO_get_fd                          (<a class="link" href="gnutls-gnutls.html#gnutls-session-t">gnutls_session_t</a> gnutls_state,
+                                                         int *fd);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>gnutls_state</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>fd</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651376"></a><h3>
+<a name="BIO-new-socket"></a>BIO_new_socket ()</h3>
+<a class="indexterm" name="id2651388"></a><pre class="programlisting">BIO*                BIO_new_socket                      (int sock,
+                                                         int close_flag);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>sock</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>close_flag</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651466"></a><h3>
+<a name="ERR-get-error"></a>ERR_get_error ()</h3>
+<a class="indexterm" name="id2651479"></a><pre class="programlisting">unsigned long       ERR_get_error                       (void);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651516"></a><h3>
+<a name="ERR-error-string"></a>ERR_error_string ()</h3>
+<a class="indexterm" name="id2651529"></a><pre class="programlisting">const char*         ERR_error_string                    (unsigned long  e,
+                                                         char *buf);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>e</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651608"></a><h3>
+<a name="RAND-status"></a>RAND_status ()</h3>
+<a class="indexterm" name="id2651620"></a><pre class="programlisting">int                 RAND_status                         (void);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651657"></a><h3>
+<a name="RAND-seed"></a>RAND_seed ()</h3>
+<a class="indexterm" name="id2651669"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                RAND_seed                           (const <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int num);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>num</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651736"></a><h3>
+<a name="RAND-bytes"></a>RAND_bytes ()</h3>
+<a class="indexterm" name="id2651748"></a><pre class="programlisting">int                 RAND_bytes                          (unsigned char *buf,
+                                                         int num);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>num</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651826"></a><h3>
+<a name="RAND-file-name"></a>RAND_file_name ()</h3>
+<a class="indexterm" name="id2651839"></a><pre class="programlisting">const char*         RAND_file_name                      (char *buf,
+                                                         size_t len);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>len</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2651918"></a><h3>
+<a name="RAND-load-file"></a>RAND_load_file ()</h3>
+<a class="indexterm" name="id2651930"></a><pre class="programlisting">int                 RAND_load_file                      (const char *name,
+                                                         long maxbytes );</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>name</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>Param2</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652009"></a><h3>
+<a name="RAND-write-file"></a>RAND_write_file ()</h3>
+<a class="indexterm" name="id2652021"></a><pre class="programlisting">int                 RAND_write_file                     (const char *name);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>name</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652078"></a><h3>
+<a name="RAND-egd-bytes"></a>RAND_egd_bytes ()</h3>
+<a class="indexterm" name="id2652090"></a><pre class="programlisting">int                 RAND_egd_bytes                      (const char *path,
+                                                         int bytes);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>path</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>bytes</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652168"></a><h3>
+<a name="RAND-egd"></a>RAND_egd()</h3>
+<a class="indexterm" name="id2652180"></a><pre class="programlisting">#define             RAND_egd(p)</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>p</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652215"></a><h3>
+<a name="MD5-DIGEST-LENGTH:CAPS"></a>MD5_DIGEST_LENGTH</h3>
+<a class="indexterm" name="id2652227"></a><pre class="programlisting">#define             MD5_DIGEST_LENGTH</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652243"></a><h3>
+<a name="MD5-Init"></a>MD5_Init ()</h3>
+<a class="indexterm" name="id2652255"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                MD5_Init                            (<a class="link" href="gnutls-openssl.html#MD5-CTX:CAPS">MD5_CTX</a> *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652301"></a><h3>
+<a name="MD5-Update"></a>MD5_Update ()</h3>
+<a class="indexterm" name="id2652314"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                MD5_Update                          (<a class="link" href="gnutls-openssl.html#MD5-CTX:CAPS">MD5_CTX</a> *ctx,
+                                                         const <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int len);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>len</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652402"></a><h3>
+<a name="MD5-Final"></a>MD5_Final ()</h3>
+<a class="indexterm" name="id2652414"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                MD5_Final                           (unsigned char *md,
+                                                         <a class="link" href="gnutls-openssl.html#MD5-CTX:CAPS">MD5_CTX</a> *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>md</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652482"></a><h3>
+<a name="MD5:CAPS"></a>MD5 ()</h3>
+<a class="indexterm" name="id2652494"></a><pre class="programlisting">unsigned char*      MD5                                 (unsigned char *buf,
+                                                         unsigned long  len,
+                                                         unsigned char *md);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>len</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>md</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652595"></a><h3>
+<a name="RIPEMD160-Init"></a>RIPEMD160_Init ()</h3>
+<a class="indexterm" name="id2652607"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                RIPEMD160_Init                      (<a class="link" href="gnutls-openssl.html#RIPEMD160-CTX:CAPS">RIPEMD160_CTX</a> *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652653"></a><h3>
+<a name="RIPEMD160-Update"></a>RIPEMD160_Update ()</h3>
+<a class="indexterm" name="id2652666"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                RIPEMD160_Update                    (<a class="link" href="gnutls-openssl.html#RIPEMD160-CTX:CAPS">RIPEMD160_CTX</a> *ctx,
+                                                         const <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         int len);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>len</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652755"></a><h3>
+<a name="RIPEMD160-Final"></a>RIPEMD160_Final ()</h3>
+<a class="indexterm" name="id2652767"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                RIPEMD160_Final                     (unsigned char *md,
+                                                         <a class="link" href="gnutls-openssl.html#RIPEMD160-CTX:CAPS">RIPEMD160_CTX</a> *ctx);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>md</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ctx</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2652835"></a><h3>
+<a name="RIPEMD160:CAPS"></a>RIPEMD160 ()</h3>
+<a class="indexterm" name="id2574247"></a><pre class="programlisting">unsigned char*      RIPEMD160                           (unsigned char *buf,
+                                                         unsigned long  len,
+                                                         unsigned char *md);</pre>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>len</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>md</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2574349"></a><div class="refsect2" lang="en"><a name="id2574350"></a></div>
+<hr>
+<div class="refsect2" lang="en"><a name="id2574351"></a></div>
+</div>
+</div>
+</body>
+</html>

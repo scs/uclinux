@@ -1,0 +1,33 @@
+<html>
+<head><title>FtpDelete</title></head>
+<body>
+
+<h1>FtpDelete</h1>
+<p>Removes a file from the remote system.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpDelete(const char *fnm, netbuf *nControl);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>fnm</b>
+<dd>The name of the file which is to be removed.
+
+<dt><b>nControl</b>
+<dd>A handle returned by <a href="FtpConnect.html">FtpConnect()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>Requests that the server remove the specified file from the remote
+file system.
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if successful or 0 on error.
+
+</body>
+</html>

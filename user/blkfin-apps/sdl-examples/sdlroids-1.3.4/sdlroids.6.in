@@ -1,0 +1,263 @@
+.\" -*- nroff -*-
+.\"
+.\" SDLRoids - an enhanced shoot-the-asteroids game.
+.\" Copyright (C) 1991 Edward Hutchins.
+.\" Unix/Linux port by Russell Marks, 2000.
+.\" SDL port by David Hedbor, 2000.
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or (at
+.\" your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful, but
+.\" WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+.\"
+.\"
+.\" sdlroids.6 - nroff -man source for the sdlroids man page.
+.\"
+.\"
+.\"
+.TH SDLROIDS 6 "March 27th, 2001" "Version @VERSION@" "Games"
+.\"
+.\"------------------------------------------------------------------
+.\"
+.SH NAME
+SDLRoids \- an enhanced shoot-the-asteroids game for X
+.\"
+.\"------------------------------------------------------------------
+.\"
+.SH SYNOPSIS
+.B sdlroids [\fIoptions\fR]
+.SH DESCRIPTION
+SDLRoids is essentially an Asteroids clone, but with a few extra
+features, and some nice game physics.
+.PP
+You can run in either windowed mode (default) or in fullscreen
+mode. You can (usually) switch between them during play by pressing
+Alt-Enter. 
+.PP
+The play area (apart from the score/lives/etc. display) is a square,
+centred playing area, as the original Hyperoid did. This is a feature,
+not a bug. :-)
+.\"
+.\"------------------------------------------------------------------
+.\"
+.SH OPTIONS
+.TP
+.B  \-f, \-\-fullscreen
+Start in fullscreen mode.
+.TP
+.B  \-g, --geometry WxH
+Open a window W pixels wide and H pixels high instead of the default 480x480.
+.TP
+.B  \-b, \-\-benchmark FRAMES
+Run in benchmark mode. Display FRAMES frames without delay and quit,
+printing the resulting FPS.
+.TP
+.B  \-s, \-\-nosound
+Don't initialize the sound.
+.TP
+.B  \-l, \-\-list-joysticks
+List all available joysticks and exit.
+.TP
+.B  \-n, \-\-joynr NR
+The index of the joystick to use. All found joysticks should be listed
+when SDLRoids starts.
+.TP
+.B  \-j, \-\-joystick PATH
+Use the specified device as the primary joystick. If the path is
+correct, this joystick will become number zero.
+.TP
+.B  \-0, \-\-fire NUM
+The number of the joystick button to use for firing the main
+guns. Default = 0.
+.TP
+.B  \-1, \-\-shields NUM
+The number of the joystick button to use to turn on the
+shields. Default = 1. 
+.TP
+.B  \-2, \-\-bomb NUM
+The number of the joystick button to use for detonating
+smartbombs. Default = 2.
+.TP
+.B  \-h, \-\-help
+Print usage information and exit.
+.TP
+.B  \-v, \-\-version
+Print version number and exit.
+.\"
+.\"------------------------------------------------------------------
+.\"
+.SH "ENVIRONMENT"
+These are the environment variables you can set to change the
+behavior of SDLRoids.
+
+.TP
+.B  SRDATADIR
+SDLRoids looks for datafiles in the same directory as the binary, the
+current directory and the compiled in path. You can override the
+location using this environment variable.
+.TP
+.B  SDL_JOYSTICK_DEVICE
+The joystick device to use as your main joystick. This environment
+variable is overridden by the --joystick argument. 
+.\"
+.\"------------------------------------------------------------------
+.\"
+.SH "GAMEPLAY"
+The object of the game is intuitive \- shoot everything that movies,
+except the stars (which are powerups or other good stuff).
+.PP
+You have 3 lives, unlimited fuel and firepower, 150 shield energy and
+3 smartbombs. Your ship gets darker when you lose a life, but you keep
+on playing (unless you hit an asteroid). You get an extra life every
+100,000 points. When you lose the game, you start over immediately at
+level 1 (there is no waiting around between games).  Alternatively,
+you can press \fIF1\fR to get a new game starting on level 1.
+.PP
+In addition to the asteroids and yourself, there are four other things
+you'll encounter in the game:
+.PP
+.TP
+.I Hunters
+The `UFO' equivalent. Can take one or more hits, the colour gives you
+a hint how many - they start off light cyan, but if they initially
+needed two or more hits, they'll turn dark cyan when they only need
+one more hit.
+.TP
+.I Spinners
+These spinning kamikaze baddies chase you and try to crash into you.
+The colour indicates how many hits are left before you destroy it -
+1=dark purple, 2=cyan, 3=dark cyan, 4=yellow, 5=dark yellow, 6=blue,
+7=dark blue, 8=green, 9=dark green. And if you get far enough into the
+game, they can take more hits than even
+.IR that .
+:-) When they crash into you, the number of hits left is how many hits
+they take out on your ship - if a dark cyan one hits you, that's three
+lives gone. So for yellow or worse, which can be hard to hit enough,
+using a bomb to get them is often the best/safest bet. (Shields are
+worth a try in emergencies, but it's hard to time it right.)
+.TP
+.I Swarmers
+These green squares are basically inert, but recursively split up
+several times unless you catch them early (before they've `swarmed'
+much).
+.TP
+.I Bonuses
+Spinning stars which chase you like Spinners (be careful not to
+confuse the two) and give you a bonus when they hit you. They are
+always in `light' colours, and the colour indicates the type -
+red=score (the amount depends on which level you're on), green=extra
+shield, blue=extra bomb, yellow=extra life. The bonus type works its
+way backwards through that list over time, so (most notably) extra
+life bonuses have to be caught as quickly as possible to avoid merely
+getting a bomb.
+.PP
+.\"
+.\"------------------------------------------------------------------
+.\"
+.SH "KEYS"
+The following keys control your ship:
+.TP
+.I Cursor Left/Right
+Spin your ship to the left or right. Self explanatory, really. :)
+.TP
+.I Cursor Up/Down
+Forward or reverse thrust. Since this is a game that takes place in
+space, you only use the thrust to change speed / direction. If you
+don't use the thrust, you'll continue gliding in the same direction
+even if you steer.
+.TP
+.I Space
+Fire your main guns (you can, and should, hold this one down - the
+wonder of autofire). You can get double or triple powerups as well as
+a powerup that increase the range of your guns.
+.TP
+.I Tab
+Turn on your shields while pressed down. When your shields are on,
+you can't be hurt but enemy craft will be. You have limited shield
+power, so make sure to keep a look on the shield counter.
+.TP
+.I s
+Detonate a smartbomb. This will kill all enemies ships (i.e everything
+\fexcluding\fR asteroids and bonuses).
+.PP
+Other keys:
+.TP
+.I Esc
+Exit the game.
+.TP
+.I Pause Key
+Pause / unpause the game.
+.TP
+.I F1
+Quit your current game and start new game from level 1.
+.TP
+.I Alt-Enter
+Toggle between fullscreen and windowed mode (if supported).
+.TP
+.I Ctrl-z 
+Iconfify and pause the game.
+.TP
+.I Ctrl-g
+When running in windowed mode, this grabs/releases the mouse and
+keyboard focus and hides/shows the mouse pointer. It has no effect in
+fullscreen mode.
+.TP
+.PP
+.\"
+.\"------------------------------------------------------------------
+.\"
+.SH "JOYSTICK CONTROL"
+Since version 1.3.3 you can also play with a joystick or gamepad (if
+supported by your computer). You can use both analog and digital
+joysticks / gamepads. When using an analog controller there is a small
+deadzone. These are the default bindings (buttons can be remapped with
+command line options): 
+.TP
+.I X-Axis
+Turn your ship left or right.
+.TP
+.I Y-Axis
+Forward or reverse thrust.
+.TP
+.I Button 1
+Fire main guns.
+.TP
+.I Button 2
+Activate shields.
+.TP
+.I Button 3
+Detonate a smartbomb.
+.PP
+.PP
+.\"
+.\"------------------------------------------------------------------
+.\"
+.SH BUGS
+.PP
+Bonuses currently only come in one color. This is a bug and it will be
+fixed eventually.
+.PP
+The sound is only 8-bit 8kHz mono.
+.\"
+.\"------------------------------------------------------------------
+.\"
+.SH AUTHORS
+Edward Hutchins wrote the original Hyperoid, for Windows 3.x.
+.PP
+Russell Marks (russell.marks@ntlworld.com) ported it to Unix/Linux and
+added sound, and wrote this man page (partly based on the original
+version's help dialog, but mostly based on game experience and RTFS
+:-)).
+.PP
+David Hedbor (david@hedbor.org) ported the game to SDL (both for
+graphics and sound) and has since added lots of features. See the
+ChangeLog for details.

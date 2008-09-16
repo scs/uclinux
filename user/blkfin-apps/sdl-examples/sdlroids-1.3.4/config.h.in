@@ -1,0 +1,86 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+#ifndef CONFIG_H
+#define CONFIG_H
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7)
+#define RCSID(X) \
+ static char *rcsid __attribute__ ((unused)) =X
+#elif __GNUC__ == 2
+#define RCSID(X) \
+ static char *rcsid = X; \
+ static void *use_rcsid=(&use_rcsid, (void *)&rcsid)
+#else
+#define RCSID(X) \
+ static char *rcsid = X
+#endif
+
+
+/* Define to empty if the keyword does not work.  */
+#undef const
+
+/* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
+#undef HAVE_SYS_WAIT_H
+
+/* Define as __inline if that's what the C compiler calls it.  */
+#undef inline
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you have the getenv function.  */
+#undef HAVE_GETENV
+
+/* Define if you have the setenv function.  */
+#undef HAVE_SETENV
+
+/* Define if you have the strdup function.  */
+#undef HAVE_STRDUP
+
+/* Define if you have the strerror function.  */
+#undef HAVE_STRERROR
+
+/* Define if you have the strtol function.  */
+#undef HAVE_STRTOL
+
+/* Define if you have the syslog function.  */
+#undef HAVE_SYSLOG
+
+/* Define if you have the <SDL/SDL_mixer.h> header file.  */
+#undef HAVE_SDL_SDL_MIXER_H
+
+/* Define if you have the <SDL_mixer.h> header file.  */
+#undef HAVE_SDL_MIXER_H
+
+/* Define if you have the <fcntl.h> header file.  */
+#undef HAVE_FCNTL_H
+
+/* Define if you have the <limits.h> header file.  */
+#undef HAVE_LIMITS_H
+
+/* Define if you have the <sys/ioctl.h> header file.  */
+#undef HAVE_SYS_IOCTL_H
+
+/* Define if you have the <sys/time.h> header file.  */
+#undef HAVE_SYS_TIME_H
+
+/* Define if you have the <syslog.h> header file.  */
+#undef HAVE_SYSLOG_H
+
+/* Define if you have the <unistd.h> header file.  */
+#undef HAVE_UNISTD_H
+
+/* Define if you have the <windows.h> header file.  */
+#undef HAVE_WINDOWS_H
+
+/* Define if you have the SDL_mixer library (-lSDL_mixer).  */
+#undef HAVE_LIBSDL_MIXER
+
+/* Define if you have the m library (-lm).  */
+#undef HAVE_LIBM
+
+/* Name of package */
+#undef PACKAGE
+
+/* Version number of package */
+#undef VERSION
+
+#endif

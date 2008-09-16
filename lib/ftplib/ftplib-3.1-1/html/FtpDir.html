@@ -1,0 +1,38 @@
+<html>
+<head><title>FtpDir</title></head>
+<body>
+
+<h1>FtpDir</h1>
+<p>Performs a verbose directory.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpDir(const char *outputfile, const char *path, netbuf *nControl);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>outputfile</b>
+<dd>Name of a local file to receive the directory listing.
+
+<dt><b>path</b>
+<dd>File specification to pass to remote 'ls'.
+
+<dt><b>nControl</b>
+<dd>A handle returned by <a href="FtpConnect.html">FtpConnect()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>Sends a LIST command to the server with the specified path.  The response
+to this is usually a long format directory listing which will be written
+to the file named in outputfile.  If outputfile is specified as NULL, the
+list will be written to stdout.
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if successful or 0 on error.
+
+</body>
+</html>

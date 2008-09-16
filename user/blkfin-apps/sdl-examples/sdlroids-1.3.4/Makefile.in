@@ -1,0 +1,507 @@
+# Makefile.in generated automatically by automake 1.4 from Makefile.am
+
+# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+DESTDIR =
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = .
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+AMTAR = @AMTAR@
+AMTARFLAGS = @AMTARFLAGS@
+CC = @CC@
+CPP = @CPP@
+LN_S = @LN_S@
+MAJOR_VERSION = @MAJOR_VERSION@
+MAKEINFO = @MAKEINFO@
+MICRO_VERSION = @MICRO_VERSION@
+MINOR_VERSION = @MINOR_VERSION@
+PACKAGE = @PACKAGE@
+SDL_CFLAGS = @SDL_CFLAGS@
+SDL_CONFIG = @SDL_CONFIG@
+SDL_LIBS = @SDL_LIBS@
+SRRES = @SRRES@
+VERSION = @VERSION@
+
+EXTRA_DIST = TODO COPYING INSTALL sdlroids.6.in README README.orig 	README.xhyperoid README.petopt 	sounds/bonusgot.wav sounds/bshot.wav sounds/bwound.wav 	sounds/explode2.wav sounds/explode.wav sounds/newbad.wav 	sounds/newbonus.wav sounds/phit.wav sounds/pshot.wav 	sounds/swarmsplit.wav sounds/thrust.wav sounds/title.wav 	bmp/blank.bmp bmp/bomb.bmp bmp/icon.bmp bmp/level.bmp			bmp/life.bmp bmp/num0.bmp bmp/num1.bmp bmp/num2.bmp bmp/num3.bmp 	bmp/num4.bmp bmp/num5.bmp bmp/num6.bmp bmp/num7.bmp bmp/num8.bmp 	bmp/num9.bmp bmp/plus.bmp bmp/score.bmp bmp/shield.bmp 	sdlroids.spec.in sdlroids-mdk.spec.in icons/sdlroids-16x16.xpm 	icons/sdlroids-32x32.xpm icons/sdlroids-48x48.xpm 
+
+bin_PROGRAMS = sdlroids
+man_MANS = sdlroids.6
+LDADD = @SRRES@
+sdlroids_SOURCES = hyperoid.c roidsupp.c sdlsound.c sdl.c 		 graphics.h hyperoid.h misc.h roidsupp.h sdlsound.h 		 petopt.c petopt.h getargs.h getargs.c rand.c rand.h 
+
+
+SOUNDSDIR = "$(datadir)/sdlroids/sounds/"
+GFXDIR = "$(datadir)/sdlroids/bmp/"
+
+# Data directories
+INCLUDES = -Wall 	-Wcast-align -DDATADIR=\"$(datadir)/sdlroids/\"
+
+TODOS = pike -e 'write(replace(Stdio.File("stdin")->read(), "\n", "\r\n"))'
+ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = config.h
+CONFIG_CLEAN_FILES =  sdlroids.6 sdlroids.spec sdlroids-mdk.spec \
+sdlroids.rc
+PROGRAMS =  $(bin_PROGRAMS)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I.
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+sdlroids_OBJECTS =  hyperoid.o roidsupp.o sdlsound.o sdl.o petopt.o \
+getargs.o rand.o
+sdlroids_LDADD = $(LDADD)
+sdlroids_DEPENDENCIES = 
+sdlroids_LDFLAGS = 
+CFLAGS = @CFLAGS@
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
+man6dir = $(mandir)/man6
+MANS = $(man_MANS)
+
+NROFF = nroff
+DIST_COMMON =  README ./stamp-h.in COPYING ChangeLog INSTALL Makefile.am \
+Makefile.in TODO acconfig.h acinclude.m4 aclocal.m4 config.h.in \
+configure configure.in install-sh missing mkinstalldirs \
+sdlroids-mdk.spec.in sdlroids.6.in sdlroids.rc.in sdlroids.spec.in
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = gtar
+GZIP_ENV = --best
+SOURCES = $(sdlroids_SOURCES)
+OBJECTS = $(sdlroids_OBJECTS)
+
+all: all-redirect
+.SUFFIXES:
+.SUFFIXES: .S .c .o .s
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --foreign --include-deps Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+$(ACLOCAL_M4):  configure.in  acinclude.m4
+	cd $(srcdir) && $(ACLOCAL)
+
+config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
+	$(SHELL) ./config.status --recheck
+$(srcdir)/configure: $(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
+	cd $(srcdir) && $(AUTOCONF)
+
+config.h: stamp-h
+	@if test ! -f $@; then \
+		rm -f stamp-h; \
+		$(MAKE) stamp-h; \
+	else :; fi
+stamp-h: $(srcdir)/config.h.in $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES= CONFIG_HEADERS=config.h \
+	     $(SHELL) ./config.status
+	@echo timestamp > stamp-h 2> /dev/null
+$(srcdir)/config.h.in: $(srcdir)/stamp-h.in
+	@if test ! -f $@; then \
+		rm -f $(srcdir)/stamp-h.in; \
+		$(MAKE) $(srcdir)/stamp-h.in; \
+	else :; fi
+$(srcdir)/stamp-h.in: $(top_srcdir)/configure.in $(ACLOCAL_M4) acconfig.h
+	cd $(top_srcdir) && $(AUTOHEADER)
+	@echo timestamp > $(srcdir)/stamp-h.in 2> /dev/null
+
+mostlyclean-hdr:
+
+clean-hdr:
+
+distclean-hdr:
+	-rm -f config.h
+
+maintainer-clean-hdr:
+sdlroids.6: $(top_builddir)/config.status sdlroids.6.in
+	cd $(top_builddir) && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+sdlroids.spec: $(top_builddir)/config.status sdlroids.spec.in
+	cd $(top_builddir) && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+sdlroids-mdk.spec: $(top_builddir)/config.status sdlroids-mdk.spec.in
+	cd $(top_builddir) && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+sdlroids.rc: $(top_builddir)/config.status sdlroids.rc.in
+	cd $(top_builddir) && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+mostlyclean-binPROGRAMS:
+
+clean-binPROGRAMS:
+	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+
+distclean-binPROGRAMS:
+
+maintainer-clean-binPROGRAMS:
+
+install-binPROGRAMS: $(bin_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo "  $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/`echo $$p|sed 's/$(EXEEXT)$$//'|sed '$(transform)'|sed 's/$$/$(EXEEXT)/'`"; \
+	     $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/`echo $$p|sed 's/$(EXEEXT)$$//'|sed '$(transform)'|sed 's/$$/$(EXEEXT)/'`; \
+	  else :; fi; \
+	done
+
+uninstall-binPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  rm -f $(DESTDIR)$(bindir)/`echo $$p|sed 's/$(EXEEXT)$$//'|sed '$(transform)'|sed 's/$$/$(EXEEXT)/'`; \
+	done
+
+.c.o:
+	$(COMPILE) -c $<
+
+.s.o:
+	$(COMPILE) -c $<
+
+.S.o:
+	$(COMPILE) -c $<
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+sdlroids: $(sdlroids_OBJECTS) $(sdlroids_DEPENDENCIES)
+	@rm -f sdlroids
+	$(LINK) $(sdlroids_LDFLAGS) $(sdlroids_OBJECTS) $(sdlroids_LDADD) $(LIBS)
+
+install-man6:
+	$(mkinstalldirs) $(DESTDIR)$(man6dir)
+	@list='$(man6_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.6*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man6dir)/$$inst"; \
+	  $(INSTALL_DATA) $$file $(DESTDIR)$(man6dir)/$$inst; \
+	done
+
+uninstall-man6:
+	@list='$(man6_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.6*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f $(DESTDIR)$(man6dir)/$$inst"; \
+	  rm -f $(DESTDIR)$(man6dir)/$$inst; \
+	done
+install-man: $(MANS)
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-man6
+uninstall-man:
+	@$(NORMAL_UNINSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) uninstall-man6
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $$unique $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)config.h.in$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags config.h.in $$unique $(LISP) -o $$here/TAGS)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(PACKAGE)-$(VERSION)
+top_distdir = $(distdir)
+
+# This target untars the dist file and tries a VPATH configuration.  Then
+# it guarantees that the distribution is self-contained by making another
+# tarfile.
+distcheck: dist
+	-rm -rf $(distdir)
+	GZIP=$(GZIP_ENV) $(TAR) zxf $(distdir).tar.gz
+	mkdir $(distdir)/=build
+	mkdir $(distdir)/=inst
+	dc_install_base=`cd $(distdir)/=inst && pwd`; \
+	cd $(distdir)/=build \
+	  && ../configure --srcdir=.. --prefix=$$dc_install_base \
+	  && $(MAKE) $(AM_MAKEFLAGS) \
+	  && $(MAKE) $(AM_MAKEFLAGS) dvi \
+	  && $(MAKE) $(AM_MAKEFLAGS) check \
+	  && $(MAKE) $(AM_MAKEFLAGS) install \
+	  && $(MAKE) $(AM_MAKEFLAGS) installcheck \
+	  && $(MAKE) $(AM_MAKEFLAGS) dist
+	-rm -rf $(distdir)
+	@banner="$(distdir).tar.gz is ready for distribution"; \
+	dashes=`echo "$$banner" | sed s/./=/g`; \
+	echo "$$dashes"; \
+	echo "$$banner"; \
+	echo "$$dashes"
+dist: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP_ENV) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+dist-all: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP_ENV) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+distdir: $(DISTFILES)
+	-rm -rf $(distdir)
+	mkdir $(distdir)
+	-chmod 777 $(distdir)
+	$(mkinstalldirs) $(distdir)/bmp $(distdir)/icons $(distdir)/sounds
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pr $$/$$file $(distdir)/$$file; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	  fi; \
+	done
+getargs.o: getargs.c config.h getargs.h petopt.h
+hyperoid.o: hyperoid.c config.h rand.h getargs.h misc.h roidsupp.h \
+	sdlsound.h graphics.h hyperoid.h
+petopt.o: petopt.c config.h petopt.h
+rand.o: rand.c config.h
+roidsupp.o: roidsupp.c config.h misc.h hyperoid.h roidsupp.h
+sdl.o: sdl.c config.h misc.h getargs.h graphics.h sdlsound.h roidsupp.h
+sdlsound.o: sdlsound.c config.h sdlsound.h misc.h roidsupp.h
+
+info-am:
+info: info-am
+dvi-am:
+dvi: dvi-am
+check-am: all-am
+check: check-am
+installcheck-am:
+installcheck: installcheck-am
+all-recursive-am: config.h
+	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+
+install-exec-am: install-binPROGRAMS
+install-exec: install-exec-am
+
+install-data-am: install-man install-data-local
+install-data: install-data-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-am
+uninstall-am: uninstall-binPROGRAMS uninstall-man
+uninstall: uninstall-am
+all-am: Makefile $(PROGRAMS) $(MANS) config.h
+all-redirect: all-am
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
+installdirs:
+	$(mkinstalldirs)  $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man6
+
+
+mostlyclean-generic:
+
+clean-generic:
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+mostlyclean-am:  mostlyclean-hdr mostlyclean-binPROGRAMS \
+		mostlyclean-compile mostlyclean-tags \
+		mostlyclean-generic
+
+mostlyclean: mostlyclean-am
+
+clean-am:  clean-hdr clean-binPROGRAMS clean-compile clean-tags \
+		clean-generic mostlyclean-am
+
+clean: clean-am
+
+distclean-am:  distclean-hdr distclean-binPROGRAMS distclean-compile \
+		distclean-tags distclean-generic clean-am
+
+distclean: distclean-am
+	-rm -f config.status
+
+maintainer-clean-am:  maintainer-clean-hdr maintainer-clean-binPROGRAMS \
+		maintainer-clean-compile maintainer-clean-tags \
+		maintainer-clean-generic distclean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-am
+	-rm -f config.status
+
+.PHONY: mostlyclean-hdr distclean-hdr clean-hdr maintainer-clean-hdr \
+mostlyclean-binPROGRAMS distclean-binPROGRAMS clean-binPROGRAMS \
+maintainer-clean-binPROGRAMS uninstall-binPROGRAMS install-binPROGRAMS \
+mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile install-man6 uninstall-man6 install-man \
+uninstall-man tags mostlyclean-tags distclean-tags clean-tags \
+maintainer-clean-tags distdir info-am info dvi-am dvi check check-am \
+installcheck-am installcheck all-recursive-am install-exec-am \
+install-exec install-data-local install-data-am install-data install-am \
+install uninstall-am uninstall all-redirect all-am all installdirs \
+mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+
+
+install-data-local:
+	@/bin/sh $(srcdir)/mkinstalldirs $(SOUNDSDIR) $(GFXDIR)
+	$(INSTALL_DATA) $(srcdir)/sounds/*.wav $(SOUNDSDIR)
+	$(INSTALL_DATA)  $(srcdir)/bmp/*.bmp $(GFXDIR)
+
+# Rule to build tar-gzipped distribution package
+$(PACKAGE)-$(VERSION).tar.gz: dist
+
+# Rules to make a bzip2 archive
+$(PACKAGE)-$(VERSION).tar.bz2: $(PACKAGE)-$(VERSION).tar.gz
+	@gunzip < $(PACKAGE)-$(VERSION).tar.gz | bzip2 > $(PACKAGE)-$(VERSION).tar.bz2
+dist-bz2: $(PACKAGE)-$(VERSION).tar.bz2
+
+# Rule to build RPM distribution package
+rpm: $(PACKAGE)-$(VERSION).tar.bz2
+	if [ -d "$$HOME/rpm/" ]; then \
+		cp $(PACKAGE)-$(VERSION).tar.bz2 $$HOME/rpm/SOURCES; \
+	elif [ -d "/usr/src/RPM/" ]; then \
+		cp $(PACKAGE)-$(VERSION).tar.bz2 /usr/src/RPM/SOURCES; \
+	else \
+		cp $(PACKAGE)-$(VERSION).tar.bz2 /usr/src/redhat/SOURCES; \
+	fi
+	rpm -ba sdlroids.spec
+
+rpm-mdk: $(PACKAGE)-$(VERSION).tar.bz2
+	if [ -d "$$HOME/rpm/" ]; then \
+		cp $(PACKAGE)-$(VERSION).tar.bz2 $$HOME/rpm/SOURCES; \
+		cp $(srcdir)/icons/*.xpm $$HOME/rpm/SOURCES; \
+	elif [ -d "/usr/src/RPM/" ]; then \
+		cp $(PACKAGE)-$(VERSION).tar.bz2 /usr/src/RPM/SOURCES; \
+		cp $(srcdir)/icons/*.xpm /usr/src/RPM/SOURCES; \
+	else \
+		cp $(PACKAGE)-$(VERSION).tar.bz2 /usr/src/redhat/SOURCES; \
+		cp $(srcdir)/icons/*.xpm /usr/src/redhat/SOURCES; \
+	fi
+	rpm --clean --sign -bs sdlroids-mdk.spec
+
+SDLRoids.txt: sdlroids.6
+	 groff -P-b -P-u -Tlatin1 -man sdlroids.6 |tr '\255' '-'> SDLRoids.txt
+
+# Special rules to brand the files in BeOS
+beos: sdlroids sdlroids.rsrc
+	xres -o sdlroids sdlroids.rsrc
+	@cp sdlroids.rsrc ..
+	mimeset -f .
+	@mv ../sdlroids.rsrc .
+sdlroids.coff: sdlroids.rc 
+	i386-mingw32msvc-windres sdlroids.rc sdlroids.coff
+.rc.coff: 
+windows: sdlroids.coff sdlroids SDLRoids.txt
+	@echo -n "Building SDLRoids-$(VERSION).zip..."
+	@rm -rf SDLRoids SDLRoids*.zip
+	@/bin/sh $(srcdir)/mkinstalldirs SDLRoids/sounds SDLRoids/bmp/ >/dev/null 2>&1
+	@$(INSTALL) -s sdlroids SDLRoids/SDLRoids.exe
+	@@rm sdlroids
+	@$(INSTALL) /usr/local/cross-tools/i386-mingw32msvc/lib/SDL.dll SDLRoids/
+	@$(INSTALL_DATA) $(srcdir)/sounds/*.wav SDLRoids/sounds/
+	@$(INSTALL_DATA)  $(srcdir)/bmp/*.bmp SDLRoids/bmp/
+	@$(TODOS) < SDLRoids.txt > SDLRoids/SDLRoids.txt
+	@$(TODOS) < $(srcdir)/README > SDLRoids/README.txt
+	@$(TODOS) < $(srcdir)/README.orig > SDLRoids/README-orig.txt
+	@$(TODOS) < $(srcdir)/TODO > SDLRoids/TODO.txt
+	@$(TODOS) < $(srcdir)/README.petopt > SDLRoids/README-petopt.txt
+	@$(TODOS) < $(srcdir)/COPYING > SDLRoids/COPYING.txt
+	@$(TODOS) < $(srcdir)/ChangeLog > SDLRoids/ChangeLog.txt
+	@zip -rq SDLRoids-$(VERSION).zip SDLRoids
+	@rm -rf SDLRoids
+	@echo  "done."
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

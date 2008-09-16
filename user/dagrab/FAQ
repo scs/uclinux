@@ -1,0 +1,242 @@
+Miroslav Stibor <stibor@vertigo.fme.vutbr.cz>
+4/2004
+
+
+Contents:
+---------
+Q1   What is dagrab good for?
+Q2   Will dagrab work with my SCSI drive or DVD medium?
+
+Q3   But there are many ripping tools. What is purpose of dagrab being?
+Q4   What is dagrab NOT good for?
+Q5   How can I grab my first audio CD with dagrab?
+Q6   dagrab: error opening device /dev/cdrom, maybe try -d option
+
+Q7   Hmms, what are these overlap settings and jitter corrections?
+Q8   What the number of jitter corrections means?
+Q9   What does "dagrab has CDDB support" mean?
+Q10  I do not underestand those CDDB stuffs in dagrab examples
+Q11  Is there any chance to correct overstrikes received within CDDB?
+Q12  What is grab script good for?
+
+Q13  How to increase ripping performance?
+Q14  I'm not able to use my machine when ripping proceeds
+
+
+-------------------------------------------------------------------------------
+
+Q1   What is dagrab good for?
+
+A1   Dagrab is a program for reading audio tracks from a cd-rom drive into wav
+     sound files. Informations concerning the album description (interpreter,
+     song titles and so on) can be obtained from Internet (CDDB support).
+
+-------------------------------------------------------------------------------
+
+Q2   Will dagrab work with my SCSI drive or DVD medium?
+
+A2   No it won't. It should work with any ide cd-rom drive provided that
+     digital audio extraction if supported from both the drive and its linux
+     driver.
+
+-------------------------------------------------------------------------------
+
+Q3   But there are many ripping tools. What is purpose of dagrab being?
+
+A3   You are right, the most famous are cdda2wav and cdparanoia.
+
+     I started to work on Marcello's light-small-fast dagrab, because cdda2wav
+     gets me malformed wavs and cdparanoia was too slow. Use cdda2wav if you
+     have perfect cd-rom drive, otherwise you risc cracks and other errors.
+     
+     Comparing to cdparanoia, dagrab provides jitter corrections without
+     re-reading sectors and uses computing mechanism instead. So, this is
+     probably main reason, why dagrab is faster; on the other hand, in some
+     cases cdparanoia can do the better job and vice versa. Dagrab provides
+     CDDB support, (if I know) cdparanoia not.
+     
+-------------------------------------------------------------------------------
+
+Q4   What is dagrab NOT good for?
+
+A4   If you are looking for application with nice looking frontend dagrab is
+     not for you. It's just trying to be "wash'n'go" command line tool.
+
+-------------------------------------------------------------------------------
+
+Q5   How can I grab my first audio CD with dagrab?
+
+A5   You need IDE/ATAPI cd-rom support within the linux kernel. In other
+     words if you can access the drive you have that support.
+
+     Then you can follow quick tour with dagrab --examples.
+
+-------------------------------------------------------------------------------
+
+Q6   dagrab: error opening device /dev/cdrom, maybe try -d option
+
+A6   Ensure you have correct symlink /dev/cdrom to your cd-rom device or
+     use -d option to specify the device.
+
+     You also need read permission to your cd-rom *device*. This can be done
+     e. g.
+         root# chmod +r /dev/hdc
+     (if your cd-rom device is /dev/hdc). Remember, some linux distributions
+     can re-set permisions to their defaults during reboot. Another way is to
+     suid dagrab binary:
+         root# chmod +s dagrab.
+     Such idea is not recommended, because of 1) security reasons and 2)
+     dumped tracks are owned by root.
+
+-------------------------------------------------------------------------------
+
+Q7   Hmms, what are these overlap settings and jitter corrections?
+
+A7   Ripping tool usually proceeds per partes: it calls kernel to receive
+     certain amount (8 by default) of block of sectors from audio CD. These
+     amounts are sequentially collected into wav.
+
+     If you have perfect cd-rom, that's all.
+
+     But common devices may have problems with taking the data on exact
+     position pointed by ripping tool. So, ripping tool takes a few bytes
+     before requested position and controls the overlapping itself. Minimal
+     overlap size is usually one block of sectors.
+
+     Another problem of common cd-rom drives is that errors occasionally can
+     occure -- some bytes may be corrupted. You can say you don't mind a few
+     bytes but these cracks are similar to those you can hear on gramophones.
+     Jitter detection and correction eliminates cracks during ripping.
+     
+     If you are looking for more details check jit_in.c file.
+
+-------------------------------------------------------------------------------
+
+Q8   What the number of jitter corrections means?
+
+A8   If you switch jitter correction filter on, dagrab will inform you
+     about jitter corrections made. When the number is thousands or even tens
+     thousands on track, something goes wrong.
+     
+     If dagrab assume that the byte obtained from cd-rom is an error it will
+     recalculate its value. Such an event is reported as jitter correction.
+     
+     Generally, even if there are thousands of jitter corrections per track,
+     it is very hard to distinguish such differences by human ear (except
+     situation dagrab is filtering out cracks recorded). But, in that case of
+     thousands or more jitter corrections per track, it's better to increase
+     jitter correction delta value (-j option) to e. g. 32, 40, or even more.
+     The settings depends on your drive and audio CD too. 
+
+-------------------------------------------------------------------------------
+
+Q9   What does "dagrab has CDDB support" mean?
+
+A9   Dagrab can receive album description. So you can list tracks with that
+     description, dagrab can name your dumped files by means of real album
+     titles and also can add id3 tags within the procedure.
+
+     There are two methods of receiving album description. First, from the
+     Internet freedb server that usually works on 888 port. Unfortunatelly,
+     if you are behind firewall (which can deny such communication), you will
+     probably fall into troubles..
+     
+     The second method is to use local CDDB archive (can be achieved by
+     downloading tgz from freedb server) -- there is no need to install
+     additional server on local machine. Dagrab only needs to know the path
+     to untgzed archive (-D option or $XMCD_LIBDIR environment system
+     variable).
+     
+-------------------------------------------------------------------------------
+
+Q10  I do not underestand those CDDB stuffs in dagrab examples
+
+A10  If you find it difficult to use, just skip to a grab script
+
+-------------------------------------------------------------------------------
+
+Q11  Is there any chance to correct overstrikes received within CDDB?
+
+A11  When using CDDB, dagrab is always trying to read album description
+     without Internet connection. So, insert audio CD and call dagrab once
+     with -S option: you will receive personal copy of CDDB entry, that you
+     can edit later.
+     
+     Check the path to your local CDDB archive is set correctly (-D option or
+     $XMCD_LIBDIR environment system variable) before.
+
+-------------------------------------------------------------------------------
+
+Q12  What is grab script good for?
+
+A12  grab script is "wash'n'go" utility for dagrab written for /bin/sh
+     compatible shell. It needs no perl or additional libraries. All you
+     need to know is to type
+         $ grab all
+
+     Oggenc is used for ogg encoding and lame for mp3 encoding are
+     supported. You can also use gogo or bladeenc, which are supported (but in
+     that case id3ed utility is needed).
+     
+     grab script looks for $DAGRAB and $DAGRAB_ENCODER system environment
+     variables. If not found, it uses its default. $DAGRAB says how to call
+     dagrab and $DAGRAB_ENCODER says how to call encoder. Follow built-in
+     examples (grab --help).
+     
+     Once you tune those variables, simply put them into your shell profile
+     (~/.bash_profile, ~/.profile and so on). Example:
+         export DAGRAB_ENCODER="nice gogo -b 192 -q 0 stdin "
+
+     The second advantage is that grab is made to not dump wav files but it
+     uses pipes instead: only the ogg/mp3 file will be written. It can also be
+     much faster than two steps procedure "dumping the track and encoding the
+     track".
+
+-------------------------------------------------------------------------------
+
+Q13  How to increase ripping performance?
+
+A13  Today's common devices dumps about at 5-15x speed. Speed 1x (150 kB/s)
+     is necessary to listen audio CD (stereo 16 bits at 44 kHz). You can try
+     for example
+         $ time dagrab all -j128 -f - > /dev/null
+     and check speed reached on each track.
+
+     There are several methods to improve performance:
+
+     1. Try with -n values (amount of sectors read altogether). Usually
+     higher values will speed up reading but not all cd-rom devices will
+     work fine. Default value is conservative -- 8 sectors per request.
+     Paranoia developers say that -n 13 should work on all drives too.
+     
+     2. If you have perfect cd-rom, on slower PC's (386, 486) you can speed it
+     up a bit by omitting jitter correction inside the block (do not use -J
+     nor -j option).
+     
+     3. And if you trust your cd-rom drive, you can also use -j128 that
+     disables both overlap checking and jitter corrections (probably like
+     cdparanoia -Z or cdda2wav -P0). But this is rather for testing the
+     device's behaviour than for ripping.
+
+     4. Tracks dumping and encoding through the pipe at the same time can be
+     much faster than two steps procedure "dumping the track and encoding the
+     track". Try grab script.
+
+     5. A few words about mpeg encoders: gogo is quite rewritten into
+     assembler and is the fastest, lame is faster than bladeenc. If you are
+     compiling encoder yourself (and you do not need to run a binary on a
+     different kind of machine): add proper options describing your machine
+     (for example -mcpu={pentium, pentiumpro, k6}).
+
+-------------------------------------------------------------------------------
+
+Q14  I'm not able to use my machine when ripping proceeds
+
+A14  If dagrab "seems" to take so much processor so you cannot normally
+     work do not set high values with -n option (amount of block of sectors
+     readed at once). While kernel is waiting for data from device it blocks
+     other actions. 
+
+     Wiring cd-rom drive as alone device within its IDE position can help too.
+
+-------------------------------------------------------------------------------

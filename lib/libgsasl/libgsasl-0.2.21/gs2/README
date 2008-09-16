@@ -1,0 +1,21 @@
+GS2 README -- Notes on the implementation
+Copyright (C) 2006, 2007 Simon Josefsson
+See the end for copying conditions.
+
+This directory holds an unfinished implementation of GS2, pending
+finalization of the standard.
+
+This module is written in portable C89.  It may be used as a
+stand-alone implementation, outside of the framework that GNU SASL
+provide.
+
+The files CLIENT.C and SERVER.C contain the glue between GNU SASL and
+the stand-alone implementation.  Currently it is the best (only)
+example on how to use the module.
+
+For updates to the project, see <http://www.gnu.org/software/gsasl/>.
+
+----------------------------------------------------------------------
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.

@@ -1,0 +1,5 @@
+Locale.o Locale.o: Locale.c ../include/version.h ../config.h
+
+../include/version.h:
+
+../config.h:

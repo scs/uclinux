@@ -1,0 +1,16 @@
+-------------------------------------------------------------------------------
+$Id: next_notes 3078 2006-07-18 01:16:24Z vapier $
+-------------------------------------------------------------------------------
+
+From email with Next users:
+---------------------------
+
+When linking your code with the dmalloc library, you will need to use
+the -m flag which tells the compiler to ignore the presence of
+multiple references and to just take the first available one.
+
+At this time, I have no other recommendations and have not heard of
+any success on the Next system.  _Please_ send me any hints.
+
+Gray Watson
+http://dmalloc.com/

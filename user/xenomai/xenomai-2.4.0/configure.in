@@ -1,0 +1,821 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_PREREQ(2.59)
+
+AC_INIT([Xenomai],m4_normalize(m4_include([config/version])),xenomai-help@gna.org)
+
+CONFIG_XENO_VERSION_MAJOR=`expr $PACKAGE_VERSION : '\([[0-9]]*\)'`
+CONFIG_XENO_VERSION_MINOR=`expr $PACKAGE_VERSION : '[[0-9]]*\.\([[0-9]]*\)'`
+CONFIG_XENO_REVISION_LEVEL=`expr $PACKAGE_VERSION : '[[0-9]]*\.[[0-9]]*\.\([[0-9]]*\)'`
+test "x$CONFIG_XENO_REVISION_LEVEL" = "x" && CONFIG_XENO_REVISION_LEVEL=0
+
+if test "x$CFLAGS" = "x"; then
+	XENO_EMPTY_CFLAGS=true
+else
+	XENO_EMPTY_CFLAGS=false
+fi
+
+AC_CONFIG_HEADERS(src/include/xeno_config.h)
+AC_CONFIG_AUX_DIR(config)
+AC_CONFIG_SRCDIR(src/skins/native/task.c)
+AC_PREFIX_DEFAULT(/usr/xenomai)
+AC_CANONICAL_BUILD
+AC_CANONICAL_HOST
+AC_PROG_INSTALL
+
+AC_ARG_WITH(cc,
+    AS_HELP_STRING([--with-cc=compiler],[use specific C compiler]),
+    [
+	case "$withval" in
+	"" | y | ye | yes | n | no)
+	    AC_MSG_ERROR([You must supply an argument to --with-cc.])
+	  ;;
+	esac
+	CC="$withval"
+    ])
+AC_PROG_CC
+
+# Do not let autoconf set the default value of CFLAGS
+if $XENO_EMPTY_CFLAGS; then
+	CFLAGS=""
+fi
+
+AC_PROG_CC_FOR_BUILD
+
+AC_DEFINE_UNQUOTED(CONFIG_XENO_BUILD_STRING,"$build",[Build system alias])
+XENO_BUILD_STRING="$build"
+AC_DEFINE_UNQUOTED(CONFIG_XENO_HOST_STRING,"$host",[Host system alias])
+XENO_HOST_STRING="$host"
+AC_DEFINE_UNQUOTED(CONFIG_XENO_COMPILER,"`$CC -v 2>&1 | tail -n 1`",[Compiler])
+
+AM_INIT_AUTOMAKE([foreign no-exeext dist-bzip2])
+AM_MAINTAINER_MODE
+AC_PROG_LIBTOOL
+AM_PROG_AS
+AM_PROG_LEX
+
+AC_MSG_CHECKING([for target architecture])
+
+case "$host" in
+ i*86*-*)
+	XENO_TARGET_ARCH=x86
+        XENO_LINUX_ARCH=i386
+	XENO_LINUX_INSTALL_TARGET=install
+        ;;
+ powerpc-*|ppc-*)
+	XENO_TARGET_ARCH=powerpc
+        XENO_LINUX_ARCH=ppc
+	XENO_LINUX_INSTALL_TARGET=install_image
+	XENO_LINUX_IMAGE=arch/ppc/boot/images/zImage.elf
+        ;;
+ powerpc64-*|ppc64-*)
+	XENO_TARGET_ARCH=powerpc
+        XENO_LINUX_ARCH=ppc64
+	XENO_LINUX_INSTALL_TARGET=install_image
+	XENO_LINUX_IMAGE=arch/ppc64/boot/images/zImage
+        ;;
+ ia64-*)
+	XENO_TARGET_ARCH=ia64
+        XENO_LINUX_ARCH=ia64
+	XENO_LINUX_INSTALL_TARGET=install
+        ;;
+ bfin-*|bfinnommu-*|blackfin-*)
+	XENO_TARGET_ARCH=blackfin
+        XENO_LINUX_ARCH=blackfin
+	XENO_LINUX_INSTALL_TARGET=install
+        ;;
+ arm*-*)
+ 	XENO_TARGET_ARCH=arm
+ 	XENO_LINUX_ARCH=arm
+	XENO_LINUX_INSTALL_TARGET=install_image
+	XENO_LINUX_IMAGE=arch/arm/boot/zImage
+	;;
+ x86_64-*|amd64-*)
+	XENO_TARGET_ARCH=x86
+        XENO_LINUX_ARCH=x86_64
+	XENO_LINUX_INSTALL_TARGET=install
+        ;;
+ *) echo ""
+   echo "*******************************************"
+   echo "Still unsupported target: $host -- Sorry."
+   echo "*******************************************"
+   echo ""
+   exit 1;;
+esac
+
+AC_MSG_RESULT([$XENO_TARGET_ARCH])
+AM_CONDITIONAL(XENO_LINUX_ARCH_I386,[test $XENO_LINUX_ARCH = i386])
+
+dnl
+dnl Parse options
+dnl
+
+dnl Debug build (default: off)
+
+debug_symbols=
+AC_MSG_CHECKING(for debug symbols)
+AC_ARG_ENABLE(debug,
+	AS_HELP_STRING([--enable-debug], [Enable debug support in nucleus and debug symbols in programs]),
+	[case "$enableval" in
+	y | yes) debug_symbols=y ;;
+	*) unset debug_symbols ;;
+	esac])
+AC_MSG_RESULT(${debug_symbols:-no})
+
+dnl SMP support (default: off)
+
+CONFIG_SMP=
+AC_MSG_CHECKING(for SMP support)
+AC_ARG_ENABLE(smp,
+	AS_HELP_STRING([--enable-smp], [Enable SMP support]),
+	[case "$enableval" in
+	y | yes) CONFIG_SMP=y ;;
+	*) unset CONFIG_SMP ;;
+	esac])
+AC_MSG_RESULT(${CONFIG_SMP:-no})
+
+dnl SEP (default: disabled) and TSC support for x86 (default: enabled)
+
+CONFIG_XENO_X86_SEP=
+CONFIG_X86_TSC=y
+
+if test $XENO_TARGET_ARCH = x86; then
+  AC_MSG_CHECKING(for x86 SEP instructions in syscalls)
+  AC_ARG_ENABLE(x86-sep,
+	AS_HELP_STRING([--enable-x86-sep], [Enable x86 SEP instructions for issuing syscalls]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_X86_SEP=y ;;
+	*) unset CONFIG_XENO_X86_SEP ;;
+	esac])
+  AC_MSG_RESULT(${CONFIG_XENO_X86_SEP:-no})
+
+  AC_MSG_CHECKING(for x86 TSC support)
+  AC_ARG_ENABLE(x86-tsc,
+	AS_HELP_STRING([--enable-x86-tsc], [Enable x86 TSC for timings]),
+	[case "$enableval" in
+	y | yes) CONFIG_X86_TSC=y ;;
+	*) unset CONFIG_X86_TSC ;;
+	esac])
+  AC_MSG_RESULT(${CONFIG_X86_TSC:-no})
+fi
+
+dnl ARCH support for ARM (default: 4)
+
+if test $XENO_TARGET_ARCH = arm ; then
+  CONFIG_XENO_ARM_ARCH=4
+  CONFIG_XENO_ARM_SA1100=
+  CONFIX_XENO_ARM_EABI=
+
+  unset CONFIG_XENO_ARM_SA1100
+  unset tsc_type
+  unset CONFIG_XENO_ARM_HW_DIRECT_TSC
+
+  AC_MSG_CHECKING(for ARM machine)
+  AC_ARG_ENABLE(arm-mach,
+	AS_HELP_STRING([--enable-arm-mach], [Select for which machine we are
+compiling. Valid machines are at91rm9200, at91sam926x, imx, imx21, integrator, 
+ixp4xx, pxa, s3c2410, sa1100.]),
+	[case "$enableval" in
+	at91rm9200)   	arch=4
+	        	tsc_type=__XN_TSC_TYPE_FREERUNNING;;
+
+	at91sam926x)   	arch=5
+	        	tsc_type=__XN_TSC_TYPE_FREERUNNING;;
+
+	imx)		arch=4
+			tsc_type=__XN_TSC_TYPE_FREERUNNING;;
+
+	imx21)		arch=5
+			unset tsc_type;;
+
+	integrator) 	arch=choose
+			unset tsc_type;;
+	
+	ixp4xx|pxa) 	arch=5
+	      		tsc_type=__XN_TSC_TYPE_FREERUNNING;;
+
+	s3c2410) 	arch=4
+			tsc_type=__XN_TSC_TYPE_DECREMENTER;;
+
+	sa1100) 	arch=4
+			CONFIG_XENO_ARM_SA1100=y
+			tsc_type=__XN_TSC_TYPE_FREERUNNING;;
+
+	*)AC_MSG_ERROR([Invalid machine selected: "$enableval"]);;
+	esac],
+	[AC_MSG_ERROR([Selecting a machine with --enable-arm-mach is mandatory])
+	])
+  AC_MSG_RESULT(${enable_arm_mach:-no})
+
+  AC_MSG_CHECKING(for ARM architecture version)
+  if test $arch = choose; then
+  	AC_ARG_ENABLE(arm-arch,
+    	AS_HELP_STRING([--enable-arm-arch=<version>], [Select ARM architecture version]),
+    	[
+		case "$enableval" in
+		"" | y | ye | yes | n | no)
+	    	AC_MSG_ERROR([You must supply an argument to --enable-arm-arch.])
+	  	;;
+		esac
+		CONFIG_XENO_ARM_ARCH="$enableval"
+    	])
+  else
+	CONFIG_XENO_ARM_ARCH=$arch
+  fi
+  AC_MSG_RESULT($CONFIG_XENO_ARM_ARCH)
+
+  AC_MSG_CHECKING(for ARM SA1100 architecture)
+  AC_MSG_RESULT(${CONFIG_XENO_ARM_SA1100:-no})
+
+  AC_MSG_CHECKING(for TSC emulation in user-space.)
+  if test $tsc_type; then
+	AC_ARG_ENABLE(arm-tsc,
+		AS_HELP_STRING([--enable-arm-tsc], [Enable TSC emulation in 
+user-space]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_ARM_HW_DIRECT_TSC=$tsc_type ;;
+	*) unset CONFIG_XENO_ARM_HW_DIRECT_TSC ;;
+	esac])
+	AC_MSG_RESULT(${enable_arm_tsc:-no})
+  else
+	AC_MSG_RESULT(not supported by this board)
+  fi
+
+  AC_MSG_CHECKING(for ARM EABI interface)
+  AC_ARG_ENABLE(arm-eabi,
+	AS_HELP_STRING([--enable-arm-eabi], [Enable ARM EABI interface]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_ARM_EABI=y ;;
+	*) unset CONFIG_XENO_ARM_EABI ;;
+	esac])
+  AC_MSG_RESULT(${CONFIG_XENO_ARM_EABI:-no})
+fi
+
+dnl Flags for building Linux in Xenomai build tree.
+AC_MSG_CHECKING(whether building Linux in Xenomai build tree)
+AC_ARG_ENABLE(linux-build,
+        AS_HELP_STRING([--enable-linux-build=<linux-src-dir>], [Build Linux in
+Xenomai build tree, copying sources from <linux-src-dir>. If no source directory
+is passed, look for a valid kernel source tree with a name starting with linux
+under the build tree, then under the source tree, then if not cross-compiling,
+try the sources of the running kernel and finally /usr/src/linux.]),
+	[case "$enableval" in
+	y | yes) XENO_LINUX_SRCDIR=y ;;
+	n | no) unset XENO_LINUX_SRCDIR ;;
+        *) XENO_LINUX_SRCDIR="`/bin/bash -c \"echo $enableval\"`" ;;
+	esac])
+
+if test x"$XENO_LINUX_SRCDIR" = x ; then
+  AC_MSG_RESULT(no)
+else
+  AC_MSG_RESULT(yes)
+  AC_MSG_CHECKING(for Linux sources)
+  if test x"$XENO_LINUX_SRCDIR" = xy; then
+      candidates="linux-* $srcdir/linux-* $srcdir/linux linux"
+      if test x"$cross_compiling" = xno ; then
+          candidates="$candidates /lib/modules/`uname -r`/source /usr/src/linux"
+      fi
+      for dir in $candidates ; do
+          if test -r $dir/Makefile ; then 
+              XENO_LINUX_SRCDIR=$dir
+              break ; 
+          fi
+      done
+  fi
+  if test x"$XENO_LINUX_SRCDIR" = xy || test ! -r $XENO_LINUX_SRCDIR/Makefile ; then
+     AC_MSG_ERROR([Unable to find Linux kernel sources tree, please pass a valid Linux sources directory to --enable-linux-build])
+  else
+     XENO_LINUX_SRCDIR=`cd $XENO_LINUX_SRCDIR && pwd`
+     unset linux_EXTRAVERSION
+     unset linux_PATCHLEVEL
+     unset linux_SUBLEVEL
+     unset linux_VERSION
+
+     linux_EXTRAVERSION=`sed 's/^EXTRAVERSION = *\(.*\)/\1/;t;d' $XENO_LINUX_SRCDIR/Makefile`
+     linux_PATCHLEVEL=`sed 's/^PATCHLEVEL = *\(.*\)/\1/;t;d' $XENO_LINUX_SRCDIR/Makefile`
+     linux_SUBLEVEL=`sed 's/^SUBLEVEL = *\(.*\)/\1/;t;d' $XENO_LINUX_SRCDIR/Makefile`
+     linux_VERSION=`sed 's/^VERSION = *\(.*\)/\1/;t;d' $XENO_LINUX_SRCDIR/Makefile`
+
+     linux_base_version="$linux_VERSION.$linux_PATCHLEVEL.$linux_SUBLEVEL"
+     linux_full_version="$linux_base_version$linux_EXTRAVERSION"
+
+     if test x"$linux_PATCHLEVEL" = x -o x"$linux_SUBLEVEL" = x || 
+        test x"$linux_VERSION" = x ; then
+        AC_MSG_ERROR([Unable to get version of $XENO_LINUX_SRCDIR, aborting.])
+     else
+        AC_MSG_RESULT([$XENO_LINUX_SRCDIR (kernel ${linux_full_version})])
+     fi
+
+     case "$linux_base_version" in
+	2.4.*) XENO_LINUX_ALL_TARGETS="bzImage modules" ;;
+        2.6.*) XENO_LINUX_ALL_TARGETS="all";;
+	*) AC_MSG_ERROR([Unknown Linux version $linux_full_version]) ;;
+     esac
+     AC_SUBST(XENO_LINUX_ALL_TARGETS)
+     AC_SUBST(XENO_LINUX_INSTALL_TARGET)
+     AC_SUBST(XENO_LINUX_IMAGE)
+  fi
+
+  AC_MSG_CHECKING(for Adeos patch)
+  unset ADEOS_PATCH
+  AC_ARG_WITH(adeos-patch,
+        AS_HELP_STRING([--with-adeos-patch],[specify the path to the Adeos
+patch. Default is to infer the patch name from Linux kernel version.]),
+        [ADEOS_PATCH="`/bin/bash -c \"echo $withval\"`"])
+
+  if test x"$ADEOS_PATCH" = x && test x"$linux_base_version" != x ; then
+        set -- $srcdir/ksrc/arch/$XENO_TARGET_ARCH/patches/adeos-*$linux_base_version-$XENO_LINUX_ARCH-*
+        ADEOS_PATCH=$1
+	if test ! -e $ADEOS_PATCH; then
+		set -- $srcdir/ksrc/arch/$XENO_TARGET_ARCH/patches/adeos-*$linux_base_version-$XENO_TARGET_ARCH-*
+		ADEOS_PATCH=$1
+	fi
+  fi
+  if test x"$ADEOS_PATCH" = x || test ! -e $ADEOS_PATCH ; then
+     AC_MSG_ERROR([Unable to find Adeos patch, please use --with-adeos-patch])
+  else
+     AC_MSG_RESULT([$ADEOS_PATCH])
+  fi
+  case "$ADEOS_PATCH" in
+	*-powerpc-*) XENO_LINUX_ARCH=powerpc;;
+  esac
+  AC_SUBST(ADEOS_PATCH)
+
+  unset LNDIR
+  AC_CHECK_PROG(LNDIR, lndir, lndir)
+  if test "x$LNDIR" != "x"; then
+    AC_MSG_CHECKING(if lndir supports the -silent -ignorelinks options)
+    if mkdir conftest1.dir && : > conftest1.dir/foo && mkdir conftest2.dir; then
+	  cd conftest2.dir && $LNDIR -silent -ignorelinks ../conftest1.dir \
+		&& cd ..
+	  test -e conftest2.dir/foo && LNDIR="$LNDIR -silent -ignorelinks"
+	  rm -Rf contest1.dir conftest2.dir
+    fi
+    if test "x$LNDIR" = "xlndir"; then
+	AC_MSG_RESULT(no)
+    else
+	AC_MSG_RESULT(yes)
+    fi
+  fi
+
+  AC_CONFIG_COMMANDS(linux, [
+     if test -e linux/.xenomai-prepared ; then
+        . linux/.xenomai-prepared
+        if test x"$XENO_LINUX_VERSION" != x"$PREPARED_LINUX_VERSION" ||
+           test x"`basename $ADEOS_PATCH`" != x"$PREPARED_ADEOS_PATCH" ; then
+           echo "*** Warning: built version of linux and requested versions are "
+           echo "*** different. If you want to build the requested version of "
+           echo "*** linux, remove the file: linux/.xenomai-prepared."
+        else
+           touch linux/.xenomai-prepared
+        fi
+     else
+           set -e
+           targetdir=$PWD/linux
+           if test \! -e linux || test \! $XENO_LINUX_SRCDIR -ef linux ; then
+               if test -e linux ; then
+                   test -e linux/.config && mv linux/.config .xenomai.config
+                   echo $ECHO_N "Removing existing linux directory... $ECHO_C" 
+                   rm -Rf linux
+                   echo "${ECHO_T}done."
+               fi
+               mkdir linux
+               echo $ECHO_N "Making linux a shadow copy of $XENO_LINUX_SRCDIR... $ECHO_C" 
+	       if test -z "$LNDIR"; then
+	           cd $XENO_LINUX_SRCDIR
+                   find . -! -type d | while read f ; do
+                       d=$targetdir/`dirname $f`
+                       mkdir -p $d && ln -sf $XENO_LINUX_SRCDIR/$f $d/`basename $f`
+                   done
+               else
+		   cd $targetdir && $LNDIR $XENO_LINUX_SRCDIR
+	       fi
+               echo "${ECHO_T}done."
+           fi
+           cd $targetdir
+
+           if test -e $XENO_LINUX_SRCDIR/.config ; then
+              . $XENO_LINUX_SRCDIR/.config
+	      test x"$CONFIG_ARM" = xy && cfg_arch=arm || :
+              test x"$CONFIG_BLACKFIN" = xy && cfg_arch=blackfin || :
+              test x"$CONFIG_IA64" = xy && cfg_arch=ia64 || :
+              test x"$CONFIG_PPC" = xy && cfg_arch=ppc || :
+              test x"$CONFIG_PPC64" = xy && cfg_arch=ppc64 || :
+              test x"$CONFIG_X86_64" = xy && cfg_arch=x86_64 || :
+              test x"$CONFIG_X86" = xy && cfg_arch=i386 || :
+              if test $cfg_arch = $XENO_LINUX_ARCH ; then
+                 cp $XENO_LINUX_SRCDIR/.config .xenomai.config
+              fi
+              echo "Cleaning linux directory..." 
+              make ARCH=$cfg_arch distclean
+              test -e .xenomai.config && mv .xenomai.config .config
+           fi
+           cd ..
+           $srcdir/scripts/prepare-kernel.sh \
+             --adeos="$ADEOS_PATCH" --linux=linux --arch=$XENO_LINUX_ARCH	
+           test -e .xenomai.config && mv .xenomai.config linux/.config || :
+           cat > linux/.xenomai-prepared.tmp <<EOF
+PREPARED_LINUX_VERSION=$XENO_LINUX_VERSION
+PREPARED_ADEOS_PATCH=`basename $ADEOS_PATCH`
+EOF
+           mv linux/.xenomai-prepared.tmp linux/.xenomai-prepared
+     fi
+        ],[XENO_LINUX_SRCDIR=$XENO_LINUX_SRCDIR
+           XENO_TARGET_ARCH=$XENO_TARGET_ARCH
+           XENO_LINUX_ARCH=$XENO_LINUX_ARCH
+           XENO_LINUX_VERSION=$linux_full_version
+           ADEOS_PATCH=$ADEOS_PATCH
+	   LNDIR="$LNDIR"])
+fi
+AM_CONDITIONAL(XENO_BUILD_LINUX, [test \! x"$XENO_LINUX_SRCDIR" = x])
+
+dnl Documentation package.
+
+if test \! -d $srcdir/doc ; then 
+    unset XENO_MAYBE_DOCDIR
+else
+    XENO_MAYBE_DOCDIR=doc
+fi
+AC_SUBST(XENO_MAYBE_DOCDIR)
+
+AC_MSG_CHECKING(for Doxygen documentation)
+AC_ARG_ENABLE(dox-doc,
+	AS_HELP_STRING([--enable-dox-doc], [Build Doxygen documentation]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_DOC_DOX=y ;;
+	*) unset CONFIG_XENO_DOC_DOX ;;
+	esac])
+
+if test \! -d $srcdir/doc ; then
+    if test x$CONFIG_XENO_DOC_DOX = xy ; 
+    then
+        AC_MSG_ERROR([documentation tree is missing.])
+    fi
+    AC_MSG_RESULT([not present])
+else
+    AC_MSG_RESULT(${CONFIG_XENO_DOC_DOX:-no})
+fi
+
+AC_CHECK_PROG(DOXYGEN, doxygen, doxygen)
+
+if test x${CONFIG_XENO_DOC_DOX} = xy -a x"$DOXYGEN" = x ; then
+   AC_MSG_ERROR([Missing the Doxygen tools to generate the documentation.])
+fi
+
+AC_CHECK_PROG(DOXYGEN_HAVE_DOT, dot, YES, NO)
+if test x"$DOXYGEN_HAVE_DOT" = xYES ; then
+   DOXYGEN_SHOW_INCLUDE_FILES=NO
+else
+   DOXYGEN_SHOW_INCLUDE_FILES=YES
+fi
+
+case "$CONFIG_XENO_DOC_DBX" in
+y | ye | yes)
+    DBX_DOC=yes ;;
+*)
+    DBX_DOC="" ;;
+esac
+DBX_NET="$CONFIG_XENO_DBX_NET"
+DBX_ROOT="$CONFIG_XENO_DBX_ROOT"
+DBX_XSL_ROOT="$CONFIG_XENO_DBX_XSL_ROOT"
+DBX_DOC_INIT(doc/docbook, doc/generated, 4.2)
+
+AC_MSG_CHECKING(whether using LaTeX non-stop mode)
+AC_ARG_ENABLE(verbose-latex,
+        AS_HELP_STRING([--enable-verbose-latex], [Uses LaTeX non-stop mode]),
+        [case "$enableval" in
+        y | yes) CONFIG_XENO_DOC_LATEX_NONSTOP=y ;;
+        *) unset CONFIG_XENO_DOC_LATEX_NONSTOP ;;
+        esac])
+AC_MSG_RESULT(${CONFIG_XENO_DOC_LATEX_NONSTOP:-no})
+
+if test x${CONFIG_XENO_DOC_LATEX_NONSTOP} = xy; then
+   LATEX_BATCHMODE=NO
+   LATEX_MODE=nonstopmode
+else
+   LATEX_BATCHMODE=YES
+   LATEX_MODE=batchmode
+fi
+
+dnl Determine whether some specific headers are present on this system.
+AC_CHECK_HEADERS(mqueue.h)
+
+dnl
+dnl Produce the info needed to build xeno_config.h
+dnl
+
+AC_DEFINE_UNQUOTED(CONFIG_XENO_VERSION_MAJOR,$CONFIG_XENO_VERSION_MAJOR,[config])
+AC_DEFINE_UNQUOTED(CONFIG_XENO_VERSION_MINOR,$CONFIG_XENO_VERSION_MINOR,[config])
+AC_DEFINE_UNQUOTED(CONFIG_XENO_REVISION_LEVEL,$CONFIG_XENO_REVISION_LEVEL,[config])
+
+dnl
+dnl Features we enabled and likely want to find at kernel level.
+dnl When applicable, we reuse the kernel option symbol so that we
+dnl don't need to make particular cases with kernel code which may
+dnl also be compiled in user-space libs.
+dnl
+
+test x$CONFIG_XENO_X86_SEP = xy && AC_DEFINE(CONFIG_XENO_X86_SEP,1,[config])
+test x$CONFIG_SMP = xy && AC_DEFINE(CONFIG_SMP,1,[config])
+test x$CONFIG_X86_TSC = xy && AC_DEFINE(CONFIG_X86_TSC,1,[config])
+test -n "$CONFIG_XENO_ARM_ARCH" && AC_DEFINE_UNQUOTED(CONFIG_XENO_ARM_ARCH,$CONFIG_XENO_ARM_ARCH,[config])
+
+test x$CONFIG_XENO_ARM_SA1100 = xy && AC_DEFINE(CONFIG_XENO_ARM_SA1100,1,[config])
+test $CONFIG_XENO_ARM_HW_DIRECT_TSC && AC_DEFINE_UNQUOTED(CONFIG_XENO_ARM_HW_DIRECT_TSC,$CONFIG_XENO_ARM_HW_DIRECT_TSC,[config])
+test x$CONFIG_XENO_ARM_EABI = xy && AC_DEFINE(CONFIG_XENO_ARM_EABI,1,[config])
+
+dnl CAUTION: We need to have the CONFIG_XENO_XX symbols always
+dnl defined when the configuration header is read, but we want the
+dnl Autoconf-produced symbols to be defined only when compiling
+dnl Xenomai. This way, we won't pollute the namespace with the latter
+dnl when our configuration header is indirectly included by a client
+dnl application. To achieve this, we ask autoheader to produce the
+dnl following header structure:
+dnl #define CONFIG_XX
+dnl #define CONFIG_XX ...
+dnl #ifdef __IN_XENO__
+dnl <Autoconf-defined symbols>
+dnl #endif /* __IN_XENO__ */
+dnl This is quite a hack since we have to rely on the fact that
+dnl all Autoconf-generated symbols are lexicographically sorted
+dnl after CONFIG_XENO_XX ones, but, well...
+dnl Use a key which will cause the verbatim string to be put after
+dnl all CONFIG_XENO_XX symbols, but still before any Autoconf-generated
+dnl symbol, hence CONFIG_XENO___.
+AH_VERBATIM(CONFIG_XENO___,[#ifdef __IN_XENO__])
+
+dnl Now we can close the conditional section, right after all
+dnl Autoconf-generated symbols have been listed.
+AH_BOTTOM([#endif /* __IN_XENO__ */])
+
+dnl
+dnl Produce automake conditionals.
+dnl
+
+dnl Documentation.
+AM_CONDITIONAL(CONFIG_XENO_DOC_DOX,[test "$CONFIG_XENO_DOC_DOX" = y])
+
+AC_MSG_CHECKING([for sched_setaffinity])
+AC_CACHE_VAL(ac_cv_sched_setaffinity,
+ save_CFLAGS="$CFLAGS"
+ CFLAGS="-Wimplicit-function-declaration -Werror -D_GNU_SOURCE"
+ [AC_TRY_LINK([#include <sched.h>],
+ [cpu_set_t cpu_set; sched_setaffinity(0, sizeof(cpu_set), &cpu_set);],
+ [ac_cv_sched_setaffinity=new],
+ [ac_cv_sched_setaffinity=bad])]
+ if test $ac_cv_sched_setaffinity = bad ; then
+   [AC_TRY_LINK([#include <sched.h>],
+   [cpu_set_t cpu_set; sched_setaffinity(0, &cpu_set);],
+   [ac_cv_sched_setaffinity=old],
+   [ac_cv_sched_setaffinity=no])]
+ fi
+ if test $ac_cv_sched_setaffinity = old ; then
+     AC_MSG_RESULT(old)
+     AC_DEFINE(HAVE_OLD_SETAFFINITY,1,[config])
+ elif test $ac_cv_sched_setaffinity = new ; then
+     AC_MSG_RESULT(ok)
+     AC_DEFINE(HAVE_RECENT_SETAFFINITY,1,[config])
+ else
+     AC_MSG_RESULT(no)
+ fi
+ CFLAGS="$save_CFLAGS")
+
+AC_MSG_CHECKING([for specific GCC switches])
+AC_CACHE_VAL(ac_cv_gcc_wnoalias,
+AC_LANG_SAVE
+AC_LANG_C
+save_CFLAGS="$CFLAGS"
+CFLAGS="-Wno-strict-aliasing -Werror"
+[AC_TRY_COMPILE([],
+[return 0;],
+[ac_cv_gcc_wnoalias=yes],
+[ac_cv_gcc_wnoalias=no])]
+CFLAGS="$save_CFLAGS"
+AC_LANG_RESTORE)
+if [[ $ac_cv_gcc_wnoalias = no ]]; then
+  gcc_w_noalias=
+else
+  gcc_w_noalias="-Wno-strict-aliasing"
+fi
+AC_MSG_RESULT([done])
+
+dnl Common CFLAGS and LDFLAGS
+XENO_USER_CFLAGS="-D_GNU_SOURCE -D_REENTRANT"
+XENO_USER_LDFLAGS=
+
+dnl Exported CFLAGS and LDFLAGS, may be enhanced per-arch below
+XENO_USER_APP_CFLAGS=$XENO_USER_CFLAGS
+XENO_USER_APP_LDFLAGS=$XENO_USER_LDFLAGS
+
+case $XENO_TARGET_ARCH in
+ x86)
+	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -fstrict-aliasing $gcc_w_noalias"
+        ;;
+ powerpc)
+	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe"
+        ;;
+ ia64)
+	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe"
+        ;;
+ blackfin)
+	# Produce libraries in FDPIC format.
+	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe"
+	XENO_USER_LDFLAGS="$XENO_USER_CFLAGS"
+        ;;
+ arm)
+	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -march=armv$CONFIG_XENO_ARM_ARCH"
+        ;;
+esac
+
+if test x$debug_symbols = xy; then
+   XENO_USER_CFLAGS="-g $XENO_USER_CFLAGS"
+else
+   XENO_USER_CFLAGS="-O2 $XENO_USER_CFLAGS"
+fi
+
+XENO_USER_CFLAGS="$XENO_USER_CFLAGS -D__XENO__ -D__IN_XENO__ -Wstrict-prototypes"
+
+AC_MSG_CHECKING([whether ld supports @file])
+AC_CACHE_VAL(ac_cv_ld_file_option,
+  AC_LANG_SAVE
+  AC_LANG_C
+  save_LDFLAGS="$LDFLAGS"
+  [LDFLAGS="-Wl,@/dev/null"]
+  AC_LINK_IFELSE([main(){}],
+    [ac_cv_ld_file_option=yes],
+    [ac_cv_ld_file_option=no])
+  LDFLAGS="$save_LDFLAGS"
+  AC_LANG_RESTORE)
+if [[ $ac_cv_ld_file_option = yes ]]; then
+	XENO_POSIX_WRAPPERS="-Wl,@`cd $srcdir && pwd`/src/skins/posix/posix.wrappers"
+else
+	XENO_POSIX_WRAPPERS=`while read wrap_option symbol ; do \
+			echo -n "-Wl,$wrap_option,$symbol " ; \
+		done < $srcdir/src/skins/posix/posix.wrappers`
+fi
+AC_MSG_RESULT(${ac_cv_ld_file_option:-no})
+LD_FILE_OPTION=$ac_cv_ld_file_option
+AC_SUBST(LD_FILE_OPTION)
+
+AC_MSG_CHECKING(whether the POSIX skin library automatically calls mlockall)
+AC_ARG_ENABLE(posix-auto-mlockall,
+	AS_HELP_STRING([--enable-posix-auto-mlockall], [Enable Xenomai POSIX
+skin library to automatically call mlockall at startup. This option is mainly
+useful for running third-parties programs such as the Open Posix Testsuite
+unmodified with Xenomai POSIX skin]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_POSIX_AUTO_MLOCKALL=y ;;
+	*) unset CONFIG_XENO_POSIX_AUTO_MLOCKALL ;;
+	esac])
+AC_MSG_RESULT(${CONFIG_XENO_POSIX_AUTO_MLOCKALL:-no})
+if test x$CONFIG_XENO_POSIX_AUTO_MLOCKALL = xy; then
+	AC_DEFINE(CONFIG_XENO_POSIX_AUTO_MLOCKALL,1,[config])
+fi
+
+AC_MSG_CHECKING(whether the pSOS skin library automatically calls mlockall)
+AC_ARG_ENABLE(psos-auto-mlockall,
+	AS_HELP_STRING([--enable-psos-auto-mlockall], [Enable the
+Xenomai pSOS skin library to automatically call mlockall at
+process startup. Unless this option is switched on, the application
+will have to lock its memory explicitly while initializing.]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_PSOS_AUTO_MLOCKALL=y ;;
+	*) unset CONFIG_XENO_PSOS_AUTO_MLOCKALL ;;
+	esac])
+AC_MSG_RESULT(${CONFIG_XENO_PSOS_AUTO_MLOCKALL:-no})
+if test x$CONFIG_XENO_POSIX_PSOS_MLOCKALL = xy; then
+	AC_DEFINE(CONFIG_XENO_PSOS_AUTO_MLOCKALL,1,[config])
+fi
+
+AC_MSG_CHECKING(whether the uITRON skin library automatically calls mlockall)
+AC_ARG_ENABLE(uitron-auto-mlockall,
+	AS_HELP_STRING([--enable-uitron-auto-mlockall], [Enable the
+Xenomai uITRON skin library to automatically call mlockall at
+process startup. Unless this option is switched on, the application
+will have to lock its memory explicitly while initializing.]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_UITRON_AUTO_MLOCKALL=y ;;
+	*) unset CONFIG_XENO_UITRON_AUTO_MLOCKALL ;;
+	esac])
+AC_MSG_RESULT(${CONFIG_XENO_UITRON_AUTO_MLOCKALL:-no})
+if test x$CONFIG_XENO_POSIX_UITRON_MLOCKALL = xy; then
+	AC_DEFINE(CONFIG_XENO_UITRON_AUTO_MLOCKALL,1,[config])
+fi
+
+save_LIBS="$LIBS"
+LIBS="$LIBS -lrt"
+AC_CHECK_FUNCS([shm_open shm_unlink])
+LIBS="$save_LIBS"
+
+dnl
+dnl Build the Makefiles
+dnl
+
+AC_SUBST(DOXYGEN_SHOW_INCLUDE_FILES)
+AC_SUBST(DOXYGEN_HAVE_DOT)
+AC_SUBST(DOXYGEN)
+AC_SUBST(LATEX_BATCHMODE)
+AC_SUBST(LATEX_MODE)
+
+AC_SUBST(XENO_TARGET_ARCH)
+AC_SUBST(XENO_LINUX_ARCH)
+AC_SUBST(XENO_BUILD_STRING)
+AC_SUBST(XENO_HOST_STRING)
+AC_SUBST(XENO_USER_CFLAGS)
+AC_SUBST(XENO_USER_LDFLAGS)
+AC_SUBST(XENO_USER_APP_CFLAGS)
+AC_SUBST(XENO_USER_APP_LDFLAGS)
+AC_SUBST([CONFIG_STATUS_DEPENDENCIES],
+        ['$(top_srcdir)/src/skins/posix/posix.wrappers'])
+AC_SUBST(XENO_POSIX_WRAPPERS)
+
+base=asm-$XENO_TARGET_ARCH
+AC_CONFIG_LINKS([src/include/asm/xenomai:include/$base])
+base=asm-generic
+AC_CONFIG_LINKS([src/include/$base/xenomai:include/$base])
+
+AC_CONFIG_FILES([ \
+	Makefile \
+	config/Makefile \
+	scripts/Makefile \
+	scripts/xeno-config \
+	scripts/xeno-load \
+	scripts/xeno-test \
+	src/Makefile \
+	src/rtdk/Makefile \
+	src/skins/Makefile \
+       	src/skins/posix/Makefile \
+       	src/skins/native/Makefile \
+       	src/skins/vxworks/Makefile \
+       	src/skins/psos+/Makefile \
+       	src/skins/vrtx/Makefile \
+       	src/skins/rtdm/Makefile \
+       	src/skins/rtai/Makefile \
+       	src/skins/uitron/Makefile \
+	src/include/Makefile \
+       	src/testsuite/Makefile \
+       	src/testsuite/latency/Makefile \
+       	src/testsuite/switchbench/Makefile \
+       	src/testsuite/cyclic/Makefile \
+       	src/testsuite/switchtest/Makefile \
+	src/testsuite/irqbench/Makefile \
+	src/testsuite/clocktest/Makefile \
+	src/utils/Makefile \
+	src/utils/can/Makefile \
+       	include/Makefile \
+       	include/asm-generic/Makefile \
+       	include/asm-generic/bits/Makefile \
+       	include/asm-blackfin/Makefile \
+       	include/asm-blackfin/bits/Makefile \
+       	include/asm-x86/Makefile \
+       	include/asm-x86/bits/Makefile \
+       	include/asm-powerpc/Makefile \
+       	include/asm-powerpc/bits/Makefile \
+       	include/asm-ia64/Makefile \
+       	include/asm-ia64/bits/Makefile \
+       	include/asm-arm/Makefile \
+       	include/asm-arm/bits/Makefile \
+       	include/asm-sim/Makefile \
+       	include/asm-sim/bits/Makefile \
+       	include/native/Makefile \
+       	include/nucleus/Makefile \
+       	include/posix/Makefile \
+       	include/posix/sys/Makefile \
+       	include/psos+/Makefile \
+       	include/rtai/Makefile \
+       	include/rtdm/Makefile \
+       	include/uitron/Makefile \
+       	include/vrtx/Makefile \
+       	include/vxworks/Makefile \
+	])
+
+if test \! x$XENO_MAYBE_DOCDIR = x ; then
+      AC_CONFIG_FILES([ \
+	doc/Makefile \
+	doc/txt/Makefile \
+	doc/man/Makefile \
+	doc/man/runinfo.man \
+	doc/man/xeno-config.man \
+	doc/man/xeno-info.man \
+	doc/man/xeno-load.man \
+	doc/man/xeno-test.man \
+	doc/doxygen/Makefile \
+	doc/doxygen/Doxyfile-common \
+	doc/doxygen/Doxyfile \
+	doc/doxygen/Doxyfile-native \
+	doc/doxygen/Doxyfile-nucleus \
+	doc/doxygen/Doxyfile-posix \
+	doc/doxygen/Doxyfile-rtdm \
+	doc/docbook/Makefile \
+	doc/docbook/catalog \
+	doc/docbook/custom-stylesheets/Makefile \
+	doc/docbook/custom-stylesheets/xsl/Makefile \
+	doc/docbook/custom-stylesheets/xsl/common/Makefile \
+	doc/docbook/custom-stylesheets/xsl/fo/Makefile \
+	doc/docbook/custom-stylesheets/xsl/html/Makefile \
+	doc/docbook/custom-stylesheets/xsl/html/chunk.xsl \
+	doc/docbook/custom-stylesheets/xsl/html/onechunk.xsl \
+	doc/docbook/xenomai/Makefile \
+      ])
+fi
+
+AC_OUTPUT()

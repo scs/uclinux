@@ -1,0 +1,57 @@
+flnx 0.14 - 2 NOV 2000 - jeffm@censoft.com
+
+Step 1: Make sure MicroWindows is compiled for your platform.
+-------------------------------------------------------------
+
+MicroWindows has very good INSTALL instructions.
+
+Step 2: Compile FLNX Fast Light Toolkit.
+----------------------------------------
+
+Here's an example to do the compile:
+
+If you are compiling for strongarm and my microwindows /src directory resides at:
+/home/jeffm/lumberjack/strongarm/microwin/src, my strongarm libs reside at:
+/home/jeffm/lumberjack/strongarm/lib, my strongarm includes reside at:
+/home/jeffm/lumberjack/strongarm/include, and I want to install flnk includes and libs at: 
+/home/jeffm/lumberjack/strongarm, then this would by my configure:
+
+A.	Type: ./configure --with-microwin=/home/jeffm/lumberjack/strongarm/microwin/src
+	--libdir=/home/jeffm/lumberjack/libs/strongarm/lib
+	--includedir=/home/jeffm/lumberjack/strongarm/include
+	--prefix=/home/jeffm/lumberjack/strongarm
+
+	KEY:
+	--with-microwin : Where your MicroWindows src directory resides.
+	--libdir : Where platform libraries reside.
+	--includedir : Where platform includes reside.
+	--prefix : Where your want includes and libs to install
+  	(i.e. the above, --prefix=/home/jeffm/lumberjack/strongarm, will install
+	 /home/jeffm/lumberjack/strongarm/include/FL/*.H,
+	 /home/jeffm/lumberjack/strongarm/lib/libfltk.a, etc.)
+
+B.	If your are cross compiling, set your compiler variables before make. These could include
+	AR, AS, CC, CXX, GXX, LD, NM, RANLIB, or STRIP. For example, if I were compiling for the
+	strongarm platform, I were using the skiff toolchain, and if I were using the bash shell,
+	I would set the variables like this:
+
+		export AR=/skiff/local/bin/arm-linux-ar
+		export AS=/skiff/local/bin/arm-linux-as
+		export CC=/skiff/local/bin/arm-linux-gcc
+		export CXX=/skiff/local/bin/arm-linux-c++
+		export GXX=/skiff/local/bin/arm-linux-g++
+		export LD=/skiff/local/bin/arm-linux-ld
+		export NM=/skiff/local/bin/arm-linux-nm
+		export RANLIB=/skiff/local/bin/arm-linux-ranlib
+		export STRIP=/skiff/local/bin/arm-linux-strip
+
+C.	Type: ./make
+
+Step 3: Test FLNX.
+------------------
+
+Go into your FLNX test subdirectory, which will contain various demos. Type ./demo to
+make sure that it mostly works correctly (i.e. comes up in MicroWindows).
+
+Happy compiling,
+

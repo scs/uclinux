@@ -1,0 +1,26 @@
+2005-08-27 - Version 0.1n
+
+* completely rewrote large parts of the hijacker:
+  - use nice debugging macros
+  - use ELF constructors for init
+  - spew out less debug in normal operation
+  - keep the devices that are not in use closed.
+  - keep track of the supposed soundcard state. Complain if it is not
+    settable.
+  - changed the system() calls to run skype_bt_hijacker_onopen|onclose
+    by default.
+* added nice sample scripts for onopen|onclose
+* included the btsco.diff to detect if the headset is there. Otherwise
+  the aplay for ringing would hang the system.
+* improved skype_pickup.py to deal with call numbers properly.
+
+2005-08-24 - Version 0.1a
+
+* added btscorunner script
+* added ability to run a command on dsp open
+* added skype_pickup.py
+
+2005-08-22 - Version 0.1
+
+* adapted this thing from skype_dsp_hijack by Jan Slupski <jslupski@juljas.net>
+

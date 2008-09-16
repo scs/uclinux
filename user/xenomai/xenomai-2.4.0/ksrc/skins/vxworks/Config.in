@@ -1,0 +1,12 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+dep_tristate 'VxWorks emulator' CONFIG_XENO_SKIN_VXWORKS $CONFIG_XENO_OPT_TIMING_PERIODIC
+
+if [ "$CONFIG_XENO_SKIN_VXWORKS" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'VxWorks interface options'
+	int 'Base period (us)' CONFIG_XENO_OPT_VXWORKS_PERIOD 1000
+	endmenu
+fi

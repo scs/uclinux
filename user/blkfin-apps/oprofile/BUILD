@@ -1,0 +1,1 @@
+CFLAGS=$(CFLAGS)+"-I$(ROOTDIR)/lib/bfd -I$(ROOTDIR)/lib/popt" CXXFLAGS=$(CXXFLAGS)+" -I../../../lib/bfd -I../../../lib/popt" ./configure --with-kernel-support --build=i386-pc-linux-gnu --host=$(CONFIGURE_HOST)

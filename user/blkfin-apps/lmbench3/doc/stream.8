@@ -1,0 +1,28 @@
+.\" $Id: stream.8 1516 2005-11-16 09:47:07Z sonicz $
+.TH stream 8 "$Date: 2005-11-16 17:47:07 +0800 (Wed, 16 Nov 2005) $" "(c)2000 Carl Staelin and Larry McVoy" "LMBENCH"
+.SH NAME
+stream \- John McCalpin's STREAM benchmark
+.SH SYNOPSIS
+.B stream
+[
+.I "-M <len>"
+]
+[
+.I "-W <warmups>"
+]
+[
+.I "-N <repetitions>"
+]
+.SH DESCRIPTION
+.B stream
+mimics John McCalpin's STREAM benchmark.  It measures memory bandwidth.
+.SH BUGS
+.B stream
+is an experimental benchmark, but it seems to work well on most
+systems.  
+.SH "SEE ALSO"
+lmbench(8), bw_mem(8), line(8), tlb(8), cache(8), par_mem(8).
+.SH "AUTHOR"
+Carl Staelin and Larry McVoy
+.PP
+Comments, suggestions, and bug reports are always welcome.

@@ -1,0 +1,37 @@
+The RT-Socket-CAN project is based on the SJA1000 socket-based CAN 
+driver for RTDM by Sebastian Smolorz [1]. Other parts are from the RTnet 
+project [2], especially the device interface, the RTDM serial device 
+driver and profile of Xenomai [3] and from other Open Source CAN driver 
+projects like PCAN [4], the linux-can.patch [5] and Socket-CAN [6].
+
+
+RT-Socket-CAN development team:
+
+Wolfgang Grandegger <wg@grandegger.com>
+Jan Kiszka          <kiszka@rts.uni-hannover.de>
+Sebastian Smolorz   <sebastian.smolorz@stud.uni-hannover.de>
+
+
+[1] http://www.rts.uni-hannover.de/rtaddon/RTDM_CAN_Device_Profile_Doc/index.html
+[2] http://www.rtnet.org
+[3] http://www.xenomai.org
+[4] http://www.peak-system.com/linux/
+[5] http://marc.theaimsgroup.com/?t=111088094000003&r=1&w=2
+[6] http://developer.berlios.de/projects/socketcan/
+
+This file is an attempt to give proper credit to the people who have
+contributed to this project so far. List entries are sorted by name
+and provide the usual tags for automated processing.
+
+N: Wolfgang Grandegger
+E: wg@grandegger.com
+D: Core development.
+
+N: Jan Kiszka
+E: kiszka@rts.uni-hannover.de
+D: Core development.
+
+N: Sebastian Smolorz
+E: sebastian.smolorz@stud.uni-hannover.de
+D: Core development.
+

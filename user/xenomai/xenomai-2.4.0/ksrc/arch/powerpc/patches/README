@@ -1,0 +1,40 @@
+-- arch/powerpc/patches
+
+Xenomai needs special kernel support to deliver fast and deterministic
+response time to external interrupts, and also to provide real-time
+services highly integrated with the standard Linux kernel.
+
+This support is provided by the Adeos real-time enabler [1], in the
+form of a kernel patch you have to apply against a vanilla kernel
+tree, before you attempt to compile the Xenomai codebase against the
+latter kernel.
+
+On the PowerPC 32bit architecture, Xenomai is supported on both the
+v2.4 and v2.6 Linux kernel series, for which the appropriate Adeos
+patches exist. The v2.4 kernel tree of reference for Xenomai/PowerPC
+is available from Denx's public CVS tree as the "linuxppc_2_4_devel"
+branch [2]. For the v2.6 series, Adeos patches are currently based on
+releases from Denx's public GIT tree.
+
+As of 2.6.20, newest Adeos patches are based on the powerpc/ tree,
+instead of the deprecated ppc/ tree. However, a backport of
+2.6.23-2.0-03/powerpc has been made to 2.6.23-1.6-xx/ppc, in order to
+support a number of EVBs (32bit, uniprocessor only) which have not
+been moved to the powerpc/ tree yet.
+
+Patches up to kernel 2.6.21 apply against vanilla releases from
+kernel.org. Patches from kernel 2.6.22 and on apply against milestones
+or snapshots from Denx's public GIT tree [3].
+
+Just apply one of those patches against the corresponding kernel
+release. You may want to have a look at the README.*INSTALL guides at
+the top of the Xenomai tree for more information.
+
+Patch			          Based on commit (from Denx's tree [3])
+------------------------------------------------------------------------
+2.6.23-DENX-1.6-00/ppc		208aa3df8645608ff3febb65f83219173dfe4979
+2.6.23-DENX-2.0-03/powerpc	3e44e7de644b521c5301c806d90da6feb99158d5
+
+[1] http://www.gna.org/projects/adeos/
+[2] http://www.denx.de/en/Software/CVS/
+[3] git://www.denx.de/git/linux-2.6-denx.git

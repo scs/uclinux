@@ -1,0 +1,18 @@
+nxlib is ported from ftp://microwindows.censoft.com/pub/microwindows/nxlib-0.45.tar.gz.
+
+nxlib "allows X11 binaries to run unmodified using the Microwindows Nano-X server".
+
+This porting does not build "StrToText.c" since it includes "wchar.h" and default
+blackfin uclinux toolchain release does not support.
+
+Building this package also requires X11 headers. Those headers are put into nxlib-0.45/X11/.
+
+FLTK is ported from: http://ftp.easysw.com/pub/fltk/1.1.8rc3/fltk-1.1.8rc3-source.tar.gz.
+
+"FLTK is built using the standard X11 headers and libX11.so shared library.
+The NXLIB replacement for libX11.so (named libX11.so.6) is then used to run all
+FLTK test programs successfully without source or binary modification."
+
+"fluid" in FLTK is a UI design tool, which is supposed to run on a host system instead of
+on blackfin uclinux. So it is not built by default. However, you can build fluid on your
+host for UI design.

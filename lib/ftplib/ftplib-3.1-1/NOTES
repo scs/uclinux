@@ -1,0 +1,20 @@
+Some people have complained about how paths specified to qftp end up
+getting transferred to the remote system.  In other words, if I try to
+send a file that is not in my current directory, I have to specify the
+full path of the file as input.  The full path then gets sent to the
+remote system as the desired name.
+
+This is not a bug in ftplib.  This is the desired behavior of qftp.  I
+originally wrote ftplib and qftp to copy my web site from my home linux
+machine to my ISP.  I use the following command to accomplish this:
+
+	find public_html -print | ftpsend my.isp.net -l pfau
+
+find spits out full (relative) paths.  I need these sent as destination
+names at the remote end so that the files end up in the proper
+directories.
+
+Since this is not always desirable, I suppose there should be a mode in
+qftp to strip off just the file name and use that as the destination.
+Alternatively, another command line switch to override the destination
+file name could be specified.
