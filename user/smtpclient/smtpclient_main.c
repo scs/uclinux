@@ -292,7 +292,7 @@ struct option options[] = {
     { "errors-to",    1, NULL, 'e' },
     { "carbon-copy",  1, NULL, 'c' },
     { "smtp-host",    1, NULL, 'S' },
-    { "smtp-port",    1, NULL, 'p' },
+    { "smtp-port",    1, NULL, 'P' },
     { "src-host",     1, NULL, 'H' },
     { "mime-encode",  0, NULL, 'M' },
     { "use-syslog",   0, NULL, 'L' },
