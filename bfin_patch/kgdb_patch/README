@@ -2,11 +2,14 @@
 
 		Sonic Zhang <sonic.zhang@analog.com>
 
-			Apr. 13th 2005
+			Sep. 17th 2008
 
-This KGDB patch should be applied to the uclinux kernel 2.6.x for blackfin
-architecure.  The corresponding GDB client is in the blackfin toolchain 
-project, it should be compiled before you can do the debugging.
+This folder only contains kgdboe patch for KGDB, which hasn't be merged
+into kernel 2.6.26 in current blackfin/uClinux source tree. If you only
+want to debug kernel with UART, you don't need this patch. If you hope
+work with ethernet, you should apply this patch before configure and
+build kernel with KGDB enabled. After we update kernel to 2.6.28 and later,
+all files in this folder can be dropped.
 
-After you apply this patch, you can find a simple guide on how to configure
-kgdb to debug kernel in file linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt .
+You can find a simple guide on how to configure kgdb at:
+http://docs.blackfin.uclinux.org/doku.php?id=linux-kernel:kgdb.
