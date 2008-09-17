@@ -1,0 +1,4 @@
+.config
+.config.old
+.kernelrelease
+_install

@@ -1,0 +1,11 @@
+# Ignore temporary files not cleaned up by make clean
+bfin-linux-uclibc-cpp
+bfin-linux-uclibc-g++
+bfin-linux-uclibc-gcc
+bfin-linux-uclibc-ld
+bfin-uclinux-cpp
+bfin-uclinux-g++
+bfin-uclinux-gcc
+bfin-uclinux-ld
+cksum
+bfin-linux-uclibc-pkg-config
