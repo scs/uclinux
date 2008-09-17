@@ -20,7 +20,7 @@ incr case_num
 set timeout 8
 set flag 0
 
-send "cd /bin\r" 
+send -s "cd /bin\r" 
 while 1 {
    expect {
       "bin" {
