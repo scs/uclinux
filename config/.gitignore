@@ -1,0 +1,4 @@
+# Ignore temporary files not cleaned up by make clean
+.config
+.config.old
+autoconf.h
