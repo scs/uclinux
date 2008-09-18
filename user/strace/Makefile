@@ -1,4 +1,4 @@
-VER = strace-4.5.15
+VER = strace-4.5.18
 
 FLTFLAGS = -s 20000
 
