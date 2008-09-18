@@ -234,6 +234,15 @@
  		int i;
 --- strace-4.5.15/configure.ac
 +++ strace-4.5.15/configure.ac
+@@ -9,7 +9,7 @@
+ 
+ AC_MSG_CHECKING([for supported operating system])
+ case "$host_os" in
+-linux*)
++*linux*)
+ 	opsys=linux
+ 	AC_DEFINE([LINUX], 1, [Define for the Linux operating system.])
+ 	;;
 @@ -43,6 +43,10 @@
  
  AC_MSG_CHECKING([for supported architecture])
