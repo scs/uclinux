@@ -148,7 +148,7 @@
  	}
 +#elif defined (BFIN)
 +	if (ptrace(PTRACE_GETREGS, pid, NULL, (void *)&regs) == -1)
-+                return -1;
++		return -1;
 +	scno = regs.p0;
 +
  #elif defined (I386)
@@ -160,7 +160,7 @@
  	 */
 +#elif defined (BFIN)
 +	if (ptrace(PTRACE_GETREGS, pid, NULL, (void *)&regs) == -1)
-+                return -1;
++		return -1;
  #elif defined (HPPA)
  	if (upeek(pid, PT_GR28, &r28) < 0)
  		return -1;
@@ -188,7 +188,7 @@
  #endif /* M68K */
  #endif /* POWERPC */
  #endif /* MIPS */
-@@ -1735,6 +1758,12 @@
+@@ -1735,6 +1758,11 @@
  	if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)(RAX * 8), rax) < 0)
  		return -1;
  #else
@@ -196,8 +196,7 @@
 +	regs.r0 = error ? -error : rval;
 +	if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)PT_R0, regs.r0) < 0)
 +		return -1;
-+
-+#else/*!BFIN*/
++#else
  #ifdef IA64
  	if (ia32) {
  		r8 = error ? -error : rval;
@@ -241,8 +240,8 @@
  case "$host_cpu" in
 +bfin)
 +	arch=bfin
-+	AC_DEFINE([BFIN], 1, [Define for the blackfin architecture.])
-+        ;;
++	AC_DEFINE([BFIN], 1, [Define for the Blackfin architecture.])
++	;;
  i[[3456]]86|pentium)
  	arch=i386
  	AC_DEFINE([I386], 1, [Define for the i386 architecture.])
