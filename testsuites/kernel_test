@@ -1505,7 +1505,7 @@ fi
   cd  $UCLINUX_DIST_TESTSUITES/serial
   ./build_serial_uart1_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
-  ./serial_uart1_test.exp /dev/ttyS1 >/dev/null  2>&1
+  ./serial_uart1_test.exp /dev/ttyBF1 >/dev/null  2>&1
   
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.serial_uart1
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.serial_uart1

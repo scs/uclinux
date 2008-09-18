@@ -71,7 +71,7 @@ sleep 5
 
 spawn  /bin/sh
 set telnet_id $spawn_id
-expect  $sh_prompt
+expect  -re  $sh_prompt
 
 send -s "telnet $targetip\r"
 while 1 {
@@ -104,12 +104,12 @@ while 1 {
 
 spawn /bin/sh
 set host_sh_id $spawn_id
-expect  $sh_prompt
+expect  -re  $sh_prompt
 
 while 1 {
 send -s " echo $STRDATA > $ttydev  \r"
 expect {
-        "$sh_prompt" { 
+        -re  "$sh_prompt" { 
           break }
          timeout {
           puts " send data failed...\n"
@@ -151,11 +151,11 @@ while 1 {
 set spawn_id $host_sh_id
 sleep 3
 send "ls\r"
-expect "$sh_prompt"
+expect -re  "$sh_prompt"
 while 1 {
 send -s "cat $ttydev > $file \r"
 expect {
-        "$sh_prompt" {
+        -re  "$sh_prompt" {
           puts "Fail to cat on host.\n"
           break }
          timeout {
@@ -181,7 +181,7 @@ set spawn_id $host_sh_id
 sleep 3
 while 1 {
 expect {
-        "$sh_prompt" {
+        -re  "$sh_prompt" {
           puts "Fail to wait.\n"
           break }
          timeout {
@@ -193,7 +193,7 @@ expect {
 send -s "\3"
 while 1 {
 expect {
-        "$sh_prompt" {
+        -re  "$sh_prompt" {
           break }
          timeout {
           puts "Failed to come out.\n"
@@ -204,7 +204,7 @@ expect {
 send -s "cat $file \r"
 while 1 {
 expect {
-       "$sh_prompt" {
+       -re  "$sh_prompt" {
          break}
         timeout {
          puts "Failed to cat file.\n"}
@@ -222,7 +222,7 @@ expect {
 }
 }
 expect {
-       "$sh_prompt" {
+       -re  "$sh_prompt" {
           puts "finish dos2unix.\n"
         }
 }
@@ -230,7 +230,7 @@ expect {
 send -s "rcp root@$targetip:/etc/boa.conf . \r"
 while 1 {
 expect {
-       "$sh_prompt" {
+       -re  "$sh_prompt" {
          puts "Copy file.\n"
          break}
         timeout {
@@ -241,12 +241,11 @@ expect {
 send -s "diff -u $file boa.conf \r"
 while 1 {
 expect {
-         "\+\+\+*[
-          ]$sh_prompt" {
+         -re "\\\+\\\+\\\+.*\[\r\n]$sh_prompt" {
                          puts "\nTwo files diffs. $expect_out(0,string)\n"
                          case_fail $case_num
                           }
-          "$sh_prompt" 
+          -re  "$sh_prompt" 
                       {
                         puts "Success case.\n"
                         case_pass $case_num

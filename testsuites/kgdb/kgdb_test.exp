@@ -22,13 +22,13 @@ global gdb_id
 global sh_prompt
 
 spawn /bin/sh
-expect $sh_prompt
+expect -re  $sh_prompt
 
 set timeout 5
 send -s "ps aux | grep bfin-uclinux-gdb\r"
 while 1 {
    expect {
-     $sh_prompt {
+     -re  $sh_prompt {
          break
       }
 
@@ -41,7 +41,7 @@ while 1 {
 send -s "kill -9 `pidof  bfin-uclinux-gdb`\r"
 while 1 {
    expect {
-     $sh_prompt {
+     -re  $sh_prompt {
          break
       }
 
