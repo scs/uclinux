@@ -29,15 +29,6 @@
  	$(SHELL) $< $(IOCTLDIR) $(IOCTLASM)
 --- strace-4.5.18/configure.ac
 +++ strace-4.5.18/configure.ac
-@@ -9,7 +9,7 @@ AC_CANONICAL_HOST
- 
- AC_MSG_CHECKING([for supported operating system])
- case "$host_os" in
--linux*)
-+*linux*)
- 	opsys=linux
- 	AC_DEFINE([LINUX], 1, [Define for the Linux operating system.])
- 	;;
 @@ -43,6 +43,10 @@ AC_MSG_RESULT($opsys)
  
  AC_MSG_CHECKING([for supported architecture])
@@ -61,16 +52,17 @@
 +#endif
 --- strace-4.5.18/process.c
 +++ strace-4.5.18/process.c
-@@ -750,6 +750,9 @@ int new;
- 		return -1;
- 
-        return 0;
+@@ -742,6 +742,10 @@ int new;
+ 	if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)(REG_A3), new)<0)
+ 	    	return -1;
+ 	return 0;
 +#elif defined(BFIN)
-+	printf("not implemented!\n");
++	if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)(REG_P0), new)<0)
++		return -1;
 +	return 0;
- #else
- #warning Do not know how to handle change_syscall for this architecture
- #endif /* architecture */
+ #elif defined(IA64)
+ 	if (ia32) {
+ 		switch (new) {
 @@ -3004,7 +3007,7 @@ const struct xlat struct_user_offsets[] = {
  	{ 70,			"fpeir"					},
  #endif
@@ -89,35 +81,6 @@
  	{ uoff(u_fpstate),	"offsetof(struct user, u_fpstate)"	},
  #endif
  	{ uoff(magic),		"offsetof(struct user, magic)"		},
---- strace-4.5.18/strace.c
-+++ strace-4.5.18/strace.c
-@@ -523,7 +523,11 @@ startup_child (char **argv)
- 			progname, filename);
- 		exit(1);
- 	}
-+#ifdef BFIN
-+	switch (pid = vfork()) {
-+#else
- 	switch (pid = fork()) {
-+#endif
- 	case -1:
- 		perror("strace: fork");
- 		cleanup();
-@@ -586,12 +590,14 @@ startup_child (char **argv)
- 		else
- 			setreuid(run_uid, run_uid);
- 
-+#ifndef BFIN /* cannot do sigstop on ourselves in vfork() */
- 		/*
- 		 * Induce an immediate stop so that the parent
- 		 * will resume us with PTRACE_SYSCALL and display
- 		 * this execve call normally.
- 		 */
- 		kill(getpid(), SIGSTOP);
-+#endif
- #endif /* !USE_PROCFS */
- 
- 		execv(pathname, argv);
 --- strace-4.5.18/syscall.c
 +++ strace-4.5.18/syscall.c
 @@ -748,6 +748,8 @@ internal_syscall(struct tcb *tcp)
