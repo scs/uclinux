@@ -118,7 +118,7 @@ ret=0
 
 # easy: output is exactly what we want
 ebegin "errno list"
-./errnoent.sh "$ksrc/include/linux"/*errno*.h "$ksrc/include/asm-generic"/*errno*.h "$ksrc/include/asm-$karch"/*errno*.h > errnoent.h
+sh ./errnoent.sh "$ksrc/include/linux"/*errno*.h "$ksrc/include/asm-generic"/*errno*.h "$ksrc/include/asm-$karch"/*errno*.h > errnoent.h
 cmp -s errnoent.h $(get_header errnoent.h)
 eend $? errnoent.h
 
@@ -127,7 +127,7 @@ eend $? errnoent.h
 # ioctls have been *added*.  we'll keep around the old ones forever
 # in case someone runs an old binary with the old ioctl.
 ebegin "ioctl list"
-./linux/ioctlent.sh "$ksrc/include" "asm-$karch" | grep -v '^Looking for '
+sh ./linux/ioctlent.sh "$ksrc/include" "asm-$karch" | grep -v '^Looking for '
 ${BUILD_CC:-${CC:-gcc}} -E -dD -I. -Wall linux/ioctlsort.c -o ioctlsort.i
 ${BUILD_CC:-${CC:-gcc}} -Wall ioctlsort.i -o ioctlsort
 ./ioctlsort > ioctlent.h
@@ -136,7 +136,7 @@ eend $? ioctlent.h ioctlsort ioctlsort.i ioctls.h ioctldefs.h
 
 # easy: output is exactly what we want
 ebegin "signal list"
-./signalent.sh "$ksrc/include/asm-$karch/signal.h" > signalent.h
+sh ./signalent.sh "$ksrc/include/asm-$karch/signal.h" > signalent.h
 cmp -s signalent.h $(get_header signalent.h)
 eend $? signalent.h
 
@@ -145,7 +145,7 @@ eend $? signalent.h
 # the number of syscalls found as we'll assume that the syscall list is forever
 # locked in stone and thus will only ever increase over time.
 ebegin "syscall list"
-./syscallent.sh "$ksrc/include/asm-$karch/unistd.h" > syscallent.h
+sh ./syscallent.sh "$ksrc/include/asm-$karch/unistd.h" > syscallent.h
 knr=$(set -- $(wc -l syscallent.h); echo $1)
 snr=$(grep '^[[:space:]]{' $(get_header syscallent.h) | wc -l)
 [ ${knr} -eq ${snr} ]
