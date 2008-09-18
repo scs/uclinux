@@ -191,6 +191,27 @@ foobar()
 #endif /* MIPS */
 #endif /* SVR4 */
 
+/*
+ * Glue for systems without a MMU that cannot provide fork().  Cannot
+ * be a real function as vfork()-ed children may not return from the
+ * function in which they were created (due to shared stack w/parent).
+ */
+#ifdef HAVE_FORK
+static bool strace_vforked = false;
+#define strace_fork() \
+({ \
+	pid_t __child_pid = fork(); \
+	if (__child_pid == -1 && errno == ENOSYS) { \
+		strace_vforked = 1; \
+		__child_pid = vfork(); \
+	} \
+	__child_pid; \
+})
+#else
+# define strace_vforked true
+# define strace_fork() vfork()
+#endif
+
 static int
 set_cloexec_flag(int fd)
 {
@@ -293,7 +314,7 @@ strace_popen(const char *command)
 		return NULL;
 	}
 
-	if ((popen_pid = fork()) == -1)
+	if ((popen_pid = strace_fork()) == -1)
 	{
 		fprintf(stderr, "%s: fork: %s\n",
 			progname, strerror(errno));
@@ -523,11 +544,7 @@ startup_child (char **argv)
 			progname, filename);
 		exit(1);
 	}
-#ifdef BFIN
-	switch (pid = vfork()) {
-#else
-	switch (pid = fork()) {
-#endif
+	switch (pid = strace_fork()) {
 	case -1:
 		perror("strace: fork");
 		cleanup();
@@ -590,14 +607,15 @@ startup_child (char **argv)
 		else
 			setreuid(run_uid, run_uid);
 
-#ifndef BFIN /* cannot do sigstop on ourselves in vfork() */
 		/*
 		 * Induce an immediate stop so that the parent
 		 * will resume us with PTRACE_SYSCALL and display
 		 * this execve call normally.
+		 * Unless of course we're on a no-MMU system where
+		 * we vfork()-ed, so we cannot stop the child.
 		 */
-		kill(getpid(), SIGSTOP);
-#endif
+		if (!strace_vforked)
+			kill(getpid(), SIGSTOP);
 #endif /* !USE_PROCFS */
 
 		execv(pathname, argv);
