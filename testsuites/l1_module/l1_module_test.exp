@@ -110,11 +110,7 @@ set spawn_id $kermit_spawn_id
 send "insmod hello.ko\r" 
 while 1 {   
          expect {
-	  "code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]*\[
-	   ]*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 0*\[
-	   ]*bss  variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0*\[
-	   ]*data variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 0*\[
-	   ]*bss  variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0" {
+	  "code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*\[\r\n].*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 0.*\[\r\n].*bss  variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0.*\[\r\n].*data variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 0.*\[\r\n].*bss  variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0" {
                 case_pass $case_num
 		break
 	 }
