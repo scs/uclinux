@@ -241,6 +241,7 @@ image.uimage.initramfs:
 	cp $(LINUXBOOTDIR)/vmImage $(IMAGE_UIMAGE_BASE).initramfs.gz
 	cp $(ROOTDIR)/$(LINUXDIR)/System.map $(IMAGEDIR)/System.map.initramfs.gz
 	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGE_KERNEL_BASE).initramfs.gz
+	$(STRIP) -g $(IMAGE_KERNEL_BASE).initramfs.gz
 	ln -sf linux.initramfs.gz $(IMAGE_KERNEL_BASE)
 
 # then one set with the rootfs uncompressed (since u-boot images do compression)
@@ -252,6 +253,7 @@ image.uimage.initramfs:
 	cp $(LINUXBOOTDIR)/vmImage $(IMAGE_UIMAGE_BASE).initramfs
 	cp $(ROOTDIR)/$(LINUXDIR)/System.map $(IMAGEDIR)/System.map.initramfs
 	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGE_KERNEL_BASE).initramfs
+	$(STRIP) -g $(IMAGE_KERNEL_BASE).initramfs
 	ln -sf uImage.initramfs $(IMAGE_UIMAGE_BASE)
 
 .PHONY: image.uimage.romfs image.uimage.romfs.force
