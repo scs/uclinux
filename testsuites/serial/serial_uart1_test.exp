@@ -241,6 +241,52 @@ expect {
                         }   
          }
 }
+
+step "Convert the console to ttyBF1."
+
+set spawn_id $target_id
+append bootargs_param7 " console=$ttyBFdev"
+set bootargs             $bootargs_param7
+source ../reboot_kernel.exp
+
+set timeout 3
+incr case_num
+
+    send -s "\x81"
+    send -s "c"
+    while 1 {
+        expect {
+            "ermit>" {
+                send -s "set line $ttyUSBdev\r"
+                set back_flag SUCCESS
+                break
+            }
+
+            timeout {
+                send_user "ERROR: back to kermit error\n"
+                break
+            }
+        }
+    }
+    send -s "connect\r"
+    send -s "\r"
+    while 1 {
+        expect {
+            -re "$kernel_prompt" {
+                case_pass $case_num
+                set close_flag SUCCESS
+                break
+            }
+
+            timeout {
+                case_fail $case_num
+                send_user "The console is not active.\n"
+                exit
+            }
+        }
+}
+
+
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
