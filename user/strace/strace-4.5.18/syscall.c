@@ -904,6 +904,9 @@ struct tcb *tcp;
 #elif defined(BFIN)
 	if (upeek(pid, PT_P0, &scno))
 		return -1;
+	/* Check if we return from execve. */
+	if (tcp->flags & TCB_WAITEXECVE && tcp->flags & TCB_INSYSCALL)
+		tcp->flags &= ~(TCB_INSYSCALL | TCB_WAITEXECVE);
 #elif defined (I386)
 	if (upeek(pid, 4*ORIG_EAX, &scno) < 0)
 		return -1;
@@ -2590,9 +2593,6 @@ trace_syscall(struct tcb *tcp)
 		sys_res = (*sysent[tcp->scno].sys_func)(tcp);
 	if (fflush(tcp->outf) == EOF)
 		return -1;
-#ifdef BFIN	/* HACK: wtf, execve() ptrace doesnt finish */
-	if (tcp->scno != SYS_execve)
-#endif
 	tcp->flags |= TCB_INSYSCALL;
 	/* Measure the entrance time as late as possible to avoid errors. */
 	if (dtime)
