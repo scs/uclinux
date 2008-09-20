@@ -905,7 +905,8 @@ struct tcb *tcp;
 	if (upeek(pid, PT_P0, &scno))
 		return -1;
 	/* Check if we return from execve. */
-	if (tcp->flags & TCB_WAITEXECVE && tcp->flags & TCB_INSYSCALL)
+	if ((tcp->flags & TCB_WAITEXECVE && tcp->flags & TCB_INSYSCALL)
+	    || tcp->scno > 0x3000 /* FDPIC HACK */)
 		tcp->flags &= ~(TCB_INSYSCALL | TCB_WAITEXECVE);
 #elif defined (I386)
 	if (upeek(pid, 4*ORIG_EAX, &scno) < 0)
