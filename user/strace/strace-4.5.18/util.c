@@ -693,11 +693,6 @@ long addr;
 int len;
 char *laddr;
 {
-#ifdef BFIN
-	if (!addr)
-		return -1;
-	memcpy (laddr, (void *)addr, len);
-#else
 #ifdef LINUX
 	int pid = tcp->pid;
 	int n, m;
@@ -806,7 +801,7 @@ char *laddr;
 	if (read(fd, laddr, len) == -1)
 		return -1;
 #endif /* USE_PROCFS */
-#endif
+
 	return 0;
 }
 
@@ -821,10 +816,6 @@ long addr;
 int len;
 char *laddr;
 {
-#if defined BFIN
-	strncpy (laddr, (char *)addr, len);
-	laddr[len - 1] = '\0';
-#else
 #ifdef USE_PROCFS
 #ifdef HAVE_MP_PROCFS
 	int fd = tcp->pfd_as;
@@ -906,7 +897,6 @@ char *laddr;
 		addr += sizeof(long), laddr += m, len -= m;
 	}
 #endif /* !USE_PROCFS */
-#endif
 	return 0;
 }
 
