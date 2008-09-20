@@ -1,4 +1,4 @@
-VER = gmp-4.2.3
+VER = gmp-4.2.4
 
 include $(ROOTDIR)/tools/autotools.mk
 
