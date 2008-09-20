@@ -2199,15 +2199,12 @@ struct tcb *tcp;
 #elif defined(BFIN)
 	{
 		int i;
-		int argreg[MAX_ARGS] = {PT_R0, PT_R1, PT_R2, PT_R3, PT_R4, PT_R5};
+		int argreg[] = {PT_R0, PT_R1, PT_R2, PT_R3, PT_R4, PT_R5};
 
 		if (tcp->scno >= 0 && tcp->scno < nsyscalls && sysent[tcp->scno].nargs != -1)
 			tcp->u_nargs = sysent[tcp->scno].nargs;
 		else
-			tcp->u_nargs = MAX_ARGS;
-
-		if (tcp->u_nargs > 6)
-			return -1;
+			tcp->u_nargs = sizeof(argreg) / sizeof(argreg[0]);
 
 		for (i = 0; i < tcp->u_nargs; ++i)
 			if (upeek(pid, argreg[i], &tcp->u_arg[i]) < 0)
