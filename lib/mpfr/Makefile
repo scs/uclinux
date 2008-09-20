@@ -1,4 +1,4 @@
-VER = mpfr-2.3.1
+VER = mpfr-2.3.2
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
