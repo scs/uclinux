@@ -1077,6 +1077,9 @@ struct tcb *tcp;
 #elif defined(ARM)
 	if (upeek(tcp->pid, 4*15, &pc) < 0)
 		return -1;
+#elif defined(BFIN)
+	if (upeek(tcp->pid, REG_PC, &pc) < 0)
+		return -1;
 #elif defined(POWERPC)
 	if (upeek(tcp->pid, sizeof(unsigned long)*PT_NIP, &pc) < 0)
 		return -1;
@@ -1250,6 +1253,14 @@ struct tcb *tcp;
 	long pc;
 
 	if (upeek(tcp->pid, 4*15, &pc) < 0) {
+		PRINTBADPC;
+		return;
+	}
+	tprintf("[%08lx] ", pc);
+#elif defined(BFIN)
+	long pc;
+
+	if (upeek(tcp->pid, PT_PC, &pc) < 0) {
 		PRINTBADPC;
 		return;
 	}
