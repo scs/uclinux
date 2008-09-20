@@ -187,9 +187,9 @@
 	{ 3,	0,	sys_sched_setscheduler,	"sched_setscheduler"	}, /* 156 */
 	{ 1,	0,	sys_sched_getscheduler,	"sched_getscheduler"	}, /* 157 */
 	{ 0,	0,	sys_sched_yield,	"sched_yield"	}, /* 158 */
-	{ 1,	0,	sys_sched_get_priority_max,"sched_get_priority_max"	}, /* 159 */
-	{ 1,	0,	sys_sched_get_priority_min,"sched_get_priority_min"	}, /* 160 */
-	{ 2,	0,	sys_sched_rr_get_interval,"sched_rr_get_interval"	}, /* 161 */
+	{ 1,	0,	sys_sched_get_priority_max,	"sched_get_priority_max"	}, /* 159 */
+	{ 1,	0,	sys_sched_get_priority_min,	"sched_get_priority_min"	}, /* 160 */
+	{ 2,	0,	sys_sched_rr_get_interval,	"sched_rr_get_interval"	}, /* 161 */
 	{ 2,	0,	sys_nanosleep,		"nanosleep"	}, /* 162 */
 	{ 4,	0,	sys_mremap,		"mremap"	}, /* 163 */
 	{ 3,	0,	sys_setresuid,		"setresuid"	}, /* 164 */
@@ -202,15 +202,15 @@
 	{ 3,	0,	sys_getresgid,		"getresgid"	}, /* 171 */
 	{ 5,	0,	printargs,		"prctl"		}, /* 172 */
 	{ 1,	TS,	printargs,		"rt_sigreturn"	}, /* 173 */
-	{ 4,	TS,	sys_rt_sigaction,	"rt_sigaction"  }, /* 174 */
+	{ 4,	TS,	sys_rt_sigaction,	"rt_sigaction"	}, /* 174 */
 	{ 4,	TS,	sys_rt_sigprocmask,	"rt_sigprocmask"	}, /* 175 */
 	{ 2,	TS,	sys_rt_sigpending,	"rt_sigpending"	}, /* 176 */
 	{ 4,	TS,	sys_rt_sigtimedwait,	"rt_sigtimedwait"	}, /* 177 */
-	{ 3,	TS,	sys_rt_sigqueueinfo,    "rt_sigqueueinfo"	}, /* 178 */
+	{ 3,	TS,	sys_rt_sigqueueinfo,	"rt_sigqueueinfo"	}, /* 178 */
 	{ 2,	TS,	sys_rt_sigsuspend,	"rt_sigsuspend"	}, /* 179 */
 	{ 5,	TD,	sys_pread,		"pread", SYS_read }, /* 180 */
 	{ 5,	TD,	sys_pwrite,		"pwrite", SYS_write }, /* 181 */
-	{ 3,	TF,	sys_chown,		"lchown"		}, /* 182 */
+	{ 3,	TF,	sys_chown,		"lchown"	}, /* 182 */
 	{ 2,	TF,	sys_getcwd,		"getcwd"	}, /* 183 */
 	{ 2,	0,	sys_capget,		"capget"	}, /* 184 */
 	{ 2,	0,	sys_capset,		"capset"	}, /* 185 */
@@ -374,11 +374,11 @@
 	{ 4,	TD,	printargs,		"sync_file_range"	}, /* 343 */
 	{ 4,	TD,	printargs,		"tee"		}, /* 344 */
 	{ 4,	TD,	printargs,		"vmsplice"	}, /* 345 */
-	{ 5,	TD,	printargs /*sys_epoll_pwait*/,	"epoll_pwait"	}, /* 346 */
-	{ 4,	TD|TF,	printargs /*sys_utimensat*/,		"utimensat"	}, /* 347 */
-	{ 3,	TD|TS,	printargs /*sys_signalfd*/,		"signalfd"	}, /* 348 */
-	{ 2,	TD,	printargs /*sys_timerfd*/,		"timerfd_create"	}, /* 349 */
-	{ 1,	TD,	printargs /*sys_eventfd*/,		"eventfd"	}, /* 350 */
+	{ 5,	TD,	sys_epoll_pwait,	"epoll_pwait"	}, /* 346 */
+	{ 4,	TD|TF,	sys_utimensat,		"utimensat"	}, /* 347 */
+	{ 3,	TD|TS,	sys_signalfd,		"signalfd"	}, /* 348 */
+	{ 2,	TD,	sys_timerfd,		"timerfd_create"	}, /* 349 */
+	{ 1,	TD,	sys_eventfd,		"eventfd"	}, /* 350 */
 	{ 5,	0,	sys_pread,		"pread64"	}, /* 351 */
 	{ 5,	0,	sys_pwrite,		"pwrite64"	}, /* 352 */
 	{ 5,	0,	sys_fadvise64,		"fadvise64"	}, /* 353 */
@@ -387,5 +387,5 @@
 	{ 4,	0,	printargs,		"fallocate"	}, /* 356 */
 	{ 5,	TI,	sys_semtimedop,		"semtimedop"	}, /* 357 */
 	{ 7,	0,	printargs,		"syscall"	}, /* 358 */
-	{ 4,	TD,	printargs,	"timerfd_settime"}, /* 358 */
-	{ 2,	TD,	printargs,	"timerfd_gettime"}, /* 359 */
+	{ 4,	TD,	printargs,	"timerfd_settime"	}, /* 358 */
+	{ 2,	TD,	printargs,	"timerfd_gettime"	}, /* 359 */
