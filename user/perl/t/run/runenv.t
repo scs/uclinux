@@ -14,15 +14,21 @@ BEGIN {
     }
 }
 
+use Test;
+
+plan tests => 17;
+
 my $STDOUT = './results-0';
 my $STDERR = './results-1';
-my $PERL = './perl';
+my $PERL = $ENV{PERL} || './perl';
 my $FAILURE_CODE = 119;
 
-print "1..9\n";
+delete $ENV{PERLLIB};
+delete $ENV{PERL5LIB};
+delete $ENV{PERL5OPT};
 
 # Run perl with specified environment and arguments returns a list.
-# First element is true iff Perl's stdout and stderr match the
+# First element is true if Perl's stdout and stderr match the
 # supplied $stdout and $stderr argument strings exactly.
 # second element is an explanation of the failure
 sub runperl {
@@ -33,6 +39,10 @@ sub runperl {
 
   $stdout = '' unless defined $stdout;
   $stderr = '' unless defined $stderr;
+  local %ENV = %ENV;
+  delete $ENV{PERLLIB};
+  delete $ENV{PERL5LIB};
+  delete $ENV{PERL5OPT};
   my $pid = fork;
   return (0, "Couldn't fork: $!") unless defined $pid;   # failure
   if ($pid) {                   # parent
@@ -70,19 +80,14 @@ sub it_didnt_work {
 }
 
 sub try {
-  my $testno = shift;
   my ($success, $reason) = runperl(@_);
-  if ($success) {
-    print "ok $testno\n";
-  } else {
-    $reason =~ s/\n/\\n/g;
-    print "not ok $testno # $reason\n";    
-  }
+  $reason =~ s/\n/\\n/g if defined $reason;
+  ok( !!$success, 1, $reason );
 }
 
 #  PERL5OPT    Command-line options (switches).  Switches in
 #                    this variable are taken as if they were on
-#                    every Perl command line.  Only the -[DIMUdmw]
+#                    every Perl command line.  Only the -[DIMUdmtw]
 #                    switches are allowed.  When running taint
 #                    checks (because the program was running setuid
 #                    or setgid, or the -T switch was used), this
@@ -90,25 +95,24 @@ sub try {
 #                    -T, tainting will be enabled, and any
 #                    subsequent options ignored.
 
-my  $T = 1;
-try($T++, {PERL5OPT => '-w'}, ['-e', 'print $::x'],
+try({PERL5OPT => '-w'}, ['-e', 'print $::x'],
     "", 
     qq{Name "main::x" used only once: possible typo at -e line 1.\nUse of uninitialized value in print at -e line 1.\n});
 
-try($T++, {PERL5OPT => '-Mstrict'}, ['-e', 'print $::x'],
+try({PERL5OPT => '-Mstrict'}, ['-e', 'print $::x'],
     "", "");
 
-try($T++, {PERL5OPT => '-Mstrict'}, ['-e', 'print $x'],
+try({PERL5OPT => '-Mstrict'}, ['-e', 'print $x'],
     "", 
     qq{Global symbol "\$x" requires explicit package name at -e line 1.\nExecution of -e aborted due to compilation errors.\n});
 
 # Fails in 5.6.0
-try($T++, {PERL5OPT => '-Mstrict -w'}, ['-e', 'print $x'],
+try({PERL5OPT => '-Mstrict -w'}, ['-e', 'print $x'],
     "", 
     qq{Global symbol "\$x" requires explicit package name at -e line 1.\nExecution of -e aborted due to compilation errors.\n});
 
 # Fails in 5.6.0
-try($T++, {PERL5OPT => '-w -Mstrict'}, ['-e', 'print $::x'],
+try({PERL5OPT => '-w -Mstrict'}, ['-e', 'print $::x'],
     "", 
     <<ERROR
 Name "main::x" used only once: possible typo at -e line 1.
@@ -117,7 +121,7 @@ ERROR
     );
 
 # Fails in 5.6.0
-try($T++, {PERL5OPT => '-w -Mstrict'}, ['-e', 'print $::x'],
+try({PERL5OPT => '-w -Mstrict'}, ['-e', 'print $::x'],
     "", 
     <<ERROR
 Name "main::x" used only once: possible typo at -e line 1.
@@ -125,21 +129,63 @@ Use of uninitialized value in print at -e line 1.
 ERROR
     );
 
-try($T++, {PERL5OPT => '-MExporter'}, ['-e0'],
+try({PERL5OPT => '-MExporter'}, ['-e0'],
     "", 
     "");
 
 # Fails in 5.6.0
-try($T++, {PERL5OPT => '-MExporter -MExporter'}, ['-e0'],
+try({PERL5OPT => '-MExporter -MExporter'}, ['-e0'],
     "", 
     "");
 
-try($T++, {PERL5OPT => '-Mstrict -Mwarnings'}, 
+try({PERL5OPT => '-Mstrict -Mwarnings'}, 
     ['-e', 'print "ok" if $INC{"strict.pm"} and $INC{"warnings.pm"}'],
     "ok",
     "");
 
-print "# ", $T-1, " tests total.\n";
+try({PERL5OPT => '-w -w'},
+    ['-e', 'print $ENV{PERL5OPT}'],
+    '-w -w',
+    '');
+
+try({PERL5OPT => '-t'},
+    ['-e', 'print ${^TAINT}'],
+    '-1',
+    '');
+
+try({PERLLIB => "foobar$Config{path_sep}42"},
+    ['-e', 'print grep { $_ eq "foobar" } @INC'],
+    'foobar',
+    '');
+
+try({PERLLIB => "foobar$Config{path_sep}42"},
+    ['-e', 'print grep { $_ eq "42" } @INC'],
+    '42',
+    '');
+
+try({PERL5LIB => "foobar$Config{path_sep}42"},
+    ['-e', 'print grep { $_ eq "foobar" } @INC'],
+    'foobar',
+    '');
+
+try({PERL5LIB => "foobar$Config{path_sep}42"},
+    ['-e', 'print grep { $_ eq "42" } @INC'],
+    '42',
+    '');
+
+try({PERL5LIB => "foo",
+     PERLLIB => "bar"},
+    ['-e', 'print grep { $_ eq "foo" } @INC'],
+    'foo',
+    '');
+
+try({PERL5LIB => "foo",
+     PERLLIB => "bar"},
+    ['-e', 'print grep { $_ eq "bar" } @INC'],
+    '',
+    '');
+
+# PERL5LIB tests with included arch directories still missing
 
 END {
     1 while unlink $STDOUT;

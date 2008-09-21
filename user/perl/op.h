@@ -1,6 +1,7 @@
 /*    op.h
  *
- *    Copyright (c) 1991-2001, Larry Wall
+ *    Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+ *    2000, 2001, 2002, 2003, 2004, 2005 by Larry Wall and others
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -22,9 +23,6 @@
  *			the operation is privatized by a check routine,
  *			which may or may not check number of children).
  */
-
-typedef U32 PADOFFSET;
-#define NOT_IN_PAD ((PADOFFSET) -1)
 
 #ifdef DEBUGGING_OPS
 #define OPCODE opcode
@@ -53,6 +51,8 @@ typedef U32 PADOFFSET;
 	 dfl)
 
 /*
+=head1 "Gimme" Values
+
 =for apidoc Amn|U32|GIMME_V
 The XSUB-writer's equivalent to Perl's C<wantarray>.  Returns C<G_VOID>,
 C<G_SCALAR> or C<G_ARRAY> for void, scalar or list context,
@@ -96,6 +96,12 @@ Deprecated.  Use C<GIMME_V> instead.
 				/*  On OP_ENTERITER, loop var is per-thread */
 				/*  On pushre, re is /\s+/ imp. by split " " */
 				/*  On regcomp, "use re 'eval'" was in scope */
+				/*  On OP_READLINE, was <$filehandle> */
+				/*  On RV2[ACGHS]V, don't create GV--in
+				    defined()*/
+				/*  On OP_DBSTATE, indicates breakpoint
+				 *    (runtime property) */
+				/*  On OP_AELEMFAST, indiciates pad var */
 
 /* old names; don't use in new code, but don't break them, either */
 #define OPf_LIST	OPf_WANT_LIST
@@ -139,14 +145,15 @@ Deprecated.  Use C<GIMME_V> instead.
 /* Private for OP_REPEAT */
 #define OPpREPEAT_DOLIST	64	/* List replication. */
 
-/* Private for OP_RV2?V, OP_?ELEM */
-#define OPpDEREF		(32|64)	/* Want ref to something: */
+/* Private for OP_RV2GV, OP_RV2SV, OP_AELEM, OP_HELEM, OP_PADSV */
+#define OPpDEREF		(32|64)	/* autovivify: Want ref to something: */
 #define OPpDEREF_AV		32	/*   Want ref to AV. */
 #define OPpDEREF_HV		64	/*   Want ref to HV. */
 #define OPpDEREF_SV		(32|64)	/*   Want ref to SV. */
   /* OP_ENTERSUB only */
 #define OPpENTERSUB_DB		16	/* Debug subroutine. */
 #define OPpENTERSUB_HASTARG	32	/* Called from OP tree. */
+#define OPpENTERSUB_NOMOD	64	/* Immune to mod() for :attrlist. */
   /* OP_RV2CV only */
 #define OPpENTERSUB_AMPER	8	/* Used & form to call. */
 #define OPpENTERSUB_NOPAREN	128	/* bare sub call (without parens) */
@@ -155,7 +162,7 @@ Deprecated.  Use C<GIMME_V> instead.
 #define OPpEARLY_CV		32	/* foo() called before sub foo was parsed */
   /* OP_?ELEM only */
 #define OPpLVAL_DEFER		16	/* Defer creation of array/hash elem */
-  /* OP_RV2?V, OP_GVSV only */
+  /* OP_RV2?V, OP_GVSV, OP_ENTERITER only */
 #define OPpOUR_INTRO		16	/* Variable was in an our() */
   /* OP_RV2[AH]V, OP_PAD[AH]V, OP_[AH]ELEM */
 #define OPpMAYBE_LVSUB		8	/* We might be an lvalue to return */
@@ -165,7 +172,11 @@ Deprecated.  Use C<GIMME_V> instead.
   /* (lower bits may carry MAXARG) */
 #define OPpTARGET_MY		16	/* Target is PADMY. */
 
+/* Private for OP_ENTERITER and OP_ITER */
+#define OPpITER_REVERSED	4	/* for (reverse ...) */
+
 /* Private for OP_CONST */
+#define	OPpCONST_SHORTCIRCUIT	4	/* eg the constant 5 in (5 || foo) */
 #define	OPpCONST_STRICT		8	/* bearword subject to strict 'subs' */
 #define OPpCONST_ENTERED	16	/* Has been entered as symbol. */
 #define OPpCONST_ARYBASE	32	/* Was a $[ translated to constant. */
@@ -184,14 +195,12 @@ Deprecated.  Use C<GIMME_V> instead.
 /* Private for OP_EXISTS */
 #define OPpEXISTS_SUB		64	/* Checking for &sub, not {} or [].  */
 
-/* Private for OP_SORT, OP_PRTF, OP_SPRINTF, OP_FTTEXT, OP_FTBINARY, */
-/*             string comparisons, and case changers. */
-#define OPpLOCALE		64	/* Use locale */
-
 /* Private for OP_SORT */
 #define OPpSORT_NUMERIC		1	/* Optimized away { $a <=> $b } */
 #define OPpSORT_INTEGER		2	/* Ditto while under "use integer" */
-#define OPpSORT_REVERSE		4	/* Descending sort */
+#define OPpSORT_REVERSE		4	/* Reversed sort */
+#define OPpSORT_INPLACE		8	/* sort in-place; eg @a = sort @a */
+#define OPpSORT_DESCEND		16	/* Descending sort */
 /* Private for OP_THREADSV */
 #define OPpDONE_SVREF		64	/* Been through newSVREF once */
 
@@ -201,8 +210,19 @@ Deprecated.  Use C<GIMME_V> instead.
 #define OPpOPEN_OUT_RAW		64	/* binmode(F,":raw") on output fh */
 #define OPpOPEN_OUT_CRLF	128	/* binmode(F,":crlf") on output fh */
 
-/* Private for OP_EXIT */
+/* Private for OP_EXIT, HUSH also for OP_DIE */
+#define OPpHUSH_VMSISH		64	/* hush DCL exit msg vmsish mode*/
 #define OPpEXIT_VMSISH		128	/* exit(0) vs. exit(1) vmsish mode*/
+
+/* Private of OP_FTXXX */
+#define OPpFT_ACCESS		2	/* use filetest 'access' */
+#define OP_IS_FILETEST_ACCESS(op) 		\
+	(((op)->op_type) == OP_FTRREAD  ||	\
+	 ((op)->op_type) == OP_FTRWRITE ||	\
+	 ((op)->op_type) == OP_FTREXEC  ||	\
+	 ((op)->op_type) == OP_FTEREAD  ||	\
+	 ((op)->op_type) == OP_FTEWRITE ||	\
+	 ((op)->op_type) == OP_FTEEXEC)
 
 struct op {
     BASEOP
@@ -235,22 +255,46 @@ struct pmop {
     BASEOP
     OP *	op_first;
     OP *	op_last;
-    OP *	op_pmreplroot;
+    OP *	op_pmreplroot; /* (type is really union {OP*,GV*,PADOFFSET}) */
     OP *	op_pmreplstart;
     PMOP *	op_pmnext;		/* list of all scanpats */
-    REGEXP *	op_pmregexp;		/* compiled expression */
-    U16		op_pmflags;
-    U16		op_pmpermflags;
+#ifdef USE_ITHREADS
+    IV          op_pmoffset;
+#else
+    REGEXP *    op_pmregexp;            /* compiled expression */
+#endif
+    U32		op_pmflags;
+    U32		op_pmpermflags;
     U8		op_pmdynflags;
+#ifdef USE_ITHREADS
+    char *	op_pmstashpv;
+#else
+    HV *	op_pmstash;
+#endif
 };
+
+#ifdef USE_ITHREADS
+#define PM_GETRE(o)     (INT2PTR(REGEXP*,SvIVX(PL_regex_pad[(o)->op_pmoffset])))
+#define PM_SETRE(o,r)   STMT_START { SV* sv = PL_regex_pad[(o)->op_pmoffset]; sv_setiv(sv, PTR2IV(r)); } STMT_END
+#define PM_GETRE_SAFE(o) (PL_regex_pad ? PM_GETRE(o) : (REGEXP*)0)
+#define PM_SETRE_SAFE(o,r) if (PL_regex_pad) PM_SETRE(o,r)
+#else
+#define PM_GETRE(o)     ((o)->op_pmregexp)
+#define PM_SETRE(o,r)   ((o)->op_pmregexp = (r))
+#define PM_GETRE_SAFE PM_GETRE
+#define PM_SETRE_SAFE PM_SETRE
+#endif
 
 #define PMdf_USED	0x01		/* pm has been used once already */
 #define PMdf_TAINTED	0x02		/* pm compiled from tainted pattern */
 #define PMdf_UTF8	0x04		/* pm compiled from utf8 data */
+#define PMdf_DYN_UTF8	0x08
+
+#define PMdf_CMP_UTF8	(PMdf_UTF8|PMdf_DYN_UTF8)
 
 #define PMf_RETAINT	0x0001		/* taint $1 etc. if target tainted */
 #define PMf_ONCE	0x0002		/* use pattern only once per reset */
-#define PMf_REVERSED	0x0004		/* Should be matched right->left */
+#define PMf_UNUSED	0x0004		/* free for use */
 #define PMf_MAYBE_CONST	0x0008		/* replacement contains variables */
 #define PMf_SKIPWHITE	0x0010		/* skip leading whitespace for split */
 #define PMf_WHITE	0x0020		/* pattern is \s+ */
@@ -267,6 +311,24 @@ struct pmop {
 
 /* mask of bits stored in regexp->reganch */
 #define PMf_COMPILETIME	(PMf_MULTILINE|PMf_SINGLELINE|PMf_LOCALE|PMf_FOLD|PMf_EXTENDED)
+
+#ifdef USE_ITHREADS
+
+#  define PmopSTASHPV(o)	((o)->op_pmstashpv)
+#  define PmopSTASHPV_set(o,pv)	(PmopSTASHPV(o) = savesharedpv(pv))
+#  define PmopSTASH(o)		(PmopSTASHPV(o) \
+				 ? gv_stashpv(PmopSTASHPV(o),GV_ADD) : Nullhv)
+#  define PmopSTASH_set(o,hv)	PmopSTASHPV_set(o, ((hv) ? HvNAME_get(hv) : Nullch))
+#  define PmopSTASH_free(o)	PerlMemShared_free(PmopSTASHPV(o))
+
+#else
+#  define PmopSTASH(o)		((o)->op_pmstash)
+#  define PmopSTASH_set(o,hv)	((o)->op_pmstash = (hv))
+#  define PmopSTASHPV(o)	(PmopSTASH(o) ? HvNAME_get(PmopSTASH(o)) : Nullch)
+   /* op_pmstash is not refcounted */
+#  define PmopSTASHPV_set(o,pv)	PmopSTASH_set((o), gv_stashpv(pv,GV_ADD))
+#  define PmopSTASH_free(o)    
+#endif
 
 struct svop {
     BASEOP
@@ -338,13 +400,13 @@ struct loop {
 
 
 #ifdef USE_ITHREADS
-#  define	cGVOPx_gv(o)	((GV*)PL_curpad[cPADOPx(o)->op_padix])
+#  define	cGVOPx_gv(o)	((GV*)PAD_SVl(cPADOPx(o)->op_padix))
 #  define	IS_PADGV(v)	(v && SvTYPE(v) == SVt_PVGV && GvIN_PAD(v))
 #  define	IS_PADCONST(v)	(v && SvREADONLY(v))
 #  define	cSVOPx_sv(v)	(cSVOPx(v)->op_sv \
-				 ? cSVOPx(v)->op_sv : PL_curpad[(v)->op_targ])
+				 ? cSVOPx(v)->op_sv : PAD_SVl((v)->op_targ))
 #  define	cSVOPx_svp(v)	(cSVOPx(v)->op_sv \
-				 ? &cSVOPx(v)->op_sv : &PL_curpad[(v)->op_targ])
+				 ? &cSVOPx(v)->op_sv : &PAD_SVl((v)->op_targ))
 #else
 #  define	cGVOPx_gv(o)	((GV*)cSVOPx(o)->op_sv)
 #  define	IS_PADGV(v)	FALSE
@@ -362,7 +424,7 @@ struct loop {
 
 #define Nullop Null(OP*)
 
-/* Lowest byte of PL_opargs */
+/* Lowest byte-and-a-bit of PL_opargs */
 #define OA_MARK 1
 #define OA_FOLDCONST 2
 #define OA_RETSCALAR 4
@@ -407,8 +469,13 @@ struct loop {
 
 #ifdef USE_ITHREADS
 #  define OP_REFCNT_INIT		MUTEX_INIT(&PL_op_mutex)
-#  define OP_REFCNT_LOCK		MUTEX_LOCK(&PL_op_mutex)
-#  define OP_REFCNT_UNLOCK		MUTEX_UNLOCK(&PL_op_mutex)
+#  ifdef PERL_CORE
+#    define OP_REFCNT_LOCK		MUTEX_LOCK(&PL_op_mutex)
+#    define OP_REFCNT_UNLOCK		MUTEX_UNLOCK(&PL_op_mutex)
+#  else
+#    define OP_REFCNT_LOCK		op_refcnt_lock()
+#    define OP_REFCNT_UNLOCK		op_refcnt_unlock()
+#  endif
 #  define OP_REFCNT_TERM		MUTEX_DESTROY(&PL_op_mutex)
 #else
 #  define OP_REFCNT_INIT		NOOP
@@ -425,3 +492,20 @@ struct loop {
 #define PERL_LOADMOD_DENY		0x1
 #define PERL_LOADMOD_NOIMPORT		0x2
 #define PERL_LOADMOD_IMPORT_OPS		0x4
+
+#ifdef USE_REENTRANT_API
+#include "reentr.h"
+#endif
+
+#if defined(PL_OP_SLAB_ALLOC)
+#define NewOp(m,var,c,type)	\
+	(var = (type *) Perl_Slab_Alloc(aTHX_ m,c*sizeof(type)))
+#define NewOpSz(m,var,size)	\
+	(var = (OP *) Perl_Slab_Alloc(aTHX_ m,size))
+#define FreeOp(p) Perl_Slab_Free(aTHX_ p)
+#else
+#define NewOp(m, var, c, type) Newxz(var, c, type)
+#define NewOpSz(m, var, size)	\
+	(var = (OP*)safemalloc(size), memzero(var, size))
+#define FreeOp(p) Safefree(p)
+#endif

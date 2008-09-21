@@ -1,12 +1,17 @@
 #!./perl
 
-print "1..39\n";
+print "1..42\n";
 
 chdir('op') || chdir('t/op') || die "sysio.t: cannot look for myself: $!";
+@INC = '../../lib';
 
 open(I, 'sysio.t') || die "sysio.t: cannot find myself: $!";
 
-$reopen = ($^O eq 'VMS' || $^O eq 'os2' || $^O eq 'MSWin32' || $^O eq 'dos' ||
+$reopen = ($^O eq 'VMS' ||
+           $^O eq 'os2' ||
+           $^O eq 'MSWin32' ||
+           $^O eq 'NetWare' ||
+           $^O eq 'dos' ||
 	   $^O eq 'mpeix');
 
 $x = 'abc';
@@ -108,8 +113,14 @@ print 'not ' if (-s $outfile);
 print "ok 19\n";
 
 # default offset 0
-print 'not ' unless (syswrite(O, $a, 2) == 2);
-print "ok 20\n";
+if (syswrite(O, $a, 2) == 2){
+  print "ok 20\n";
+} else {
+  print "# $!\nnot ok 20\n";
+  # most other tests make no sense after e.g. "No space left on device"
+  die $!;
+}
+
 
 # $a still intact
 print 'not ' unless ($a eq "#!.\0\0erl");
@@ -203,7 +214,30 @@ close(I);
 
 unlink $outfile;
 
-chdir('..'); 
+# Check that utf8 IO doesn't upgrade the scalar
+open(I, ">$outfile") || die "sysio.t: cannot write $outfile: $!";
+# Will skip harmlessly on stdioperl
+eval {binmode STDOUT, ":utf8"};
+die $@ if $@ and $@ !~ /^IO layers \(like ':utf8'\) unavailable/;
+
+# y diaresis is \w when UTF8
+$a = chr 255;
+
+print $a =~ /\w/ ? "not ok 40\n" : "ok 40\n";
+
+syswrite I, $a;
+
+# Should not be upgraded as a side effect of syswrite.
+print $a =~ /\w/ ? "not ok 41\n" : "ok 41\n";
+
+# This should work
+eval {syswrite I, 2;};
+print $@ eq "" ? "ok 42\n" : "not ok 42 # $@";
+
+close(I);
+unlink $outfile;
+
+chdir('..');
 
 1;
 

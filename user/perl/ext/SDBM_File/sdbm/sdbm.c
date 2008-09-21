@@ -24,7 +24,9 @@
 #endif
 
 #ifdef I_STRING
-# include <string.h>
+# ifndef __ultrix__
+#  include <string.h>
+# endif
 #else
 # include <strings.h>
 #endif
@@ -32,15 +34,12 @@
 /*
  * externals
  */
-#ifndef WIN32
-#ifndef sun
-extern int errno;
-#endif
+
+#include <errno.h> /* See notes in perl.h about avoiding
+			extern int errno; */
 
 extern Malloc_t malloc proto((MEM_SIZE));
 extern Free_t free proto((Malloc_t));
-
-#endif
 
 /*
  * forward

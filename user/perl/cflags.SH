@@ -1,4 +1,4 @@
-case $CONFIG in
+case $PERL_CONFIG_SH in
 '')
 	if test -f config.sh; then TOP=.;
 	elif test -f ../config.sh; then TOP=..;
@@ -28,7 +28,7 @@ $startsh
 
 : In the following dollars and backticks do not need the extra backslash.
 $spitshell >>cflags <<'!NO!SUBS!'
-case $CONFIGDOTSH in
+case $PERL_CONFIG_SH in
 '')
 	if test -f config.sh; then TOP=.;
 	elif test -f ../config.sh; then TOP=..;
@@ -42,18 +42,14 @@ case $CONFIGDOTSH in
 	;;
 esac
 
-perltype=''
-optdebug=''	# ensure -g used if building a -DDEBUGGING libperl
-case $# in
-2) case $1 in
-    *perl.*)    perltype='';;
-    *perld.*)   perltype='-DDEBUGGING'; optdebug='-g' ;;
-    *perle.*)   perltype='-DEMBED';;
-    *perlde.*)  perltype='-DDEBUGGING -DEMBED'; optdebug='-g' ;;
-    *perlm.*)   perltype='-DEMBED -DMULTIPLICITY';;
-    *perldm.*)  perltype='-DDEBUGGING -DEMBED -DMULTIPLICITY'; optdebug='-g' ;;
-    esac
-    shift ;;
+: syntax: cflags [optimize=XXX] [file[.suffix]]
+: displays the compiler command line for file
+
+case "X$1" in
+Xoptimize=*|X"optimize=*")
+	eval "$1"
+	shift
+	;;
 esac
 
 also=': '
@@ -99,10 +95,12 @@ for file do
     dump) ;;
     gv) ;;
     hv) ;;
+    locale) ;;
     main) ;;
     malloc) ;;
     mg) ;;
     miniperlmain) ;;
+    numeric) ;;
     op) ;;
     perl) ;;
     perlapi) ;;
@@ -111,6 +109,7 @@ for file do
     pp) ;;
     pp_ctl) ;;
     pp_hot) ;;
+    pp_pack) ;;
     pp_sys) ;;
     regcomp) ;;
     regexec) ;;
@@ -124,13 +123,51 @@ for file do
     *) ;;
     esac
 
-	if test "X$optdebug" != "X"; then
-		optimize="$optdebug"
-	fi
+# Add -Wall for the core modules iff gcc and not already -Wall
+warn=''
+case "$gccversion" in
+'') ;;
+Intel*) ;;
+*)  case "$ccflags" in
+    *-Wall*) ;;
+    *) warn="$warn -Wall" ;;
+    esac
+    case "$gccansipedantic" in
+    define)
+	case "$gccversion" in
+	[12]*) ;; # gcc versions 1 (gasp!) and 2 are not good for this.
+	*)  case "$osname" in
+	    # Add -ansi -pedantic only for known platforms.
+	    aix|dec_osf|freebsd|hpux|irix|linux)
+		ansipedantic="-ansi -pedantic" ;;
+	    solaris)
+# Can't add -ansi for Solaris.
+# Off_t/off_t is a struct in Solaris with largefiles, and with -ansi
+# that struct cannot be compared with a flat integer, such as a STRLEN.
+# The -ansi will also cause a lot of noise in Solaris because of:
+# /usr/include/sys/resource.h:148: warning: `struct rlimit64' declared inside parameter list
+		ansipedantic="-pedantic" ;;
+	    esac
+	    for i in $ansipedantic
+	    do
+		case "$ccflags" in
+		*$i*) ;;
+		*) warn="$warn $i" ;;
+		esac
+	    done
+	    case "$warn$ccflags" in
+	    *-pedantic*) warn="$warn -DPERL_GCC_PEDANTIC" ;;
+	    esac
+	    ;;
+	esac
+	;;
+    esac
+    ;;
+esac
 
     : Can we perhaps use $ansi2knr here
-    echo "$cc -c -DPERL_CORE $ccflags $optimize $perltype"
-    eval "$also "'"$cc -DPERL_CORE -c $ccflags $optimize $perltype"'
+    echo "$cc -c -DPERL_CORE $ccflags $optimize $warn"
+    eval "$also "'"$cc -DPERL_CORE -c $ccflags $optimize $warn"'
 
     . $TOP/config.sh
 

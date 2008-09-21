@@ -4,7 +4,7 @@
 #include "XSUB.h"
 
 static cv_flags_t
-get_flag(char *attr)
+get_flag(const char *attr)
 {
     if (strnEQ(attr, "method", 6))
 	return CVf_METHOD;
@@ -17,24 +17,23 @@ get_flag(char *attr)
 MODULE = attrs		PACKAGE = attrs
 
 void
-import(Class, ...)
-char *	Class
+import(...)
     ALIAS:
 	unimport = 1
     PREINIT:
 	int i;
-	CV *cv;
     PPCODE:
+       if (items < 1)
+           Perl_croak(aTHX_ "Usage: %s(Class, ...)", GvNAME(CvGV(cv)));
 	if (!PL_compcv || !(cv = CvOUTSIDE(PL_compcv)))
 	    croak("can't set attributes outside a subroutine scope");
 	if (ckWARN(WARN_DEPRECATED))
-	    Perl_warner(aTHX_ WARN_DEPRECATED,
+	    Perl_warner(aTHX_ packWARN(WARN_DEPRECATED),
 			"pragma \"attrs\" is deprecated, "
 			"use \"sub NAME : ATTRS\" instead");
 	for (i = 1; i < items; i++) {
-	    STRLEN n_a;
-	    char *attr = SvPV(ST(i), n_a);
-	    cv_flags_t flag = get_flag(attr);
+	    const char * const attr = SvPV_nolen(ST(i));
+	    const cv_flags_t flag = get_flag(attr);
 	    if (!flag)
 		croak("invalid attribute name %s", attr);
 	    if (ix)
@@ -53,8 +52,7 @@ SV *	sub
 		sub = Nullsv;
 	}
 	else {
-	    STRLEN n_a;
-	    char *name = SvPV(sub, n_a);
+	    const char * const name = SvPV_nolen(sub);
 	    sub = (SV*)perl_get_cv(name, FALSE);
 	}
 	if (!sub)

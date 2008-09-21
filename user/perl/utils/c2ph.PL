@@ -3,6 +3,28 @@
 use Config;
 use File::Basename qw(&basename &dirname);
 use Cwd;
+use subs qw(link);
+
+sub link { # This is a cut-down version of installperl:link().
+    my($from,$to) = @_;
+    my($success) = 0;
+
+    eval {
+	CORE::link($from, $to)
+	    ? $success++
+	    : ($from =~ m#^/afs/# || $to =~ m#^/afs/#)
+	      ? die "AFS"  # okay inside eval {}
+	      : die "Couldn't link $from to $to: $!\n";
+    };
+    if ($@) {
+	warn $@;
+	require File::Copy;
+	File::Copy::copy($from, $to)
+	    ? $success++
+	    : warn "Couldn't copy $from to $to: $!\n";
+    }
+    $success;
+}
 
 # List explicitly here the variables you want Configure to
 # generate.  Metaconfig only looks for shell variables, so you
@@ -162,9 +184,9 @@ declarations at least, but that's quite a bit.
 
 Prior to this point, anyone programming in perl who wanted to interact
 with C programs, like the kernel, was forced to guess the layouts of
-the C strutures, and then hardwire these into his program.  Of course,
+the C structures, and then hardwire these into his program.  Of course,
 when you took your wonderfully crafted program to a system where the
-sgtty structure was laid out differently, you program broke.  Which is
+sgtty structure was laid out differently, your program broke.  Which is
 a shame.
 
 We've had Larry's h2ph translator, which helped, but that only works on
@@ -258,6 +280,7 @@ Anyway, here it is.  Should run on perl v4 or greater.  Maybe less.
 
 $RCSID = '$Id$';
 
+use File::Temp;
 
 ######################################################################
 
@@ -331,12 +354,24 @@ delete $intrinsics{'null'};
 $indent = 2;
 
 $CC = 'cc';
-$CFLAGS = '-g -S';
+!NO!SUBS!
+
+if (($Config{gccversion} || '') =~ /^(\d+)\.(\d+)/
+  and ($1 > 3 or ($1 == 3 and $2 >= 2))) {
+    print OUT q/$CFLAGS = '-gstabs -S';/;
+} else {
+    print OUT q/$CFLAGS = '-g -S';/;
+}
+
+print OUT <<'!NO!SUBS!';
+
 $DEFINES = '';
 
 $perl++ if $0 =~ m#/?c2ph$#;
 
 require 'getopts.pl';
+
+use File::Temp 'tempdir';
 
 eval '$'.$1.'$2;' while $ARGV[0] =~ /^([A-Za-z_]+=)(.*)/ && shift;
 
@@ -433,7 +468,7 @@ EOF
 	    $CC $CFLAGS $DEFINES
     and the resulting *.s groped for stab information.  If no files are
     supplied, then stdin is read directly with the assumption that it
-    contains stab information.  All other liens will be ignored.  At
+    contains stab information.  All other lines will be ignored.  At
     most one *.s file should be supplied.
 
 EOF
@@ -445,6 +480,13 @@ sub defvar {
     local($var, $msg) = @_;
     printf "%-16s%-15s  %s\n", $var, eval "\$$var", $msg;
 }
+
+sub safedir {
+    $SAFEDIR = File::Temp::tempdir("c2ph.XXXXXX", TMPDIR => 1, CLEANUP => 1)
+      unless (defined($SAFEDIR));
+}
+
+undef $SAFEDIR;
 
 $recurse = 1;
 
@@ -461,14 +503,15 @@ if (@ARGV) {
     }
     elsif (@ARGV == 1 && $ARGV[0] =~ /\.c$/) {
 	local($dir, $file) = $ARGV[0] =~ m#(.*/)?(.*)$#;
-	$chdir = "cd $dir; " if $dir;
+	$chdir = "cd $dir && " if $dir;
 	&system("$chdir$CC $CFLAGS $DEFINES $file") && exit 1;
 	$ARGV[0] =~ s/\.c$/.s/;
     }
     else {
-	$TMP = "/tmp/c2ph.$$.c";
+	&safedir;
+	$TMP = "$SAFEDIR/c2ph.$$.c";
 	&system("cat @ARGV > $TMP") && exit 1;
-	&system("cd /tmp; $CC $CFLAGS $DEFINES $TMP") && exit 1;
+	&system("cd $SAFEDIR && $CC $CFLAGS $DEFINES $TMP") && exit 1;
 	unlink $TMP;
 	$TMP =~ s/\.c$/.s/;
 	@ARGV = ($TMP);
@@ -1239,7 +1282,8 @@ sub fetch_template {
 }
 
 sub compute_intrinsics {
-    local($TMP) = "/tmp/c2ph-i.$$.c";
+    &safedir;
+    local($TMP) = "$SAFEDIR/c2ph-i.$$.c";
     open (TMP, ">$TMP") || die "can't open $TMP: $!";
     select(TMP);
 
@@ -1267,7 +1311,7 @@ EOF
     close TMP;
 
     select(STDOUT);
-    open(PIPE, "cd /tmp && $CC $TMP && /tmp/a.out|");
+    open(PIPE, "cd $SAFEDIR && $CC $TMP && $SAFEDIR/a.out|");
     while (<PIPE>) {
 	chop;
 	split(' ',$_,2);;
@@ -1276,7 +1320,7 @@ EOF
 	$intrinsics{$_[1]} = $template{$_[0]};
     }
     close(PIPE) || die "couldn't read intrinsics!";
-    unlink($TMP, '/tmp/a.out');
+    unlink($TMP, '$SAFEDIR/a.out');
     print STDERR "done\n" if $trace;
 }
 

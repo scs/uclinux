@@ -5,19 +5,26 @@ use Pod::Functions;
 
 local $/ = '';
 
+$level = 0;
+
 $cur = '';
 while (<>) {
 
     next unless /^=(?!cut)/ .. /^=cut/;
 
-    if (s/=item (\S+)/$1/) {
-	#$cur = "POSIX::" . $1;
-	$next{$cur} = $1;
-	$cur = $1;
+    ++$level if /^=over/;
+    --$level if /^=back/;
+
+    # Ignore items that are nested within other items, e.g. don't split on the
+    # items nested within the pack() and sprintf() items in perlfunc.pod.
+    if (/=item (\S+)/ and $level == 1) {
+	my $item = $1;
+	s/=item //; 
+	$next{$cur} = $item;
+	$cur = $item;
 	$syn{$cur} .= $_;
 	next;
     } else { 
-	#s,L</,L<POSIX/,g;
 	s,L</,L<perlfunc/,g;
 	push @{$pod{$cur}}, $_ if $cur;
     }

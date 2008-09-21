@@ -1,5 +1,7 @@
 package Tie::RefHash;
 
+our $VERSION = 1.32;
+
 =head1 NAME
 
 Tie::RefHash - use references as hash keys
@@ -55,9 +57,11 @@ store a reference to one of your own hashes in the tied hash.
 
 Gurusamy Sarathy        gsar@activestate.com
 
+'Nestable' by Ed Avis   ed@membled.com
+
 =head1 VERSION
 
-Version 1.3    8 Apr 2001
+Version 1.32
 
 =head1 SEE ALSO
 
@@ -65,12 +69,12 @@ perl(1), perlfunc(1), perltie(1)
 
 =cut
 
-use v5.6.0;
 use Tie::Hash;
+use vars '@ISA';
+@ISA = qw(Tie::Hash);
 use strict;
 
-our @ISA = qw(Tie::Hash);
-our $VERSION = '1.3';
+require overload; # to support objects with overloaded ""
 
 sub TIEHASH {
   my $c = shift;
@@ -85,8 +89,9 @@ sub TIEHASH {
 sub FETCH {
   my($s, $k) = @_;
   if (ref $k) {
-      if (defined $s->[0]{"$k"}) {
-        $s->[0]{"$k"}[1];
+      my $kstr = overload::StrVal($k);
+      if (defined $s->[0]{$kstr}) {
+        $s->[0]{$kstr}[1];
       }
       else {
         undef;
@@ -100,7 +105,7 @@ sub FETCH {
 sub STORE {
   my($s, $k, $v) = @_;
   if (ref $k) {
-    $s->[0]{"$k"} = [$k, $v];
+    $s->[0]{overload::StrVal($k)} = [$k, $v];
   }
   else {
     $s->[1]{$k} = $v;
@@ -110,19 +115,21 @@ sub STORE {
 
 sub DELETE {
   my($s, $k) = @_;
-  (ref $k) ? delete($s->[0]{"$k"}) : delete($s->[1]{$k});
+  (ref $k)
+    ? (delete($s->[0]{overload::StrVal($k)}) || [])->[1]
+    : delete($s->[1]{$k});
 }
 
 sub EXISTS {
   my($s, $k) = @_;
-  (ref $k) ? exists($s->[0]{"$k"}) : exists($s->[1]{$k});
+  (ref $k) ? exists($s->[0]{overload::StrVal($k)}) : exists($s->[1]{$k});
 }
 
 sub FIRSTKEY {
   my $s = shift;
   keys %{$s->[0]};	# reset iterator
   keys %{$s->[1]};	# reset iterator
-  $s->[2] = 0;
+  $s->[2] = 0;      # flag for iteration, see NEXTKEY
   $s->NEXTKEY;
 }
 
@@ -131,7 +138,7 @@ sub NEXTKEY {
   my ($k, $v);
   if (!$s->[2]) {
     if (($k, $v) = each %{$s->[0]}) {
-      return $s->[0]{"$k"}[0];
+      return $v->[0];
     }
     else {
       $s->[2] = 1;
@@ -148,7 +155,8 @@ sub CLEAR {
 }
 
 package Tie::RefHash::Nestable;
-our @ISA = qw(Tie::RefHash);
+use vars '@ISA';
+@ISA = 'Tie::RefHash';
 
 sub STORE {
   my($s, $k, $v) = @_;

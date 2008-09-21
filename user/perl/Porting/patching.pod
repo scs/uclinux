@@ -63,6 +63,10 @@ respectively, unified diffs (where the changed line appears immediately next
 to the original) and context diffs (where several lines surrounding the changes
 are included).  See the manpage for diff for more details.
 
+When GNU diff is available, the pumpkins would prefer you use C<-u -p>
+(--unified --show-c-function) as arguments for optimal control. The
+examples below will only use -u.
+
 The preferred method for creating a unified diff suitable for feeding
 to the patch program is:
 
@@ -92,7 +96,14 @@ diffs.  Some examples using GNU diff:
     % diff -bu a/file b/file
     
     # show function name in every hunk (safer, more informative)
+    % diff -u -p old/file new/file
     % diff -u -F '^[_a-zA-Z0-9]+ *(' old/file new/file
+
+    # show sub name in perl files and modules
+    % diff -u -F '^sub' old/file.pm new/file.pm
+
+    # show header in doc patches
+    % diff -u -F '^=head' old/file.pod new/file.pod
 
 =item Derived Files
 
@@ -256,13 +267,13 @@ This should work for most patches:
       emacs MANIFEST
       (make changes)
       cd ..
-      diff -c perl5.008_42/MANIFEST.old perl5.008_42/MANIFEST > mypatch
+      diff -c perl5.7.42/MANIFEST.old perl5.7.42/MANIFEST > mypatch
       (testing the patch:)
-      mv perl5.008_42/MANIFEST perl5.008_42/MANIFEST.new
-      cp perl5.008_42/MANIFEST.old perl5.008_42/MANIFEST
+      mv perl5.7.42/MANIFEST perl5.7.42/MANIFEST.new
+      cp perl5.7.42/MANIFEST.old perl5.7.42/MANIFEST
       patch -p < mypatch
       (should succeed)
-      diff perl5.008_42/MANIFEST perl5.008_42/MANIFEST.new
+      diff perl5.7.42/MANIFEST perl5.7.42/MANIFEST.new
       (should produce no output)
 
 =head2 Submitting your patch
@@ -272,11 +283,15 @@ This should work for most patches:
 =item Mailers
 
 Please, please, please (get the point? 8-) don't use a mailer that
-word wraps your patch or that MIME encodes it.  Both of these leave
-the patch essentially worthless to the maintainer.
+word wraps your patch.  This leaves the patch essentially worthless
+to the maintainers.
 
-If you have no choice in mailers and no way to get your hands on a
-better one there is, of course, a perl solution.  Just do this:
+Unfortunately many mailers word wrap the main text of messages, but
+luckily you can usually send your patches as email attachments without
+them getting "helpfully" word wrapped.
+
+If you have no choice in mailers and no way to get your hands on
+a better one, there is, of course, a Perl solution.  Just do this:
 
       perl -ne 'print pack("u*",$_)' patch > patch.uue
 
@@ -288,7 +303,7 @@ and post patch.uue with a note saying to unpack it using
 
 The subject line on your patch should read
 
-    [PATCH 5.xxx_xx AREA] Description
+    [PATCH 5.x.x AREA] Description
 
 where the x's are replaced by the appropriate version number.
 The description should be a very brief but accurate summary of the
@@ -296,11 +311,11 @@ problem (don't forget this is an email header).
 
 Examples:
 
-    [PATCH 5.004_04 DOC] fix minor typos
+    [PATCH 5.6.4 DOC] fix minor typos
 
-    [PATCH 5.004_99 CORE] New warning for foo() when frobbing
+    [PATCH 5.7.9 CORE] New warning for foo() when frobbing
 
-    [PATCH 5.005_42 CONFIG] Added support for fribnatz 1.5
+    [PATCH 5.7.16 CONFIG] Added support for fribnatz 1.5
 
 The name of the file being patched makes for a poor subject line if
 no other descriptive text accompanies it.
@@ -339,6 +354,11 @@ patch (where N is the number of path components to skip in the files
 found in the headers).  This helps reconcile differing paths between
 the machine the patch was created on and the machine on which it is
 being applied.
+
+Be sure to use the Larry Wall version of patch. Some Operating Systems
+(HP-UX amongst those) have a patch command that does something completely
+different. The correct version of patch will show Larry's name several
+times when invoked as patch --version.
 
 =item Cut and paste
 
@@ -379,12 +399,14 @@ to apply as possible.  Keep that in mind.  8-)
 
 =head1 Last Modified
 
-Last modified 21 January 1999 
+Last modified 22 August 2002
+H.Merijn Brand <h.m.brand@xs4all.nl>
+Prev modified 21 January 1999 
 Daniel Grisinger <dgris@dimensional.com>
 
 =head1 Author and Copyright Information
 
-Copyright (c) 1998 Daniel Grisinger
+Copyright (c) 1998-2002 Daniel Grisinger
 
 Adapted from a posting to perl5-porters by Tim Bunce (Tim.Bunce@ig.co.uk).
 

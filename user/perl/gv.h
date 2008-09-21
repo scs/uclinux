@@ -1,6 +1,7 @@
 /*    gv.h
  *
- *    Copyright (c) 1991-2001, Larry Wall
+ *    Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+ *    2000, 2001, 2002, 2003, 2004, 2005, 2006, by Larry Wall and others
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -22,10 +23,6 @@ struct gp {
     char *	gp_file;	/* file first declared in (for -w) */
 };
 
-#if defined(CRIPPLED_CC) && (defined(iAPX286) || defined(M_I286) || defined(I80286))
-#define MICROPORT
-#endif
-
 #define GvXPVGV(gv)	((XPVGV*)SvANY(gv))
 
 #define GvGP(gv)	(GvXPVGV(gv)->xgv_gp)
@@ -35,6 +32,8 @@ struct gp {
 #define GvFLAGS(gv)	(GvXPVGV(gv)->xgv_flags)
 
 /*
+=head1 GV Functions
+
 =for apidoc Am|SV*|GvSV|GV* gv
 
 Return the SV from the GV.
@@ -43,8 +42,16 @@ Return the SV from the GV.
 */
 
 #define GvSV(gv)	(GvGP(gv)->gp_sv)
+#ifdef PERL_DONT_CREATE_GVSV
+#define GvSVn(gv)	(*(GvGP(gv)->gp_sv ? \
+			 &(GvGP(gv)->gp_sv) : \
+			 &(GvGP(gv_SVadd(gv))->gp_sv)))
+#else
+#define GvSVn(gv)	GvSV(gv)
+#endif
+
 #define GvREFCNT(gv)	(GvGP(gv)->gp_refcnt)
-#define GvIO(gv)	((gv) && SvTYPE((SV*)gv) == SVt_PVGV ? GvIOp(gv) : 0)
+#define GvIO(gv)	((gv) && SvTYPE((SV*)gv) == SVt_PVGV && GvGP(gv) ? GvIOp(gv) : 0)
 #define GvIOp(gv)	(GvGP(gv)->gp_io)
 #define GvIOn(gv)	(GvIO(gv) ? GvIOp(gv) : GvIOp(gv_IOadd(gv)))
 
@@ -54,22 +61,14 @@ Return the SV from the GV.
 /* This macro is deprecated.  Do not use! */
 #define GvREFCNT_inc(gv) ((GV*)SvREFCNT_inc(gv))	/* DO NOT USE */
 
-#ifdef	MICROPORT	/* Microport 2.4 hack */
-AV *GvAVn();
-#else
 #define GvAVn(gv)	(GvGP(gv)->gp_av ? \
 			 GvGP(gv)->gp_av : \
 			 GvGP(gv_AVadd(gv))->gp_av)
-#endif
 #define GvHV(gv)	((GvGP(gv))->gp_hv)
 
-#ifdef	MICROPORT	/* Microport 2.4 hack */
-HV *GvHVn();
-#else
 #define GvHVn(gv)	(GvGP(gv)->gp_hv ? \
 			 GvGP(gv)->gp_hv : \
 			 GvGP(gv_HVadd(gv))->gp_hv)
-#endif			/* Microport 2.4 hack */
 
 #define GvCV(gv)	(GvGP(gv)->gp_cv)
 #define GvCVGEN(gv)	(GvGP(gv)->gp_cvgen)
@@ -131,6 +130,19 @@ HV *GvHVn();
 #define GvIN_PAD_on(gv)		(GvFLAGS(gv) |= GVf_IN_PAD)
 #define GvIN_PAD_off(gv)	(GvFLAGS(gv) &= ~GVf_IN_PAD)
 
+/* XXX: all GvFLAGS options are used, borrowing GvGPFLAGS for the moment */
+
+#define GVf_UNIQUE           0x0001
+#define GvUNIQUE(gv)         (GvGP(gv) && (GvGPFLAGS(gv) & GVf_UNIQUE))
+#define GvUNIQUE_on(gv)      (GvGPFLAGS(gv) |= GVf_UNIQUE)
+#define GvUNIQUE_off(gv)     (GvGPFLAGS(gv) &= ~GVf_UNIQUE)
+
+#ifdef USE_ITHREADS
+#define GV_UNIQUE_CHECK
+#else
+#undef  GV_UNIQUE_CHECK
+#endif
+
 #define Nullgv Null(GV*)
 
 #define DM_UID   0x003
@@ -149,3 +161,6 @@ HV *GvHVn();
 #define GV_ADDWARN	0x04	/* add, but warn if symbol wasn't already there */
 #define GV_ADDINEVAL	0x08	/* add, as though we're doing so within an eval */
 #define GV_NOINIT	0x10	/* add, but don't init symbol, if type != PVGV */
+
+#define gv_fullname3(sv,gv,prefix) gv_fullname4(sv,gv,prefix,TRUE)
+#define gv_efullname3(sv,gv,prefix) gv_efullname4(sv,gv,prefix,TRUE)

@@ -41,7 +41,7 @@ BEGIN {
   $DB::subname = '';    # currently executing sub (fullly qualified name)
   $DB::lineno = '';     # current line number
 
-  $DB::VERSION = $DB::VERSION = '1.0';
+  $DB::VERSION = $DB::VERSION = '1.01';
 
   # initialize private globals to avoid warnings
 
@@ -63,8 +63,7 @@ sub sub {
   push(@stack, $DB::single);
   $DB::single &= 1;
   $DB::single |= 4 if $#stack == $deep;
-#  print $DB::sub, "\n";
-  if ($DB::sub =~ /(?:^|::)DESTROY$/ or not defined wantarray) {
+  if ($DB::sub eq 'DESTROY' or substr($DB::sub, -9) eq '::DESTROY' or not defined wantarray) {
     &$DB::sub;
     $DB::single |= pop(@stack);
     $DB::ret = undef;
@@ -93,6 +92,16 @@ sub DB {
 
   $usrctxt = "package $DB::package;";		# this won't let them modify, alas
   local(*DB::dbline) = "::_<$DB::filename";
+
+  # we need to check for pseudofiles on Mac OS (these are files
+  # not attached to a filename, but instead stored in Dev:Pseudo)
+  # since this is done late, $DB::filename will be "wrong" after
+  # skippkg
+  if ($^O eq 'MacOS' && $#DB::dbline < 0) {
+    $DB::filename = 'Dev:Pseudo';
+    *DB::dbline = "::_<$DB::filename";
+  }
+
   my ($stop, $action);
   if (($stop,$action) = split(/\0/,$DB::dbline{$DB::lineno})) {
     if ($stop eq '1') {
@@ -406,8 +415,7 @@ sub _find_subline {
   $name = "main" . $name if substr($name,0,2) eq "::";
   my($fname, $from, $to) = ($DB::sub{$name} =~ /^(.*):(\d+)-(\d+)$/);
   if ($from) {
-    # XXX this needs local()-ization of some sort
-    *DB::dbline = "::_<$fname";
+    local *DB::dbline = "::_<$fname";
     ++$from while $DB::dbline[$from] == 0 && $from < $to;
     return $from;
   }

@@ -1,4 +1,4 @@
-# svr5 hints, System V Release 5.x (UnixWare 7)
+# svr5 hints, System V Release 5.x (UnixWare 7, OpenUNIX 8)
 # mods after mail fm Andy Dougherty
 # Reworked by hops@sco.com Sept/Oct 1999 for UW7.1 platform support 
 #   Boyd Gerber, gerberb@zenez.com 1999/09/21 for threads support.
@@ -10,8 +10,11 @@
 case "$cc" in
 *gcc*)
     #  "$gccversion" not set yet
-    vers=`gcc -v 2>&1 | sed -n -e 's@.*version \([^ ][^ ]*\) .*@\1@p'`
-    case $vers in
+    if [ "X$gccversion" = "X" ]; then
+	# Done too late in Configure if hinted
+	gccversion=`$cc --version | sed 's/.*(GCC) *//'`
+    fi
+    case $gccversion in
     *2.95*)
          ccflags='-fno-strict-aliasing'
         # More optimisation provided in gcc-2.95 causes miniperl to segv.
@@ -83,16 +86,15 @@ libswanted=`echo " $libswanted " | sed -e 's/ malloc / /' -e 's/ c / /'`
 
 # remove /shlib and /lib from library search path as both symlink to /usr/lib
 # where runtime shared libc is 
-glibpth=`echo " $glibpth " | sed -e 's/ \/shlib / /' -e 's/ \/lib / /`
+glibpth=`echo " $glibpth " | sed -e 's/ \/shlib / /' -e 's/ \/lib / /'`
 
 # Don't use BSD emulation pieces (/usr/ucblib) regardless
 # these would probably be autonondetected anyway but ...
-d_Gconvert='gcvt((x),(n),(b))'	# Try gcvt() before gconvert().
+gconvert_preference='gcvt sprintf'	# Try gcvt() before gconvert().
 d_bcopy='undef' d_bcmp='undef'  d_bzero='undef'  d_safebcpy='undef'
 d_index='undef' d_killpg='undef' d_getprior='undef' d_setprior='undef'
 d_setlinebuf='undef' 
 d_setregid='undef' d_setreuid='undef'  # -- in /usr/lib/libc.so.1
-
 
 # Broken C-Shell tests (Thanks to Tye McQueen):
 # The OS-specific checks may be obsoleted by the this generic test.
@@ -100,7 +102,7 @@ d_setregid='undef' d_setreuid='undef'  # -- in /usr/lib/libc.so.1
 	csh_cnt=`csh -f -c 'glob /*' 2>/dev/null | wc -c`
 	csh_cnt=`expr 1 + $csh_cnt`
 if [ "$sh_cnt" -ne "$csh_cnt" ]; then
-    echo "You're csh has a broken 'glob', disabling..." >&2
+    echo "Your csh has a broken 'glob', disabling..." >&2
     d_csh='undef'
 fi
 
@@ -113,9 +115,9 @@ fi
 	uw_ver=`uname -v`
 	uw_isuw=`uname -s 2>&1`
 
-if [ "$uw_isuw" = "UnixWare" ]; then
+if [ "$uw_isuw" = "UnixWare" -o "$uw_isuw" = "OpenUNIX" ]; then
    case $uw_ver in
-   7.1*)
+   8.*|7.1*)
 	d_csh='undef'
 	d_memcpy='define'
 	d_memset='define'
@@ -156,8 +158,12 @@ fi
 # cccdlflags: must tell the compiler to generate relocatable code
 # lddlflags : must tell the linker to output a shared library
 
-# use shared perl lib    
-useshrplib='true'
+# use shared perl lib if the user doesn't choose otherwise
+if test "$uw_isuw" != "OpenUNIX"; then
+    if test "x$useshrplib" = "x"; then
+	useshrplib='true'
+    fi
+fi
 
 case "$cc" in
        *gcc*)
@@ -183,7 +189,7 @@ case "$usethreads" in
 $define|true|[yY]*)
         ccflags="$ccflags"
         shift
-        libswanted="$*"
+        libswanted="$libswanted $*"
   case "$cc" in
        *gcc*)
            ccflags="-D_REENTRANT $ccflags -fpic -pthread"

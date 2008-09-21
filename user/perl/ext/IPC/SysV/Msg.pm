@@ -11,7 +11,8 @@ use strict;
 use vars qw($VERSION);
 use Carp;
 
-$VERSION = "1.00";
+$VERSION = "1.02";
+$VERSION = eval $VERSION;
 
 {
     package IPC::Msg::stat;
@@ -68,7 +69,7 @@ sub set {
     else {
 	croak 'Bad arg count' if @_ % 2;
 	my %arg = @_;
-	my $ds = $self->stat
+	$ds = $self->stat
 		or return undef;
 	my($key,$val);
 	$ds->$key($val)
@@ -125,6 +126,8 @@ IPC::Msg - SysV Msg IPC object class
     $msg->remove;
 
 =head1 DESCRIPTION
+
+A class providing an object based interface to SysV IPC message queues.
 
 =head1 METHODS
 

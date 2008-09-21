@@ -1,4 +1,4 @@
-#!/l/local/bin/perl -w
+#!/usr/bin/perl -w
 
 $pat = '';
 # construct word list
@@ -212,7 +212,6 @@ nice_chunk
 nice_chunk_size
 ninterps
 nomemok
-nrs
 nthreads
 nthreads_cond
 numeric_local

@@ -65,7 +65,7 @@ For example, let's make a simple Person class module.  It gets stored in
 the file Person.pm.  If it were called a Happy::Person class, it would
 be stored in the file Happy/Person.pm, and its package would become
 Happy::Person instead of just Person.  (On a personal computer not
-running Unix or Plan 9, but something like MacOS or VMS, the directory
+running Unix or Plan 9, but something like Mac OS or VMS, the directory
 separator may be different, but the principle is the same.)  Do not assume
 any formal relationship between modules based on their directory names.
 This is merely a grouping convenience, and has no effect on inheritance,
@@ -224,23 +224,8 @@ The second argument is the class into which the referent will be blessed.
 By not assuming our own class as the default second argument and instead
 using the class passed into us, we make our constructor inheritable.
 
-While we're at it, let's make our constructor a bit more flexible.
-Rather than being uniquely a class method, we'll set it up so that
-it can be called as either a class method I<or> an object
-method.  That way you can say:
-
-    $me  = Person->new();
-    $him = $me->new();
-
-To do this, all we have to do is check whether what was passed in
-was a reference or not.  If so, we were invoked as an object method,
-and we need to extract the package (class) using the ref() function.
-If not, we just use the string passed in as the package name
-for blessing our referent.
-
     sub new {
-        my $proto = shift;
-        my $class = ref($proto) || $proto;
+        my $class = shift;
         my $self  = {};
         $self->{NAME}   = undef;
         $self->{AGE}    = undef;
@@ -401,8 +386,7 @@ it instead a file-scoped lexical, you should make these
 changes to your Person::new() constructor:
 
     sub new {
-        my $proto = shift;
-        my $class = ref($proto) || $proto;
+        my $class = shift;
         my $self  = {};
         $Census++;
         $self->{NAME}   = undef;
@@ -458,8 +442,7 @@ a public data member in the same way that NAME, AGE, and PEERS are.
 to perl version 5.004 we'll have to quote the field name.)
 
     sub new {
-        my $proto = shift;
-        my $class = ref($proto) || $proto;
+        my $class = shift;
         my $self  = {};
         $self->{NAME}     = undef;
         $self->{AGE}      = undef;
@@ -650,8 +633,7 @@ Ok.  To do this, we'll change Person::new() so that it supports
 a full name field this way:
 
     sub new {
-        my $proto = shift;
-        my $class = ref($proto) || $proto;
+        my $class = shift;
         my $self  = {};
         $self->{FULLNAME} = Fullname->new();
         $self->{AGE}      = undef;
@@ -683,8 +665,7 @@ by the appropriate name to access them:
     use strict;
 
     sub new {
-        my $proto = shift;
-        my $class = ref($proto) || $proto;
+        my $class = shift;
         my $self  = {
             TITLE       => undef,
             CHRISTIAN   => undef,
@@ -753,7 +734,7 @@ Finally, here's the test program:
     $him->fullname->title("St");
     $him->age(1);
 
-    printf "%s is really %s.\n", $him->name, $him->fullname;
+    printf "%s is really %s.\n", $him->name, $him->fullname->as_string;
     printf "%s's age: %d.\n", $him->name, $him->age;
     $him->happy_birthday;
     printf "%s's age: %d.\n", $him->name, $him->age;
@@ -940,7 +921,8 @@ comes to the rescue here.
 This way it starts looking in my class's @ISA.  This only makes sense
 from I<within> a method call, though.  Don't try to access anything
 in SUPER:: from anywhere else, because it doesn't exist outside
-an overridden method call.
+an overridden method call. Note that C<SUPER> refers to the superclass of
+the current package, I<not> to the superclass of C<$self>.
 
 Things are getting a bit complicated here.  Have we done anything
 we shouldn't?  As before, one way to test whether we're designing
@@ -969,7 +951,7 @@ And here's the test program:
     $boss->age(47);
     $boss->peers("Frank", "Felipe", "Faust");
 
-    printf "%s is age %d.\n", $boss->fullname, $boss->age;
+    printf "%s is age %d.\n", $boss->fullname->as_string, $boss->age;
     printf "His peers are: %s\n", join(", ", $boss->peers);
 
 Running it, we see that we're still ok.  If you'd like to dump out your
@@ -1008,8 +990,7 @@ know about its immediate superclass, but never vice-versa.)  So let's
 fix up Employee::new() this way:
 
     sub new {
-        my $proto = shift;
-        my $class = ref($proto) || $proto;
+        my $class = shift;
         my $self  = $class->SUPER::new();
         $self->{SALARY}        = undef;
         $self->{ID}            = undef;
@@ -1130,9 +1111,9 @@ above, just add this to Person.pm:
 
     our $VERSION = '1.1';
 
-and then in Employee.pm could you can say
+and then in Employee.pm you can say
 
-    use Employee 1.1;
+    use Person 1.1;
 
 And it would make sure that you have at least that version number or
 higher available.   This is not the same as loading in that exact version
@@ -1243,8 +1224,7 @@ different:
     package Person;
 
     sub new {
-	 my $that  = shift;
-	 my $class = ref($that) || $that;
+	 my $class  = shift;
 	 my $self = {
 	    NAME  => undef,
 	    AGE   => undef,
@@ -1375,8 +1355,7 @@ constructor will look like when taking this approach:
     );
 
     sub new {
-	my $that  = shift;
-	my $class = ref($that) || $that;
+	my $class = shift;
 	my $self  = {
 	    _permitted => \%fields,
 	    %fields,
@@ -1444,9 +1423,8 @@ Here's how to be careful:
     );
 
     sub new {
-	my $that  = shift;
-	my $class = ref($that) || $that;
-	my $self = bless $that->SUPER::new(), $class;
+	my $class = shift;
+	my $self  = $class->SUPER::new();
 	my($element);
 	foreach $element (keys %fields) {
 	    $self->{_permitted}->{$element} = $fields{$element};
@@ -1496,10 +1474,10 @@ Here's a simple example of using it:
     struct 'Fred' => {
         one        => '$',
         many       => '@',
-        profession => Jobbie,  # calls Jobbie->new()
+        profession => 'Jobbie',  # does not call Jobbie->new()
     };
 
-    $ob = Fred->new;
+    $ob = Fred->new(profession => Jobbie->new());
     $ob->one("hmmmm");
 
     $ob->many(0, "here");
@@ -1512,6 +1490,10 @@ Here's a simple example of using it:
 You can declare types in the struct to be basic Perl types, or
 user-defined types (classes).  User types will be initialized by calling
 that class's new() method.
+
+Take care that the C<Jobbie> object is not created automatically by the
+C<Fred> class's new() method, so you should specify a C<Jobbie> object
+when you create an instance of C<Fred>.
 
 Here's a real-world example of using struct generation.  Let's say you
 wanted to override Perl's idea of gethostbyname() and gethostbyaddr() so
@@ -1650,8 +1632,7 @@ update value fields in the hash.  Convenient, eh?
 
     # this is the same as before...
     sub new {
-	 my $that  = shift;
-	 my $class = ref($that) || $that;
+	 my $class = shift;
 	 my $self = {
 	    NAME  => undef,
 	    AGE   => undef,
@@ -1757,7 +1738,7 @@ L<overload>.
 L<perlboot> is a kinder, gentler introduction to object-oriented
 programming.
 
-L<perltootc> provides more detail on class data.
+L<perltooc> provides more detail on class data.
 
 Some modules which might prove interesting are Class::Accessor,
 Class::Class, Class::Contract, Class::Data::Inheritable,
@@ -1769,12 +1750,8 @@ Class::MethodMaker and Tie::SecureHash
 Copyright (c) 1997, 1998 Tom Christiansen 
 All rights reserved.
 
-When included as part of the Standard Version of Perl, or as part of
-its complete documentation whether printed or otherwise, this work
-may be distributed only under the terms of Perl's Artistic License.
-Any distribution of this file or derivatives thereof I<outside>
-of that package require that special arrangements be made with
-copyright holder.
+This documentation is free; you can redistribute it and/or modify it
+under the same terms as Perl itself.
 
 Irrespective of its distribution, all code examples in this file
 are hereby placed into the public domain.  You are permitted and

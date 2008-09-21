@@ -24,14 +24,8 @@ use vars qw($MYPKG @EXPORT @ISA);
 $MYPKG = eval { (caller)[0] };
 @EXPORT = qw(&testpodplaintext);
 BEGIN {
-    if ( $] >= 5.005_58 ) {
-       require Pod::Text;
-       @ISA = qw( Pod::Text );
-    }
-    else {
-       require Pod::PlainText;
-       @ISA = qw( Pod::PlainText );
-    }
+    require Pod::PlainText;
+    @ISA = qw( Pod::PlainText );
     require VMS::Filespec if $^O eq 'VMS';
 }
 
@@ -42,19 +36,17 @@ BEGIN {
 sub catfile(@) { File::Spec->catfile(@_); }
 
 my $INSTDIR = abs_path(dirname $0);
-if ($^O eq 'VMS') { # clean up directory spec
-    $INSTDIR = VMS::Filespec::unixpath($INSTDIR);
-    $INSTDIR =~ s#/$##;
-    $INSTDIR =~ s#/000000/#/#;
-}
+$INSTDIR = VMS::Filespec::unixpath($INSTDIR) if $^O eq 'VMS';
+$INSTDIR =~ s#/$## if $^O eq 'VMS';
+$INSTDIR =~ s#:$## if $^O eq 'MacOS';
 $INSTDIR = (dirname $INSTDIR) if (basename($INSTDIR) eq 'pod');
+$INSTDIR =~ s#:$## if $^O eq 'MacOS';
 $INSTDIR = (dirname $INSTDIR) if (basename($INSTDIR) eq 't');
 my @PODINCDIRS = ( catfile($INSTDIR, 'lib', 'Pod'),
                    catfile($INSTDIR, 'scripts'),
                    catfile($INSTDIR, 'pod'),
                    catfile($INSTDIR, 't', 'pod')
                  );
-print "PODINCDIRS = ",join(', ',@PODINCDIRS),"\n";
 
 ## Find the path to the file to =include
 sub findinclude {
@@ -110,7 +102,7 @@ sub begin_input {
 sub podinc2plaintext( $ $ ) {
     my ($infile, $outfile) = @_;
     local $_;
-    my $text_parser = $MYPKG->new(quotes => "`'");
+    my $text_parser = $MYPKG->new;
     $text_parser->parse_from_file($infile, $outfile);
 }
 

@@ -3,24 +3,65 @@
 
 package Devel::Peek;
 
-# Underscore to allow older Perls to access older version from CPAN
-$VERSION = '1.00_01';
+$VERSION = '1.03';
+$XS_VERSION = $VERSION;
+$VERSION = eval $VERSION;
 
 require Exporter;
 use XSLoader ();
 
 @ISA = qw(Exporter);
 @EXPORT = qw(Dump mstat DeadCode DumpArray DumpWithOP DumpProg
-	     fill_mstats mstats_fillhash mstats2hash);
+	     fill_mstats mstats_fillhash mstats2hash runops_debug debug_flags);
 @EXPORT_OK = qw(SvREFCNT SvREFCNT_inc SvREFCNT_dec CvGV);
 %EXPORT_TAGS = ('ALL' => [@EXPORT, @EXPORT_OK]);
 
 XSLoader::load 'Devel::Peek';
 
+sub import {
+  my $c = shift;
+  my $ops_rx = qr/^:opd(=[stP]*)?\b/;
+  my @db = grep m/$ops_rx/, @_;
+  @_ = grep !m/$ops_rx/, @_;
+  if (@db) {
+    die "Too many :opd options" if @db > 1;
+    runops_debug(1);
+    my $flags = ($db[0] =~ m/$ops_rx/ and $1);
+    $flags = 'st' unless defined $flags;
+    my $f = 0;
+    $f |= 2  if $flags =~ /s/;
+    $f |= 8  if $flags =~ /t/;
+    $f |= 64 if $flags =~ /P/;
+    $^D |= $f if $f;
+  }
+  unshift @_, $c;
+  goto &Exporter::import;
+}
+
 sub DumpWithOP ($;$) {
    local($Devel::Peek::dump_ops)=1;
    my $depth = @_ > 1 ? $_[1] : 4 ;
    Dump($_[0],$depth);
+}
+
+$D_flags = 'psltocPmfrxuLHXDSTR';
+
+sub debug_flags (;$) {
+  my $out = "";
+  for my $i (0 .. length($D_flags)-1) {
+    $out .= substr $D_flags, $i, 1 if $^D & (1<<$i);
+  }
+  my $arg = shift;
+  my $num = $arg;
+  if (defined $arg and $arg =~ /\D/) {
+    die "unknown flags in debug_flags()" if $arg =~ /[^-$D_flags]/;
+    my ($on,$off) = split /-/, "$arg-";
+    $num = $^D;
+    $num |=  (1<<index($D_flags, $_)) for split //, $on;
+    $num &= ~(1<<index($D_flags, $_)) for split //, $off;
+  }
+  $^D = $num if defined $arg;
+  $out
 }
 
 1;
@@ -37,6 +78,8 @@ Devel::Peek - A data debugging tool for the XS programmer
         Dump( $a, 5 );
         DumpArray( 5, $a, $b, ... );
 	mstat "Point 5";
+
+        use Devel::Peek ':opd=st';
 
 =head1 DESCRIPTION
 
@@ -68,6 +111,27 @@ The global variable $Devel::Peek::pv_limit can be set to limit the
 number of character printed in various string values.  Setting it to 0
 means no limit.
 
+If C<use Devel::Peek> directive has a C<:opd=FLAGS> argument,
+this switches on debugging of opcode dispatch.  C<FLAGS> should be a
+combination of C<s>, C<t>, and C<P> (see B<-D> flags in L<perlrun>).
+C<:opd> is a shortcut for C<:opd=st>.
+
+=head2 Runtime debugging
+
+C<CvGV($cv)> return one of the globs associated to a subroutine reference $cv.
+
+debug_flags() returns a string representation of C<$^D> (similar to
+what is allowed for B<-D> flag).  When called with a numeric argument,
+sets $^D to the corresponding value.  When called with an argument of
+the form C<"flags-flags">, set on/off bits of C<$^D> corresponding to
+letters before/after C<->.  (The returned value is for C<$^D> before
+the modification.)
+
+runops_debug() returns true if the current I<opcode dispatcher> is the
+debugging one.  When called with an argument, switches to debugging or
+non-debugging dispatcher depending on the argument (active for
+newly-entered subs/etc only).  (The returned value is for the dispatcher before the modification.)
+
 =head2 Memory footprint debugging
 
 When perl is compiled with support for memory footprint debugging
@@ -75,7 +139,7 @@ When perl is compiled with support for memory footprint debugging
 
 Use mstat() function to emit a memory state statistic to the terminal.
 For more information on the format of output of mstat() see
-L<perldebug/Using C<$ENV{PERL_DEBUG_MSTATS}>>.
+L<perldebguts/Using C<$ENV{PERL_DEBUG_MSTATS}>>.
 
 Three additional functions allow access to this statistic from Perl.
 First, use C<mstats_fillhash(%hash)> to get the information contained
@@ -88,7 +152,7 @@ Two additional fields C<free>, C<used> contain array references which
 provide per-bucket count of free and used chunks.  Two other fields
 C<mem_size>, C<available_size> contain array references which provide
 the information about the allocated size and usable size of chunks in
-each bucket.  Again, see L<perldebug/Using C<$ENV{PERL_DEBUG_MSTATS}>>
+each bucket.  Again, see L<perldebguts/Using C<$ENV{PERL_DEBUG_MSTATS}>>
 for details.
 
 Keep in mind that only the first several "odd-numbered" buckets are
@@ -327,28 +391,40 @@ The following shows the raw form of a reference to a hash.
 
 The output:
 
-        SV = RV(0xf041c)
-          REFCNT = 1
-          FLAGS = (ROK)
-          RV = 0xb2850
-        SV = PVHV(0xbd448)
-          REFCNT = 1
-          FLAGS = ()
-          NV = 0
-          ARRAY = 0xbd748
-          KEYS = 1
-          FILL = 1
-          MAX = 7
-          RITER = -1
-          EITER = 0x0
-        Elt "hello" => 0xbaaf0
-        SV = IV(0xbe860)
-          REFCNT = 1
-          FLAGS = (IOK,pIOK)
-          IV = 42
+	SV = RV(0x8177858) at 0x816a618
+	  REFCNT = 1
+	  FLAGS = (ROK)
+	  RV = 0x814fc10
+	  SV = PVHV(0x8167768) at 0x814fc10
+	    REFCNT = 1
+	    FLAGS = (SHAREKEYS)
+	    IV = 1
+	    NV = 0
+	    ARRAY = 0x816c5b8  (0:7, 1:1)
+	    hash quality = 100.0%
+	    KEYS = 1
+	    FILL = 1
+	    MAX = 7
+	    RITER = -1
+	    EITER = 0x0
+	    Elt "hello" HASH = 0xc8fd181b
+	    SV = IV(0x816c030) at 0x814fcf4
+	      REFCNT = 1
+	      FLAGS = (IOK,pIOK)
+	      IV = 42
 
 This shows C<$a> is a reference pointing to an SV.  That SV is a PVHV, a
 hash. Fields RITER and EITER are used by C<L<each>>.
+
+The "quality" of a hash is defined as the total number of comparisons needed
+to access every element once, relative to the expected number needed for a
+random hash. The value can go over 100%.
+
+The total number of comparisons is equal to the sum of the squares of the
+number of entries in each bucket.  For a random hash of C<<n>> keys into
+C<<k>> buckets, the expected value is:
+
+		n + n(n-1)/2k
 
 =head2 Dumping a large array or hash
 
@@ -432,7 +508,7 @@ Looks like this:
 
 This shows that 
 
-=over
+=over 4
 
 =item *
 

@@ -41,24 +41,20 @@ been tested on NeXT platforms.
 #include "perl.h"
 #include "XSUB.h"
 
-#define DL_LOADONCEONLY
-
-#include "dlutils.c"	/* SaveError() etc	*/
+#include "dlutils.c"	/* for SaveError() etc */
 
 #undef environ
 #undef bool
 #import <mach-o/dyld.h>
 
-static char * dl_last_error = (char *) 0;
-static AV *dl_resolve_using = Nullav;
-
 static char *dlerror()
 {
+    dTHX;
+    dMY_CXT;
     return dl_last_error;
 }
 
-int dlclose(handle) /* stub only */
-void *handle;
+static int dlclose(void *handle) /* stub only */
 {
     return 0;
 }
@@ -72,13 +68,14 @@ static void TranslateError
     (const char *path, enum dyldErrorSource type, int number)
 {
     dTHX;
+    dMY_CXT;
     char *error;
     unsigned int index;
     static char *OFIErrorStrings[] =
     {
 	"%s(%d): Object Image Load Failure\n",
 	"%s(%d): Object Image Load Success\n",
-	"%s(%d): Not an recognisable object file\n",
+	"%s(%d): Not a recognisable object file\n",
 	"%s(%d): No valid architecture\n",
 	"%s(%d): Object image has an invalid format\n",
 	"%s(%d): Invalid access (permissions?)\n",
@@ -100,8 +97,7 @@ static void TranslateError
 		     path, number, type);
 	break;
     }
-    safefree(dl_last_error);
-    dl_last_error = savepv(error);
+    sv_setpv(MY_CXT.x_dl_last_error, error);
 }
 
 static char *dlopen(char *path, int mode /* mode is ignored */)
@@ -115,18 +111,17 @@ static char *dlopen(char *path, int mode /* mode is ignored */)
 	TranslateError(path, OFImage, dyld_result);
     else
     {
-    	// NSLinkModule will cause the run to abort on any link error's
+    	// NSLinkModule will cause the run to abort on any link errors
 	// not very friendly but the error recovery functionality is limited.
 	handle = NSLinkModule(ofile, path, TRUE);
+	NSDestroyObjectFileImage(ofile);
     }
 
     return handle;
 }
 
-void *
-dlsym(handle, symbol)
-void *handle;
-char *symbol;
+static void *
+dlsym(void *handle, char *symbol)
 {
     void *addr;
 
@@ -147,7 +142,6 @@ static void
 dl_private_init(pTHX)
 {
     (void)dl_generic_private_init(aTHX);
-    dl_resolve_using = get_av("DynaLoader::dl_resolve_using", GV_ADDMULTI);
 }
 
 MODULE = DynaLoader     PACKAGE = DynaLoader
@@ -219,7 +213,8 @@ dl_install_xsub(perl_name, symref, filename="$Package")
 char *
 dl_error()
     CODE:
-    RETVAL = LastError ;
+    dMY_CXT;
+    RETVAL = dl_last_error ;
     OUTPUT:
     RETVAL
 

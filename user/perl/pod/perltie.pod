@@ -1,4 +1,5 @@
 =head1 NAME
+X<tie>
 
 perltie - how to hide an object class in a simple variable
 
@@ -46,6 +47,7 @@ Unlike dbmopen(), the tie() function will not C<use> or C<require> a module
 for you--you need to do that explicitly yourself.
 
 =head2 Tying Scalars
+X<scalar, tying>
 
 A class implementing a tied scalar should define the following methods:
 TIESCALAR, FETCH, STORE, and possibly UNTIE and/or DESTROY.
@@ -74,6 +76,7 @@ calls.  Here's the preamble of the class.
 =over 4
 
 =item TIESCALAR classname, LIST
+X<TIESCALAR>
 
 This is the constructor for the class.  That means it is
 expected to return a blessed reference to a new scalar
@@ -102,6 +105,7 @@ other classes may well not wish to be so forgiving.  It checks the global
 variable C<$^W> to see whether to emit a bit of noise anyway.
 
 =item FETCH this
+X<FETCH>
 
 This method will be triggered every time the tied variable is accessed
 (read).  It takes no arguments beyond its self reference, which is the
@@ -126,10 +130,13 @@ fails--there's no place for us to return an error otherwise, and it's
 probably the right thing to do.
 
 =item STORE this, value
+X<STORE>
 
 This method will be triggered every time the tied variable is set
 (assigned).  Beyond its self reference, it also expects one (and only one)
-argument--the new value the user is trying to assign.
+argument--the new value the user is trying to assign. Don't worry about
+returning a value from STORE -- the semantic of assignment returning the
+assigned value is implemented with FETCH.
 
     sub STORE {
         my $self = shift;
@@ -154,16 +161,17 @@ argument--the new value the user is trying to assign.
         unless (defined setpriority(PRIO_PROCESS, $$self, $new_nicety)) {
             confess "setpriority failed: $!";
         }
-        return $new_nicety;
     }
 
 =item UNTIE this
+X<UNTIE>
 
 This method will be triggered when the C<untie> occurs. This can be useful
 if the class needs to know when no further calls will be made. (Except DESTROY
-of course.) See below for more details.
+of course.) See L<The C<untie> Gotcha> below for more details.
 
 =item DESTROY this
+X<DESTROY>
 
 This method will be triggered when the tied variable needs to be destructed.
 As with other object classes, such a method is seldom necessary, because Perl
@@ -184,6 +192,7 @@ of completeness, robustness, and general aesthetics.  Simpler
 TIESCALAR classes are certainly possible.
 
 =head2 Tying Arrays
+X<array, tying>
 
 A class implementing a tied ordinary array should define the following
 methods: TIEARRAY, FETCH, STORE, FETCHSIZE, STORESIZE and perhaps UNTIE and/or DESTROY.
@@ -219,6 +228,7 @@ The preamble code for the class is as follows:
 =over 4
 
 =item TIEARRAY classname, LIST
+X<TIEARRAY>
 
 This is the constructor for the class.  That means it is expected to
 return a blessed reference through which the new array (probably an
@@ -245,6 +255,7 @@ This just goes to show you that you should respect an object's privacy.
     }
 
 =item FETCH this, index
+X<FETCH>
 
 This method will be triggered every time an individual element the tied array
 is accessed (read).  It takes one argument beyond its self reference: the
@@ -258,7 +269,9 @@ index whose value we're trying to fetch.
 
 If a negative array index is used to read from an array, the index
 will be translated to a positive one internally by calling FETCHSIZE
-before being passed to FETCH.
+before being passed to FETCH.  You may disable this feature by
+assigning a true value to the variable C<$NEGATIVE_INDICES> in the
+tied array class.
 
 As you may have noticed, the name of the FETCH method (et al.) is the same
 for all accesses, even though the constructors differ in names (TIESCALAR
@@ -267,6 +280,7 @@ several tied types, in practice this becomes cumbersome, and it's easiest
 to keep them at simply one tie type per class.
 
 =item STORE this, index, value
+X<STORE>
 
 This method will be triggered every time an element in the tied array is set
 (written).  It takes two arguments beyond its self reference: the index at
@@ -291,6 +305,7 @@ spaces so we have a little more work to do here:
 Negative indexes are treated the same as with FETCH.
 
 =item FETCHSIZE this
+X<FETCHSIZE>
 
 Returns the total number of items in the tied array associated with
 object I<this>. (Equivalent to C<scalar(@array)>).  For example:
@@ -301,6 +316,7 @@ object I<this>. (Equivalent to C<scalar(@array)>).  For example:
     }
 
 =item STORESIZE this, count
+X<STORESIZE>
 
 Sets the total number of items in the tied array associated with
 object I<this> to be I<count>. If this makes the array larger then
@@ -326,6 +342,7 @@ C<$self-E<gt>{ELEMSIZE}> number of spaces.  Observe:
     }
 
 =item EXTEND this, count
+X<EXTEND>
 
 Informative call that array is likely to grow to have I<count> entries.
 Can be used to optimize allocation. This method need do nothing.
@@ -341,6 +358,7 @@ as needed:
     }
 
 =item EXISTS this, key
+X<EXISTS>
 
 Verify that the element at index I<key> exists in the tied array I<this>.
 
@@ -356,10 +374,11 @@ C<$self-E<gt>{ELEMSIZE}> spaces only, it does not exist:
     }
 
 =item DELETE this, key
+X<DELETE>
 
 Delete the element at index I<key> from the tied array I<this>.
 
-In our example, a deleted item is C<$self->{ELEMSIZE}> spaces:
+In our example, a deleted item is C<$self-E<gt>{ELEMSIZE}> spaces:
 
     sub DELETE {
       my $self  = shift;
@@ -368,6 +387,7 @@ In our example, a deleted item is C<$self->{ELEMSIZE}> spaces:
     }
 
 =item CLEAR this
+X<CLEAR>
 
 Clear (remove, delete, ...) all values from the tied array associated with
 object I<this>.  For example:
@@ -378,6 +398,7 @@ object I<this>.  For example:
     }
 
 =item PUSH this, LIST 
+X<PUSH>
 
 Append elements of I<LIST> to the array.  For example:
 
@@ -390,6 +411,7 @@ Append elements of I<LIST> to the array.  For example:
     }   
 
 =item POP this
+X<POP>
 
 Remove last element of the array and return it.  For example:
 
@@ -399,6 +421,7 @@ Remove last element of the array and return it.  For example:
     }
 
 =item SHIFT this
+X<SHIFT>
 
 Remove the first element of the array (shifting other elements down)
 and return it.  For example:
@@ -409,6 +432,7 @@ and return it.  For example:
     }
 
 =item UNSHIFT this, LIST 
+X<UNSHIFT>
 
 Insert LIST elements at the beginning of the array, moving existing elements
 up to make room.  For example:
@@ -424,6 +448,7 @@ up to make room.  For example:
     }
 
 =item SPLICE this, offset, length, LIST
+X<SPLICE>
 
 Perform the equivalent of C<splice> on the array. 
 
@@ -451,10 +476,12 @@ In our example, we'll use a little shortcut if there is a I<LIST>:
     }
 
 =item UNTIE this
+X<UNTIE>
 
-Will be called when C<untie> happens. (See below.)
+Will be called when C<untie> happens. (See L<The C<untie> Gotcha> below.)
 
 =item DESTROY this
+X<DESTROY>
 
 This method will be triggered when the tied variable needs to be destructed.
 As with the scalar tie class, this is almost never needed in a
@@ -464,6 +491,7 @@ just leave it out.
 =back
 
 =head2 Tying Hashes
+X<hash, tying>
 
 Hashes were the first Perl data type to be tied (see dbmopen()).  A class
 implementing a tied hash should define the following methods: TIEHASH is
@@ -471,11 +499,12 @@ the constructor.  FETCH and STORE access the key and value pairs.  EXISTS
 reports whether a key is present in the hash, and DELETE deletes one.
 CLEAR empties the hash by deleting all the key and value pairs.  FIRSTKEY
 and NEXTKEY implement the keys() and each() functions to iterate over all
-the keys.  UNTIE is called when C<untie> happens, and DESTROY is called when
+the keys. SCALAR is triggered when the tied hash is evaluated in scalar 
+context. UNTIE is called when C<untie> happens, and DESTROY is called when
 the tied variable is garbage collected.
 
 If this seems like a lot, then feel free to inherit from merely the
-standard Tie::Hash module for most of your methods, redefining only the
+standard Tie::StdHash module for most of your methods, redefining only the
 interesting ones.  See L<Tie::Hash> for details.
 
 Remember that Perl distinguishes between a key not existing in the hash,
@@ -548,6 +577,7 @@ Here are the methods for the DotFiles tied hash.
 =over 4
 
 =item TIEHASH classname, LIST
+X<TIEHASH>
 
 This is the constructor for the class.  That means it is expected to
 return a blessed reference through which the new object (probably but not
@@ -588,6 +618,7 @@ in question.  Otherwise, because we didn't chdir() there, it would
 have been testing the wrong file.
 
 =item FETCH this, key
+X<FETCH>
 
 This method will be triggered every time an element in the tied hash is
 accessed (read).  It takes one argument beyond its self reference: the key
@@ -620,6 +651,7 @@ more efficient).  Of course, because dot files are a Unixy concept, we're
 not that concerned.
 
 =item STORE this, key, value
+X<STORE>
 
 This method will be triggered every time an element in the tied hash is set
 (written).  It takes two arguments beyond its self reference: the index at
@@ -667,6 +699,7 @@ The clobber method is simply:
     }
 
 =item DELETE this, key
+X<DELETE>
 
 This method is triggered when we remove an element from the hash,
 typically by using the delete() function.  Again, we'll
@@ -693,6 +726,7 @@ In this example, we have chosen instead to return a value which tells
 the caller whether the file was successfully deleted.
 
 =item CLEAR this
+X<CLEAR>
 
 This method is triggered when the whole hash is to be cleared, usually by
 assigning the empty list to it.
@@ -713,6 +747,7 @@ dangerous thing that they'll have to set CLOBBER to something higher than
     }
 
 =item EXISTS this, key
+X<EXISTS>
 
 This method is triggered when the user uses the exists() function
 on a particular hash.  In our example, we'll look at the C<{LIST}>
@@ -726,6 +761,7 @@ hash element for this:
     }
 
 =item FIRSTKEY this
+X<FIRSTKEY>
 
 This method will be triggered when the user is going
 to iterate through the hash, such as via a keys() or each()
@@ -739,6 +775,7 @@ call.
     }
 
 =item NEXTKEY this, lastkey
+X<NEXTKEY>
 
 This method gets triggered during a keys() or each() iteration.  It has a
 second argument which is the last key that had been accessed.  This is
@@ -754,11 +791,39 @@ thing, but we'll have to go through the LIST field indirectly.
 	return each %{ $self->{LIST} }
     }
 
-=item UNTIE this
+=item SCALAR this
+X<SCALAR>
 
-This is called when C<untie> occurs.
+This is called when the hash is evaluated in scalar context. In order
+to mimic the behaviour of untied hashes, this method should return a
+false value when the tied hash is considered empty. If this method does
+not exist, perl will make some educated guesses and return true when
+the hash is inside an iteration. If this isn't the case, FIRSTKEY is
+called, and the result will be a false value if FIRSTKEY returns the empty
+list, true otherwise.
+
+However, you should B<not> blindly rely on perl always doing the right 
+thing. Particularly, perl will mistakenly return true when you clear the 
+hash by repeatedly calling DELETE until it is empty. You are therefore 
+advised to supply your own SCALAR method when you want to be absolutely 
+sure that your hash behaves nicely in scalar context.
+
+In our example we can just call C<scalar> on the underlying hash
+referenced by C<$self-E<gt>{LIST}>:
+
+    sub SCALAR {
+	carp &whowasi if $DEBUG;
+	my $self = shift;
+	return scalar %{ $self->{LIST} }
+    }
+
+=item UNTIE this
+X<UNTIE>
+
+This is called when C<untie> occurs.  See L<The C<untie> Gotcha> below.
 
 =item DESTROY this
+X<DESTROY>
 
 This method is triggered when a tied hash is about to go out of
 scope.  You don't really need it unless you're trying to add debugging
@@ -783,6 +848,7 @@ each() function to iterate over such.  Example:
     untie(%HIST);
 
 =head2 Tying FileHandles
+X<filehandle, tying>
 
 This is partially implemented now.
 
@@ -792,9 +858,16 @@ READ, and possibly CLOSE, UNTIE and DESTROY.  The class can also provide: BINMOD
 OPEN, EOF, FILENO, SEEK, TELL - if the corresponding perl operators are
 used on the handle.
 
-It is especially useful when perl is embedded in some other program,
-where output to STDOUT and STDERR may have to be redirected in some
-special way. See nvi and the Apache module for examples.
+When STDERR is tied, its PRINT method will be called to issue warnings
+and error messages.  This feature is temporarily disabled during the call, 
+which means you can use C<warn()> inside PRINT without starting a recursive
+loop.  And just like C<__WARN__> and C<__DIE__> handlers, STDERR's PRINT
+method may be called to report parser errors, so the caveats mentioned under 
+L<perlvar/%SIG> apply.
+
+All of this is especially useful when perl is embedded in some other 
+program, where output to STDOUT and STDERR may have to be redirected 
+in some special way.  See nvi and the Apache module for examples.
 
 In our example we're going to create a shouting handle.
 
@@ -803,6 +876,7 @@ In our example we're going to create a shouting handle.
 =over 4
 
 =item TIEHANDLE classname, LIST
+X<TIEHANDLE>
 
 This is the constructor for the class.  That means it is expected to
 return a blessed reference of some sort. The reference can be used to
@@ -811,6 +885,7 @@ hold some internal information.
     sub TIEHANDLE { print "<shout>\n"; my $i; bless \$i, shift }
 
 =item WRITE this, LIST
+X<WRITE>
 
 This method will be called when the handle is written to via the
 C<syswrite> function.
@@ -822,6 +897,7 @@ C<syswrite> function.
     }
 
 =item PRINT this, LIST
+X<PRINT>
 
 This method will be triggered every time the tied handle is printed to
 with the C<print()> function.
@@ -831,6 +907,7 @@ the print function.
     sub PRINT { $r = shift; $$r++; print join($,,map(uc($_),@_)),$\ }
 
 =item PRINTF this, LIST
+X<PRINTF>
 
 This method will be triggered every time the tied handle is printed to
 with the C<printf()> function.
@@ -840,17 +917,18 @@ passed to the printf function.
     sub PRINTF {
         shift;
         my $fmt = shift;
-        print sprintf($fmt, @_)."\n";
+        print sprintf($fmt, @_);
     }
 
 =item READ this, LIST
+X<READ>
 
 This method will be called when the handle is read from via the C<read>
 or C<sysread> functions.
 
     sub READ {
 	my $self = shift;
-	my $$bufref = \$_[0];
+	my $bufref = \$_[0];
 	my(undef,$len,$offset) = @_;
 	print "READ called, \$buf=$bufref, \$len=$len, \$offset=$offset";
 	# add to $$bufref, set $len to number of characters read
@@ -858,6 +936,7 @@ or C<sysread> functions.
     }
 
 =item READLINE this
+X<READLINE>
 
 This method will be called when the handle is read from via <HANDLE>.
 The method should return undef when there is no more data.
@@ -865,12 +944,14 @@ The method should return undef when there is no more data.
     sub READLINE { $r = shift; "READLINE called $$r times\n"; }
 
 =item GETC this
+X<GETC>
 
 This method will be called when the C<getc> function is called.
 
     sub GETC { print "Don't GETC, Get Perl"; return "a"; }
 
 =item CLOSE this
+X<CLOSE>
 
 This method will be called when the handle is closed via the C<close>
 function.
@@ -878,11 +959,14 @@ function.
     sub CLOSE { print "CLOSE called.\n" }
 
 =item UNTIE this
+X<UNTIE>
 
 As with the other types of ties, this method will be called when C<untie> happens.
-It may be appropriate to "auto CLOSE" when this occurs.
+It may be appropriate to "auto CLOSE" when this occurs.  See
+L<The C<untie> Gotcha> below.
 
 =item DESTROY this
+X<DESTROY>
 
 As with the other types of ties, this method will be called when the
 tied handle is about to be destroyed. This is useful for debugging and
@@ -901,11 +985,13 @@ Here's how to use our little example:
     print <FOO>;
 
 =head2 UNTIE this
+X<UNTIE>
 
 You can define for all tie types an UNTIE method that will be called
-at untie().
+at untie().  See L<The C<untie> Gotcha> below.
 
 =head2 The C<untie> Gotcha
+X<untie>
 
 If you intend making use of the object returned from either tie() or
 tied(), and if the tie's target class defines a destructor, there is a
@@ -1062,13 +1148,30 @@ modules L<Tie::Scalar>, L<Tie::Array>, L<Tie::Hash>, or L<Tie::Handle>.
 
 =head1 BUGS
 
+The bucket usage information provided by C<scalar(%hash)> is not
+available.  What this means is that using %tied_hash in boolean
+context doesn't work right (currently this always tests false,
+regardless of whether the hash is empty or hash elements).
+
+Localizing tied arrays or hashes does not work.  After exiting the
+scope the arrays or the hashes are not restored.
+
+Counting the number of entries in a hash via C<scalar(keys(%hash))>
+or C<scalar(values(%hash)>) is inefficient since it needs to iterate
+through all the entries with FIRSTKEY/NEXTKEY.
+
+Tied hash/array slices cause multiple FETCH/STORE pairs, there are no
+tie methods for slice operations.
+
 You cannot easily tie a multilevel data structure (such as a hash of
 hashes) to a dbm file.  The first problem is that all but GDBM and
 Berkeley DB have size limitations, but beyond that, you also have problems
 with how references are to be represented on disk.  One experimental
-module that does attempt to address this need partially is the MLDBM
-module.  Check your nearest CPAN site as described in L<perlmodlib> for
-source code to MLDBM.
+module that does attempt to address this need is DBM::Deep.  Check your
+nearest CPAN site as described in L<perlmodlib> for source code.  Note
+that despite its name, DBM::Deep does not use dbm.  Another earlier attempt
+at solving the problem is MLDBM, which is also available on the CPAN, but
+which has some fairly serious limitations.
 
 Tied filehandles are still incomplete.  sysopen(), truncate(),
 flock(), fcntl(), stat() and -X can't currently be trapped.
@@ -1081,4 +1184,6 @@ TIEHANDLE by Sven Verdoolaege <F<skimo@dns.ufsia.ac.be>> and Doug MacEachern <F<
 
 UNTIE by Nick Ing-Simmons <F<nick@ing-simmons.net>>
 
-Tying Arrays by Casey Tweten <F<crt@kiski.net>>
+SCALAR by Tassilo von Parseval <F<tassilo.von.parseval@rwth-aachen.de>>
+
+Tying Arrays by Casey West <F<casey@geeknest.com>>

@@ -2,7 +2,7 @@ package Class::Struct;
 
 ## See POD after __END__
 
-use 5.005_64;
+use 5.006_001;
 
 use strict;
 use warnings::register;
@@ -14,7 +14,7 @@ require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(struct);
 
-$VERSION = '0.59';
+$VERSION = '0.63';
 
 ## Tested on 5.002 and 5.003 without class membership tests:
 my $CHECK_CLASS_MEMBERSHIP = ($] >= 5.003_95);
@@ -61,7 +61,7 @@ sub import {
 	# do we ever export anything else than 'struct'...?
       $self->export_to_level( 1, $self, @_ );
     } else {
-      &struct;
+      goto &struct;
     }
 }
 
@@ -163,10 +163,13 @@ sub struct {
             $out .= "    \$r->$elem = $init undef;$cmt\n";
         }
         elsif( $type =~ /^\w+(?:::\w+)*$/ ){
-            $init = "defined(\$init{'$name'}) ? \%{\$init{'$name'}} : ()";
-            $out .= "    croak 'Initializer for $name must be hash reference'\n";
-            $out .= "        if defined(\$init{'$name'}) && ref(\$init{'$name'}) ne 'HASH';\n";
-            $out .= "    \$r->$elem = '${type}'->new($init);$cmt\n";
+            $out .= "    if (defined(\$init{'$name'})) {\n";
+           $out .= "       if (ref \$init{'$name'} eq 'HASH')\n";
+            $out .= "            { \$r->$elem = $type->new(\%{\$init{'$name'}}) } $cmt\n";
+           $out .= "       elsif (UNIVERSAL::isa(\$init{'$name'}, '$type'))\n";
+            $out .= "            { \$r->$elem = \$init{'$name'} } $cmt\n";
+            $out .= "       else { croak 'Initializer for $name must be hash or $type reference' }\n";
+            $out .= "    }\n";
             $classes{$name} = $type;
             $got_class = 1;
         }
@@ -203,11 +206,13 @@ sub struct {
             if( defined $arrays{$name} ){
                 $out .= "    my \$i;\n";
                 $out .= "    \@_ ? (\$i = shift) : return \$r->$elem;\n"; 
+                $out .= "    if (ref(\$i) eq 'ARRAY' && !\@_) { \$r->$elem = \$i; return \$r }\n";
                 $sel = "->[\$i]";
             }
             elsif( defined $hashes{$name} ){
                 $out .= "    my \$i;\n";
-                $out .= "    \@_ ? (\$i = shift) : return \$r->$elem;\n"; 
+                $out .= "    \@_ ? (\$i = shift) : return \$r->$elem;\n";
+                $out .= "    if (ref(\$i) eq 'HASH' && !\@_) { \$r->$elem = \$i; return \$r }\n";
                 $sel = "->{\$i}";
             }
             elsif( defined $classes{$name} ){
@@ -260,6 +265,10 @@ Class::Struct - declare struct-like datatypes as Perl classes
     # Declare struct at compile time
     use Class::Struct CLASS_NAME => [ ELEMENT_NAME => ELEMENT_TYPE, ... ];
     use Class::Struct CLASS_NAME => { ELEMENT_NAME => ELEMENT_TYPE, ... };
+
+    # declare struct at compile time, based on array, implicit class name:
+    package CLASS_NAME;
+    use Class::Struct ELEMENT_NAME => ELEMENT_TYPE, ... ;
 
     package Myobj;
     use Class::Struct;
@@ -361,7 +370,7 @@ optionally preceded by a C<'*'>.
 The accessor method provided by C<struct> for an element depends
 on the declared type of the element.
 
-=over
+=over 4
 
 =item Scalar (C<'$'> or C<'*$'>)
 
@@ -389,6 +398,10 @@ is C<'@'>, the accessor returns the array element value.  If the
 element type is C<'*@'>, a reference to the array element is
 returned.
 
+As a special case, when the accessor is called with an array reference
+as the sole argument, this causes an assignment of the whole array element.
+The object reference is returned.
+
 =item Hash (C<'%'> or C<'*%'>)
 
 The element is a hash, initialized by default to C<()>.
@@ -403,11 +416,15 @@ assigned to the hash element.  If the element type is C<'%'>, the
 accessor returns the hash element value.  If the element type is
 C<'*%'>, a reference to the hash element is returned.
 
+As a special case, when the accessor is called with a hash reference
+as the sole argument, this causes an assignment of the whole hash element.
+The object reference is returned.
+
 =item Class (C<'Class_Name'> or C<'*Class_Name'>)
 
 The element's value must be a reference blessed to the named
-class or to one of its subclasses. The element is initialized to
-the result of calling the C<new> constructor of the named class.
+class or to one of its subclasses. The element is not initialized
+by default.
 
 The accessor's argument, if any, is assigned to the element. The
 accessor will C<croak> if this is not an appropriate object
@@ -430,38 +447,39 @@ The initializer value for a scalar element is just a scalar value. The
 initializer for an array element is an array reference. The initializer
 for a hash is a hash reference.
 
-The initializer for a class element is also a hash reference, and the
-contents of that hash are passed to the element's own constructor.
+The initializer for a class element is an object of the corresponding class,
+or of one of it's subclasses, or a reference to a hash containing named 
+arguments to be passed to the element's constructor.
 
 See Example 3 below for an example of initialization.
 
 =head1 EXAMPLES
 
-=over
+=over 4
 
 =item Example 1
 
 Giving a struct element a class type that is also a struct is how
-structs are nested.  Here, C<timeval> represents a time (seconds and
-microseconds), and C<rusage> has two elements, each of which is of
-type C<timeval>.
+structs are nested.  Here, C<Timeval> represents a time (seconds and
+microseconds), and C<Rusage> has two elements, each of which is of
+type C<Timeval>.
 
     use Class::Struct;
 
-    struct( rusage => {
-        ru_utime => timeval,  # seconds
-        ru_stime => timeval,  # microseconds
+    struct( Rusage => {
+        ru_utime => 'Timeval',  # user time used
+        ru_stime => 'Timeval',  # system time used
     });
 
-    struct( timeval => [
-        tv_secs  => '$',
-        tv_usecs => '$',
+    struct( Timeval => [
+        tv_secs  => '$',        # seconds
+        tv_usecs => '$',        # microseconds
     ]);
 
         # create an object:
-    my $t = new rusage;
+    my $t = Rusage->new(ru_utime=>Timeval->new(), ru_stime=>Timeval->new());
 
-        # $t->ru_utime and $t->ru_stime are objects of type timeval.
+        # $t->ru_utime and $t->ru_stime are objects of type Timeval.
         # set $t->ru_utime to 100.0 sec and $t->ru_stime to 5.0 sec.
     $t->ru_utime->tv_secs(100);
     $t->ru_utime->tv_usecs(0);
@@ -486,10 +504,10 @@ accessor accordingly.
         my $self = shift;
         if ( @_ ) {
             die 'count must be nonnegative' if $_[0] < 0;
-            $self->{'count'} = shift;
+            $self->{'MyObj::count'} = shift;
             warn "Too many args to count" if @_;
         }
-        return $self->{'count'};
+        return $self->{'MyObj::count'};
     }
 
     package main;
@@ -511,9 +529,9 @@ If no initializer is specified for a particular element, its default
 initialization is performed instead. Initializers for non-existent
 elements are silently ignored.
 
-Note that the initializer for a nested struct is specified
-as an anonymous hash of initializers, which is passed on to the nested
-struct's constructor.
+Note that the initializer for a nested class may be specified as
+an object of that class, or as a reference to a hash of initializers
+that are passed on to the nested struct's constructor.
 
     use Class::Struct;
 
@@ -535,7 +553,8 @@ struct's constructor.
     my $cat = Cat->new( name     => 'Socks',
                         kittens  => ['Monica', 'Kenneth'],
                         markings => { socks=>1, blaze=>"white" },
-                        breed    => { name=>'short-hair', cross=>1 },
+                        breed    => Breed->new(name=>'short-hair', cross=>1),
+                   or:  breed    => {name=>'short-hair', cross=>1},
                       );
 
     print "Once a cat called ", $cat->name, "\n";
@@ -546,7 +565,22 @@ struct's constructor.
 
 =head1 Author and Modification History
 
-Modified by Casey Tweten, 2000-11-08, v0.59.
+Modified by Damian Conway, 2001-09-10, v0.62.
+
+   Modified implicit construction of nested objects.
+   Now will also take an object ref instead of requiring a hash ref.
+   Also default initializes nested object attributes to undef, rather
+   than calling object constructor without args
+   Original over-helpfulness was fraught with problems:
+       * the class's constructor might not be called 'new'
+       * the class might not have a hash-like-arguments constructor
+       * the class might not have a no-argument constructor
+       * "recursive" data structures didn't work well:
+                 package Person;
+                 struct { mother => 'Person', father => 'Person'};
+
+
+Modified by Casey West, 2000-11-08, v0.59.
 
     Added the ability for compile time class creation.
 

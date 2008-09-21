@@ -38,7 +38,7 @@
 #if !(defined __SOMETHING_MORE_IMPORTANT)
 #    warn Be careful...
 #elif !(defined __SOMETHING_REALLY_REALLY_IMPORTANT)
-#    error Nup, can't go on /* ' /* stupid font-lock-mode */
+#    error "Nup, can't go on" /* ' /* stupid font-lock-mode */
 #else /* defined __SOMETHING_MORE_IMPORTANT && defined __SOMETHING_REALLY_REALLY_IMPORTANT */
 #    define EVERYTHING_IS_OK
 #endif
@@ -54,6 +54,11 @@
 #    define WHATEVER 8
 #else /* defined __SOMETHING_TRIVIAL && defined __SOMETHING_LESS_SO */
 #    define WHATEVER 1000
+#endif
+
+/* Test passing through the alien constructs (perlbug #34493) */
+#ifdef __LANGUAGE_PASCAL__
+function Tru64_Pascal(n: Integer): Integer;
 #endif
 
 /* 
@@ -81,5 +86,55 @@ typedef struct a_struct {
 
 typedef enum _days_of_week { sun, mon, tue, wed, thu, fri, sat, Sun=0, Mon,
 			     Tue, Wed, Thu, Fri, Sat } days_of_week;
+
+/* 
+ * Some moderate flexing of tri-graph pre substitution.
+ */
+??=ifndef _SOMETHING_TRIGRAPHIC
+??=define _SOMETHING_TRIGRAPHIC
+??= define SOMETHING_ELSE_TRIGRAPHIC_0 "??!"          /* | ??!|  || */
+ ??=define SOMETHING_ELSE_TRIGRAPHIC_1 "??'"          /* | ??'|  ^| */
+??= define SOMETHING_ELSE_TRIGRAPHIC_2 "??("          /* | ??(|  [| */
+ ??= define SOMETHING_ELSE_TRIGRAPHIC_3 "??)"         /* | ??)|  ]| */
+??=define SOMETHING_ELSE_TRIGRAPHIC_4  "??-0"         /* | ??-|  ~| */
+	??= define SOMETHING_ELSE_TRIGRAPHIC_5 "??/ " /* | ??/|  \| */
+??= define SOMETHING_ELSE_TRIGRAPHIC_6 "??<"          /* | ??<|  {| */
+??=define SOMETHING_ELSE_TRIGRAPHIC_7  "??="          /* | ??=|  #| */
+??= define SOMETHING_ELSE_TRIGRAPHIC_8 "??>"          /* | ??>|  }| */
+	??=endif
+
+// test C++-style comment
+
+#if 1
+typdef struct empty_struct {
+} // trailing C++-style comment should not force continuation
+#endif
+
+/* comments (that look like string) inside enums... */
+
+enum {
+   /* foo;
+     can't
+   */                        
+ };
+
+enum flimflam {
+  flim,
+   /* foo;
+     can't
+   */
+  flam                      
+ } flamflim;
+
+/* Handle multi-line quoted strings: */
+__asm__ __volatile__("
+    this
+    produces
+    no
+    output
+");
+
+#define multiline "multiline
+string"
 
 #endif /* _H2PH_H_ */

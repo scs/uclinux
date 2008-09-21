@@ -1,19 +1,20 @@
 package Opcode;
 
-require 5.005_64;
+use 5.006_001;
+
+use strict;
 
 our($VERSION, $XS_VERSION, @ISA, @EXPORT_OK);
 
-$VERSION = "1.04";
+$VERSION = "1.06";
 $XS_VERSION = "1.03";
 
-use strict;
 use Carp;
 use Exporter ();
 use XSLoader ();
-@ISA = qw(Exporter);
 
 BEGIN {
+    @ISA = qw(Exporter);
     @EXPORT_OK = qw(
 	opset ops_to_opset
 	opset_to_ops opset_to_hex invert_opset
@@ -350,7 +351,7 @@ available memory).
 
     anonlist anonhash
 
-Note that despite the existance of this optag a memory resource attack
+Note that despite the existence of this optag a memory resource attack
 may still be possible using only :base_core ops.
 
 Disabling these ops is a I<very> heavy handed way to attempt to prevent
@@ -413,6 +414,8 @@ These are a hotchpotch of opcodes still waiting to be considered
     getppid getpgrp setpgrp getpriority setpriority localtime gmtime
 
     entertry leavetry -- can be used to 'hide' fatal errors
+
+    custom -- where should this go
 
 =item :base_math
 
@@ -550,7 +553,7 @@ SystemV Interprocess Communications:
 =item :dangerous
 
 This tag is simply a bucket for opcodes that are unlikely to be used via
-a tag name but need to be tagged for completness and documentation.
+a tag name but need to be tagged for completeness and documentation.
 
     syscall dump chroot
 

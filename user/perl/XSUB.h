@@ -1,9 +1,21 @@
+/*    XSUB.h
+ *
+ *    Copyright (C) 1994, 1995, 1996, 1997, 1998, 1999,
+ *    2000, 2001, 2002, 2003, 2004, 2005, 2006 by Larry Wall and others
+ *
+ *    You may distribute under the terms of either the GNU General Public
+ *    License or the Artistic License, as specified in the README file.
+ *
+ */
+
 #ifndef _INC_PERL_XSUB_H
 #define _INC_PERL_XSUB_H 1
 
 /* first, some documentation for xsubpp-generated items */
 
 /*
+=head1 Variables created by C<xsubpp> and C<xsubpp> internal functions
+
 =for apidoc Amn|char*|CLASS
 Variable which is setup by C<xsubpp> to indicate the 
 class name for a C++ XS constructor.  This is always a C<char*>.  See C<THIS>.
@@ -17,6 +29,11 @@ L<perlxs/"The RETVAL Variable">.
 Variable which is setup by C<xsubpp> to designate the object in a C++ 
 XSUB.  This is always the proper type for the C++ object.  See C<CLASS> and 
 L<perlxs/"Using XS With C++">.
+
+=for apidoc Amn|I32|ax
+Variable which is setup by C<xsubpp> to indicate the stack base offset,
+used by the C<ST>, C<XSprePUSH> and C<XSRETURN> macros.  The C<dMARK> macro
+must be called prior to setup the C<MARK> variable.
 
 =for apidoc Amn|I32|items
 Variable which is setup by C<xsubpp> to indicate the number of 
@@ -33,10 +50,22 @@ Used to access elements on the XSUB's stack.
 Macro to declare an XSUB and its C parameter list.  This is handled by
 C<xsubpp>.
 
+=for apidoc Ams||dAX
+Sets up the C<ax> variable.
+This is usually handled automatically by C<xsubpp> by calling C<dXSARGS>.
+
+=for apidoc Ams||dAXMARK
+Sets up the C<ax> variable and stack marker variable C<mark>.
+This is usually handled automatically by C<xsubpp> by calling C<dXSARGS>.
+
+=for apidoc Ams||dITEMS
+Sets up the C<items> variable.
+This is usually handled automatically by C<xsubpp> by calling C<dXSARGS>.
+
 =for apidoc Ams||dXSARGS
-Sets up stack and mark pointers for an XSUB, calling dSP and dMARK.  This
-is usually handled automatically by C<xsubpp>.  Declares the C<items>
-variable to indicate the number of items on the stack.
+Sets up stack and mark pointers for an XSUB, calling dSP and dMARK.
+Sets up the C<ax> and C<items> variables by calling C<dAX> and C<dITEMS>.
+This is usually handled automatically by C<xsubpp>.
 
 =for apidoc Ams||dXSI32
 Sets up the C<ix> variable for an XSUB which has aliases.  This is usually
@@ -45,20 +74,48 @@ handled automatically by C<xsubpp>.
 =cut
 */
 
+#ifndef PERL_UNUSED_ARG
+#  ifdef lint
+#    include <note.h>
+#    define PERL_UNUSED_ARG(x) NOTE(ARGUNUSED(x))
+#  else
+#    define PERL_UNUSED_ARG(x) ((void)x)
+#  endif
+#endif
+#ifndef PERL_UNUSED_VAR
+#  define PERL_UNUSED_VAR(x) ((void)x)
+#endif
+
 #define ST(off) PL_stack_base[ax + (off)]
 
 #if defined(__CYGWIN__) && defined(USE_DYNAMIC_LOADING)
-#  define XS(name) __declspec(dllexport) void name(pTHXo_ CV* cv)
+#  define XS(name) __declspec(dllexport) void name(pTHX_ CV* cv)
 #else
-#  define XS(name) void name(pTHXo_ CV* cv)
+#  ifdef HASATTRIBUTE_UNUSED
+#    define XS(name) void name(pTHX_ CV* cv __attribute__unused__)
+#  else
+#    define XS(name) void name(pTHX_ CV* cv)
+#  endif
 #endif
 
-#define dXSARGS				\
-	dSP; dMARK;			\
-	I32 ax = mark - PL_stack_base + 1;	\
-	I32 items = sp - mark
+#define dAX const I32 ax = MARK - PL_stack_base + 1
 
-#define dXSTARG SV * targ = ((PL_op->op_private & OPpENTERSUB_HASTARG) \
+#define dAXMARK				\
+	I32 ax = POPMARK;	\
+	register SV **mark = PL_stack_base + ax++
+
+#define dITEMS I32 items = SP - MARK
+
+#ifdef lint
+#  define dXSARGS \
+	NOTE(ARGUNUSED(cv)) \
+	dSP; dAXMARK; dITEMS
+#else
+#  define dXSARGS \
+	dSP; dAXMARK; dITEMS
+#endif
+
+#define dXSTARG SV * const targ = ((PL_op->op_private & OPpENTERSUB_HASTARG) \
 			     ? PAD_SV(PL_op->op_targ) : sv_newmortal())
 
 /* Should be used before final PUSHi etc. if not in PPCODE section. */
@@ -74,14 +131,16 @@ handled automatically by C<xsubpp>.
 #  define XSINTERFACE_CVT(ret,name) ret (*name)()
 #endif
 #define dXSFUNCTION(ret)		XSINTERFACE_CVT(ret,XSFUNCTION)
-#define XSINTERFACE_FUNC(ret,cv,f)	((XSINTERFACE_CVT(ret,cv))(f))
+#define XSINTERFACE_FUNC(ret,cv,f)     ((XSINTERFACE_CVT(ret,))(f))
 #define XSINTERFACE_FUNC_SET(cv,f)	\
-		CvXSUBANY(cv).any_dptr = (void (*) (pTHXo_ void*))(f)
+		CvXSUBANY(cv).any_dxptr = (void (*) (pTHX_ void*))(f)
 
 /* Simple macros to put new mortal values onto the stack.   */
 /* Typically used to return values from XS functions.       */
 
 /*
+=head1 Stack Manipulation Macros
+
 =for apidoc Am|void|XST_mIV|int pos|IV iv
 Place an integer into the specified position C<pos> on the stack.  The
 value is stored in a new mortal SV.
@@ -113,8 +172,11 @@ handled by C<xsubpp>.
 =for apidoc Am|void|XSRETURN_IV|IV iv
 Return an integer from an XSUB immediately.  Uses C<XST_mIV>.
 
+=for apidoc Am|void|XSRETURN_UV|IV uv
+Return an integer from an XSUB immediately.  Uses C<XST_mUV>.
+
 =for apidoc Am|void|XSRETURN_NV|NV nv
-Return an double from an XSUB immediately.  Uses C<XST_mNV>.
+Return a double from an XSUB immediately.  Uses C<XST_mNV>.
 
 =for apidoc Am|void|XSRETURN_PV|char* str
 Return a copy of a string from an XSUB immediately.  Uses C<XST_mPV>.
@@ -131,7 +193,9 @@ Return C<&PL_sv_undef> from an XSUB immediately.  Uses C<XST_mUNDEF>.
 =for apidoc Ams||XSRETURN_EMPTY
 Return an empty list from an XSUB immediately.
 
-=for apidoc AmU||newXSproto
+=head1 Variables created by C<xsubpp> and C<xsubpp> internal functions
+
+=for apidoc AmU||newXSproto|char* name|XSUBADDR_t f|char* filename|const char *proto
 Used by C<xsubpp> to hook up XSUBs as Perl subs.  Adds Perl prototypes to
 the subs.
 
@@ -148,6 +212,7 @@ C<xsubpp>.  See L<perlxs/"The VERSIONCHECK: Keyword">.
 */
 
 #define XST_mIV(i,v)  (ST(i) = sv_2mortal(newSViv(v))  )
+#define XST_mUV(i,v)  (ST(i) = sv_2mortal(newSVuv(v))  )
 #define XST_mNV(i,v)  (ST(i) = sv_2mortal(newSVnv(v))  )
 #define XST_mPV(i,v)  (ST(i) = sv_2mortal(newSVpv(v,0)))
 #define XST_mPVN(i,v,n)  (ST(i) = sv_2mortal(newSVpvn(v,n)))
@@ -157,11 +222,13 @@ C<xsubpp>.  See L<perlxs/"The VERSIONCHECK: Keyword">.
 
 #define XSRETURN(off)					\
     STMT_START {					\
-	PL_stack_sp = PL_stack_base + ax + ((off) - 1);	\
+	IV tmpXSoff = (off);				\
+	PL_stack_sp = PL_stack_base + ax + (tmpXSoff - 1);	\
 	return;						\
     } STMT_END
 
 #define XSRETURN_IV(v) STMT_START { XST_mIV(0,v);  XSRETURN(1); } STMT_END
+#define XSRETURN_UV(v) STMT_START { XST_mUV(0,v);  XSRETURN(1); } STMT_END
 #define XSRETURN_NV(v) STMT_START { XST_mNV(0,v);  XSRETURN(1); } STMT_END
 #define XSRETURN_PV(v) STMT_START { XST_mPV(0,v);  XSRETURN(1); } STMT_END
 #define XSRETURN_PVN(v,n) STMT_START { XST_mPVN(0,v,n);  XSRETURN(1); } STMT_END
@@ -175,27 +242,76 @@ C<xsubpp>.  See L<perlxs/"The VERSIONCHECK: Keyword">.
 #ifdef XS_VERSION
 #  define XS_VERSION_BOOTCHECK \
     STMT_START {							\
-	SV *tmpsv; STRLEN n_a;						\
-	char *vn = Nullch, *module = SvPV(ST(0),n_a);			\
+	SV *_sv;							\
+	const char *vn = Nullch, *module = SvPV_nolen_const(ST(0));	\
 	if (items >= 2)	 /* version supplied as bootstrap arg */	\
-	    tmpsv = ST(1);						\
+	    _sv = ST(1);						\
 	else {								\
 	    /* XXX GV_ADDWARN */					\
-	    tmpsv = get_sv(Perl_form(aTHX_ "%s::%s", module,		\
+	    _sv = get_sv(Perl_form(aTHX_ "%s::%s", module,		\
 				vn = "XS_VERSION"), FALSE);		\
-	    if (!tmpsv || !SvOK(tmpsv))					\
-		tmpsv = get_sv(Perl_form(aTHX_ "%s::%s", module,	\
+	    if (!_sv || !SvOK(_sv))					\
+		_sv = get_sv(Perl_form(aTHX_ "%s::%s", module,	\
 				    vn = "VERSION"), FALSE);		\
 	}								\
-	if (tmpsv && (!SvOK(tmpsv) || strNE(XS_VERSION, SvPV(tmpsv, n_a))))	\
+	if (_sv && (!SvOK(_sv) || strNE(XS_VERSION, SvPV_nolen_const(_sv))))	\
 	    Perl_croak(aTHX_ "%s object version %s does not match %s%s%s%s %"SVf,\
 		  module, XS_VERSION,					\
 		  vn ? "$" : "", vn ? module : "", vn ? "::" : "",	\
-		  vn ? vn : "bootstrap parameter", tmpsv);		\
+		  vn ? vn : "bootstrap parameter", _sv);		\
     } STMT_END
 #else
 #  define XS_VERSION_BOOTCHECK
 #endif
+
+/* 
+   The DBM_setFilter & DBM_ckFilter macros are only used by 
+   the *DB*_File modules 
+*/
+
+#define DBM_setFilter(db_type,code)				\
+	{							\
+	    if (db_type)					\
+	        RETVAL = sv_mortalcopy(db_type) ;		\
+	    ST(0) = RETVAL ;					\
+	    if (db_type && (code == &PL_sv_undef)) {		\
+                SvREFCNT_dec(db_type) ;				\
+	        db_type = NULL ;				\
+	    }							\
+	    else if (code) {					\
+	        if (db_type)					\
+	            sv_setsv(db_type, code) ;			\
+	        else						\
+	            db_type = newSVsv(code) ;			\
+	    }	    						\
+	}
+
+#define DBM_ckFilter(arg,type,name)				\
+	if (db->type) {						\
+	    if (db->filtering) {				\
+	        croak("recursion detected in %s", name) ;	\
+	    }                     				\
+	    ENTER ;						\
+	    SAVETMPS ;						\
+	    SAVEINT(db->filtering) ;				\
+	    db->filtering = TRUE ;				\
+	    SAVESPTR(DEFSV) ;					\
+            if (name[7] == 's')                                 \
+                arg = newSVsv(arg);                             \
+	    DEFSV = arg ;					\
+	    SvTEMP_off(arg) ;					\
+	    PUSHMARK(SP) ;					\
+	    PUTBACK ;						\
+	    (void) perl_call_sv(db->type, G_DISCARD); 		\
+	    SPAGAIN ;						\
+	    PUTBACK ;						\
+	    FREETMPS ;						\
+	    LEAVE ;						\
+            if (name[7] == 's'){                                \
+                arg = sv_2mortal(arg);                          \
+            }                                                   \
+            SvOKp(arg);                                         \
+	}
 
 #if 1		/* for compatibility */
 #  define VTBL_sv		&PL_vtbl_sv
@@ -231,7 +347,6 @@ C<xsubpp>.  See L<perlxs/"The VERSIONCHECK: Keyword">.
 #endif
 
 #include "perlapi.h"
-#include "objXSUB.h"
 
 #if defined(PERL_IMPLICIT_CONTEXT) && !defined(PERL_NO_GET_CONTEXT) && !defined(PERL_CORE)
 #  undef aTHX
@@ -240,8 +355,17 @@ C<xsubpp>.  See L<perlxs/"The VERSIONCHECK: Keyword">.
 #  define aTHX_		aTHX,
 #endif
 
-#if (defined(PERL_CAPI) || defined(PERL_IMPLICIT_SYS)) && !defined(PERL_CORE)
+#if defined(PERL_IMPLICIT_SYS) && !defined(PERL_CORE)
 #  ifndef NO_XSLOCKS
+# if defined (NETWARE) && defined (USE_STDIO)
+#    define times		PerlProc_times
+#    define setuid		PerlProc_setuid
+#    define setgid		PerlProc_setgid
+#    define getpid		PerlProc_getpid
+#    define pause		PerlProc_pause
+#    define exit		PerlProc_exit
+#    define _exit		PerlProc__exit
+# else
 #    undef closedir
 #    undef opendir
 #    undef stdin
@@ -257,6 +381,37 @@ C<xsubpp>.  See L<perlxs/"The VERSIONCHECK: Keyword">.
 #    undef ungetc
 #    undef fileno
 
+/* Following symbols were giving redefinition errors while building extensions - sgp 17th Oct 2000 */
+#ifdef NETWARE
+#	undef readdir
+#	undef fstat
+#	undef stat
+#	undef longjmp
+#	undef endhostent
+#	undef endnetent
+#	undef endprotoent
+#	undef endservent
+#	undef gethostbyaddr
+#	undef gethostbyname
+#	undef gethostent
+#	undef getnetbyaddr
+#	undef getnetbyname
+#	undef getnetent
+#	undef getprotobyname
+#	undef getprotobynumber
+#	undef getprotoent
+#	undef getservbyname
+#	undef getservbyport
+#	undef getservent
+#	undef inet_ntoa
+#	undef sethostent
+#	undef setnetent
+#	undef setprotoent
+#	undef setservent
+#endif	/* NETWARE */
+
+#    undef  socketpair
+
 #    define mkdir		PerlDir_mkdir
 #    define chdir		PerlDir_chdir
 #    define rmdir		PerlDir_rmdir
@@ -269,35 +424,35 @@ C<xsubpp>.  See L<perlxs/"The VERSIONCHECK: Keyword">.
 #    define putenv		PerlEnv_putenv
 #    define getenv		PerlEnv_getenv
 #    define uname		PerlEnv_uname
-#    define stdin		PerlIO_stdin()
-#    define stdout		PerlIO_stdout()
-#    define stderr		PerlIO_stderr()
-#    define fopen		PerlIO_open
-#    define fclose		PerlIO_close
-#    define feof		PerlIO_eof
-#    define ferror		PerlIO_error
-#    define fclearerr		PerlIO_clearerr
-#    define getc		PerlIO_getc
-#    define fputc(c, f)		PerlIO_putc(f,c)
-#    define fputs(s, f)		PerlIO_puts(f,s)
-#    define fflush		PerlIO_flush
-#    define ungetc(c, f)	PerlIO_ungetc((f),(c))
-#    define fileno		PerlIO_fileno
-#    define fdopen		PerlIO_fdopen
-#    define freopen		PerlIO_reopen
-#    define fread(b,s,c,f)	PerlIO_read((f),(b),(s*c))
-#    define fwrite(b,s,c,f)	PerlIO_write((f),(b),(s*c))
-#    define setbuf		PerlIO_setbuf
-#    define setvbuf		PerlIO_setvbuf
-#    define setlinebuf		PerlIO_setlinebuf
-#    define stdoutf		PerlIO_stdoutf
-#    define vfprintf		PerlIO_vprintf
-#    define ftell		PerlIO_tell
-#    define fseek		PerlIO_seek
-#    define fgetpos		PerlIO_getpos
-#    define fsetpos		PerlIO_setpos
-#    define frewind		PerlIO_rewind
-#    define tmpfile		PerlIO_tmpfile
+#    define stdin		PerlSIO_stdin
+#    define stdout		PerlSIO_stdout
+#    define stderr		PerlSIO_stderr
+#    define fopen		PerlSIO_fopen
+#    define fclose		PerlSIO_fclose
+#    define feof		PerlSIO_feof
+#    define ferror		PerlSIO_ferror
+#    define clearerr		PerlSIO_clearerr
+#    define getc		PerlSIO_getc
+#    define fputc		PerlSIO_fputc
+#    define fputs		PerlSIO_fputs
+#    define fflush		PerlSIO_fflush
+#    define ungetc		PerlSIO_ungetc
+#    define fileno		PerlSIO_fileno
+#    define fdopen		PerlSIO_fdopen
+#    define freopen		PerlSIO_freopen
+#    define fread		PerlSIO_fread
+#    define fwrite		PerlSIO_fwrite
+#    define setbuf		PerlSIO_setbuf
+#    define setvbuf		PerlSIO_setvbuf
+#    define setlinebuf		PerlSIO_setlinebuf
+#    define stdoutf		PerlSIO_stdoutf
+#    define vfprintf		PerlSIO_vprintf
+#    define ftell		PerlSIO_ftell
+#    define fseek		PerlSIO_fseek
+#    define fgetpos		PerlSIO_fgetpos
+#    define fsetpos		PerlSIO_fsetpos
+#    define frewind		PerlSIO_rewind
+#    define tmpfile		PerlSIO_tmpfile
 #    define access		PerlLIO_access
 #    define chmod		PerlLIO_chmod
 #    define chsize		PerlLIO_chsize
@@ -351,6 +506,7 @@ C<xsubpp>.  See L<perlxs/"The VERSIONCHECK: Keyword">.
 #    define longjmp		PerlProc_longjmp
 #    define signal		PerlProc_signal
 #    define getpid		PerlProc_getpid
+#    define gettimeofday	PerlProc_gettimeofday
 #    define htonl		PerlSock_htonl
 #    define htons		PerlSock_htons
 #    define ntohl		PerlSock_ntohl
@@ -394,7 +550,32 @@ C<xsubpp>.  See L<perlxs/"The VERSIONCHECK: Keyword">.
 #    define shutdown		PerlSock_shutdown
 #    define socket		PerlSock_socket
 #    define socketpair		PerlSock_socketpair
+#	endif	/* NETWARE && USE_STDIO */
+
+#    ifdef USE_SOCKETS_AS_HANDLES
+#      undef fd_set
+#      undef FD_SET
+#      undef FD_CLR
+#      undef FD_ISSET
+#      undef FD_ZERO
+#      define fd_set		Perl_fd_set
+#      define FD_SET(n,p)	PERL_FD_SET(n,p)
+#      define FD_CLR(n,p)	PERL_FD_CLR(n,p)
+#      define FD_ISSET(n,p)	PERL_FD_ISSET(n,p)
+#      define FD_ZERO(p)	PERL_FD_ZERO(p)
+#    endif	/* USE_SOCKETS_AS_HANDLES */
+
 #  endif  /* NO_XSLOCKS */
-#endif  /* PERL_CAPI */
+#endif  /* PERL_IMPLICIT_SYS && !PERL_CORE */
 
 #endif /* _INC_PERL_XSUB_H */		/* include guard */
+
+/*
+ * Local variables:
+ * c-indentation-style: bsd
+ * c-basic-offset: 4
+ * indent-tabs-mode: t
+ * End:
+ *
+ * ex: set ts=8 sts=4 sw=4 noet:
+ */

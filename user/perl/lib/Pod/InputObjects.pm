@@ -11,7 +11,7 @@
 package Pod::InputObjects;
 
 use vars qw($VERSION);
-$VERSION = 1.13;  ## Current version of this package
+$VERSION = 1.30;  ## Current version of this package
 require  5.005;    ## requires this Perl version or later
 
 #############################################################################
@@ -268,7 +268,7 @@ sub new {
     ## If they are in the argument list, they will override the defaults.
     my $self = {
           -name       => undef,
-          -text       => (@_ == 1) ? $_[0] : undef,
+          -text       => (@_ == 1) ? shift : undef,
           -file       => '<unknown-file>',
           -line       => 0,
           -prefix     => '=',
@@ -447,7 +447,7 @@ C<-line> keywords indicate the filename and line number corresponding
 to the beginning of the interior sequence. If the C<$ptree> argument is
 given, it must be the last argument, and it must be either string, or
 else an array-ref suitable for passing to B<Pod::ParseTree::new> (or
-it may be a reference to an Pod::ParseTree object).
+it may be a reference to a Pod::ParseTree object).
 
 =cut
 
@@ -855,9 +855,15 @@ the current one.
 sub append {
    my $self = shift;
    local *ptree = $self;
+   my $can_append = @ptree && !(ref $ptree[-1]);
    for (@_) {
-      next  unless length;
-      if (@ptree  and  !(ref $ptree[-1])  and  !(ref $_)) {
+      if (ref) {
+         push @ptree, $_;
+      }
+      elsif(!length) {
+         next;
+      }
+      elsif ($can_append) {
          $ptree[-1] .= $_;
       }
       else {
@@ -892,7 +898,7 @@ sub _unset_child2parent_links {
    my $self = shift;
    local *ptree = $self;
    for (@ptree) {
-       next  unless (length  and  ref  and  ref ne 'SCALAR');
+       next  unless (defined and length  and  ref  and  ref ne 'SCALAR');
        $_->_unset_child2parent_links()
            if UNIVERSAL::isa($_, 'Pod::InteriorSequence');
    }
@@ -925,6 +931,8 @@ sub DESTROY {
 See L<Pod::Parser>, L<Pod::Select>
 
 =head1 AUTHOR
+
+Please report bugs using L<http://rt.cpan.org>.
 
 Brad Appleton E<lt>bradapp@enteract.comE<gt>
 

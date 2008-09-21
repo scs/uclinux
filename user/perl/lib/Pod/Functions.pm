@@ -1,13 +1,82 @@
 package Pod::Functions;
+use strict;
 
-#:vi:set ts=20
+=head1 NAME
+
+Pod::Functions - Group Perl's functions a la perlfunc.pod
+
+=head1 SYNOPSIS
+
+    use Pod::Functions;
+    
+    my @misc_ops = @{ $Kinds{ 'Misc' } };
+    my $misc_dsc = $Type_Description{ 'Misc' };
+
+or
+
+    perl /path/to/lib/Pod/Functions.pm
+
+This will print a grouped list of Perl's functions, like the 
+L<perlfunc/"Perl Functions by Category"> section.
+
+=head1 DESCRIPTION
+
+It exports the following variables:
+
+=over 4
+
+=item %Kinds
+
+This holds a hash-of-lists. Each list contains the functions in the category
+the key denotes.
+
+=item %Type
+
+In this hash each key represents a function and the value is the category.
+The category can be a comma separated list.
+
+=item %Flavor
+
+In this hash each key represents a function and the value is a short 
+description of that function.
+
+=item %Type_Description
+
+In this hash each key represents a category of functions and the value is 
+a short description of that category.
+
+=item @Type_Order
+
+This list of categories is used to produce the same order as the
+L<perlfunc/"Perl Functions by Category"> section.
+
+=back
+
+=head1 CHANGES
+
+1.02 20020813 <abe@ztreet.demon.nl>
+    de-typo in the SYNOPSIS section (thanks Mike Castle for noticing)
+
+1.01 20011229 <abe@ztreet.demon.nl>
+    fixed some bugs that slipped in after 5.6.1
+    added the pod
+    finished making it strict safe
+
+1.00 ??
+    first numbered version
+
+=cut
+
+our $VERSION = '1.03';
 
 require Exporter;
 
-@ISA = qw(Exporter);
-@EXPORT = qw(%Kinds %Type %Flavor %Type_Description @Type_Order);
+our @ISA = qw(Exporter);
+our @EXPORT = qw(%Kinds %Type %Flavor %Type_Description @Type_Order);
 
-%Type_Description = (
+our(%Kinds, %Type, %Flavor);
+
+our %Type_Description = (
     'ARRAY'	=> 'Functions for real @ARRAYs',
     'Binary'	=> 'Functions for fixed length data or records',
     'File'	=> 'Functions for filehandles, files, or directories',
@@ -30,7 +99,7 @@ require Exporter;
     'Namespace'	=> 'Keywords altering or affecting scoping of identifiers',
 );
 
-@Type_Order = qw{
+our @Type_Order = qw{
     String
     Regexp
     Math
@@ -57,18 +126,19 @@ while (<DATA>) {
     chomp;
     s/#.*//;
     next unless $_;
-    ($name, $type, $text) = split " ", $_, 3;
+    my($name, $type, $text) = split " ", $_, 3;
     $Type{$name} = $type;
     $Flavor{$name} = $text;
-    for $type ( split /[,\s]+/, $type ) {
-	push @{$Kinds{$type}}, $name;
+    for my $t ( split /[,\s]+/, $type ) {
+        push @{$Kinds{$t}}, $name;
     }
-} 
+}
 
 close DATA;
 
+my( $typedesc, $list );
 unless (caller) { 
-    foreach $type ( @Type_Order ) {
+    foreach my $type ( @Type_Order ) {
 	$list = join(", ", sort @{$Kinds{$type}});
 	$typedesc = $Type_Description{$type} . ":";
 	write;
@@ -85,7 +155,7 @@ format =
 	$list
 .
 
-1
+1;
 
 __DATA__
 -X	File	a file test (-r, -x, etc)
@@ -201,6 +271,7 @@ oct	String,Math	convert a string to an octal number
 open	File	open a file, pipe, or descriptor
 opendir	File	open a directory
 ord	String	find a character's numeric representation
+our	Misc,Namespace	declare and assign a package variable (lexical scoping)
 pack	Binary,String	convert a list into a binary representation
 pipe	Process	open a pair of connected filehandles
 pop	ARRAY	remove the last element from an array and return it
@@ -213,12 +284,13 @@ qq/STRING/	String	doubly quote a string
 quotemeta	Regexp	quote regular expression magic characters
 qw/STRING/	LIST	quote a list of words
 qx/STRING/	Process	backquote quote a string
-qr/PATTERN/	Regexp	Compile pattern 
+qr/STRING/	Regexp	Compile pattern 
 rand	Math	retrieve the next pseudorandom number 
 read	I/O,Binary	fixed-length buffered input from a filehandle
 readdir	I/O	get a directory from a directory handle
 readline	I/O	fetch a record from a file
 readlink	File	determine where a symbolic link is pointing
+readpipe	Process	execute a system command and collect standard output
 recv	Socket	receive a message over a Socket
 redo	Flow	start this loop iteration over again
 ref	Objects	find out the type of thing being referenced
@@ -270,6 +342,7 @@ sub	Flow	declare a subroutine, possibly anonymously
 substr	String	get or alter a portion of a stirng
 symlink	File	create a symbolic link to a file
 syscall	I/O,Binary	execute an arbitrary system call
+sysopen	File	open a file, pipe, or descriptor
 sysread	I/O,Binary	fixed-length unbuffered input from a filehandle
 sysseek	I/O,Binary	position I/O pointer on handle used with sysread and syswrite
 system	Process	run a separate program 
@@ -277,6 +350,7 @@ syswrite	I/O,Binary	fixed-length unbuffered output to a filehandle
 tell	I/O	get current seekpointer on a filehandle
 telldir	I/O	get current seekpointer on a directory handle
 tie	Objects	bind a variable to an object class 
+tied	Objects	get a reference to the object underlying a tied variable
 time	Time	return number of seconds since 1970
 times	Process,Time	return elapsed time for self and child processes
 tr///	String	transliterate a string

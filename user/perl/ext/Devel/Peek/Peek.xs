@@ -3,14 +3,26 @@
 #include "perl.h"
 #include "XSUB.h"
 
-SV *
+static bool
+_runops_debug(int flag)
+{
+    dTHX;
+    const bool d = PL_runops == MEMBER_TO_FPTR(Perl_runops_debug);
+
+    if (flag >= 0)
+	PL_runops 
+	    = MEMBER_TO_FPTR(flag ? Perl_runops_debug : Perl_runops_standard);
+    return d;
+}
+
+static SV *
 DeadCode(pTHX)
 {
 #ifdef PURIFY
     return Nullsv;
 #else
     SV* sva;
-    SV* sv, *dbg;
+    SV* sv;
     SV* ret = newRV_noinc((SV*)newAV());
     register SV* svend;
     int tm = 0, tref = 0, ts = 0, ta = 0, tas = 0;
@@ -115,16 +127,16 @@ DeadCode(pTHX)
 #endif /* !PURIFY */
 }
 
-#if defined(PERL_DEBUGGING_MSTATS) || defined(DEBUGGING_MSTATS) \
-	|| (defined(MYMALLOC) && !defined(PLAIN_MALLOC))
+#if (defined(PERL_DEBUGGING_MSTATS) || defined(DEBUGGING_MSTATS)) \
+	&& (defined(MYMALLOC) && !defined(PLAIN_MALLOC))
 #   define mstat(str) dump_mstats(str)
 #else
 #   define mstat(str) \
 	PerlIO_printf(Perl_debug_log, "%s: perl not compiled with DEBUGGING_MSTATS\n",str);
 #endif
 
-#if defined(PERL_DEBUGGING_MSTATS) || defined(DEBUGGING_MSTATS) \
-	|| (defined(MYMALLOC) && !defined(PLAIN_MALLOC))
+#if (defined(PERL_DEBUGGING_MSTATS) || defined(DEBUGGING_MSTATS)) \
+	&& (defined(MYMALLOC) && !defined(PLAIN_MALLOC))
 
 /* Very coarse overestimate, 2-per-power-of-2, one more to determine NBUCKETS. */
 #  define _NBUCKETS (2*8*IVSIZE+1)
@@ -135,7 +147,7 @@ struct mstats_buffer
     UV buf[_NBUCKETS*4];
 };
 
-void
+static void
 _fill_mstats(struct mstats_buffer *b, int level)
 {
     dTHX;
@@ -147,12 +159,10 @@ _fill_mstats(struct mstats_buffer *b, int level)
     get_mstats(&(b->buffer), _NBUCKETS, level);
 }
 
-void
+static void
 fill_mstats(SV *sv, int level)
 {
     dTHX;
-    int nbuckets;
-    struct mstats_buffer buf;
 
     if (SvREADONLY(sv))
 	croak("Cannot modify a readonly value");
@@ -163,8 +173,8 @@ fill_mstats(SV *sv, int level)
     SvPOK_only(sv);
 }
 
-void
-_mstats_to_hv(HV *hv, struct mstats_buffer *b, int level)
+static void
+_mstats_to_hv(HV *hv, const struct mstats_buffer *b, int level)
 {
     dTHX;
     SV **svp;
@@ -216,7 +226,7 @@ _mstats_to_hv(HV *hv, struct mstats_buffer *b, int level)
 	warn("FIXME: internal mstats buffer too short");
     
     for (type = 0; type < (level ? 4 : 2); type++) {
-	UV *p, *p1;
+	UV *p = 0, *p1 = 0;
 	AV *av;
 	int i;
 	static const char *types[4] = { 
@@ -229,8 +239,8 @@ _mstats_to_hv(HV *hv, struct mstats_buffer *b, int level)
 	    croak("Unexpected value for the key '%s' in the mstats hash", types[type]);
 	if (!SvOK(*svp)) {
 	    av = newAV();
-	    SvUPGRADE(*svp, SVt_RV);
-	    SvRV(*svp) = (SV*)av;
+	    (void)SvUPGRADE(*svp, SVt_RV);
+	    SvRV_set(*svp, (SV*)av);
 	    SvROK_on(*svp);
 	} else
 	    av = (AV*)SvRV(*svp);
@@ -261,7 +271,8 @@ _mstats_to_hv(HV *hv, struct mstats_buffer *b, int level)
 	}
     }
 }
-void
+
+static void
 mstats_fillhash(SV *sv, int level)
 {
     struct mstats_buffer buf;
@@ -271,7 +282,8 @@ mstats_fillhash(SV *sv, int level)
     _fill_mstats(&buf, level);
     _mstats_to_hv((HV *)SvRV(sv), &buf, level);
 }
-void
+
+static void
 mstats2hash(SV *sv, SV *rv, int level)
 {
     if (!(SvROK(rv) && SvTYPE(SvRV(rv)) == SVt_PVHV))
@@ -283,17 +295,19 @@ mstats2hash(SV *sv, SV *rv, int level)
     _mstats_to_hv((HV *)SvRV(rv), (struct mstats_buffer*)SvPVX(sv), level);
 }
 #else	/* !( defined(PERL_DEBUGGING_MSTATS) || defined(DEBUGGING_MSTATS) \ ) */ 
-void
+static void
 fill_mstats(SV *sv, int level)
 {
     croak("Cannot report mstats without Perl malloc");
 }
-void
+
+static void
 mstats_fillhash(SV *sv, int level)
 {
     croak("Cannot report mstats without Perl malloc");
 }
-void
+
+static void
 mstats2hash(SV *sv, SV *rv, int level)
 {
     croak("Cannot report mstats without Perl malloc");
@@ -328,11 +342,12 @@ I32	lim
 PPCODE:
 {
     SV *pv_lim_sv = perl_get_sv("Devel::Peek::pv_limit", FALSE);
-    STRLEN pv_lim = pv_lim_sv ? SvIV(pv_lim_sv) : 0;
+    const STRLEN pv_lim = pv_lim_sv ? SvIV(pv_lim_sv) : 0;
     SV *dumpop = perl_get_sv("Devel::Peek::dump_ops", FALSE);
-    I32 save_dumpindent = PL_dumpindent;
+    const I32 save_dumpindent = PL_dumpindent;
     PL_dumpindent = 2;
-    do_sv_dump(0, Perl_debug_log, sv, 0, lim, dumpop && SvTRUE(dumpop), pv_lim);
+    do_sv_dump(0, Perl_debug_log, sv, 0, lim,
+	       (bool)(dumpop && SvTRUE(dumpop)), pv_lim);
     PL_dumpindent = save_dumpindent;
 }
 
@@ -343,14 +358,15 @@ PPCODE:
 {
     long i;
     SV *pv_lim_sv = perl_get_sv("Devel::Peek::pv_limit", FALSE);
-    STRLEN pv_lim = pv_lim_sv ? SvIV(pv_lim_sv) : 0;
+    const STRLEN pv_lim = pv_lim_sv ? SvIV(pv_lim_sv) : 0;
     SV *dumpop = perl_get_sv("Devel::Peek::dump_ops", FALSE);
-    I32 save_dumpindent = PL_dumpindent;
+    const I32 save_dumpindent = PL_dumpindent;
     PL_dumpindent = 2;
 
     for (i=1; i<items; i++) {
 	PerlIO_printf(Perl_debug_log, "Elt No. %ld  0x%"UVxf"\n", i - 1, PTR2UV(ST(i)));
-	do_sv_dump(0, Perl_debug_log, ST(i), 0, lim, dumpop && SvTRUE(dumpop), pv_lim);
+	do_sv_dump(0, Perl_debug_log, ST(i), 0, lim,
+		   (bool)(dumpop && SvTRUE(dumpop)), pv_lim);
     }
     PL_dumpindent = save_dumpindent;
 }
@@ -402,3 +418,6 @@ MODULE = Devel::Peek		PACKAGE = Devel::Peek	PREFIX = _
 SV *
 _CvGV(cv)
     SV *cv
+
+bool
+_runops_debug(int flag = -1)

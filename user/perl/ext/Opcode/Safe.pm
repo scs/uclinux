@@ -3,9 +3,30 @@ package Safe;
 use 5.003_11;
 use strict;
 
-our $VERSION = "2.06";
+$Safe::VERSION = "2.12";
+
+# *** Don't declare any lexicals above this point ***
+#
+# This function should return a closure which contains an eval that can't
+# see any lexicals in scope (apart from __ExPr__ which is unavoidable)
+
+sub lexless_anon_sub {
+		 # $_[0] is package;
+		 # $_[1] is strict flag;
+    my $__ExPr__ = $_[2];   # must be a lexical to create the closure that
+			    # can be used to pass the value into the safe
+			    # world
+
+    # Create anon sub ref in root of compartment.
+    # Uses a closure (on $__ExPr__) to pass in the code to be executed.
+    # (eval on one line to keep line numbers as expected by caller)
+    eval sprintf
+    'package %s; %s strict; sub { @_=(); eval q[my $__ExPr__;] . $__ExPr__; }',
+		$_[0], $_[1] ? 'use' : 'no';
+}
 
 use Carp;
+use Carp::Heavy;
 
 use Opcode 1.01, qw(
     opset opset_to_ops opmask_add
@@ -47,6 +68,7 @@ sub new {
     # the whole glob *_ rather than $_ and @_ separately, otherwise
     # @_ in non default packages within the compartment don't work.
     $obj->share_from('main', $default_share);
+    Opcode::_safe_pkg_prep($obj->{Root}) if($Opcode::VERSION > 1.04);
     return $obj;
 }
 
@@ -154,7 +176,7 @@ sub share_from {
     my $no_record = shift || 0;
     my $root = $obj->root();
     croak("vars not an array ref") unless ref $vars eq 'ARRAY';
-	no strict 'refs';
+    no strict 'refs';
     # Check that 'from' package actually exists
     croak("Package \"$pkg\" does not exist")
 	unless keys %{"$pkg\::"};
@@ -189,7 +211,7 @@ sub share_record {
 sub share_redo {
     my $obj = shift;
     my $shares = \%{$obj->{Shares} ||= {}};
-	my($var, $pkg);
+    my($var, $pkg);
     while(($var, $pkg) = each %$shares) {
 	# warn "share_redo $pkg\:: $var";
 	$obj->share_from($pkg,  [ $var ], 1);
@@ -210,15 +232,7 @@ sub reval {
     my ($obj, $expr, $strict) = @_;
     my $root = $obj->{Root};
 
-    # Create anon sub ref in root of compartment.
-    # Uses a closure (on $expr) to pass in the code to be executed.
-    # (eval on one line to keep line numbers as expected by caller)
-	my $evalcode = sprintf('package %s; sub { eval $expr; }', $root);
-    my $evalsub;
-
-	if ($strict) { use strict; $evalsub = eval $evalcode; }
-	else         {  no strict; $evalsub = eval $evalcode; }
-
+    my $evalsub = lexless_anon_sub($root,$strict, $expr);
     return Opcode::_safe_call_sv($root, $obj->{Mask}, $evalsub);
 }
 
@@ -227,7 +241,7 @@ sub rdo {
     my $root = $obj->{Root};
 
     my $evalsub = eval
-	    sprintf('package %s; sub { do $file }', $root);
+	    sprintf('package %s; sub { @_ = (); do $file }', $root);
     return Opcode::_safe_call_sv($root, $obj->{Mask}, $evalsub);
 }
 
@@ -354,6 +368,9 @@ is implicit in each case.
 Permit the listed operators to be used when compiling code in the
 compartment (in I<addition> to any operators already permitted).
 
+You can list opcodes by names, or use a tag name; see
+L<Opcode/"Predefined Opcode Tags">.
+
 =item permit_only (OP, ...)
 
 Permit I<only> the listed operators to be used when compiling code in
@@ -379,11 +396,12 @@ respectfully.
 =item share (NAME, ...)
 
 This shares the variable(s) in the argument list with the compartment.
-This is almost identical to exporting variables using the L<Exporter(3)>
+This is almost identical to exporting variables using the L<Exporter>
 module.
 
-Each NAME must be the B<name> of a variable, typically with the leading
-type identifier included. A bareword is treated as a function name.
+Each NAME must be the B<name> of a non-lexical variable, typically
+with the leading type identifier included. A bareword is treated as a
+function name.
 
 Examples of legal names are '$foo' for a scalar, '@foo' for an
 array, '%foo' for a hash, '&foo' or 'foo' for a subroutine and '*foo'
@@ -425,7 +443,7 @@ C<main::> package to the code inside the compartment.
 Any attempt by the code in STRING to use an operator which is not permitted
 by the compartment will cause an error (at run-time of the main program
 but at compile-time for the code in STRING).  The error is of the form
-"%s trapped by operation mask operation...".
+"'%s' trapped by operation mask...".
 
 If an operation is trapped in this way, then the code in STRING will
 not be executed. If such a trapped operation occurs or any other

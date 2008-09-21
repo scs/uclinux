@@ -8,15 +8,12 @@ BEGIN {
 
 # don't make this lexical
 $i = 1;
-# Tests 21 .. 23 work only with non broken UTF16-as-code implementations,
-# i.e. not EBCDIC Perls.
-my $Is_EBCDIC = ord('A') == 193 ? 1 : 0;
-if ($Is_EBCDIC) {
-   print "1..20\n";
-}
-else {
-   print "1..23\n";
-}
+
+my $Is_EBCDIC = (ord('A') == 193) ? 1 : 0;
+my $Is_UTF8   = (${^OPEN} || "") =~ /:utf8/;
+my $total_tests = 31;
+if ($Is_EBCDIC || $Is_UTF8) { $total_tests -= 3; }
+print "1..$total_tests\n";
 
 sub do_require {
     %INC = ();
@@ -31,7 +28,7 @@ sub write_file {
     binmode REQ;
     use bytes;
     print REQ @_;
-    close REQ;
+    close REQ or die "Could not close $f: $!";
 }
 
 eval {require 5.005};
@@ -90,7 +87,6 @@ print "not " unless 5.5.1 gt v5.5;
 print "ok ",$i++,"\n";
 
 {
-    use utf8;
     print "not " unless v5.5.640 eq "\x{5}\x{5}\x{280}";
     print "ok ",$i++,"\n";
 
@@ -134,9 +130,42 @@ dofile();
 sub dofile { do "bleah.do"; };
 print $x;
 
-exit if $Is_EBCDIC;
+# Test that scalar context is forced for require
 
-# UTF-encoded things
+write_file('bleah.pm', <<'**BLEAH**'
+print "not " if !defined wantarray || wantarray ne '';
+print "ok $i - require() context\n";
+1;
+**BLEAH**
+);
+                              delete $INC{"bleah.pm"}; ++$::i;
+$foo = eval q{require bleah}; delete $INC{"bleah.pm"}; ++$::i;
+@foo = eval q{require bleah}; delete $INC{"bleah.pm"}; ++$::i;
+       eval q{require bleah}; delete $INC{"bleah.pm"}; ++$::i;
+       eval q{$_=$_+2;require bleah}; delete $INC{"bleah.pm"}; ++$::i;
+$foo = eval  {require bleah}; delete $INC{"bleah.pm"}; ++$::i;
+@foo = eval  {require bleah}; delete $INC{"bleah.pm"}; ++$::i;
+       eval  {require bleah};
+
+# Test for fix of RT #24404 : "require $scalar" may load a directory
+my $r = "threads";
+eval { require $r };
+$i++;
+if($@ =~ /Directory .*threads not allowed in require/) {
+    print "ok $i\n";
+} else {
+    print "not ok $i\n";
+}
+
+##########################################
+# What follows are UTF-8 specific tests. #
+# Add generic tests before this point.   #
+##########################################
+
+# UTF-encoded things - skipped on EBCDIC machines and on UTF-8 input
+
+if ($Is_EBCDIC || $Is_UTF8) { exit; }
+
 my $utf8 = chr(0xFEFF);
 
 $i++; do_require(qq(${utf8}print "ok $i\n"; 1;\n));

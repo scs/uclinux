@@ -9,6 +9,7 @@
 
 #include <unistd.h>
 #include <process.h>
+#include <sys/cygwin.h>
 
 /*
  * pp_system() implemented via spawn()
@@ -18,7 +19,7 @@
 static int
 do_spawnvp (const char *path, const char * const *argv)
 {
-    dTHXo;
+    dTHX;
     Sigsave_t ihand,qhand;
     int childpid, result, status;
 
@@ -28,7 +29,7 @@ do_spawnvp (const char *path, const char * const *argv)
     if (childpid < 0) {
 	status = -1;
 	if(ckWARN(WARN_EXEC))
-	    Perl_warner(aTHX_ WARN_EXEC,"Can't spawn \"%s\": %s",
+	    Perl_warner(aTHX_ packWARN(WARN_EXEC),"Can't spawn \"%s\": %s",
 		    path,Strerror (errno));
     } else {
 	do {
@@ -45,7 +46,7 @@ do_spawnvp (const char *path, const char * const *argv)
 int
 do_aspawn (SV *really, void **mark, void **sp)
 {
-    dTHXo;
+    dTHX;
     int  rc;
     char **a,*tmps,**argv; 
     STRLEN n_a; 
@@ -78,7 +79,7 @@ do_aspawn (SV *really, void **mark, void **sp)
 int
 do_spawn (char *cmd)
 {
-    dTHXo;
+    dTHX;
     char **a,*s,*metachars = "$&*(){}[]'\";\\?>|<~`\n";
     const char *command[4];
 
@@ -117,7 +118,7 @@ do_spawn (char *cmd)
 	    return do_spawnvp("sh",command);
 	}
 
-    New (1303,PL_Argv,(s-cmd)/2+2,char*);
+    Newx (PL_Argv,(s-cmd)/2+2,char*);
     PL_Cmd=savepvn (cmd,s-cmd);
     a=PL_Argv;
     for (s=PL_Cmd; *s;) {
@@ -146,11 +147,53 @@ XS(Cygwin_cwd)
 	Perl_croak(aTHX_ "Usage: Cwd::cwd()");
     if((cwd = getcwd(NULL, -1))) {
 	ST(0) = sv_2mortal(newSVpv(cwd, 0));
-	safesysfree(cwd);
+	free(cwd);
+#ifndef INCOMPLETE_TAINTS
+	SvTAINTED_on(ST(0));
+#endif
 	XSRETURN(1);
     }
     XSRETURN_UNDEF;
 }
+
+static
+XS(XS_Cygwin_pid_to_winpid)
+{
+    dXSARGS;
+    dXSTARG;
+    pid_t pid, RETVAL;
+
+    if (items != 1)
+        Perl_croak(aTHX_ "Usage: Cygwin::pid_to_winpid(pid)");
+
+    pid = (pid_t)SvIV(ST(0));
+
+    if ((RETVAL = cygwin_internal(CW_CYGWIN_PID_TO_WINPID, pid)) > 0) {
+	XSprePUSH; PUSHi((IV)RETVAL);
+        XSRETURN(1);
+    }
+    XSRETURN_UNDEF;
+}
+
+static
+XS(XS_Cygwin_winpid_to_pid)
+{
+    dXSARGS;
+    dXSTARG;
+    pid_t pid, RETVAL;
+
+    if (items != 1)
+        Perl_croak(aTHX_ "Usage: Cygwin::winpid_to_pid(pid)");
+
+    pid = (pid_t)SvIV(ST(0));
+
+    if ((RETVAL = cygwin32_winpid_to_pid(pid)) > 0) {
+        XSprePUSH; PUSHi((IV)RETVAL);
+        XSRETURN(1);
+    }
+    XSRETURN_UNDEF;
+}
+
 
 void
 init_os_extras(void)
@@ -159,4 +202,6 @@ init_os_extras(void)
     dTHX;
 
     newXS("Cwd::cwd", Cygwin_cwd, file);
+    newXS("Cygwin::winpid_to_pid", XS_Cygwin_winpid_to_pid, file);
+    newXS("Cygwin::pid_to_winpid", XS_Cygwin_pid_to_winpid, file);
 }

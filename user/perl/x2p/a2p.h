@@ -1,11 +1,10 @@
-/* $RCSfile: a2p.h,v $$Revision$$Date$
+/*    a2p.h
  *
- *    Copyright (c) 1991-2001, Larry Wall
+ *    Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+ *    2000, 2001, 2002, by Larry Wall and others
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
- *
- * $Log:	a2p.h,v $
  */
 
 #define VOIDUSED 1
@@ -16,11 +15,13 @@
 
 #ifdef VMS
 #  include "config.h"
+#elif defined(NETWARE)
+#  include "../NetWare/config.h"
 #else
 #  include "../config.h"
 #endif
 
-#if defined(__STDC__) || defined(vax11c) || defined(_AIX) || defined(__stdc__) || defined(__cplusplus)
+#if defined(__STDC__) || defined(_AIX) || defined(__stdc__) || defined(__cplusplus)
 # define STANDARD_C 1
 #endif
 
@@ -86,18 +87,10 @@
 #   include <strings.h>
 #endif
 
-#if !defined(HAS_BCOPY) || defined(__cplusplus)
-#   define bcopy(s1,s2,l) memcpy(s2,s1,l)
-#endif
-#if !defined(HAS_BZERO) || defined(__cplusplus)
-#   define bzero(s,l) memset(s,0,l)
-#endif
-
 #if !defined(HAS_STRCHR) && defined(HAS_INDEX) && !defined(strchr)
 #define strchr index
 #define strrchr rindex
 #endif
-
 
 #ifdef I_TIME
 #   include <time.h>
@@ -368,11 +361,7 @@ typedef struct htbl HASH;
 EXT char *Yes INIT("1");
 EXT char *No INIT("");
 
-#define str_true(str) (Str = (str), (Str->str_pok ? True(Str->str_ptr) : (Str->str_nok ? (Str->str_nval != 0.0) : 0 )))
-
-#define str_peek(str) (Str = (str), (Str->str_pok ? Str->str_ptr : (Str->str_nok ? (sprintf(buf,"num(%g)",Str->str_nval),buf) : "" )))
 #define str_get(str) (Str = (str), (Str->str_pok ? Str->str_ptr : str_2ptr(Str)))
-#define str_gnum(str) (Str = (str), (Str->str_nok ? Str->str_nval : str_2num(Str)))
 EXT STR *Str;
 
 #define GROWSTR(pp,lp,len) if (*(lp) < (len)) growstr(pp,lp,len)

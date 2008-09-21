@@ -1,4 +1,7 @@
 package B::Bblock;
+
+our $VERSION = '1.02_01';
+
 use Exporter ();
 @ISA = "Exporter";
 @EXPORT_OK = qw(find_leaders);
@@ -7,7 +10,7 @@ use B qw(peekop walkoptree walkoptree_exec
 	 main_root main_start svref_2object
          OPf_SPECIAL OPf_STACKED );
 
-use B::Terse;
+use B::Concise qw(concise_cv concise_main set_style_standard);
 use strict;
 
 my $bblock;
@@ -61,8 +64,6 @@ sub walk_bblocks {
 	}
 	printf "    %s\n", peekop($lastop);
     }
-    print "-------\n";
-    walkoptree_exec($start, "terse");
 }
 
 sub walk_bblocks_obj {
@@ -137,10 +138,19 @@ sub compile {
 		$objname = "main::$objname" unless $objname =~ /::/;
 		eval "walk_bblocks_obj(\\&$objname)";
 		die "walk_bblocks_obj(\\&$objname) failed: $@" if $@;
+		print "-------\n";
+		set_style_standard("terse");
+		eval "concise_cv('exec', \\&$objname)";
+		die "concise_cv('exec', \\&$objname) failed: $@" if $@;
 	    }
 	}
     } else {
-	return sub { walk_bblocks(main_root, main_start) };
+	return sub {
+	    walk_bblocks(main_root, main_start);
+	    print "-------\n";
+	    set_style_standard("terse");
+	    concise_main("exec");
+	};
     }
 }
 
@@ -165,13 +175,47 @@ B::Bblock - Walk basic blocks
 
 =head1 SYNOPSIS
 
-	perl -MO=Bblock[,OPTIONS] foo.pl
+  # External interface
+  perl -MO=Bblock[,OPTIONS] foo.pl
+
+  # Programmatic API
+  use B::Bblock qw(find_leaders);
+  my $leaders = find_leaders($root_op, $start_op);
 
 =head1 DESCRIPTION
 
 This module is used by the B::CC back end.  It walks "basic blocks".
 A basic block is a series of operations which is known to execute from
-start to finish, with no possiblity of branching or halting.
+start to finish, with no possibility of branching or halting.
+
+It can be used either stand alone or from inside another program.
+
+=for _private
+Somebody who understands the stand-alone options document them, please.
+
+=head2 Functions
+
+=over 4
+
+=item B<find_leaders>
+
+  my $leaders = find_leaders($root_op, $start_op);
+
+Given the root of the op tree and an op from which to start
+processing, it will return a hash ref representing all the ops which
+start a block.
+
+=for _private
+The above description may be somewhat wrong.
+
+The values of %$leaders are the op objects themselves.  Keys are $$op
+addresses.
+
+=for _private
+Above cribbed from B::CC's comments.  What's a $$op address?
+
+=back
+
 
 =head1 AUTHOR
 

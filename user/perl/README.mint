@@ -1,6 +1,19 @@
-##########################################################################
-# *** README.mint
-##########################################################################
+If you read this file _as_is_, just ignore the funny characters you see.
+It is written in the POD format (see pod/perlpod.pod) which is specially
+designed to be readable as is.
+
+=head1 NAME
+
+README.mint - Perl version 5 on Atari MiNT
+
+=head1 DESCRIPTION
+
+There is a binary version of perl available from the FreeMiNT project
+http://freemint.de/  You may wish to use this instead of trying to
+compile yourself.
+
+B<The following advice is from perl 5.004_02 and is probably rather
+out of date.>
 
 If you want to build perl yourself on MiNT (or maybe on an Atari without
 MiNT) you may want to accept some advice from somebody who already did it...
@@ -23,8 +36,7 @@ provided that the user has a Eunuchs-like environment (i.e. the
 standard envariables like $PATH, $HOME, ... are set, there is a
 POSIX compliant shell in /bin/sh, and...)
 
-Known problems
-==============
+=head1 Known problems with Perl on MiNT
 
 The problems you may encounter when building perl on your machine
 are most probably due to deficiencies in MiNT resp. the Atari
@@ -66,7 +78,7 @@ for cc1's stack.  A setting of 1 would reserve the entire
 memory for cc1, 3 would reserve three fourths.  You will have
 to find out the value that suits to your system yourself.
 
-To find out the location of the program `cc1' simply type
+To find out the location of the program "cc1" simply type
 `gcc --print-prog-name cc1' at your shell prompt.
 
 Now run make (maybe "make -k").  If you get a fatal signal 10 
@@ -74,14 +86,14 @@ increase cc1's stacksize, if you run out of memory you should
 either decrease the stacksize or follow some more hints:
 
 Perl's building process is very handy on machines with a lot
-of virtual memory but may result in a desaster if you are short
+of virtual memory but may result in a disaster if you are short
 of memory.  If gcc fails to compile many source files you should
 reduce the optimization.  Grep for "optimize" in the file
 config.sh and change the flags.
 
 If only several huge files cause problems (actually it is not a
 matter of the file size resp. the amount of code but depends on
-the size of the individual funtions) it is useful to bypass
+the size of the individual functions) it is useful to bypass
 the make program and compile these files directly from the
 command line.  For example if you got something like the
 following from make:
@@ -98,7 +110,7 @@ Please note that you have to add the name of the source file
 (here toke.c) at the end.
 
 If none of this helps, you're helpless.  Wait for a binary
-release.  If you have succeded you may encounter another problem
+release.  If you have succeeded you may encounter another problem
 at the linking process.  If gcc complains that it can't find
 some libraries within the perl distribution you probably have
 an old linker.  If it complains for example about "file not
@@ -111,16 +123,16 @@ This will fix the problem.
 
 This version (5.00402) of perl has passed most of the tests on my system:
 
-Failed Test  Status Wstat Total Fail  Failed  List of failed
-------------------------------------------------------------------------------
-io/pipe.t                    10    2  20.00%  7, 9
-io/tell.t                    13    1   7.69%  12
-lib/complex.t               762   13   1.71%  84-85, 248-251, 257, 272-273,
-                                              371, 380, 419-420
-lib/io_pipe.t                10    1  10.00%  9
-lib/io_tell.t                13    1   7.69%  12
-op/magic.t                   30    2   6.67%  29-30
-Failed 6/152 test scripts, 96.05% okay. 20/4359 subtests failed, 99.54% okay.
+ Failed Test  Status Wstat Total Fail  Failed  List of failed
+ ------------------------------------------------------------------------------
+ io/pipe.t                    10    2  20.00%  7, 9
+ io/tell.t                    13    1   7.69%  12
+ lib/complex.t               762   13   1.71%  84-85, 248-251, 257, 272-273,
+                                               371, 380, 419-420
+ lib/io_pipe.t                10    1  10.00%  9
+ lib/io_tell.t                13    1   7.69%  12
+ op/magic.t                   30    2   6.67%  29-30
+ Failed 6/152 test scripts, 96.05% okay. 20/4359 subtests failed, 99.54% okay.
 
 Pipes always cause problems with MiNT, it's actually a surprise that
 most of the tests did work.  I've got no idea why the "tell" test failed,
@@ -136,7 +148,7 @@ with op/magic.t and op/stat.t.  Maybe you'll find it out.
 
 ##########################################################################
 
-Another possible problem may arise from the implementation of  the "pwd" 
+Another possible problem may arise from the implementation of the "pwd" 
 command.  It happened to add a carriage return and newline to its output 
 no matter what the setting of $UNIXMODE is.  This is quite annoying since many
 library modules for perl take the output of pwd, chop off the
@@ -190,7 +202,7 @@ or extract the original system.o from your libc with
 module somewhere before you succeed.
 
 Anything missing?  Yep, I've almost forgotten...  
-No file in this  distribution without a fine saying.  Take this one:
+No file in this distribution without a fine saying.  Take this one:
 
 	"From a thief you should learn: (1) to work at night;
 	(2) if one cannot gain what one wants in one night to
@@ -210,7 +222,8 @@ OK, this was my motto while working on Perl for MiNT, especially rule (1)...
 
 Have fun with Perl!
 
+=head1 AUTHOR
+
 Guido Flohr
---
-mailto:gufl0000@stud.uni-sb.de
-http://stud.uni-sb.de/~gufl0000
+
+	mailto:guido@FreeMiNT.de

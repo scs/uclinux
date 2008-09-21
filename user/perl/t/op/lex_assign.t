@@ -5,6 +5,7 @@ BEGIN {
     @INC = '../lib';
 }
 
+$| = 1;
 umask 0;
 $xref = \ "";
 $runme = ($^O eq 'VMS' ? 'MCR ' : '') . $^X;
@@ -264,7 +265,7 @@ open BLAH, "<non-existent"	# open
 fileno STDERR			# fileno
 umask 0				# umask
 select STDOUT			# sselect
-select "","","",0		# select
+select undef,undef,undef,0	# select
 getc OP				# getc
 '???'				# read
 '???'				# sysread

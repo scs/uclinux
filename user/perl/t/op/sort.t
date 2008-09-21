@@ -5,7 +5,7 @@ BEGIN {
     @INC = '../lib';
 }
 use warnings;
-print "1..57\n";
+print "1..129\n";
 
 # these shouldn't hang
 {
@@ -14,6 +14,9 @@ print "1..57\n";
     sort { while(1) {}            } @a;
     sort { while(1) { last; }     } @a;
     sort { while(0) { last; }     } @a;
+
+    # Change 26011: Re: A surprising segfault
+    map scalar(sort(+())), ('')x68;
 }
 
 sub Backwards { $a lt $b ? 1 : $a gt $b ? -1 : 0 }
@@ -22,7 +25,7 @@ sub Backwards_stacked($$) { my($a,$b) = @_; $a lt $b ? 1 : $a gt $b ? -1 : 0 }
 my $upperfirst = 'A' lt 'a';
 
 # Beware: in future this may become hairier because of possible
-# collation complications: qw(A a B c) can be sorted at least as
+# collation complications: qw(A a B b) can be sorted at least as
 # any of the following
 #
 #	A a B b
@@ -315,3 +318,358 @@ sub cxt_six { sort test_if_scalar 1,2 }
     print "# x = '@b'\n";
     print !$def ? "ok 57\n" : "not ok 57\n";
 }
+
+# Bug 19991001.003
+{
+    sub routine { "one", "two" };
+    @a = sort(routine(1));
+    print "@a" eq "one two" ? "ok 58\n" : "not ok 58\n";
+}
+
+
+my $test = 59;
+sub ok {
+    print "not " unless $_[0] eq $_[1];
+    print "ok $test - $_[2]\n";
+    print "#[$_[0]] ne [$_[1]]\n" unless $_[0] eq $_[1];
+    $test++;
+}
+
+# check for in-place optimisation of @a = sort @a
+{
+    my ($r1,$r2,@a);
+    our @g;
+    @g = (3,2,1); $r1 = \$g[2]; @g = sort @g; $r2 = \$g[0];
+    ok "$r1-@g", "$r2-1 2 3", "inplace sort of global";
+
+    @a = qw(b a c); $r1 = \$a[1]; @a = sort @a; $r2 = \$a[0];
+    ok "$r1-@a", "$r2-a b c", "inplace sort of lexical";
+
+    @g = (2,3,1); $r1 = \$g[1]; @g = sort { $b <=> $a } @g; $r2 = \$g[0];
+    ok "$r1-@g", "$r2-3 2 1", "inplace reversed sort of global";
+
+    @g = (2,3,1);
+    $r1 = \$g[1]; @g = sort { $a<$b?1:$a>$b?-1:0 } @g; $r2 = \$g[0];
+    ok "$r1-@g", "$r2-3 2 1", "inplace custom sort of global";
+
+    sub mysort { $b cmp $a };
+    @a = qw(b c a); $r1 = \$a[1]; @a = sort mysort @a; $r2 = \$a[0];
+    ok "$r1-@a", "$r2-c b a", "inplace sort with function of lexical";
+
+    use Tie::Array;
+    my @t;
+    tie @t, 'Tie::StdArray';
+
+    @t = qw(b c a); @t = sort @t;
+    ok "@t", "a b c", "inplace sort of tied array";
+
+    @t = qw(b c a); @t = sort mysort @t;
+    ok "@t", "c b a", "inplace sort of tied array with function";
+
+    #  [perl #29790] don't optimise @a = ('a', sort @a) !
+
+    @g = (3,2,1); @g = ('0', sort @g);
+    ok "@g", "0 1 2 3", "un-inplace sort of global";
+    @g = (3,2,1); @g = (sort(@g),'4');
+    ok "@g", "1 2 3 4", "un-inplace sort of global 2";
+
+    @a = qw(b a c); @a = ('x', sort @a);
+    ok "@a", "x a b c", "un-inplace sort of lexical";
+    @a = qw(b a c); @a = ((sort @a), 'x');
+    ok "@a", "a b c x", "un-inplace sort of lexical 2";
+
+    @g = (2,3,1); @g = ('0', sort { $b <=> $a } @g);
+    ok "@g", "0 3 2 1", "un-inplace reversed sort of global";
+    @g = (2,3,1); @g = ((sort { $b <=> $a } @g),'4');
+    ok "@g", "3 2 1 4", "un-inplace reversed sort of global 2";
+
+    @g = (2,3,1); @g = ('0', sort { $a<$b?1:$a>$b?-1:0 } @g);
+    ok "@g", "0 3 2 1", "un-inplace custom sort of global";
+    @g = (2,3,1); @g = ((sort { $a<$b?1:$a>$b?-1:0 } @g),'4');
+    ok "@g", "3 2 1 4", "un-inplace custom sort of global 2";
+
+    @a = qw(b c a); @a = ('x', sort mysort @a);
+    ok "@a", "x c b a", "un-inplace sort with function of lexical";
+    @a = qw(b c a); @a = ((sort mysort @a),'x');
+    ok "@a", "c b a x", "un-inplace sort with function of lexical 2";
+}
+
+# Test optimisations of reversed sorts. As we now guarantee stability by
+# default, # optimisations which do not provide this are bogus.
+
+{
+    package Oscalar;
+    use overload (qw("" stringify 0+ numify fallback 1));
+
+    sub new {
+	bless [$_[1], $_[2]], $_[0];
+    }
+
+    sub stringify { $_[0]->[0] }
+
+    sub numify { $_[0]->[1] }
+}
+
+sub generate {
+    my $count = 0;
+    map {new Oscalar $_, $count++} qw(A A A B B B C C C);
+}
+
+my @input = &generate;
+my @output = sort @input;
+ok join(" ", map {0+$_} @output), "0 1 2 3 4 5 6 7 8", "Simple stable sort";
+
+@input = &generate;
+@input = sort @input;
+ok join(" ", map {0+$_} @input), "0 1 2 3 4 5 6 7 8",
+    "Simple stable in place sort";
+
+# This won't be very interesting
+@input = &generate;
+@output = sort {$a <=> $b} @input;
+ok "@output", "A A A B B B C C C", 'stable $a <=> $b sort';
+
+@input = &generate;
+@output = sort {$a cmp $b} @input;
+ok join(" ", map {0+$_} @output), "0 1 2 3 4 5 6 7 8", 'stable $a cmp $b sort';
+
+@input = &generate;
+@input = sort {$a cmp $b} @input;
+ok join(" ", map {0+$_} @input), "0 1 2 3 4 5 6 7 8",
+    'stable $a cmp $b in place sort';
+
+@input = &generate;
+@output = sort {$b cmp $a} @input;
+ok join(" ", map {0+$_} @output), "6 7 8 3 4 5 0 1 2", 'stable $b cmp $a sort';
+
+@input = &generate;
+@input = sort {$b cmp $a} @input;
+ok join(" ", map {0+$_} @input), "6 7 8 3 4 5 0 1 2",
+    'stable $b cmp $a in place sort';
+
+@input = &generate;
+@output = reverse sort @input;
+ok join(" ", map {0+$_} @output), "8 7 6 5 4 3 2 1 0", "Reversed stable sort";
+
+@input = &generate;
+@input = reverse sort @input;
+ok join(" ", map {0+$_} @input), "8 7 6 5 4 3 2 1 0",
+    "Reversed stable in place sort";
+
+@input = &generate;
+my $output = reverse sort @input;
+ok $output, "CCCBBBAAA", "Reversed stable sort in scalar context";
+
+
+@input = &generate;
+@output = reverse sort {$a cmp $b} @input;
+ok join(" ", map {0+$_} @output), "8 7 6 5 4 3 2 1 0",
+    'reversed stable $a cmp $b sort';
+
+@input = &generate;
+@input = reverse sort {$a cmp $b} @input;
+ok join(" ", map {0+$_} @input), "8 7 6 5 4 3 2 1 0",
+    'revesed stable $a cmp $b in place sort';
+
+@input = &generate;
+$output = reverse sort {$a cmp $b} @input;
+ok $output, "CCCBBBAAA", 'Reversed stable $a cmp $b sort in scalar context';
+
+@input = &generate;
+@output = reverse sort {$b cmp $a} @input;
+ok join(" ", map {0+$_} @output), "2 1 0 5 4 3 8 7 6",
+    'reversed stable $b cmp $a sort';
+
+@input = &generate;
+@input = reverse sort {$b cmp $a} @input;
+ok join(" ", map {0+$_} @input), "2 1 0 5 4 3 8 7 6",
+    'revesed stable $b cmp $a in place sort';
+
+@input = &generate;
+$output = reverse sort {$b cmp $a} @input;
+ok $output, "AAABBBCCC", 'Reversed stable $b cmp $a sort in scalar context';
+
+sub stuff {
+    # Something complex enough to defeat any constant folding optimiser
+    $$ - $$;
+}
+
+@input = &generate;
+@output = reverse sort {stuff || $a cmp $b} @input;
+ok join(" ", map {0+$_} @output), "8 7 6 5 4 3 2 1 0",
+    'reversed stable complex sort';
+
+@input = &generate;
+@input = reverse sort {stuff || $a cmp $b} @input;
+ok join(" ", map {0+$_} @input), "8 7 6 5 4 3 2 1 0",
+    'revesed stable complex in place sort';
+
+@input = &generate;
+$output = reverse sort {stuff || $a cmp $b } @input;
+ok $output, "CCCBBBAAA", 'Reversed stable complex sort in scalar context';
+
+sub sortr {
+    reverse sort @_;
+}
+
+@output = sortr &generate;
+ok join(" ", map {0+$_} @output), "8 7 6 5 4 3 2 1 0",
+    'reversed stable sort return list context';
+$output = sortr &generate;
+ok $output, "CCCBBBAAA",
+    'reversed stable sort return scalar context';
+
+sub sortcmpr {
+    reverse sort {$a cmp $b} @_;
+}
+
+@output = sortcmpr &generate;
+ok join(" ", map {0+$_} @output), "8 7 6 5 4 3 2 1 0",
+    'reversed stable $a cmp $b sort return list context';
+$output = sortcmpr &generate;
+ok $output, "CCCBBBAAA",
+    'reversed stable $a cmp $b sort return scalar context';
+
+sub sortcmprba {
+    reverse sort {$b cmp $a} @_;
+}
+
+@output = sortcmprba &generate;
+ok join(" ", map {0+$_} @output), "2 1 0 5 4 3 8 7 6",
+    'reversed stable $b cmp $a sort return list context';
+$output = sortcmprba &generate;
+ok $output, "AAABBBCCC",
+'reversed stable $b cmp $a sort return scalar context';
+
+sub sortcmprq {
+    reverse sort {stuff || $a cmp $b} @_;
+}
+
+@output = sortcmpr &generate;
+ok join(" ", map {0+$_} @output), "8 7 6 5 4 3 2 1 0",
+    'reversed stable complex sort return list context';
+$output = sortcmpr &generate;
+ok $output, "CCCBBBAAA",
+    'reversed stable complex sort return scalar context';
+
+# And now with numbers
+
+sub generate1 {
+    my $count = 'A';
+    map {new Oscalar $count++, $_} 0, 0, 0, 1, 1, 1, 2, 2, 2;
+}
+
+# This won't be very interesting
+@input = &generate1;
+@output = sort {$a cmp $b} @input;
+ok "@output", "A B C D E F G H I", 'stable $a cmp $b sort';
+
+@input = &generate1;
+@output = sort {$a <=> $b} @input;
+ok "@output", "A B C D E F G H I", 'stable $a <=> $b sort';
+
+@input = &generate1;
+@input = sort {$a <=> $b} @input;
+ok "@input", "A B C D E F G H I", 'stable $a <=> $b in place sort';
+
+@input = &generate1;
+@output = sort {$b <=> $a} @input;
+ok "@output", "G H I D E F A B C", 'stable $b <=> $a sort';
+
+@input = &generate1;
+@input = sort {$b <=> $a} @input;
+ok "@input", "G H I D E F A B C", 'stable $b <=> $a in place sort';
+
+# test that optimized {$b cmp $a} and {$b <=> $a} remain stable
+# (new in 5.9) without overloading
+{ no warnings;
+@b = sort { $b <=> $a } @input = qw/5first 6first 5second 6second/;
+ok "@b" , "6first 6second 5first 5second", "optimized {$b <=> $a} without overloading" ;
+@input = sort {$b <=> $a} @input;
+ok "@input" , "6first 6second 5first 5second","inline optimized {$b <=> $a} without overloading" ;
+};
+
+# These two are actually doing string cmp on 0 1 and 2
+@input = &generate1;
+@output = reverse sort @input;
+ok "@output", "I H G F E D C B A", "Reversed stable sort";
+
+@input = &generate1;
+@input = reverse sort @input;
+ok "@input", "I H G F E D C B A", "Reversed stable in place sort";
+
+@input = &generate1;
+$output = reverse sort @input;
+ok $output, "IHGFEDCBA", "Reversed stable sort in scalar context";
+
+@input = &generate1;
+@output = reverse sort {$a <=> $b} @input;
+ok "@output", "I H G F E D C B A", 'reversed stable $a <=> $b sort';
+
+@input = &generate1;
+@input = reverse sort {$a <=> $b} @input;
+ok "@input", "I H G F E D C B A", 'revesed stable $a <=> $b in place sort';
+
+@input = &generate1;
+$output = reverse sort {$a <=> $b} @input;
+ok $output, "IHGFEDCBA", 'reversed stable $a <=> $b sort in scalar context';
+
+@input = &generate1;
+@output = reverse sort {$b <=> $a} @input;
+ok "@output", "C B A F E D I H G", 'reversed stable $b <=> $a sort';
+
+@input = &generate1;
+@input = reverse sort {$b <=> $a} @input;
+ok "@input", "C B A F E D I H G", 'revesed stable $b <=> $a in place sort';
+
+@input = &generate1;
+$output = reverse sort {$b <=> $a} @input;
+ok $output, "CBAFEDIHG", 'reversed stable $b <=> $a sort in scalar context';
+
+@input = &generate1;
+@output = reverse sort {stuff || $a <=> $b} @input;
+ok "@output", "I H G F E D C B A", 'reversed stable complex sort';
+
+@input = &generate1;
+@input = reverse sort {stuff || $a <=> $b} @input;
+ok "@input", "I H G F E D C B A", 'revesed stable complex in place sort';
+
+@input = &generate1;
+$output = reverse sort {stuff || $a <=> $b} @input;
+ok $output, "IHGFEDCBA", 'reversed stable complex sort in scalar context';
+
+sub sortnumr {
+    reverse sort {$a <=> $b} @_;
+}
+
+@output = sortnumr &generate1;
+ok "@output", "I H G F E D C B A",
+    'reversed stable $a <=> $b sort return list context';
+$output = sortnumr &generate1;
+ok $output, "IHGFEDCBA", 'reversed stable $a <=> $b sort return scalar context';
+
+sub sortnumrba {
+    reverse sort {$b <=> $a} @_;
+}
+
+@output = sortnumrba &generate1;
+ok "@output", "C B A F E D I H G",
+    'reversed stable $b <=> $a sort return list context';
+$output = sortnumrba &generate1;
+ok $output, "CBAFEDIHG", 'reversed stable $b <=> $a sort return scalar context';
+
+sub sortnumrq {
+    reverse sort {stuff || $a <=> $b} @_;
+}
+
+@output = sortnumrq &generate1;
+ok "@output", "I H G F E D C B A",
+    'reversed stable complex sort return list context';
+$output = sortnumrq &generate1;
+ok $output, "IHGFEDCBA", 'reversed stable complex sort return scalar context';
+
+@output = reverse (sort(qw(C A B)), 0);
+ok "@output", "0 C B A", 'reversed sort with trailing argument';
+
+@output = reverse (0, sort(qw(C A B)));
+ok "@output", "C B A 0", 'reversed sort with leading argument';

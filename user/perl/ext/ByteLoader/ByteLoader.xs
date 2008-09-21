@@ -1,4 +1,3 @@
-#define PERL_NO_GET_CONTEXT
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
@@ -11,7 +10,7 @@ int
 bl_getc(struct byteloader_fdata *data)
 {
     dTHX;
-    if (SvCUR(data->datasv) <= data->next_out) {
+    if (SvCUR(data->datasv) <= (STRLEN)data->next_out) {
       int result;
       /* Run out of buffered data, so attempt to read some more */
       *(SvPV_nolen (data->datasv)) = '\0';
@@ -27,7 +26,7 @@ bl_getc(struct byteloader_fdata *data)
       /* Else there must be at least one byte present, which is good enough */
     }
 
-    return *((char *) SvPV_nolen (data->datasv) + data->next_out++);
+    return *((U8 *) SvPV_nolen (data->datasv) + data->next_out++);
 }
 
 int
@@ -46,11 +45,10 @@ bl_read(struct byteloader_fdata *data, char *buf, size_t size, size_t n)
       len -= data->next_out;
       if (len) {
 	memmove (start, start + data->next_out, len + 1);
-	SvCUR_set (data->datasv, len);
       } else {
 	*start = '\0';	/* Avoid call to memmove. */
-	SvCUR_set (data->datasv, 0);
       }
+      SvCUR_set(data->datasv, len);
       data->next_out = 0;
 
       /* Attempt to read more data. */
@@ -75,12 +73,15 @@ bl_read(struct byteloader_fdata *data, char *buf, size_t size, size_t n)
 }
 
 static I32
-byteloader_filter(pTHXo_ int idx, SV *buf_sv, int maxlen)
+byteloader_filter(pTHX_ int idx, SV *buf_sv, int maxlen)
 {
     OP *saveroot = PL_main_root;
     OP *savestart = PL_main_start;
     struct byteloader_state bstate;
     struct byteloader_fdata data;
+    int len;
+    (void)buf_sv;
+    (void)maxlen;
 
     data.next_out = 0;
     data.datasv = FILTER_DATA(idx);
@@ -92,7 +93,14 @@ byteloader_filter(pTHXo_ int idx, SV *buf_sv, int maxlen)
     bstate.bs_sv = Nullsv;
     bstate.bs_iv_overflows = 0;
 
-    byterun(aTHXo_ &bstate);
+/* KLUDGE */
+    if (byterun(aTHX_ &bstate)
+	    && (len = SvCUR(data.datasv) - (STRLEN)data.next_out))
+    {
+	PerlIO_seek(PL_rsfp, -len, SEEK_CUR);
+	PL_rsfp = NULL;
+    }
+    filter_del(byteloader_filter);
 
     if (PL_in_eval) {
         OP *o;
@@ -117,15 +125,11 @@ MODULE = ByteLoader		PACKAGE = ByteLoader
 PROTOTYPES:	ENABLE
 
 void
-import(...)
+import(package="ByteLoader", ...)
+  char *package
   PREINIT:
     SV *sv = newSVpvn ("", 0);
   PPCODE:
     if (!sv)
       croak ("Could not allocate ByteLoader buffers");
     filter_add(byteloader_filter, sv);
-
-void
-unimport(...)
-  PPCODE:
-    filter_del(byteloader_filter);

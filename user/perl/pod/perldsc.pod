@@ -1,4 +1,5 @@
 =head1 NAME
+X<data structure> X<complex data structure> X<struct>
 
 perldsc - Perl Data Structures Cookbook
 
@@ -15,7 +16,7 @@ hacked Perl's internal symbol table directly, a strategy that proved hard
 to develop and maintain--to put it mildly.
 
 The 5.0 release of Perl let us have complex data structures.  You
-may now write something like this and all of a sudden, you'd have a array
+may now write something like this and all of a sudden, you'd have an array
 with three dimensions!
 
     for $x (1 .. 10) {
@@ -32,7 +33,7 @@ elaborate construct than meets the eye!
 
 How do you print it out?  Why can't you say just C<print @AoA>?  How do
 you sort it?  How can you pass it to a function or get one of these back
-from a function?  Is is an object?  Can you save it to disk to read
+from a function?  Is it an object?  Can you save it to disk to read
 back later?  How do you access whole rows or columns of that matrix?  Do
 all the values have to be numeric?
 
@@ -68,6 +69,7 @@ But for now, let's look at general issues common to all
 these types of data structures.
 
 =head1 REFERENCES
+X<reference> X<dereference> X<dereferencing> X<pointer>
 
 The most important thing to understand about all data structures in Perl
 -- including multidimensional arrays--is that even though they might
@@ -75,8 +77,9 @@ appear otherwise, Perl C<@ARRAY>s and C<%HASH>es are all internally
 one-dimensional.  They can hold only scalar values (meaning a string,
 number, or a reference).  They cannot directly contain other arrays or
 hashes, but instead contain I<references> to other arrays or hashes.
+X<multidimensional array> X<array, multidimensional>
 
-You can't use a reference to a array or hash in quite the same way that you
+You can't use a reference to an array or hash in quite the same way that you
 would a real array or hash.  For C or C++ programmers unused to
 distinguishing between arrays and pointers to the same, this can be
 confusing.  If so, just think of it as the difference between a structure
@@ -174,6 +177,7 @@ in memory!  In C, you'd have to remember to malloc() yourself some new
 memory.  In Perl, you'll want to use the array constructor C<[]> or the
 hash constructor C<{}> instead.   Here's the right way to do the preceding
 broken code fragments:
+X<[]> X<{}>
 
     for $i (1..10) {
 	@array = somefunc($i);
@@ -248,9 +252,11 @@ In summary:
 
 
 =head1 CAVEAT ON PRECEDENCE
+X<dereference, precedence> X<dereferencing, precedence>
 
 Speaking of things like C<@{$AoA[$i]}>, the following are actually the
 same thing:
+X<< -> >>
 
     $aref->[2][2]	# clear
     $$aref[2][2]	# confusing
@@ -298,6 +304,10 @@ variable, and it would thereby remind you to write instead:
     print $aref->[2][2]
 
 =head1 DEBUGGING
+X<data structure, debugging> X<complex data structure, debugging>
+X<AoA, debugging> X<HoA, debugging> X<AoH, debugging> X<HoH, debugging>
+X<array of arrays, debugging> X<hash of arrays, debugging>
+X<array of hashes, debugging> X<hash of hashes, debugging>
 
 Before version 5.002, the standard Perl debugger didn't do a very nice job of
 printing out complex data structures.  With 5.002 or above, the
@@ -331,8 +341,9 @@ here are short code examples illustrating access of various
 types of data structures.
 
 =head1 ARRAYS OF ARRAYS
+X<array of arrays> X<AoA>
 
-=head2 Declaration of a ARRAY OF ARRAYS
+=head2 Declaration of an ARRAY OF ARRAYS
 
  @AoA = (
         [ "fred", "barney" ],
@@ -340,7 +351,7 @@ types of data structures.
         [ "homer", "marge", "bart" ],
       );
 
-=head2 Generation of a ARRAY OF ARRAYS
+=head2 Generation of an ARRAY OF ARRAYS
 
  # reading from file
  while ( <> ) {
@@ -361,7 +372,7 @@ types of data structures.
  # add to an existing row
  push @{ $AoA[0] }, "wilma", "betty";
 
-=head2 Access and Printing of a ARRAY OF ARRAYS
+=head2 Access and Printing of an ARRAY OF ARRAYS
 
  # one element
  $AoA[0][0] = "Fred";
@@ -387,6 +398,7 @@ types of data structures.
  }
 
 =head1 HASHES OF ARRAYS
+X<hash of arrays> X<HoA>
 
 =head2 Declaration of a HASH OF ARRAYS
 
@@ -465,8 +477,9 @@ types of data structures.
  }
 
 =head1 ARRAYS OF HASHES
+X<array of hashes> X<AoH>
 
-=head2 Declaration of a ARRAY OF HASHES
+=head2 Declaration of an ARRAY OF HASHES
 
  @AoH = (
         {
@@ -485,7 +498,7 @@ types of data structures.
         }
   );
 
-=head2 Generation of a ARRAY OF HASHES
+=head2 Generation of an ARRAY OF HASHES
 
  # reading from file
  # format: LEAD=fred FRIEND=barney
@@ -521,7 +534,7 @@ types of data structures.
  $AoH[0]{pet} = "dino";
  $AoH[2]{pet} = "santa's little helper";
 
-=head2 Access and Printing of a ARRAY OF HASHES
+=head2 Access and Printing of an ARRAY OF HASHES
 
  # one element
  $AoH[0]{lead} = "fred";
@@ -555,6 +568,7 @@ types of data structures.
  }
 
 =head1 HASHES OF HASHES
+X<hass of hashes> X<HoH>
 
 =head2 Declaration of a HASH OF HASHES
 
@@ -673,6 +687,7 @@ types of data structures.
 
 
 =head1 MORE ELABORATE RECORDS
+X<record> X<structure> X<struct>
 
 =head2 Declaration of MORE ELABORATE RECORDS
 

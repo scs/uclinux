@@ -7,7 +7,7 @@ require Tie::Hash;
 use XSLoader ();
 
 our @ISA = qw(Tie::Hash);
-our $VERSION = "1.03";
+our $VERSION = "1.06";
 
 XSLoader::load 'ODBM_File', $VERSION;
 
@@ -28,11 +28,11 @@ ODBM_File - Tied access to odbm files
   $h{newkey} = newvalue;
   print $h{oldkey}; 
   ...
- 
+
   untie %h;
- 
+
 =head1 DESCRIPTION
- 
+
 C<ODBM_File> establishes a connection between a Perl hash variable and
 a file in ODBM_File format;.  You can manipulate the data in the file
 just as if it were in a Perl hash, but when your program exits, the
@@ -97,7 +97,7 @@ sets C<$!> to contain the reason the file could not be tied.
 
 =head2 C<odbm store returned -1, errno 22, key "..." at ...>
 
-This warning is emmitted when you try to store a key or a value that
+This warning is emitted when you try to store a key or a value that
 is too long.  It means that the change was not recorded in the
 database.  See BUGS AND WARNINGS below.
 

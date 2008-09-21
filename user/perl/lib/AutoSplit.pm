@@ -1,17 +1,17 @@
 package AutoSplit;
 
-use 5.005_64;
+use 5.006_001;
 use Exporter ();
 use Config qw(%Config);
 use Carp qw(carp);
 use File::Basename ();
 use File::Path qw(mkpath);
-use File::Spec::Functions qw(curdir catfile);
+use File::Spec::Functions qw(curdir catfile catdir);
 use strict;
 our($VERSION, @ISA, @EXPORT, @EXPORT_OK, $Verbose, $Keep, $Maxlen,
     $CheckForAutoloader, $CheckModTime);
 
-$VERSION = "1.0305";
+$VERSION = "1.04";
 @ISA = qw(Exporter);
 @EXPORT = qw(&autosplit &autosplit_lib_modules);
 @EXPORT_OK = qw($Verbose $Keep $Maxlen $CheckForAutoloader $CheckModTime);
@@ -54,7 +54,7 @@ $keep defaults to 0.
 
 The
 fourth argument, I<$check>, instructs C<autosplit> to check the module
-currently being split to ensure that it does include a C<use>
+currently being split to ensure that it includes a C<use>
 specification for the AutoLoader module, and skips the module if
 AutoLoader is not detected.
 $check defaults to 1.
@@ -148,10 +148,12 @@ if (defined (&Dos::UseLFN)) {
 my $Is_VMS = ($^O eq 'VMS');
 
 # allow checking for valid ': attrlist' attachments
-my $nested;
+# (we use 'our' rather than 'my' here, due to the rather complex and buggy
+# behaviour of lexicals with qr// and (??{$lex}) )
+our $nested;
 $nested = qr{ \( (?: (?> [^()]+ ) | (??{ $nested }) )* \) }x;
-my $one_attr = qr{ (?> (?! \d) \w+ (?:$nested)? ) (?:\s*\:\s*|\s+(?!\:)) }x;
-my $attr_list = qr{ \s* : \s* (?: $one_attr )* }x;
+our $one_attr = qr{ (?> (?! \d) \w+ (?:$nested)? ) (?:\s*\:\s*|\s+(?!\:)) }x;
+our $attr_list = qr{ \s* : \s* (?: $one_attr )* }x;
 
 
 
@@ -199,6 +201,8 @@ sub autosplit_lib_modules{
 
 # private functions
 
+my $self_mod_time = (stat __FILE__)[9];
+
 sub autosplit_file {
     my($filename, $autodir, $keep, $check_for_autoloader, $check_mod_time)
 	= @_;
@@ -225,17 +229,18 @@ sub autosplit_file {
     # allow just a package name to be used
     $filename .= ".pm" unless ($filename =~ m/\.pm\z/);
 
-    open(IN, "<$filename") or die "AutoSplit: Can't open $filename: $!\n";
+    open(my $in, "<$filename") or die "AutoSplit: Can't open $filename: $!\n";
     my($pm_mod_time) = (stat($filename))[9];
     my($autoloader_seen) = 0;
     my($in_pod) = 0;
     my($def_package,$last_package,$this_package,$fnr);
-    while (<IN>) {
+    while (<$in>) {
 	# Skip pod text.
 	$fnr++;
 	$in_pod = 1 if /^=\w/;
 	$in_pod = 0 if /^=cut/;
 	next if ($in_pod || /^=cut/);
+        next if /^\s*#/;
 
 	# record last package name seen
 	$def_package = $1 if (m/^\s*package\s+([\w:]+)\s*;/);
@@ -253,29 +258,27 @@ sub autosplit_file {
     $def_package or die "Can't find 'package Name;' in $filename\n";
 
     my($modpname) = _modpname($def_package); 
-    if ($Is_VMS) {
-	$modpname = VMS::Filespec::unixify($modpname); # may have dirs
-    }
 
     # this _has_ to match so we have a reasonable timestamp file
     die "Package $def_package ($modpname.pm) does not ".
 	"match filename $filename"
 	    unless ($filename =~ m/\Q$modpname.pm\E$/ or
-		    ($^O eq 'dos') or ($^O eq 'MSWin32') or
+		    ($^O eq 'dos') or ($^O eq 'MSWin32') or ($^O eq 'NetWare') or
 	            $Is_VMS && $filename =~ m/$modpname.pm/i);
 
     my($al_idx_file) = catfile($autodir, $modpname, $IndexFile);
 
     if ($check_mod_time){
 	my($al_ts_time) = (stat("$al_idx_file"))[9] || 1;
-	if ($al_ts_time >= $pm_mod_time){
+	if ($al_ts_time >= $pm_mod_time and
+	    $al_ts_time >= $self_mod_time){
 	    print "AutoSplit skipped ($al_idx_file newer than $filename)\n"
 		if ($Verbose >= 2);
 	    return undef;	# one undef, not a list
 	}
     }
 
-    my($modnamedir) = catfile($autodir, $modpname);
+    my($modnamedir) = catdir($autodir, $modpname);
     print "AutoSplitting $filename ($modnamedir)\n"
 	if $Verbose;
 
@@ -296,7 +299,8 @@ sub autosplit_file {
     my @cache = ();
     my $caching = 1;
     $last_package = '';
-    while (<IN>) {
+    my $out;
+    while (<$in>) {
 	$fnr++;
 	$in_pod = 1 if /^=\w/;
 	$in_pod = 0 if /^=cut/;
@@ -307,8 +311,9 @@ sub autosplit_file {
 	if (/^package\s+([\w:]+)\s*;/) {
 	    $this_package = $def_package = $1;
 	}
+
 	if (/^sub\s+([\w:]+)(\s*(?:\(.*?\))?(?:$attr_list)?)/) {
-	    print OUT "# end of $last_package\::$subname\n1;\n"
+	    print $out "# end of $last_package\::$subname\n1;\n"
 		if $last_package;
 	    $subname = $1;
 	    my $proto = $2 || '';
@@ -323,53 +328,55 @@ sub autosplit_file {
 	    push(@subnames, $fq_subname);
 	    my($lname, $sname) = ($subname, substr($subname,0,$maxflen-3));
 	    $modpname = _modpname($this_package);
-    	    my($modnamedir) = catfile($autodir, $modpname);
+            my($modnamedir) = catdir($autodir, $modpname);
 	    mkpath($modnamedir,0,0777);
 	    my($lpath) = catfile($modnamedir, "$lname.al");
 	    my($spath) = catfile($modnamedir, "$sname.al");
 	    my $path;
-	    if (!$Is83 and open(OUT, ">$lpath")){
+
+	    if (!$Is83 and open($out, ">$lpath")){
 	        $path=$lpath;
 		print "  writing $lpath\n" if ($Verbose>=2);
 	    } else {
-		open(OUT, ">$spath") or die "Can't create $spath: $!\n";
+		open($out, ">$spath") or die "Can't create $spath: $!\n";
 		$path=$spath;
 		print "  writing $spath (with truncated name)\n"
 			if ($Verbose>=1);
 	    }
 	    push(@outfiles, $path);
-	    print OUT <<EOT;
+	    my $lineno = $fnr - @cache;
+	    print $out <<EOT;
 # NOTE: Derived from $filename.
-# Changes made here will be lost when autosplit again.
+# Changes made here will be lost when autosplit is run again.
 # See AutoSplit.pm.
 package $this_package;
 
-#line $fnr "$filename (autosplit into $path)"
+#line $lineno "$filename (autosplit into $path)"
 EOT
-	    print OUT @cache;
+	    print $out @cache;
 	    @cache = ();
 	    $caching = 0;
 	}
 	if($caching) {
 	    push(@cache, $_) if @cache || /\S/;
 	} else {
-	    print OUT $_;
+	    print $out $_;
 	}
 	if(/^\}/) {
 	    if($caching) {
-		print OUT @cache;
+		print $out @cache;
 		@cache = ();
 	    }
-	    print OUT "\n";
+	    print $out "\n";
 	    $caching = 1;
 	}
 	$last_package = $this_package if defined $this_package;
     }
     if ($subname) {
-	print OUT @cache,"1;\n# end of $last_package\::$subname\n";
-	close(OUT);
+	print $out @cache,"1;\n# end of $last_package\::$subname\n";
+	close($out);
     }
-    close(IN);
+    close($in);
     
     if (!$keep){  # don't keep any obsolete *.al files in the directory
 	my(%outfiles);
@@ -389,8 +396,8 @@ EOT
 	    $outdirs{File::Basename::dirname($_)}||=1;
 	}
 	for my $dir (keys %outdirs) {
-	    opendir(OUTDIR,$dir);
-	    foreach (sort readdir(OUTDIR)){
+	    opendir(my $outdir,$dir);
+	    foreach (sort readdir($outdir)){
 		next unless /\.al\z/;
 		my($file) = catfile($dir, $_);
 		$file = lc $file if $Is83 or $Is_VMS;
@@ -400,25 +407,25 @@ EOT
 		do { $deleted += ($thistime = unlink $file) } while ($thistime);
 		carp "Unable to delete $file: $!" unless $deleted;
 	    }
-	    closedir(OUTDIR);
+	    closedir($outdir);
 	}
     }
 
-    open(TS,">$al_idx_file") or
+    open(my $ts,">$al_idx_file") or
 	carp "AutoSplit: unable to create timestamp file ($al_idx_file): $!";
-    print TS "# Index created by AutoSplit for $filename\n";
-    print TS "#    (file acts as timestamp)\n";
+    print $ts "# Index created by AutoSplit for $filename\n";
+    print $ts "#    (file acts as timestamp)\n";
     $last_package = '';
     for my $fqs (@subnames) {
 	my($subname) = $fqs;
 	$subname =~ s/.*:://;
-	print TS "package $package{$fqs};\n"
+	print $ts "package $package{$fqs};\n"
 	    unless $last_package eq $package{$fqs};
-	print TS "sub $subname $proto{$fqs};\n";
+	print $ts "sub $subname $proto{$fqs};\n";
 	$last_package = $package{$fqs};
     }
-    print TS "1;\n";
-    close(TS);
+    print $ts "1;\n";
+    close($ts);
 
     _check_unique($filename, $Maxlen, 1, @outfiles);
 
@@ -431,9 +438,15 @@ sub _modpname ($) {
     if ($^O eq 'MSWin32') {
 	$modpname =~ s#::#\\#g; 
     } else {
-    	while ($modpname =~ m#(.*?[^:])::([^:].*)#) {
-	    $modpname = catfile($1, $2);
-	}
+	my @modpnames = ();
+	while ($modpname =~ m#(.*?[^:])::([^:].*)#) {
+	       push @modpnames, $1;
+	       $modpname = $2;
+         }
+	$modpname = catfile(@modpnames, $modpname);
+    }
+    if ($Is_VMS) {
+        $modpname = VMS::Filespec::unixify($modpname); # may have dirs
     }
     $modpname;
 }

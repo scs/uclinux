@@ -1,3 +1,24 @@
+BEGIN {
+    chdir 't' if -d 't';
+
+    @INC = '../lib';
+
+    require Config; import Config;
+
+    my $reason;
+
+    if ($Config{'extensions'} !~ /\bIPC\/SysV\b/) {
+      $reason = 'IPC::SysV was not built';
+    } elsif ($Config{'d_sem'} ne 'define') {
+      $reason = '$Config{d_sem} undefined';
+    } elsif ($Config{'d_msg'} ne 'define') {
+      $reason = '$Config{d_msg} undefined';
+    }
+    if ($reason) {
+	print "1..0 # Skip: $reason\n";
+	exit 0;
+    }
+}
 
 use IPC::SysV qw(
 	SETALL
@@ -14,8 +35,9 @@ use IPC::Semaphore;
 
 print "1..10\n";
 
-$sem = new IPC::Semaphore(IPC_PRIVATE, 10, S_IRWXU | S_IRWXG | S_IRWXO | IPC_CREAT)
-	|| die "semget: ",$!+0," $!\n";
+my $sem =
+    new IPC::Semaphore(IPC_PRIVATE, 10, S_IRWXU | S_IRWXG | S_IRWXO | IPC_CREAT)
+    || die "semget: ",$!+0," $!\n";
 
 print "ok 1\n";
 
@@ -47,5 +69,7 @@ print "ok 8\n";
 print "not " if $sem->getncnt(0);
 print "ok 9\n";
 
-$sem->remove || print "not ";
-print "ok 10\n";
+END {
+	(defined $sem && $sem->remove) || print "not ";
+	print "ok 10\n";
+}

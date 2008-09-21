@@ -4,7 +4,7 @@
 
 # libnsl is unusable on the Hurd.
 # XXX remove this once SUNRPC is implemented.
-set `echo X "$libswanted "| sed -e 's/ nsl / /'`
+set `echo X "$libswanted "| sed -e 's/ nsl / /' -e 's/ c / pthread /'`
 shift
 libswanted="$*"
 
@@ -17,6 +17,9 @@ lddlflags='-shared'
 
 # Flags needed by programs that use dynamic linking.
 ccdlflags='-Wl,-E'
+
+# Debian bug #258618
+ccflags='-D_GNU_SOURCE'
 
 # The following routines are only available as stubs in GNU libc.
 # XXX remove this once metaconf detects the GNU libc stubs.

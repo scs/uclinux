@@ -42,17 +42,18 @@ print OUT <<'!NO!SUBS!';
 # Version 2.01, Tom Christiansen, Thu Mar 30 08:25:14 MST 2000
 # Version 2.02, Simon Cozens, Sun Apr 16 01:53:36 JST 2000
 # Version 2.03, Edward Peschko, Mon Feb 26 12:04:17 PST 2001
+# Version 2.04, Enache Adrian,Fri, 18 Jul 2003 23:15:37 +0300
 
 use strict;
 use warnings;
-use v5.6.0;
+use 5.006_000;
 
 use FileHandle;
 use Config;
 use Fcntl qw(:DEFAULT :flock);
 use File::Temp qw(tempfile);
 use Cwd;
-our $VERSION = 2.03;
+our $VERSION = 2.04;
 $| = 1;
 
 $SIG{INT} = sub { exit(); }; # exit gracefully and clean up after ourselves.
@@ -63,11 +64,14 @@ use subs qw{
     grab_stash parse_argv sanity_check vprint yclept spawnit
 };
 sub opt(*); # imal quoting
+sub is_win32();
+sub is_msvc();
 
 our ($Options, $BinPerl, $Backend);
 our ($Input => $Output);
 our ($logfh);
 our ($cfile);
+our (@begin_output); # output from BEGIN {}, for testsuite
 
 # eval { main(); 1 } or die;
 
@@ -146,8 +150,10 @@ sub vprint {
 sub parse_argv {
 
     use Getopt::Long; 
-#    Getopt::Long::Configure("bundling"); turned off. this is silly because 
-#                                         it doesn't allow for long switches.
+
+    # disallows using long arguments
+    # Getopt::Long::Configure("bundling");
+
     Getopt::Long::Configure("no_ignore_case");
 
     # no difference in exists and defined for %ENV; also, a "0"
@@ -159,7 +165,7 @@ sub parse_argv {
         'L:s',          # lib directory
         'I:s',          # include directories (FOR C, NOT FOR PERL)
         'o:s',          # Output executable
-        'v:i',           # Verbosity level
+        'v:i',          # Verbosity level
         'e:s',          # One-liner
 	'r',            # run resulting executable
         'B',            # Byte compiler backend
@@ -168,35 +174,35 @@ sub parse_argv {
         'h',            # Help me
         'S',            # Dump C files
 	'r',            # run the resulting executable
+        'T',            # run the backend using perl -T
+        't',            # run the backend using perl -t
         'static',       # Dirty hack to enable -shared/-static
         'shared',       # Create a shared library (--shared for compat.)
-	'log:s'         # where to log compilation process information
+	'log:s',        # where to log compilation process information
+        'Wb:s',         # pass (comma-sepearated) options to backend
+        'testsuite',    # try to be nice to testsuite
     );
-        
-    # This is an attempt to make perlcc's arg. handling look like cc.
-    # if ( opt('s') ) {  # must quote: looks like s)foo)bar)!
-    #   if (opt('s') eq 'hared') {
-    #        $Options->{shared}++; 
-    #    } elsif (opt('s') eq 'tatic') {
-    #        $Options->{static}++; 
-    #    } else {
-    #        warn "$0: Unknown option -s", opt('s');
-    #    }
-    # }
 
     $Options->{v} += 0;
 
+    if( opt(t) && opt(T) ) {
+        warn "Can't specify both -T and -t, -t ignored";
+        $Options->{t} = 0;
+    }
+
     helpme() if opt(h); # And exit
 
-    $Output = opt(o) || 'a.out';
-    $Output = relativize($Output);
+    $Output = opt(o) || ( is_win32 ? 'a.exe' : 'a.out' );
+    $Output = is_win32() ? $Output : relativize($Output);
     $logfh  = new FileHandle(">> " . opt('log')) if (opt('log'));
 
     if (opt(e)) {
         warn "$0: using -e 'code' as input file, ignoring @ARGV\n" if @ARGV;
         # We don't use a temporary file here; why bother?
         # XXX: this is not bullet proof -- spaces or quotes in name!
-        $Input = "-e '".opt(e)."'"; # Quotes eaten by shell
+        $Input = is_win32() ? # Quotes eaten by shell
+            '-e "'.opt(e).'"' :
+            "-e '".opt(e)."'";
     } else {
         $Input = shift @ARGV;  # XXX: more files?
         _usage_and_die("$0: No input file specified\n") unless $Input;
@@ -220,64 +226,48 @@ sub compile_module {
 }
 
 sub compile_byte {
-    require ByteLoader;
-    my $stash = grab_stash();
-    my $command = "$BinPerl -MO=Bytecode,$stash $Input";
-    # The -a option means we'd have to close the file and lose the
-    # lock, which would create the tiniest of races. Instead, append
-    # the output ourselves. 
-    vprint 1, "Writing on $Output";
-
-    my $openflags = O_WRONLY | O_CREAT;
-    $openflags |= O_BINARY if eval { O_BINARY; 1 };
-    $openflags |= O_EXLOCK if eval { O_EXLOCK; 1 };
-
-    # these dies are not "$0: .... \n" because they "can't happen"
-
-    sysopen(OUT, $Output, $openflags)
-        or die "can't write to $Output: $!";
-
-    # this is blocking; hold on; why are we doing this??
-    # flock OUT, LOCK_EX or die "can't lock $Output: $!"
-    #    unless eval { O_EXLOCK; 1 };
-
-    truncate(OUT, 0)
-        or die "couldn't trunc $Output: $!";
-
-    print OUT <<EOF;
-#!$^X
-use ByteLoader $ByteLoader::VERSION;
-EOF
-
-    # Now the compile:
-    vprint 1, "Compiling...";
-    vprint 3, "Calling $command";
+    my $command = "$BinPerl -MO=Bytecode,-H,-o$Output $Input";
+    $Input =~ s/^-e.*$/-e/;
 
     my ($output_r, $error_r) = spawnit($command);
 
     if (@$error_r && $? != 0) {
-	_die("$0: $Input did not compile, which can't happen:\n@$error_r\n");
+	_die("$0: $Input did not compile:\n@$error_r\n");
     } else {
 	my @error = grep { !/^$Input syntax OK$/o } @$error_r;
 	warn "$0: Unexpected compiler output:\n@error" if @error;
     }
-	
-    # Write it and leave.
-    print OUT @$output_r               or _die("can't write $Output: $!");
-    close OUT                          or _die("can't close $Output: $!");
 
-    # wait, how could it be anything but what you see next?
     chmod 0777 & ~umask, $Output    or _die("can't chmod $Output: $!");
     exit 0;
 }
 
 sub compile_cstyle {
     my $stash = grab_stash();
-    
+    my $taint = opt(T) ? '-T' :
+                opt(t) ? '-t' : '';
+
     # What are we going to call our output C file?
     my $lose = 0;
     my ($cfh);
+    my $testsuite = '';
+    my $addoptions = opt(Wb);
 
+    if( $addoptions ) {
+        $addoptions .= ',' if $addoptions !~ m/,$/;
+    }
+
+    if (opt(testsuite)) {
+        my $bo = join '', @begin_output;
+        $bo =~ s/\\/\\\\\\\\/gs;
+        $bo =~ s/\n/\\n/gs;
+        $bo =~ s/,/\\054/gs;
+        # don't look at that: it hurts
+        $testsuite = q{-fuse-script-name,-fsave-data,-fsave-sig-hash,}.
+            qq[-e"print q{$bo}",] .
+            q{-e"open(Test::Builder::TESTOUT\054 '>&STDOUT') or die $!",} .
+            q{-e"open(Test::Builder::TESTERR\054 '>&STDERR') or die $!",};
+    }
     if (opt(S) || opt(c)) {
         # We need to keep it.
         if (opt(e)) {
@@ -306,7 +296,7 @@ sub compile_cstyle {
 
     # This has to do the write itself, so we can't keep a lock. Life
     # sucks.
-    my $command = "$BinPerl -MO=$Backend,$max_line_len$stash,-o$cfile $Input";
+    my $command = "$BinPerl $taint -MO=$Backend,$addoptions$testsuite$max_line_len$stash,-o$cfile $Input";
     vprint 1, "Compiling...";
     vprint 1, "Calling $command";
 
@@ -318,12 +308,31 @@ sub compile_cstyle {
         _die("$0: $Input did not compile, which can't happen:\n@error\n");
     }
 
-    cc_harness($cfile,$stash) unless opt(c);
+    is_msvc ?
+        cc_harness_msvc($cfile,$stash) :
+        cc_harness($cfile,$stash) unless opt(c);
 
     if ($lose) {
         vprint 2, "unlinking $cfile";
         unlink $cfile or _die("can't unlink $cfile: $!"); 
     }
+}
+
+sub cc_harness_msvc {
+    my ($cfile,$stash)=@_;
+    use ExtUtils::Embed ();
+    my $obj = "${Output}.obj";
+    my $compile = ExtUtils::Embed::ccopts." -c -Fo$obj $cfile ";
+    my $link = "-out:$Output $obj";
+    $compile .= " -I".$_ for split /\s+/, opt(I);
+    $link .= " -libpath:".$_ for split /\s+/, opt(L);
+    my @mods = split /-?u /, $stash;
+    $link .= " ".ExtUtils::Embed::ldopts("-std", \@mods);
+    $link .= " perl5$Config{PERL_VERSION}.lib kernel32.lib msvcrt.lib";
+    vprint 3, "running $Config{cc} $compile";
+    system("$Config{cc} $compile");
+    vprint 3, "running $Config{ld} $link";
+    system("$Config{ld} $link");
 }
 
 sub cc_harness {
@@ -334,6 +343,7 @@ sub cc_harness {
 	$command .= " -L".$_ for split /\s+/, opt(L);
 	my @mods = split /-?u /, $stash;
 	$command .= " ".ExtUtils::Embed::ldopts("-std", \@mods);
+        $command .= " -lperl";
 	vprint 3, "running $Config{cc} $command";
 	system("$Config{cc} $command");
 }
@@ -364,7 +374,9 @@ sub yclept {
 
         warn "already called get_stash once" if $_stash;
 
-        my $command = "$BinPerl -MB::Stash -c $Input";
+        my $taint = opt(T) ? '-T' :
+                    opt(t) ? '-t' : '';
+        my $command = "$BinPerl $taint -MB::Stash -c $Input";
         # Filename here is perfectly sanitised.
         vprint 3, "Calling $command\n";
 
@@ -376,7 +388,14 @@ sub yclept {
             _die("$0: $Input did not compile:\n@error\n");
         }
 
+        # band-aid for modules with noisy BEGIN {}
+        foreach my $i ( @stash ) {
+            $i =~ m/-u(?:[\w:]+|\<none\>)$/ and $stash[0] = $i and next;
+            push @begin_output, $i;
+        }
+        chomp $stash[0];
         $stash[0] =~ s/,-u\<none\>//;
+        $stash[0] =~ s/^.*?-u/-u/s;
         vprint 2, "Stash: ", join " ", split /,?-u/, $stash[0];
         chomp $stash[0];
         return $_stash = $stash[0];
@@ -510,7 +529,7 @@ sub _die {
 sub _usage_and_die {
     _die(<<EOU);
 $0: Usage:
-$0 [-o executable] [-r] [-O|-B|-c|-S] [-log log] [source[.pl] | -e oneliner]
+$0 [-o executable] [-r] [-O|-B|-c|-S] [-I /foo] [-L /foo] [-log log] [source[.pl] | -e oneliner]
 EOU
 }
 
@@ -556,6 +575,9 @@ sub interruptrun
     return($text);
 }
 
+sub is_win32() { $^O =~ m/^MSWin/ }
+sub is_msvc() { is_win32 && $Config{cc} =~ m/^cl/i }
+
 END {
     unlink $cfile if ($cfile && !opt(S) && !opt(c));
 }
@@ -582,8 +604,10 @@ perlcc - generate executables from Perl programs
     $ perlcc -e 'print q//'     # Compiles a one-liner into 'a.out'
     $ perlcc -c -e 'print q//'  # Creates a C file 'a.out.c'
 
-    $ perlcc -r hello           # compiles 'hello' into 'a.out', runs 'a.out'.
+    $ perlcc -I /foo hello	# extra headers (notice the space after -I)
+    $ perlcc -L /foo hello	# extra libraries (notice the space after -L)
 
+    $ perlcc -r hello           # compiles 'hello' into 'a.out', runs 'a.out'.
     $ perlcc -r hello a b c     # compiles 'hello' into 'a.out', runs 'a.out'.
                                 # with arguments 'a b c' 
 

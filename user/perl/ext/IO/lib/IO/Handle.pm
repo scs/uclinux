@@ -1,4 +1,3 @@
-
 package IO::Handle;
 
 =head1 NAME
@@ -20,6 +19,7 @@ IO::Handle - supply object methods for I/O handles
         $io->print("Some text\n");
     }
 
+    # setvbuf is not available by default on Perls 5.8.0 and later.
     use IO::Handle '_IOLBF';
     $io->setvbuf($buffer_var, _IOLBF, 1024);
 
@@ -48,7 +48,7 @@ Creates a new C<IO::Handle> object.
 
 =item new_from_fd ( FD, MODE )
 
-Creates a C<IO::Handle> like C<new> does.
+Creates an C<IO::Handle> like C<new> does.
 It requires two parameters, which are passed to the method C<fdopen>;
 if the fdopen fails, the object is destroyed. Otherwise, it is returned
 to the caller.
@@ -100,12 +100,12 @@ The following methods are not supported on a per-filehandle basis.
 
 Furthermore, for doing normal I/O you might need these:
 
-=over 
+=over 4
 
 =item $io->fdopen ( FD, MODE )
 
 C<fdopen> is like an ordinary C<open> except that its first parameter
-is not a filename but rather a file handle name, a IO::Handle object,
+is not a filename but rather a file handle name, an IO::Handle object,
 or a file descriptor number.
 
 =item $io->opened
@@ -117,7 +117,9 @@ otherwise.
 
 This works like <$io> described in L<perlop/"I/O Operators">
 except that it's more readable and can be safely called in a
-list context but still returns just one line.
+list context but still returns just one line.  If used as the conditional
++within a C<while> or C-style C<for> loop, however, you will need to
++emulate the functionality of <$io> with C<< defined($_ = $io->getline) >>.
 
 =item $io->getlines
 
@@ -193,6 +195,10 @@ C<_IOLBF>, and C<_IONBF> for setvbuf()--except that the buffer parameter
 specifies a scalar variable to use as a buffer. You should only
 change the buffer before any I/O, or immediately after calling flush.
 
+WARNING: The IO::Handle::setvbuf() is not available by default on
+Perls 5.8.0 and later because setvbuf() is rather specific to using
+the stdio library, while Perl prefers the new perlio subsystem instead.
+
 WARNING: A variable used as a buffer by C<setbuf> or C<setvbuf> B<must not
 be modified> in any way until the IO::Handle is closed or C<setbuf> or
 C<setvbuf> is called again, or memory corruption may result! Remember that
@@ -206,7 +212,7 @@ failure.
 Lastly, there is a special method for working under B<-T> and setuid/gid
 scripts:
 
-=over
+=over 4
 
 =item $io->untaint
 
@@ -220,7 +226,7 @@ the taint-clean flag failed. (eg invalid handle)
 
 =head1 NOTE
 
-A C<IO::Handle> object is a reference to a symbol/GLOB reference (see
+An C<IO::Handle> object is a reference to a symbol/GLOB reference (see
 the C<Symbol> package).  Some modules that
 inherit from C<IO::Handle> may want to keep object related variables
 in the hash table part of the GLOB. In an attempt to prevent modules
@@ -247,7 +253,7 @@ Derived from FileHandle.pm by Graham Barr E<lt>F<gbarr@pobox.com>E<gt>
 
 =cut
 
-require 5.005_64;
+use 5.006_001;
 use strict;
 our($VERSION, @EXPORT_OK, @ISA);
 use Carp;
@@ -258,7 +264,8 @@ use IO ();	# Load the XS module
 require Exporter;
 @ISA = qw(Exporter);
 
-$VERSION = "1.21";
+$VERSION = "1.25";
+$VERSION = eval $VERSION;
 
 @EXPORT_OK = qw(
     autoflush
@@ -489,42 +496,47 @@ sub input_record_separator {
 
 sub input_line_number {
     local $.;
-    my $tell = tell qualify($_[0], caller) if ref($_[0]);
+    () = tell qualify($_[0], caller) if ref($_[0]);
     my $prev = $.;
     $. = $_[1] if @_ > 1;
     $prev;
 }
 
 sub format_page_number {
-    my $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    my $old;
+    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
     my $prev = $%;
     $% = $_[1] if @_ > 1;
     $prev;
 }
 
 sub format_lines_per_page {
-    my $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    my $old;
+    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
     my $prev = $=;
     $= = $_[1] if @_ > 1;
     $prev;
 }
 
 sub format_lines_left {
-    my $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    my $old;
+    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
     my $prev = $-;
     $- = $_[1] if @_ > 1;
     $prev;
 }
 
 sub format_name {
-    my $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    my $old;
+    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
     my $prev = $~;
     $~ = qualify($_[1], caller) if @_ > 1;
     $prev;
 }
 
 sub format_top_name {
-    my $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    my $old;
+    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
     my $prev = $^;
     $^ = qualify($_[1], caller) if @_ > 1;
     $prev;
@@ -595,11 +607,12 @@ sub constant {
 }
 
 
-# so that flush.pl can be depriciated
+# so that flush.pl can be deprecated
 
 sub printflush {
     my $io = shift;
-    my $old = new SelectSaver qualify($io, caller) if ref($io);
+    my $old;
+    $old = new SelectSaver qualify($io, caller) if ref($io);
     local $| = 1;
     if(ref($io)) {
         print $io @_;

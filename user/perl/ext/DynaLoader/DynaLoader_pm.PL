@@ -29,7 +29,7 @@ package DynaLoader;
 
 use vars qw($VERSION *AUTOLOAD);
 
-$VERSION = 1.04;	# avoid typo warning
+$VERSION = '1.05';	# avoid typo warning
 
 require AutoLoader;
 *AUTOLOAD = \&AutoLoader::AUTOLOAD;
@@ -77,11 +77,17 @@ $Is_VMS    = $^O eq 'VMS';
 $do_expand = $Is_VMS;
 $Is_MacOS  = $^O eq 'MacOS';
 
+my $Mac_FS;
+$Mac_FS = eval { require Mac::FileSpec::Unixish } if $Is_MacOS;
+
 @dl_require_symbols = ();       # names of symbols we need
 @dl_resolve_using   = ();       # names of files to link with
 @dl_library_path    = ();       # path to look for files
-@dl_librefs         = ();       # things we have loaded
-@dl_modules         = ();       # Modules we have loaded
+
+#XSLoader.pm may have added elements before we were required
+#@dl_shared_objects  = ();       # shared objects for symbols we have 
+#@dl_librefs         = ();       # things we have loaded
+#@dl_modules         = ();       # Modules we have loaded
 
 # This is a fix to support DLD's unfortunate desire to relink -lc
 @dl_resolve_using = dl_findfile('-lc') if $dlsrc eq "dl_dld.xs";
@@ -224,6 +230,15 @@ sub bootstrap {
 	"  dynamic loading or has the $module module statically linked into it.)\n")
 	unless defined(&dl_load_file);
 
+EOT
+
+print OUT <<'EOT' if $^O eq 'os2';
+    # Can dynaload, but cannot dynaload Perl modules...
+    die 'Dynaloaded Perl modules are not available in this build of Perl' if $OS2::is_static;
+
+EOT
+
+print OUT <<'EOT';
     my @modparts = split(/::/,$module);
     my $modfname = $modparts[-1];
 
@@ -231,6 +246,11 @@ sub bootstrap {
     # mod2fname returns appropriate file base name (typically truncated)
     # It may also edit @modparts if required.
     $modfname = &mod2fname(\@modparts) if defined &mod2fname;
+
+    # Truncate the module name to 8.3 format for NetWare
+	if (($^O eq 'NetWare') && (length($modfname) > 8)) {
+		$modfname = substr($modfname, 0, 8);
+	}
 
     my $modpname = join(($Is_MacOS ? ':' : '/'),@modparts);
 
@@ -244,17 +264,22 @@ sub bootstrap {
 	chop($_ = VMS::Filespec::unixpath($_)) if $Is_VMS;
 	my $dir;
 	if ($Is_MacOS) {
-	    chop $_  if /:$/;
-	    $dir = "$_:auto:$modpname";
+	    my $path = $_;
+	    if ($Mac_FS && ! -d $path) {
+		$path = Mac::FileSpec::Unixish::nativize($path);
+	    }
+	    $path .= ":"  unless /:$/;
+	    $dir = "${path}auto:$modpname";
 	} else {
 	    $dir = "$_/auto/$modpname";
 	}
+	
 	next unless -d $dir; # skip over uninteresting directories
-
+	
 	# check for common cases to avoid autoload of dl_findfile
 	my $try = $Is_MacOS ? "$dir:$modfname.$dl_dlext" : "$dir/$modfname.$dl_dlext";
-	last if $file = ($do_expand) ? dl_expandspec($try) : (-f $try && $try);
-
+	last if $file = ($do_expand) ? dl_expandspec($try) : ((-f $try) && $try);
+	
 	# no luck here, save dir for possible later dl_findfile search
 	push @dirs, $dir;
     }
@@ -280,6 +305,14 @@ sub bootstrap {
         warn "$bs: $@\n" if $@;
     }
 
+    my $boot_symbol_ref;
+
+    if ($^O eq 'darwin') {
+        if ($boot_symbol_ref = dl_find_symbol(0, $bootname)) {
+            goto boot; #extension library has already been loaded, e.g. darwin
+        }
+    }
+
     # Many dynamic extension loading problems will appear to come from
     # this section of code: XYZ failed at line 123 of DynaLoader.pm.
     # Often these errors are actually occurring in the initialisation
@@ -298,14 +331,18 @@ sub bootstrap {
 	Carp::carp("Undefined symbols present after loading $file: @unresolved\n");
     }
 
-    my $boot_symbol_ref = dl_find_symbol($libref, $bootname) or
+    $boot_symbol_ref = dl_find_symbol($libref, $bootname) or
          croak("Can't find '$bootname' symbol in $file\n");
-
-    my $xs = dl_install_xsub("${module}::bootstrap", $boot_symbol_ref, $file);
 
     push(@dl_modules, $module); # record loaded module
 
+  boot:
+    my $xs = dl_install_xsub("${module}::bootstrap", $boot_symbol_ref, $file);
+
     # See comment block above
+
+	push(@dl_shared_objects, $file); # record files loaded
+
     &$xs(@args);
 }
 
@@ -477,8 +514,6 @@ sub dl_find_symbol_anywhere
 
 DynaLoader - Dynamically load C libraries into Perl code
 
-dl_error(), dl_findfile(), dl_expandspec(), dl_load_file(), dl_unload_file(), dl_find_symbol(), dl_find_symbol_anywhere(), dl_undef_symbols(), dl_install_xsub(), dl_load_flags(), bootstrap() - routines used by DynaLoader modules
-
 =head1 SYNOPSIS
 
     package YourPackage;
@@ -512,7 +547,9 @@ useless for accessing non-Perl libraries because it provides almost no
 Perl-to-C 'glue'.  There is, for example, no mechanism for calling a C
 library function or supplying arguments.  A C::DynaLib module
 is available from CPAN sites which performs that function for some
-common system types.
+common system types.  And since the year 2000, there's also Inline::C,
+a module that allows you to write Perl subroutines in C.  Also available
+from your local CPAN site.
 
 DynaLoader Interface Summary
 
@@ -522,6 +559,7 @@ DynaLoader Interface Summary
   $dl_debug
   @dl_librefs
   @dl_modules
+  @dl_shared_objects
                                                   Implemented in:
   bootstrap($modulename)                               Perl
   @filepaths = dl_findfile(@names)                     Perl
@@ -596,6 +634,10 @@ the loaded files.
 =item @dl_modules
 
 An array of module (package) names that have been bootstrap'ed.
+
+=item @dl_shared_objects
+
+An array of file names for the shared objects that were loaded.
 
 =item dl_error()
 
@@ -743,11 +785,11 @@ Apache and mod_perl built with the APXS mechanism.
 Linux, and is a common choice when providing a "wrapper" on other
 mechanisms as is done in the OS/2 port.)
 
-=item dl_loadflags()
+=item dl_load_flags()
 
 Syntax:
 
-    $flags = dl_loadflags $modulename;
+    $flags = dl_load_flags $modulename;
 
 Designed to be a method call, and to be overridden by a derived class
 (i.e. a class which has DynaLoader in its @ISA).  The definition in

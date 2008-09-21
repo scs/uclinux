@@ -3,289 +3,327 @@
 BEGIN {
     chdir 't' if -d 't';
     @INC = '../lib';
-}    
+    require './test.pl';
+}
 
-# $RCSfile$    
+# Cheat. Until we figure out a solution for BEGIN blocks not setting a new
+# stack (and thus perl API calls possibly moving the stack by extending it)
+# which doesn't in turn break calling exit from inside a signal handler inside
+# a BEGIN block.
+eval {require Errno};
+
 $|  = 1;
 use warnings;
+use Config;
 $Is_VMS = $^O eq 'VMS';
-$Is_Dos = $^O eq 'dos';
+$Is_MacOS = $^O eq 'MacOS';
 
-print "1..66\n";
+plan tests => 108;
 
-my $test = 1;
+my $Perl = which_perl();
 
-sub ok { print "ok $test\n"; $test++ }
-
-# my $file tests
-
-# 1..9
 {
-    unlink("afile") if -f "afile";     
-    print "$!\nnot " unless open(my $f,"+>afile");
-    ok;
+    unlink("afile") if -f "afile";
+
+    $! = 0;  # the -f above will set $! if 'afile' doesn't exist.
+    ok( open(my $f,"+>afile"),  'open(my $f, "+>...")' );
+
     binmode $f;
-    print "not " unless -f "afile";     
-    ok;
-    print "not " unless print $f "SomeData\n";
-    ok;
-    print "not " unless tell($f) == 9;
-    ok;
-    print "not " unless seek($f,0,0);
-    ok;
+    ok( -f "afile",             '       its a file');
+    ok( (print $f "SomeData\n"),  '       we can print to it');
+    is( tell($f), 9,            '       tell()' );
+    ok( seek($f,0,0),           '       seek set' );
+
     $b = <$f>;
-    print "not " unless $b eq "SomeData\n";
-    ok;
-    print "not " unless -f $f;     
-    ok;
-    eval  { die "Message" };   
-    # warn $@;
-    print "not " unless $@ =~ /<\$f> line 1/;
-    ok;
-    print "not " unless close($f);
-    ok;
-    unlink("afile");     
+    is( $b, "SomeData\n",       '       readline' );
+    ok( -f $f,                  '       still a file' );
+
+    eval  { die "Message" };
+    like( $@, qr/<\$f> line 1/, '       die message correct' );
+    
+    ok( close($f),              '       close()' );
+    ok( unlink("afile"),        '       unlink()' );
 }
 
-# 10..12
 {
-    print "# \$!='$!'\nnot " unless open(my $f,'>', 'afile');
-    ok;
-    print $f "a row\n";
-    print "not " unless close($f);
-    ok;
-    print "not " unless -s 'afile' < 10;
-    ok;
+    ok( open(my $f,'>', 'afile'),       "open(my \$f, '>', 'afile')" );
+    ok( (print $f "a row\n"),           '       print');
+    ok( close($f),                      '       close' );
+    ok( -s 'afile' < 10,                '       -s' );
 }
 
-# 13..15
 {
-    print "# \$!='$!'\nnot " unless open(my $f,'>>', 'afile');
-    ok;
-    print $f "a row\n";
-    print "not " unless close($f);
-    ok;
-    print "not " unless -s 'afile' > 10;
-    ok;
+    ok( open(my $f,'>>', 'afile'),      "open(my \$f, '>>', 'afile')" );
+    ok( (print $f "a row\n"),           '       print' );
+    ok( close($f),                      '       close' );
+    ok( -s 'afile' > 10,                '       -s'    );
 }
 
-# 16..18
 {
-    print "# \$!='$!'\nnot " unless open(my $f, '<', 'afile');
-    ok;
-    @rows = <$f>;
-    print "not " unless @rows == 2;
-    ok;
-    print "not " unless close($f);
-    ok;
+    ok( open(my $f, '<', 'afile'),      "open(my \$f, '<', 'afile')" );
+    my @rows = <$f>;
+    is( scalar @rows, 2,                '       readline, list context' );
+    is( $rows[0], "a row\n",            '       first line read' );
+    is( $rows[1], "a row\n",            '       second line' );
+    ok( close($f),                      '       close' );
 }
 
-# 19..23
 {
-    print "not " unless -s 'afile' < 20;
-    ok;
-    print "# \$!='$!'\nnot " unless open(my $f, '+<', 'afile');
-    ok;
-    @rows = <$f>;
-    print "not " unless @rows == 2;
-    ok;
-    seek $f, 0, 1;
-    print $f "yet another row\n";
-    print "not " unless close($f);
-    ok;
-    print "not " unless -s 'afile' > 20;
-    ok;
+    ok( -s 'afile' < 20,                '-s' );
 
-    unlink("afile");     
+    ok( open(my $f, '+<', 'afile'),     'open +<' );
+    my @rows = <$f>;
+    is( scalar @rows, 2,                '       readline, list context' );
+    ok( seek($f, 0, 1),                 '       seek cur' );
+    ok( (print $f "yet another row\n"), '       print' );
+    ok( close($f),                      '       close' );
+    ok( -s 'afile' > 20,                '       -s' );
+
+    unlink("afile");
 }
 
-# 24..26
-if ($Is_VMS) {
-    for (24..26) { print "ok $_ # skipped: not Unix fork\n"; $test++;}
-}
-else {
-    print "# \$!='$!'\nnot " unless open(my $f, '-|', <<'EOC');
-    ./perl -e "print qq(a row\n); print qq(another row\n)"
+SKIP: {
+    skip "open -| busted and noisy on VMS", 3 if $Is_VMS;
+
+    ok( open(my $f, '-|', <<EOC),     'open -|' );
+    $Perl -e "print qq(a row\\n); print qq(another row\\n)"
 EOC
-    ok;
-    @rows = <$f>;
-    print "not " unless @rows == 2;
-    ok;
-    print "not " unless close($f);
-    ok;
+
+    my @rows = <$f>;
+    is( scalar @rows, 2,                '       readline, list context' );
+    ok( close($f),                      '       close' );
 }
 
-# 27..30
-if ($Is_VMS) {
-    for (27..30) { print "ok $_ # skipped: not Unix fork\n"; $test++;}
-}
-else {
-    print "# \$!='$!'\nnot " unless open(my $f, '|-', <<'EOC');
-    ./perl -pe "s/^not //"
+SKIP: {
+    skip "Output for |- doesn't go to shell on MacOS", 5 if $Is_MacOS;
+
+    ok( open(my $f, '|-', <<EOC),     'open |-' );
+    $Perl -pe "s/^not //"
 EOC
-    ok;
-    @rows = <$f>;
-    print $f "not ok $test\n"; $test++;
-    print $f "not ok $test\n"; $test++;
-    print "#\nnot " unless close($f);
+
+    my @rows = <$f>;
+    my $test = curr_test;
+    print $f "not ok $test - piped in\n";
+    next_test;
+
+    $test = curr_test;
+    print $f "not ok $test - piped in\n";
+    next_test;
+    ok( close($f),                      '       close' );
     sleep 1;
-    ok;
+    pass('flushing');
 }
 
-# 31..32
-eval <<'EOE' and print "not ";
-open my $f, '<&', 'afile';
-1;
-EOE
-ok;
-$@ =~ /Unknown open\(\) mode \'<&\'/ or print "not ";
-ok;
+
+ok( !eval { open my $f, '<&', 'afile'; 1; },    '<& on a non-filehandle' );
+like( $@, qr/Bad filehandle:\s+afile/,          '       right error' );
+
 
 # local $file tests
-
-# 33..41
 {
-    unlink("afile") if -f "afile";     
-    print "$!\nnot " unless open(local $f,"+>afile");
-    ok;
+    unlink("afile") if -f "afile";
+
+    ok( open(local $f,"+>afile"),       'open local $f, "+>", ...' );
     binmode $f;
-    print "not " unless -f "afile";     
-    ok;
-    print "not " unless print $f "SomeData\n";
-    ok;
-    print "not " unless tell($f) == 9;
-    ok;
-    print "not " unless seek($f,0,0);
-    ok;
+
+    ok( -f "afile",                     '       -f' );
+    ok( (print $f "SomeData\n"),        '       print' );
+    is( tell($f), 9,                    '       tell' );
+    ok( seek($f,0,0),                   '       seek set' );
+
     $b = <$f>;
-    print "not " unless $b eq "SomeData\n";
-    ok;
-    print "not " unless -f $f;     
-    ok;
-    eval  { die "Message" };   
-    # warn $@;
-    print "not " unless $@ =~ /<\$f> line 1/;
-    ok;
-    print "not " unless close($f);
-    ok;
-    unlink("afile");     
+    is( $b, "SomeData\n",               '       readline' );
+    ok( -f $f,                          '       still a file' );
+
+    eval  { die "Message" };
+    like( $@, qr/<\$f> line 1/,         '       proper die message' );
+    ok( close($f),                      '       close' );
+
+    unlink("afile");
 }
 
-# 42..44
 {
-    print "# \$!='$!'\nnot " unless open(local $f,'>', 'afile');
-    ok;
-    print $f "a row\n";
-    print "not " unless close($f);
-    ok;
-    print "not " unless -s 'afile' < 10;
-    ok;
+    ok( open(local $f,'>', 'afile'),    'open local $f, ">", ...' );
+    ok( (print $f "a row\n"),           '       print');
+    ok( close($f),                      '       close');
+    ok( -s 'afile' < 10,                '       -s' );
 }
 
-# 45..47
 {
-    print "# \$!='$!'\nnot " unless open(local $f,'>>', 'afile');
-    ok;
-    print $f "a row\n";
-    print "not " unless close($f);
-    ok;
-    print "not " unless -s 'afile' > 10;
-    ok;
+    ok( open(local $f,'>>', 'afile'),   'open local $f, ">>", ...' );
+    ok( (print $f "a row\n"),           '       print');
+    ok( close($f),                      '       close');
+    ok( -s 'afile' > 10,                '       -s' );
 }
 
-# 48..50
 {
-    print "# \$!='$!'\nnot " unless open(local $f, '<', 'afile');
-    ok;
-    @rows = <$f>;
-    print "not " unless @rows == 2;
-    ok;
-    print "not " unless close($f);
-    ok;
+    ok( open(local $f, '<', 'afile'),   'open local $f, "<", ...' );
+    my @rows = <$f>;
+    is( scalar @rows, 2,                '       readline list context' );
+    ok( close($f),                      '       close' );
 }
 
-# 51..55
+ok( -s 'afile' < 20,                '       -s' );
+
 {
-    print "not " unless -s 'afile' < 20;
-    ok;
-    print "# \$!='$!'\nnot " unless open(local $f, '+<', 'afile');
-    ok;
-    @rows = <$f>;
-    print "not " unless @rows == 2;
-    ok;
-    seek $f, 0, 1;
-    print $f "yet another row\n";
-    print "not " unless close($f);
-    ok;
-    print "not " unless -s 'afile' > 20;
-    ok;
+    ok( open(local $f, '+<', 'afile'),  'open local $f, "+<", ...' );
+    my @rows = <$f>;
+    is( scalar @rows, 2,                '       readline list context' );
+    ok( seek($f, 0, 1),                 '       seek cur' );
+    ok( (print $f "yet another row\n"), '       print' );
+    ok( close($f),                      '       close' );
+    ok( -s 'afile' > 20,                '       -s' );
 
-    unlink("afile");     
+    unlink("afile");
 }
 
-# 56..58
-if ($Is_VMS) {
-    for (56..58) { print "ok $_ # skipped: not Unix fork\n"; $test++;}
-}
-else {
-    print "# \$!='$!'\nnot " unless open(local $f, '-|', <<'EOC');
-    ./perl -e "print qq(a row\n); print qq(another row\n)"
+SKIP: {
+    skip "open -| busted and noisy on VMS", 3 if $Is_VMS;
+
+    ok( open(local $f, '-|', <<EOC),  'open local $f, "-|", ...' );
+    $Perl -e "print qq(a row\\n); print qq(another row\\n)"
 EOC
-    ok;
-    @rows = <$f>;
-    print "not " unless @rows == 2;
-    ok;
-    print "not " unless close($f);
-    ok;
+    my @rows = <$f>;
+
+    is( scalar @rows, 2,                '       readline list context' );
+    ok( close($f),                      '       close' );
 }
 
-# 59..62
-if ($Is_VMS) {
-    for (59..62) { print "ok $_ # skipped: not Unix fork\n"; $test++;}
-}
-else {
-    print "# \$!='$!'\nnot " unless open(local $f, '|-', <<'EOC');
-    ./perl -pe "s/^not //"
+SKIP: {
+    skip "Output for |- doesn't go to shell on MacOS", 5 if $Is_MacOS;
+
+    ok( open(local $f, '|-', <<EOC),  'open local $f, "|-", ...' );
+    $Perl -pe "s/^not //"
 EOC
-    ok;
-    @rows = <$f>;
-    print $f "not ok $test\n"; $test++;
-    print $f "not ok $test\n"; $test++;
-    print "#\nnot " unless close($f);
+
+    my @rows = <$f>;
+    my $test = curr_test;
+    print $f "not ok $test - piping\n";
+    next_test;
+
+    $test = curr_test;
+    print $f "not ok $test - piping\n";
+    next_test;
+    ok( close($f),                      '       close' );
     sleep 1;
-    ok;
+    pass("Flush");
 }
 
-# 63..64
-eval <<'EOE' and print "not ";
-open local $f, '<&', 'afile';
-1;
-EOE
-ok;
-$@ =~ /Unknown open\(\) mode \'<&\'/ or print "not ";
-ok;
 
-# 65..66
+ok( !eval { open local $f, '<&', 'afile'; 1 },  'local <& on non-filehandle');
+like( $@, qr/Bad filehandle:\s+afile/,          '       right error' );
+
 {
     local *F;
     for (1..2) {
-        if ($Is_Dos) {
-        open(F, "echo \\#foo|") or print "not ";
-        } else {
-            open(F, "echo #foo|") or print "not ";
-        }
-	print <F>;
-	close F;
+	ok( open(F, qq{$Perl -le "print 'ok'"|}), 'open to pipe' );
+	is(scalar <F>, "ok\n",  '       readline');
+	ok( close F,            '       close' );
     }
-    ok;
+
     for (1..2) {
-        if ($Is_Dos) {
-	open(F, "-|", "echo \\#foo") or print "not ";
-        } else {
-            open(F, "-|", "echo #foo") or print "not ";
-        }
-	print <F>;
-	close F;
+	ok( open(F, "-|", qq{$Perl -le "print 'ok'"}), 'open -|');
+	is( scalar <F>, "ok\n", '       readline');
+	ok( close F,            '       close' );
     }
-    ok;
 }
+
+
+# other dupping techniques
+{
+    ok( open(my $stdout, ">&", \*STDOUT),       'dup \*STDOUT into lexical fh');
+    ok( open(STDOUT,     ">&", $stdout),        'restore dupped STDOUT from lexical fh');
+
+    {
+	use strict; # the below should not warn
+	ok( open(my $stdout, ">&", STDOUT),         'dup STDOUT into lexical fh');
+    }
+
+    # used to try to open a file [perl #17830]
+    ok( open(my $stdin,  "<&", fileno STDIN),   'dup fileno(STDIN) into lexical fh') or _diag $!;
+}
+
+SKIP: {
+    skip "This perl uses perlio", 1 if $Config{useperlio};
+    skip "miniperl cannot be relied on to load %Errno"
+	if $ENV{PERL_CORE_MINITEST};
+    # Force the reference to %! to be run time by writing ! as {"!"}
+    skip "This system doesn't understand EINVAL", 1
+	unless exists ${"!"}{EINVAL};
+
+    no warnings 'io';
+    ok(!open(F,'>',\my $s) && ${"!"}{EINVAL}, 'open(reference) raises EINVAL');
+}
+
+{
+    ok( !eval { open F, "BAR", "QUUX" },       'Unknown open() mode' );
+    like( $@, qr/\QUnknown open() mode 'BAR'/, '       right error' );
+}
+
+{
+    local $SIG{__WARN__} = sub { $@ = shift };
+
+    sub gimme {
+        my $tmphandle = shift;
+	my $line = scalar <$tmphandle>;
+	warn "gimme";
+	return $line;
+    }
+
+    open($fh0[0], "TEST");
+    gimme($fh0[0]);
+    like($@, qr/<\$fh0\[...\]> line 1\./, "autoviv fh package aelem");
+
+    open($fh1{k}, "TEST");
+    gimme($fh1{k});
+    like($@, qr/<\$fh1{...}> line 1\./, "autoviv fh package helem");
+
+    my @fh2;
+    open($fh2[0], "TEST");
+    gimme($fh2[0]);
+    like($@, qr/<\$fh2\[...\]> line 1\./, "autoviv fh lexical aelem");
+
+    my %fh3;
+    open($fh3{k}, "TEST");
+    gimme($fh3{k});
+    like($@, qr/<\$fh3{...}> line 1\./, "autoviv fh lexical helem");
+}
+    
+SKIP: {
+    skip("These tests use perlio", 5) unless $Config{useperlio};
+    my $w;
+    use warnings 'layer';
+    local $SIG{__WARN__} = sub { $w = shift };
+
+    eval { open(F, ">>>", "afile") };
+    like($w, qr/Invalid separator character '>' in PerlIO layer spec/,
+	 "bad open (>>>) warning");
+    like($@, qr/Unknown open\(\) mode '>>>'/,
+	 "bad open (>>>) failure");
+
+    eval { open(F, ">:u", "afile" ) };
+    like($w, qr/Unknown PerlIO layer "u"/,
+	 'bad layer ">:u" warning');
+    eval { open(F, "<:u", "afile" ) };
+    like($w, qr/Unknown PerlIO layer "u"/,
+	 'bad layer "<:u" warning');
+    eval { open(F, ":c", "afile" ) };
+    like($@, qr/Unknown open\(\) mode ':c'/,
+	 'bad layer ":c" failure');
+}
+
+# [perl #28986] "open m" crashes Perl
+
+fresh_perl_like('open m', qr/^Search pattern not terminated at/,
+	{ stderr => 1 }, 'open m test');
+
+fresh_perl_is(
+    'sub f { open(my $fh, "xxx"); $fh = "f"; } f; f;print "ok"',
+    'ok', { stderr => 1 },
+    '#29102: Crash on assignment to lexical filehandle');
+
+# [perl #31767] Using $1 as a filehandle via open $1, "file" doesn't raise
+# an exception
+
+eval { open $99, "foo" };
+like($@, qr/Modification of a read-only value attempted/, "readonly fh");

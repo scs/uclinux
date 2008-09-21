@@ -1,11 +1,10 @@
-/* $RCSfile: walk.c,v $$Revision$$Date$
+/*    walk.c
  *
- *    Copyright (c) 1991-2001, Larry Wall
+ *    Copyright (C) 1991, 1992, 1993, 1994, 1995, 1997, 1998, 1999,
+ *    2000, 2001, 2002, 2005 by Larry Wall and others
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
- *
- * $Log:	walk.c,v $
  */
 
 #include "EXTERN.h"
@@ -34,15 +33,14 @@ static void tab ( STR *str, int lvl );
 
 int prewalk ( int numit, int level, int node, int *numericptr );
 STR * walk ( int useval, int level, int node, int *numericptr, int minprec );
-
+#ifdef NETWARE
+char *savestr(char *str);
+char *cpytill(register char *to, register char *from, register int delim);
+char *instr(char *big, char *little);
+#endif
 
 STR *
 walk(int useval, int level, register int node, int *numericptr, int minprec)
-           
-          
-                  
-                
-            			/* minimum precedence without parens */
 {
     register int len;
     register STR *str;
@@ -69,12 +67,12 @@ walk(int useval, int level, register int node, int *numericptr, int minprec)
     case OPROG:
 	arymax = 0;
 	if (namelist) {
-	    while (isalpha(*namelist)) {
+	    while (isALPHA(*namelist)) {
 		for (d = tokenbuf,s=namelist;
-		  isalpha(*s) || isdigit(*s) || *s == '_';
+		  isALPHA(*s) || isDIGIT(*s) || *s == '_';
 		  *d++ = *s++) ;
 		*d = '\0';
-		while (*s && !isalpha(*s)) s++;
+		while (*s && !isALPHA(*s)) s++;
 		namelist = s;
 		nameary[++arymax] = savestr(tokenbuf);
 	    }
@@ -241,7 +239,7 @@ sub Pick {\n\
 	tmpstr=walk(0,level,ops[node+1].ival,&numarg,P_MIN);
 	/* translate \nnn to [\nnn] */
 	for (s = tmpstr->str_ptr, d = tokenbuf; *s; s++, d++) {
-	    if (*s == '\\' && isdigit(s[1]) && isdigit(s[2]) && isdigit(s[3])){
+	    if (*s == '\\' && isDIGIT(s[1]) && isDIGIT(s[2]) && isDIGIT(s[3])){
 		*d++ = '[';
 		*d++ = *s++;
 		*d++ = *s++;
@@ -254,7 +252,7 @@ sub Pick {\n\
 	}
 	*d = '\0';
 	for (d=tokenbuf; *d; d++)
-	    *d += 128;
+           *d += (char)128;
 	str_cat(str,tokenbuf);
 	str_free(tmpstr);
 	str_cat(str,"/");
@@ -589,9 +587,9 @@ sub Pick {\n\
 		s = savestr(tokenbuf);
 		for (t = tokenbuf; *t; t++) {
 		    *t &= 127;
-		    if (islower(*t))
-			*t = toupper(*t);
-		    if (!isalpha(*t) && !isdigit(*t))
+		    if (isLOWER(*t))
+			*t = toUPPER(*t);
+		    if (!isALPHA(*t) && !isDIGIT(*t))
 			*t = '_';
 		}
 		if (!strchr(tokenbuf,'_'))
@@ -655,13 +653,11 @@ sub Pick {\n\
 	str_cat(str,", ");
 	str_scat(str,fstr=walk(1,level,ops[node+2].ival,&numarg,P_COMMA+1));
 	str_free(fstr);
-	str_cat(str,", ");
 	if (len == 3) {
+	    str_cat(str,", ");
 	    str_scat(str,fstr=walk(1,level,ops[node+3].ival,&numarg,P_COMMA+1));
 	    str_free(fstr);
 	}
-	else
-	    str_cat(str,"999999");
 	str_cat(str,")");
 	break;
     case OSTRING:
@@ -670,7 +666,7 @@ sub Pick {\n\
 	break;
     case OSPLIT:
 	str = str_new(0);
-	limit = ", 9999)";
+	limit = ", -1)";
 	numeric = 1;
 	tmpstr = walk(1,level,ops[node+2].ival,&numarg,P_MIN);
 	if (useval)
@@ -750,7 +746,7 @@ sub Pick {\n\
 	subretnum |= numarg;
 	s = Nullch;
 	t = tmp2str->str_ptr;
-	while (t = instr(t,"return "))
+	while ((t = instr(t,"return ")))
 	    s = t++;
 	if (s) {
 	    i = 0;
@@ -822,11 +818,8 @@ sub Pick {\n\
 	str_cat(str,")");
 	break;
     case OGSUB:
-    case OSUB:
-	if (type == OGSUB)
-	    s = "g";
-	else
-	    s = "";
+    case OSUB: {
+	int gsub = type == OGSUB ? 1 : 0;
 	str = str_new(0);
 	tmpstr = str_new(0);
 	i = 0;
@@ -849,13 +842,14 @@ sub Pick {\n\
 	    tmp2str=walk(1,level,ops[ops[node+2].ival+1].ival,&numarg,P_MIN);
 	    for (t = tmp2str->str_ptr, d=tokenbuf; *t; d++,t++) {
 		if (*t == '&')
-		    *d++ = '$' + 128;
+                   *d++ = '$' + (char)128;
 		else if (*t == '$')
-		    *d++ = '\\' + 128;
+                   *d++ = '\\' + (char)128;
 		*d = *t + 128;
 	    }
 	    *d = '\0';
 	    str_set(tmp2str,tokenbuf);
+	    s = (char *) (gsub ? "/g" : "/");
 	}
 	else {
 	    tmp2str=walk(1,level,ops[node+2].ival,&numarg,P_MIN);
@@ -863,9 +857,10 @@ sub Pick {\n\
 	    str_scat(tmp3str,tmp2str);
 	    str_cat(tmp3str,").'\"') =~ s/&/\\$&/g, ");
 	    str_set(tmp2str,"eval $s_");
-	    s = (char*)(*s == 'g' ? "ge" : "e");
+	    s = (char *) (gsub ? "/ge" : "/e");
 	    i++;
 	}
+	str_cat(tmp2str,s);
 	type = ops[ops[node+1].ival].ival;
 	len = type >> 8;
 	type &= 255;
@@ -877,8 +872,6 @@ sub Pick {\n\
 	    str_scat(str,tmpstr);
 	    str_scat(str,fstr);
 	    str_scat(str,tmp2str);
-	    str_cat(str,"/");
-	    str_cat(str,s);
 	}
 	else if ((type == OFLD && !split_to_array) || (type == OVAR && len == 1)) {
 	    if (useval && i)
@@ -889,8 +882,6 @@ sub Pick {\n\
 	    str_scat(str,fstr);
 	    str_cat(str,"/");
 	    str_scat(str,tmp2str);
-	    str_cat(str,"/");
-	    str_cat(str,s);
 	}
 	else {
 	    i++;
@@ -903,8 +894,6 @@ sub Pick {\n\
 	    str_scat(str,tmpstr);
 	    str_cat(str,"/$s/");
 	    str_scat(str,tmp2str);
-	    str_cat(str,"/");
-	    str_cat(str,s);
 	}
 	if (useval && i)
 	    str_cat(str,")");
@@ -913,7 +902,7 @@ sub Pick {\n\
 	str_free(tmp2str);
 	str_free(tmp3str);
 	numeric = 1;
-	break;
+	break; }
     case ONUM:
 	str = walk(1,level,ops[node+1].ival,&numarg,P_MIN);
 	numeric = 1;
@@ -931,7 +920,7 @@ sub Pick {\n\
 		case '\\': case '"': case 'n': case 't': case '$':
 		    break;
 		default:	/* hide this from perl */
-		    *d++ = '\\' + 128;
+                   *d++ = '\\' + (char)128;
 		}
 	    }
 	    *d = *t + 128;
@@ -1008,7 +997,7 @@ sub Pick {\n\
 		    strcpy(tokenbuf,"]");
 		else
 		    strcpy(tokenbuf,"}");
-		*tokenbuf += 128;
+               *tokenbuf += (char)128;
 		str_cat(str,tokenbuf);
 	    }
 	}
@@ -1060,7 +1049,7 @@ sub Pick {\n\
 	str_set(str,";");
 	tmpstr = walk(0,level,ops[node+1].ival,&numarg,P_MIN);
 	for (s = tmpstr->str_ptr; *s && *s != '\n'; s++)
-	    *s += 128;
+           *s += (char)128;
 	str_scat(str,tmpstr);
 	str_free(tmpstr);
 	tab(str,level);
@@ -1069,7 +1058,7 @@ sub Pick {\n\
 	str = str_new(0);
 	tmpstr = walk(0,level,ops[node+1].ival,&numarg,P_MIN);
 	for (s = tmpstr->str_ptr; *s && *s != '\n'; s++)
-	    *s += 128;
+           *s += (char)128;
 	str_scat(str,tmpstr);
 	str_free(tmpstr);
 	tab(str,level);
@@ -1120,9 +1109,9 @@ sub Pick {\n\
 	    s = savestr(tokenbuf);
 	    for (t = tokenbuf; *t; t++) {
 		*t &= 127;
-		if (islower(*t))
-		    *t = toupper(*t);
-		if (!isalpha(*t) && !isdigit(*t))
+		if (isLOWER(*t))
+		    *t = toUPPER(*t);
+		if (!isALPHA(*t) && !isDIGIT(*t))
 		    *t = '_';
 	    }
 	    if (!strchr(tokenbuf,'_'))
@@ -1157,9 +1146,9 @@ sub Pick {\n\
 		s = savestr(tokenbuf);
 		for (t = tokenbuf; *t; t++) {
 		    *t &= 127;
-		    if (islower(*t))
-			*t = toupper(*t);
-		    if (!isalpha(*t) && !isdigit(*t))
+		    if (isLOWER(*t))
+			*t = toUPPER(*t);
+		    if (!isALPHA(*t) && !isDIGIT(*t))
 			*t = '_';
 		}
 		if (!strchr(tokenbuf,'_'))
@@ -1430,7 +1419,7 @@ sub Pick {\n\
 	i = numarg;
 	if (i) {
 	    t = s = tmpstr->str_ptr;
-	    while (isalpha(*t) || isdigit(*t) || *t == '$' || *t == '_')
+	    while (isALPHA(*t) || isDIGIT(*t) || *t == '$' || *t == '_')
 		t++;
 	    i = t - s;
 	    if (i < 2)
@@ -1463,7 +1452,7 @@ sub Pick {\n\
 	if (!s)
 	    fatal("Illegal for loop: %s",d);
 	*s++ = '\0';
-	for (t = s; i = *t; t++) {
+	for (t = s; (i = *t); t++) {
 	    i &= 127;
 	    if (i == '}' || i == ']')
 		break;
@@ -1619,13 +1608,13 @@ emit_split(register STR *str, int level)
 	str_cat(str,tokenbuf);
     }
     if (const_FS) {
-	sprintf(tokenbuf," = split(/[%c\\n]/, $_, 9999);\n",const_FS);
+	sprintf(tokenbuf," = split(/[%c\\n]/, $_, -1);\n",const_FS);
 	str_cat(str,tokenbuf);
     }
     else if (saw_FS)
-	str_cat(str," = split($FS, $_, 9999);\n");
+	str_cat(str," = split($FS, $_, -1);\n");
     else
-	str_cat(str," = split(' ', $_, 9999);\n");
+	str_cat(str," = split(' ', $_, -1);\n");
     tab(str,level);
 }
 

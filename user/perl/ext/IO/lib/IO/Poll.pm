@@ -13,7 +13,7 @@ use Exporter ();
 our(@ISA, @EXPORT_OK, @EXPORT, $VERSION);
 
 @ISA = qw(Exporter);
-$VERSION = "0.05";
+$VERSION = "0.07";
 
 @EXPORT = qw( POLLIN
 	      POLLOUT
@@ -46,6 +46,7 @@ sub mask {
     my $self = shift;
     my $io = shift;
     my $fd = fileno($io);
+    return unless defined $fd;
     if (@_) {
 	my $mask = shift;
 	if($mask) {
@@ -53,9 +54,13 @@ sub mask {
 	  $self->[1]{$fd}      = 0;     # output mask
 	  $self->[2]{$io}      = $io;   # remember handle
 	} else {
-	    delete $self->[0]{$fd}{$io};
-	  delete $self->[1]{$fd} unless %{$self->[0]{$fd}};
-	  delete $self->[2]{$io};
+          delete $self->[0]{$fd}{$io};
+          unless(%{$self->[0]{$fd}}) {
+            # We no longer have any handles for this FD
+            delete $self->[1]{$fd};
+            delete $self->[0]{$fd};
+          }
+          delete $self->[2]{$io};
 	}
     }
     
@@ -170,7 +175,7 @@ happen, or -1 on error.
 
 =item events ( IO )
 
-Returns the event mask which represents the events that happend on IO
+Returns the event mask which represents the events that happened on IO
 during the last call to C<poll>.
 
 =item remove ( IO )

@@ -37,9 +37,9 @@ print OUT <<'!NO!SUBS!';
 
 # pod2text -- Convert POD data to formatted ASCII text.
 #
-# Copyright 1999, 2000 by Russ Allbery <rra@stanford.edu>
+# Copyright 1999, 2000, 2001 by Russ Allbery <rra@stanford.edu>
 #
-# This program is free software; you can redistribute it and/or modify it
+# This program is free software; you may redistribute it and/or modify it
 # under the same terms as Perl itself.
 #
 # The driver script for Pod::Text, Pod::Text::Termcap, and Pod::Text::Color,
@@ -52,6 +52,9 @@ use Pod::Text ();
 use Pod::Usage qw(pod2usage);
 
 use strict;
+
+# Silence -w warnings.
+use vars qw($running_under_some_shell);
 
 # Take an initial pass through our options, looking for one of the form
 # -<number>.  We turn that into -w <number> for compatibility with the
@@ -74,9 +77,9 @@ my $stdin;
 my %options;
 $options{sentence} = 0;
 Getopt::Long::config ('bundling');
-GetOptions (\%options, 'alt|a', 'color|c', 'help|h', 'indent|i=i',
-            'loose|l', 'overstrike|o', 'quotes|q=s', 'sentence|s',
-            'termcap|t', 'width|w=i') or exit 1;
+GetOptions (\%options, 'alt|a', 'code', 'color|c', 'help|h', 'indent|i=i',
+            'loose|l', 'margin|left-margin|m=i', 'overstrike|o',
+            'quotes|q=s', 'sentence|s', 'termcap|t', 'width|w=i') or exit 1;
 pod2usage (1) if $options{help};
 
 # Figure out what formatter we're going to use.  -c overrides -t.
@@ -107,8 +110,8 @@ pod2text - Convert POD data to formatted ASCII text
 
 =head1 SYNOPSIS
 
-pod2text [B<-aclost>] [B<-i> I<indent>] [B<-q> I<quotes>] [B<-w> I<width>]
-[I<input> [I<output>]]
+pod2text [B<-aclost>] [B<--code>] [B<-i> I<indent>] S<[B<-q> I<quotes>]>
+S<[B<-w> I<width>]> [I<input> [I<output>]]
 
 pod2text B<-h>
 
@@ -132,6 +135,12 @@ given, the formatted output is written to STDOUT.
 Use an alternate output format that, among other things, uses a different
 heading style and marks C<=item> entries with a colon in the left margin.
 
+=item B<--code>
+
+Include any non-POD text from the input file in the output as well.  Useful
+for viewing code documented with POD blocks with the POD rendered and the
+code left intact.
+
 =item B<-c>, B<--color>
 
 Format the output with ANSI color escape sequences.  Using this option
@@ -152,6 +161,12 @@ Print a blank line after a C<=head1> heading.  Normally, no blank line is
 printed after C<=head1>, although one is still printed after C<=head2>,
 because this is the expected formatting for manual pages; if you're
 formatting arbitrary text documents, using this option is recommended.
+
+=item B<-m> I<width>, B<--left-margin>=I<width>, B<--margin>=I<width>
+
+The width of the left margin in spaces.  Defaults to 0.  This is the margin
+for all text, including headings, not the amount by which regular text is
+indented; for the latter, see B<-i> option.
 
 =item B<-o>, B<--overstrike>
 
@@ -238,12 +253,23 @@ current terminal device.
 
 =head1 SEE ALSO
 
-L<Pod::Text|Pod::Text>, L<Pod::Text::Color|Pod::Text::Color>,
-L<Pod::Text::Termcap|Pod::Text::Termcap>, L<Pod::Parser|Pod::Parser>
+L<Pod::Text>, L<Pod::Text::Color>, L<Pod::Text::Overstrike>,
+L<Pod::Text::Termcap>, L<Pod::Parser>
+
+The current version of this script is always available from its web site at
+L<http://www.eyrie.org/~eagle/software/podlators/>.  It is also part of the
+Perl core distribution as of 5.6.0.
 
 =head1 AUTHOR
 
-Russ Allbery E<lt>rra@stanford.eduE<gt>.
+Russ Allbery <rra@stanford.edu>.
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 1999, 2000, 2001 by Russ Allbery <rra@stanford.edu>.
+
+This program is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
 
 =cut
 !NO!SUBS!

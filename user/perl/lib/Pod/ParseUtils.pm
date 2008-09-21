@@ -10,7 +10,7 @@
 package Pod::ParseUtils;
 
 use vars qw($VERSION);
-$VERSION = 0.22;   ## Current version of this package
+$VERSION = 1.33;   ## Current version of this package
 require  5.005;    ## requires this Perl version or later
 
 =head1 NAME
@@ -274,7 +274,7 @@ sub initialize {
 This method can be used to (re)parse a (new) hyperlink, i.e. the contents
 of a C<LE<lt>...E<gt>> sequence. The result is stored in the current object.
 Warnings are stored in the B<warnings> property.
-E.g. sections like C<LE<lt>open(2)E<gt>> are deprected, as they do not point
+E.g. sections like C<LE<lt>open(2)E<gt>> are deprecated, as they do not point
 to Perl documents. C<LE<lt>DBI::foo(3p)E<gt>> is wrong as well, the manpage
 section can simply be dropped.
 
@@ -284,7 +284,7 @@ sub parse {
     my $self = shift;
     local($_) = $_[0];
     # syntax check the link and extract destination
-    my ($alttext,$page,$node,$type) = (undef,'','','');
+    my ($alttext,$page,$node,$type,$quoted) = (undef,'','','',0);
 
     $self->{_warnings} = [];
 
@@ -311,7 +311,7 @@ sub parse {
     # problem: a lot of people use (), or (1) or the like to indicate
     # man page sections. But this collides with L<func()> that is supposed
     # to point to an internal funtion...
-    my $page_rx = '[\w.]+(?:::[\w.]+)*(?:[(](?:\d\w*|)[)]|)';
+    my $page_rx = '[\w.-]+(?:::[\w.-]+)*(?:[(](?:\d\w*|)[)]|)';
     # page name only
     if(m!^($page_rx)$!o) {
         $page = $1;
@@ -321,6 +321,7 @@ sub parse {
     elsif(m!^(.*?)\s*[|]\s*($page_rx)\s*/\s*"(.+)"$!o) {
         ($alttext, $page, $node) = ($1, $2, $3);
         $type = 'section';
+        $quoted = 1; #... therefore | and / are allowed
     }
     # alttext and page
     elsif(m!^(.*?)\s*[|]\s*($page_rx)$!o) {
@@ -331,11 +332,13 @@ sub parse {
     elsif(m!^(.*?)\s*[|]\s*(?:/\s*|)"(.+)"$!) {
         ($alttext, $node) = ($1,$2);
         $type = 'section';
+        $quoted = 1;
     }
     # page and "section"
     elsif(m!^($page_rx)\s*/\s*"(.+)"$!o) {
         ($page, $node) = ($1, $2);
         $type = 'section';
+        $quoted = 1;
     }
     # page and item
     elsif(m!^($page_rx)\s*/\s*(.+)$!o) {
@@ -346,6 +349,7 @@ sub parse {
     elsif(m!^/?"(.+)"$!) {
         $node = $1;
         $type = 'section';
+        $quoted = 1;
     }
     # only item
     elsif(m!^\s*/(.+)$!) {
@@ -353,7 +357,7 @@ sub parse {
         $type = 'item';
     }
     # non-standard: Hyperlink
-    elsif(m!^((?:http|ftp|mailto|news):.+)$!i) {
+    elsif(m!^(\w+:[^:\s]\S*)$!i) {
         $node = $1;
         $type = 'hyperlink';
     }
@@ -367,7 +371,7 @@ sub parse {
         ($alttext, $node) = ($1,$2);
     }
     # nonstandard: alttext and hyperlink
-    elsif(m!^(.*?)\s*[|]\s*((?:http|ftp|mailto|news):.+)$!) {
+    elsif(m!^(.*?)\s*[|]\s*(\w+:[^:\s]\S*)$!) {
         ($alttext, $node) = ($1,$2);
         $type = 'hyperlink';
     }
@@ -392,7 +396,7 @@ sub parse {
     if($page =~ /[(]\w*[)]$/) {
         $self->warning("(section) in '$page' deprecated");
     }
-    if($node =~ m:[|/]:) {
+    if(!$quoted && $node =~ m:[|/]: && $type ne 'hyperlink') {
         $self->warning("node '$node' contains non-escaped | or /");
     }
     if($alttext =~ m:[|/]:) {
@@ -422,11 +426,9 @@ sub _construct_text {
         $self->{_text} = $section;
     }
     else {
-        $self->{_text} = (!$section ? '' : 
-            $type eq 'item' ? "the $section entry" :
-                "the section on $section" ) .
-            ($page ? ($section ? ' in ':'') . "the $page$page_ext manpage" :
-                ' elsewhere in this document');
+        $self->{_text} = ($section || '') .
+            (($page && $section) ? ' in ' : '') .
+            "$page$page_ext";
     }
     # for being marked up later
     # use the non-standard markers P<> and Q<>, so that the resulting
@@ -439,11 +441,8 @@ sub _construct_text {
         $self->{_markup} = "Q<$section>";
     }
     else {
-        $self->{_markup} = (!$section ? '' : 
-            $type eq 'item' ? "the Q<$section> entry" :
-                "the section on Q<$section>" ) .
-            ($page ? ($section ? ' in ':'') . "the P<$page>$page_ext manpage" :
-                ' elsewhere in this document');
+        $self->{_markup} = (!$section ? '' : "Q<$section>") .
+            ($page ? ($section ? ' in ':'') . "P<$page>$page_ext" : '');
     }
 }
 
@@ -469,10 +468,10 @@ but without markers (read only). Depending on the link type this is one of
 the following alternatives (the + and * denote the portions of the text
 that are marked up):
 
-  the +perl+ manpage
-  the *$|* entry in the +perlvar+ manpage
-  the section on *OPTIONS* in the +perldoc+ manpage
-  the section on *DESCRIPTION* elsewhere in this document
+  +perl+                    L<perl>
+  *$|* in +perlvar+         L<perlvar/$|>
+  *OPTIONS* in +perldoc+    L<perldoc/"OPTIONS">
+  *DESCRIPTION*             L<"DESCRIPTION">
 
 =cut
 
@@ -837,7 +836,9 @@ sub idx {
 
 =head1 AUTHOR
 
-Marek Rouchal E<lt>marek@saftsack.fs.uni-bayreuth.deE<gt>, borrowing
+Please report bugs using L<http://rt.cpan.org>.
+
+Marek Rouchal E<lt>marekr@cpan.orgE<gt>, borrowing
 a lot of things from L<pod2man> and L<pod2roff> as well as other POD
 processing tools by Tom Christiansen, Brad Appleton and Russ Allbery.
 

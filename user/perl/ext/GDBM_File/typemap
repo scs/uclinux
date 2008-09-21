@@ -3,6 +3,7 @@
 #
 
 datum_key		T_DATUM_K
+datum_key_copy		T_DATUM_K
 datum_value		T_DATUM_V
 NDBM_File		T_PTROBJ
 GDBM_File		T_PTROBJ
@@ -14,13 +15,25 @@ FATALFUNC		T_OPAQUEPTR
 
 INPUT
 T_DATUM_K
-	ckFilter($arg, filter_store_key, \"filter_store_key\");
-	$var.dptr = SvPV($arg, PL_na);
+	DBM_ckFilter($arg, filter_store_key, \"filter_store_key\");
+	$var.dptr = SvPVbyte($arg, PL_na);
 	$var.dsize = (int)PL_na;
+T_DATUM_K_C
+	{
+	    SV * tmpSV;
+	    if (db->filter_store_key) {
+	        tmpSV = sv_2mortal(newSVsv($arg)); 
+	        DBM_ckFilter(tmpSV, filter_store_key, \"filter_store_key\");
+            }
+            else
+                tmpSV = $arg;
+	    $var.dptr = SvPVbyte(tmpSV, PL_na);
+	    $var.dsize = (int)PL_na;
+	}
 T_DATUM_V
-        ckFilter($arg, filter_store_value, \"filter_store_value\");
+        DBM_ckFilter($arg, filter_store_value, \"filter_store_value\");
 	if (SvOK($arg)) {
-	    $var.dptr = SvPV($arg, PL_na);
+	    $var.dptr = SvPVbyte($arg, PL_na);
 	    $var.dsize = (int)PL_na;
 	}
 	else {
@@ -30,9 +43,9 @@ T_DATUM_V
 OUTPUT
 T_DATUM_K
 	output_datum(aTHX_ $arg, $var.dptr, $var.dsize);
-	ckFilter($arg, filter_fetch_key,\"filter_fetch_key\");
+	DBM_ckFilter($arg, filter_fetch_key,\"filter_fetch_key\");
 T_DATUM_V
 	output_datum(aTHX_ $arg, $var.dptr, $var.dsize);
-	ckFilter($arg, filter_fetch_value,\"filter_fetch_value\");
+	DBM_ckFilter($arg, filter_fetch_value,\"filter_fetch_value\");
 T_PTROBJ
         sv_setref_pv($arg, dbtype, (void*)$var);

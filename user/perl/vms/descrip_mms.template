@@ -1,6 +1,6 @@
 !GROK!THIS!
 # Descrip.MMS for perl5 on VMS
-# Last revised 01-Mar-2000 by Charles Bailey  bailey@newman.upenn.edu
+# Last revised 5-Dec-2001 by Craig Berry -- craigberry@mac.com
 #
 #: This file uses MMS syntax, and can be processed using DEC's MMS product,
 #: or the free MMK clone (available by ftp at ftp.spc.edu).  If you want to
@@ -31,8 +31,14 @@
 ~CC~
 ~MT~
 ~FLAGS~
+~LARGEFILE~
 
 #: >>>>> Architecture-specific options <<<<<
+.ifdef IXE
+O = .ibj
+OLB = .ilb
+E = .ixe
+.else
 .ifdef AXE
 # File type to use for object files
 O = .abj
@@ -48,13 +54,19 @@ OLB = .olb
 # File type to use for executable images
 E = .exe
 .endif
+.endif
 
+.ifdef __IA64__
+ARCH = VMS_IA64
+OBJVAL = $(O)
+.else
 .ifdef __AXP__
 ARCH = VMS_AXP
 OBJVAL = $(O)
 .else
 ARCH = VMS_VAX
 OBJVAL = $(MMS$TARGET_NAME)$(O)
+.endif
 .endif
 
 PERL_VERSION = ~PV~
@@ -83,19 +95,13 @@ SOCKETSHR_SOCKETS=1
 .endif
 .endif
 
-
 ARCHDIR =  [.lib.$(ARCH).$(PERL_VERSION)]
 ARCHCORE = [.lib.$(ARCH).$(PERL_VERSION).CORE]
 ARCHAUTO = [.lib.$(ARCH).$(PERL_VERSION).auto]
 
-
 #: Backwards compatibility
 .ifdef DECC_PIPES_BROKEN
 PIPES_BROKEN = 1
-.endif
-
-.ifdef __DEBUG__
-NOX2P = 1
 .endif
 
 #: >>>>>Compiler-specific options <<<<<
@@ -140,7 +146,6 @@ XTRACCFLAGS = /Include=[]/Standard=Relaxed_ANSI/Prefix=All/Obj=$(OBJVAL)
 XTRADEF =
 POSIX = POSIX
 .endif
-
 
 #: >>>>> Configuration options <<<<<
 #: __DEBUG__: builds images with full VMS debugger support
@@ -200,19 +205,22 @@ THRLIBS2 = sys$share:cma$open_lib_shr/share|sys$share:cma$open_rtl/share
 .ifdef FAKETHREADED
 THREADDEF = 
 THREADH = fakethr.h
-acth = $(ARCHCORE)fakethr.h
 THREAD = THREAD
 .else
 THREADH =
-acth =
 .endif
 
 # C preprocessor manifest "DEBUGGING" ==> perl -D, not the VMS debugger
+.IFDEF LARGEFILE
+CFLAGS = $(XTRACCFLAGS)$(DBGCCFLAGS)$(FLAGS)/Define=$(LARGEFILE)
+X2PCFLAGS = $(XTRACCFLAGS)$(DBGCCFLAGS)$(FLAGS)/Define=(PERL_FOR_X2P,$(LARGEFILE))
+CORECFLAGS = $(XTRACCFLAGS)$(DBGCCFLAGS)$(FLAGS)/Define=(PERL_CORE,$(LARGEFILE))
+.ELSE
 CFLAGS = $(XTRACCFLAGS)$(DBGCCFLAGS)$(FLAGS)
-# Flags for a core compile
-X2PCFLAGS = $(CFLAGS)/Define=PERL_FOR_X2P
-# Flags for an x2p compile
-CORECFLAGS = $(CFLAGS)/Define=PERL_CORE
+X2PCFLAGS = $(XTRACCFLAGS)$(DBGCCFLAGS)$(FLAGS)/Define=PERL_FOR_X2P
+CORECFLAGS = $(XTRACCFLAGS)$(DBGCCFLAGS)$(FLAGS)/Define=PERL_CORE
+.ENDIF
+
 LINKFLAGS = $(DBGLINKFLAGS)
 
 MAKE = $(MMS)
@@ -231,26 +239,14 @@ XSUBPP = $(MINIPERL) "-I[.ext.re]" [.lib.extutils]xsubpp -noprototypes
 # life easier for those who modify Perl and rebuild it.
 INSTPERL = perl
 
-# Space-separated list of "dynamic" extensions which should be built for
-# run-time dynamic loading.
-dynamic_ext = $extensions
-
 # Space-separated list of "static" extensions to build into perlshr (case counts).
 MYEXT = DynaLoader
 # object files for these extensions; the trailing comma is required if
 # there are any object files specified
 # These must be built separately, or you must add rules below to build them
 myextobj = [.ext.dynaloader]dl_vms$(O),
-#: We include the Socket extension by default if we're building with socket
-#: support, since it's small and not really worth bothering to keep track
-#: of separately.
-.ifdef SOCKET
-EXT = $(MYEXT) Socket
-extobj = $(myextobj) [.ext.socket]socket$(O), 
-.else
 EXT = $(MYEXT)
 extobj = $(myextobj)
-.endif
 
 .ifdef LIBS2
 .else
@@ -271,22 +267,22 @@ FULLLIBS2 = $(LIBS2)|$(THRLIBS1)|$(THRLIBS2)
 
 #### End of system configuration section. ####
 
-c0 = $(MALLOC_C) $(SOCKC) av.c deb.c doio.c doop.c dump.c globals.c gv.c
-c1 = hv.c mg.c miniperlmain.c op.c perl.c perlapi.c perlio.c perly.c pp.c pp_ctl.c
-c2 = pp_hot.c pp_sys.c regcomp.c regexec.c run.c scope.c sv.c taint.c
-c3 = toke.c universal.c utf8.c util.c vms.c xsutils.c
+c0 = $(MALLOC_C) $(SOCKC) av.c deb.c doio.c doop.c dump.c globals.c gv.c hv.c
+c1 = mg.c locale.c miniperlmain.c numeric.c op.c pad.c perl.c perlapi.c perlio.c
+c2 = perly.c pp.c pp_ctl.c pp_hot.c pp_pack.c pp_sort.c pp_sys.c regcomp.c regexec.c reentr.c
+c3 = run.c scope.c sv.c taint.c toke.c universal.c utf8.c util.c vms.c xsutils.c
 c = $(c0) $(c1) $(c2) $(c3)
 
 obj0 = $(MALLOC_O) $(SOCKO) av$(O) deb$(O) doio$(O) doop$(O) dump$(O)
-obj1 = globals$(O) gv$(O) hv$(O) mg$(O) miniperlmain$(O) op$(O) perl$(O) perlapi$(O)
-obj2 = perlio$(O) perly$(O) pp$(O) pp_ctl$(O) pp_hot$(O) pp_sys$(O) regcomp$(O)
-obj3 = regexec$(O) run$(O) scope$(O) sv$(O) taint$(O) toke$(O) universal$(O)
-obj4 = utf8$(O) util$(O) vms$(O) xsutils$(O)
+obj1 = globals$(O) gv$(O) hv$(O) locale$(O) mg$(O) miniperlmain$(O) numeric$(O) op$(O) pad$(O)
+obj2 = perl$(O) perlapi$(O) perlio$(O) perly$(O) pp$(O) pp_ctl$(O) pp_hot$(O) reentr$(O)
+obj3 = pp_pack$(O) pp_sort$(O) pp_sys$(O) regcomp$(O) regexec$(O) run$(O) scope$(O) sv$(O) taint$(O) toke$(O)
+obj4 = universal$(O) utf8$(O) util$(O) vms$(O) xsutils$(O)
 obj = $(obj0) $(obj1) $(obj2) $(obj3) $(obj4)
 
 h0 = av.h cc_runtime.h config.h cop.h cv.h embed.h embedvar.h
-h1 = extern.h form.h gv.h handy.h hv.h intern.h intrpvar.h
-h2 = iperlsys.h keywords.h mg.h nostdio.h objxsub.h op.h opcode.h opnames.h
+h1 = EXTERN.h form.h gv.h handy.h hv.h INTERN.h intrpvar.h
+h2 = iperlsys.h keywords.h mg.h nostdio.h op.h opcode.h opnames.h pad.h
 h3 = patchlevel.h perl.h perlapi.h perlio.h perlsdio.h perlvars.h perly.h
 h4 = pp.h pp_proto.h proto.h regcomp.h regexp.h regnodes.h scope.h
 h5 = sv.h thrdvar.h thread.h utf8.h util.h vmsish.h warnings.h
@@ -295,15 +291,15 @@ h = $(h0) $(h1) $(h2) $(h3) $(h4) $(h5) $(h6)
 
 ac0 = $(ARCHCORE)$(sockh) $(ARCHCORE)av.h $(ARCHCORE)cc_runtime.h
 ac1 = $(ARCHCORE)config.h $(ARCHCORE)cop.h $(ARCHCORE)cv.h $(ARCHCORE)embed.h
-ac2 = $(ARCHCORE)embedvar.h $(ARCHCORE)extern.h $(acth)
+ac2 = $(ARCHCORE)embedvar.h $(ARCHCORE)EXTERN.h $(ARCHCORE)fakethr.h
 ac3 = $(ARCHCORE)form.h $(ARCHCORE)gv.h $(ARCHCORE)handy.h $(ARCHCORE)hv.h
-ac4 = $(ARCHCORE)intern.h $(ARCHCORE)intrpvar.h $(ARCHCORE)iperlsys.h
+ac4 = $(ARCHCORE)INTERN.h $(ARCHCORE)intrpvar.h $(ARCHCORE)iperlsys.h
 ac5 = $(ARCHCORE)keywords.h $(ARCHCORE)mg.h $(ARCHCORE)nostdio.h
-ac6 = $(ARCHCORE)objxsub.h $(ARCHCORE)op.h $(ARCHCORE)opcode.h
-ac7 = $(ARCHCORE)opnames.h $(ARCHCORE)patchlevel.h $(ARCHCORE)perl.h
+ac6 = $(ARCHCORE)op.h $(ARCHCORE)opcode.h $(ARCHCORE)opnames.h 
+ac7 = $(ARCHCORE)pad.h $(ARCHCORE)patchlevel.h $(ARCHCORE)perl.h
 ac8 = $(ARCHCORE)perlapi.h $(ARCHCORE)perlio.h $(ARCHCORE)perlsdio.h
-ac9 = $(ARCHCORE)perlvars.h $(ARCHCORE)perly.h $(ARCHCORE)pp.h
-ac10 = $(ARCHCORE)pp_proto.h $(ARCHCORE)proto.h $(ARCHCORE)regcomp.h
+ac9 = $(ARCHCORE)perlsfio.h $(ARCHCORE)perlvars.h $(ARCHCORE)perly.h $(ARCHCORE)pp.h
+ac10 = $(ARCHCORE)pp_proto.h $(ARCHCORE)proto.h $(ARCHCORE)reentr.h $(ARCHCORE)reentr.inc $(ARCHCORE)regcomp.h
 ac11 = $(ARCHCORE)regexp.h $(ARCHCORE)regnodes.h $(ARCHCORE)scope.h
 .ifdef SOCKARCH
 ac12 = $(ARCHCORE)sv.h $(ARCHCORE)thrdvar.h $(SOCKARCH)
@@ -327,7 +323,6 @@ CRTLOPTS =,$(CRTL)/Options
 .xs.c :
 	$(XSUBPP) $(MMS$SOURCE) >$(MMS$TARGET)
 
-
 .c$(O) :
 	$(CC) $(CFLAGS) $(MMS$SOURCE)
 
@@ -336,20 +331,29 @@ CRTLOPTS =,$(CRTL)/Options
 	$(CC) $(CFLAGS) $(MMS$SOURCE_NAME).c
 .endif
 
-# Modules which must be installed before we can build extensions
-LIBPREREQ = $(ARCHDIR)Config.pm [.lib.VMS]Filespec.pm [.lib]DynaLoader.pm [.lib]XSLoader.pm [.lib]vmsish.pm [.lib.ExtUtils]XSSymSet.pm $(ARCHDIR)vmspipe.com [.lib]re.pm
+# Directories of Unicode data files generated by mktables
+unidatadirs = lib/unicore/To lib/unicore/lib
 
-utils1 = [.lib.pod]perldoc.com [.lib.ExtUtils]Miniperl.pm [.utils]c2ph.com [.utils]h2ph.com [.utils]h2xs.com [.lib]perlbug.com [.lib]perlcc.com [.utils]dprofpp.com
-utils2 = [.lib]splain.com [.utils]pl2pm.com
+# Modules which must be installed before we can build extensions
+LIBPREREQ = $(ARCHDIR)Config.pm $(ARCHDIR)Config_heavy.pl [.lib.VMS]Filespec.pm [.lib]DynaLoader.pm [.lib]XSLoader.pm [.lib]lib.pm [.lib.ExtUtils]XSSymSet.pm $(ARCHDIR)vmspipe.com [.lib]re.pm unidatafiles.ts
+
+utils1 = [.lib.pods]perldoc.com [.lib.ExtUtils]Miniperl.pm [.utils]c2ph.com [.utils]h2ph.com 
+utils2 = [.utils]h2xs.com [.utils]libnetcfg.com [.lib]perlbug.com [.lib]perlcc.com [.utils]dprofpp.com 
+utils3 = [.utils]perlivp.com [.lib]splain.com [.utils]pl2pm.com [.utils]xsubpp.com [.utils]instmodsh.com
+utils4 = [.utils]enc2xs.com [.utils]piconv.com [.utils]cpan.com [.utils]prove.com
 
 .ifdef NOX2P
 all : base extras archcorefiles preplibrary perlpods
+	@ QUALIFIERS := $(MMSQUALIFIERS)
+	@ QUALIFIERS = QUALIFIERS - """" - """"
 	@ write sys$output " "
-	@ write sys$output " Everything is up to date. '$(MMS)$(MMSQUALIFIERS) test' to run test suite."
+	@ write sys$output " Everything is up to date. '$(MMS)''QUALIFIERS' test' to run test suite."
 .else
 all : base extras x2p archcorefiles preplibrary perlpods
+	@ QUALIFIERS := $(MMSQUALIFIERS)
+	@ QUALIFIERS = QUALIFIERS - """" - """"
 	@ write sys$output " "
-	@ write sys$output " Everything is up to date. '$(MMS)$(MMSQUALIFIERS) test' to run test suite."
+	@ write sys$output " Everything is up to date. '$(MMS)''QUALIFIERS' test' to run test suite."
 .endif
 base : miniperl perl
 	@ $(NOOP)
@@ -357,50 +361,59 @@ extras : dynext libmods utils podxform extra.pods
 	@ $(NOOP)
 libmods : $(LIBPREREQ)
 	@ $(NOOP)
-utils : $(utils1) $(utils2)
+utils : $(utils1) $(utils2) $(utils3) $(utils4)
 	@ $(NOOP)
-podxform : [.lib.pod]pod2text.com [.lib.pod]pod2html.com [.lib.pod]pod2latex.com [.lib.pod]pod2man.com [.lib.pod]podchecker.com [.lib.pod]pod2usage.com [.lib.pod]podselect.com
+podxform : [.lib.pods]pod2text.com [.lib.pods]pod2html.com [.lib.pods]pod2latex.com [.lib.pods]pod2man.com [.lib.pods]podchecker.com [.lib.pods]pod2usage.com [.lib.pods]podselect.com
 	@ $(NOOP)
-x2p : [.x2p]a2p$(E) [.x2p]s2p.com [.x2p]find2perl.com 
+x2p : [.x2p]$(DBG)a2p$(E) [.x2p]s2p.com [.x2p]find2perl.com 
 	@ $(NOOP)
 extra.pods : miniperl
 	@ @extra_pods.com
 
-pod0 = [.lib.pod]perl.pod [.lib.pod]perl5004delta.pod [.lib.pod]perl5005delta.pod
-pod1 = [.lib.pod]perlapi.pod [.lib.pod]perlapio.pod [.lib.pod]perlbook.pod
-pod2 = [.lib.pod]perlbot.pod [.lib.pod]perlcall.pod [.lib.pod]perlcompile.pod
-pod3 = [.lib.pod]perldata.pod [.lib.pod]perldbmfilter.pod [.lib.pod]perldebug.pod
-pod4 = [.lib.pod]perldelta.pod [.lib.pod]perldiag.pod [.lib.pod]perldsc.pod
-pod5 = [.lib.pod]perlembed.pod [.lib.pod]perlfaq.pod [.lib.pod]perlfaq1.pod
-pod6 = [.lib.pod]perlfaq2.pod [.lib.pod]perlfaq3.pod [.lib.pod]perlfaq4.pod
-pod7 = [.lib.pod]perlfaq5.pod [.lib.pod]perlfaq6.pod [.lib.pod]perlfaq7.pod
-pod8 = [.lib.pod]perlfaq8.pod [.lib.pod]perlfaq9.pod [.lib.pod]perlfilter.pod
-pod9 = [.lib.pod]perlfork.pod [.lib.pod]perlform.pod [.lib.pod]perlfunc.pod
-pod10 = [.lib.pod]perlguts.pod [.lib.pod]perlhack.pod [.lib.pod]perlhist.pod
-pod11 = [.lib.pod]perlintern.pod [.lib.pod]perlipc.pod [.lib.pod]perllexwarn.pod
-pod12 = [.lib.pod]perllocale.pod [.lib.pod]perllol.pod [.lib.pod]perlmod.pod
-pod13 = [.lib.pod]perlmodinstall.pod [.lib.pod]perlmodlib.pod [.lib.pod]perlobj.pod
-pod14 = [.lib.pod]perlop.pod [.lib.pod]perlopentut.pod [.lib.pod]perlpod.pod
-pod15 = [.lib.pod]perlport.pod [.lib.pod]perlre.pod [.lib.pod]perlref.pod
-pod16 = [.lib.pod]perlreftut.pod [.lib.pod]perlrun.pod [.lib.pod]perlsec.pod
-pod17 = [.lib.pod]perlstyle.pod [.lib.pod]perlsub.pod [.lib.pod]perlsyn.pod
-pod18 = [.lib.pod]perlthrtut.pod [.lib.pod]perltie.pod [.lib.pod]perltoc.pod
-pod19 = [.lib.pod]perltodo.pod [.lib.pod]perltoot.pod [.lib.pod]perltootc.pod
-pod20 = [.lib.pod]perltrap.pod [.lib.pod]perlunicode.pod [.lib.pod]perlvar.pod
-pod21 = [.lib.pod]perlxs.pod [.lib.pod]perlxstut.pod [.lib.pod]win32.pod [.lib.pod]perlvms.pod
-pod = $(pod0) $(pod1) $(pod2) $(pod3) $(pod4) $(pod5) $(pod6) $(pod7) $(pod8) $(pod9) $(pod10) $(pod11) $(pod12) $(pod13) $(pod14) $(pod15) $(pod16) $(pod17) $(pod18) $(pod19) $(pod20) $(pod21)
+pod0 = [.lib.pods]perl.pod [.lib.pods]perl5004delta.pod [.lib.pods]perl5005delta.pod [.lib.pods]perl561delta.pod [.lib.pods]perl56delta.pod
+pod1 = [.lib.pods]perl570delta.pod [.lib.pods]perl571delta.pod [.lib.pods]perl572delta.pod [.lib.pods]perl573delta.pod [.lib.pods]perl581delta.pod
+pod2 = [.lib.pods]perl582delta.pod [.lib.pods]perl583delta.pod [.lib.pods]perl584delta.pod [.lib.pods]perl585delta.pod [.lib.pods]perl586delta.pod
+pod3 = [.lib.pods]perl587delta.pod [.lib.pods]perl588delta.pod [.lib.pods]perl58delta.pod [.lib.pods]perlaix.pod [.lib.pods]perlamiga.pod
+pod4 = [.lib.pods]perlapi.pod [.lib.pods]perlapio.pod [.lib.pods]perlapollo.pod [.lib.pods]perlartistic.pod [.lib.pods]perlbeos.pod [.lib.pods]perlbook.pod
+pod5 = [.lib.pods]perlboot.pod [.lib.pods]perlbot.pod [.lib.pods]perlbs2000.pod [.lib.pods]perlcall.pod [.lib.pods]perlce.pod [.lib.pods]perlcheat.pod
+pod6 = [.lib.pods]perlclib.pod [.lib.pods]perlcn.pod [.lib.pods]perlcompile.pod [.lib.pods]perlcygwin.pod [.lib.pods]perldata.pod
+pod7 = [.lib.pods]perldbmfilter.pod [.lib.pods]perldebguts.pod [.lib.pods]perldebtut.pod [.lib.pods]perldebug.pod [.lib.pods]perldelta.pod
+pod8 = [.lib.pods]perldgux.pod [.lib.pods]perldiag.pod [.lib.pods]perldoc.pod [.lib.pods]perldos.pod [.lib.pods]perldsc.pod [.lib.pods]perlebcdic.pod
+pod9 = [.lib.pods]perlembed.pod [.lib.pods]perlepoc.pod [.lib.pods]perlfaq.pod [.lib.pods]perlfaq1.pod [.lib.pods]perlfaq2.pod [.lib.pods]perlfaq3.pod
+pod10 = [.lib.pods]perlfaq4.pod [.lib.pods]perlfaq5.pod [.lib.pods]perlfaq6.pod [.lib.pods]perlfaq7.pod [.lib.pods]perlfaq8.pod [.lib.pods]perlfaq9.pod
+pod11 = [.lib.pods]perlfilter.pod [.lib.pods]perlfork.pod [.lib.pods]perlform.pod [.lib.pods]perlfreebsd.pod [.lib.pods]perlfunc.pod
+pod12 = [.lib.pods]perlglossary.pod [.lib.pods]perlgpl.pod [.lib.pods]perlguts.pod [.lib.pods]perlhack.pod [.lib.pods]perlhist.pod [.lib.pods]perlhpux.pod
+pod13 = [.lib.pods]perlhurd.pod [.lib.pods]perlintern.pod [.lib.pods]perlintro.pod [.lib.pods]perliol.pod [.lib.pods]perlipc.pod [.lib.pods]perlirix.pod
+pod14 = [.lib.pods]perljp.pod [.lib.pods]perlko.pod [.lib.pods]perllexwarn.pod [.lib.pods]perllinux.pod [.lib.pods]perllocale.pod [.lib.pods]perllol.pod
+pod15 = [.lib.pods]perlmachten.pod [.lib.pods]perlmacos.pod [.lib.pods]perlmacosx.pod [.lib.pods]perlmint.pod [.lib.pods]perlmod.pod
+pod16 = [.lib.pods]perlmodinstall.pod [.lib.pods]perlmodlib.pod [.lib.pods]perlmodstyle.pod [.lib.pods]perlmpeix.pod [.lib.pods]perlnetware.pod
+pod17 = [.lib.pods]perlnewmod.pod [.lib.pods]perlnumber.pod [.lib.pods]perlobj.pod [.lib.pods]perlop.pod [.lib.pods]perlopenbsd.pod
+pod18 = [.lib.pods]perlopentut.pod [.lib.pods]perlos2.pod [.lib.pods]perlos390.pod [.lib.pods]perlos400.pod [.lib.pods]perlothrtut.pod
+pod19 = [.lib.pods]perlpacktut.pod [.lib.pods]perlplan9.pod [.lib.pods]perlpod.pod [.lib.pods]perlpodspec.pod [.lib.pods]perlport.pod [.lib.pods]perlqnx.pod
+pod20 = [.lib.pods]perlre.pod [.lib.pods]perlref.pod [.lib.pods]perlreftut.pod [.lib.pods]perlrequick.pod [.lib.pods]perlreref.pod [.lib.pods]perlretut.pod
+pod21 = [.lib.pods]perlrun.pod [.lib.pods]perlsec.pod [.lib.pods]perlsolaris.pod [.lib.pods]perlstyle.pod [.lib.pods]perlsub.pod [.lib.pods]perlsyn.pod
+pod22 = [.lib.pods]perlthrtut.pod [.lib.pods]perltie.pod [.lib.pods]perltoc.pod [.lib.pods]perltodo.pod [.lib.pods]perltooc.pod [.lib.pods]perltoot.pod
+pod23 = [.lib.pods]perltrap.pod [.lib.pods]perltru64.pod [.lib.pods]perltw.pod [.lib.pods]perlunicode.pod [.lib.pods]perluniintro.pod [.lib.pods]perlutil.pod
+pod24 = [.lib.pods]perluts.pod [.lib.pods]perlvar.pod [.lib.pods]perlvmesa.pod [.lib.pods]perlvms.pod [.lib.pods]perlvos.pod [.lib.pods]perlwin32.pod
+pod25 = [.lib.pods]perlxs.pod [.lib.pods]perlxstut.pod
+pod = $(pod0) $(pod1) $(pod2) $(pod3) $(pod4) $(pod5) $(pod6) $(pod7) $(pod8) $(pod9) $(pod10) $(pod11) $(pod12) $(pod13) $(pod14) $(pod15) $(pod16) $(pod17) $(pod18) $(pod19) $(pod20) $(pod21) $(pod22) $(pod23) $(pod24) $(pod25)
+
+# Would be useful to automate the generation of this rule from pod/buildtoc
+# Plus its corresponding delete in the clean target.
+[.pod]perldelta.pod : [.pod]perl584delta.pod
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(MMS$TARGET)
 
 perlpods : $(pod)
 	@ $(NOOP)
 
-archcorefiles : $(ac) $(acth) $(ARCHAUTO)time.stamp
+archcorefiles : $(ac) $(ARCHAUTO)time.stamp
 	@ $(NOOP)
 
 [.lib]re.pm  : [.ext.re]re.pm
-	copy/log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib]
 
 vmspipe.com : [.vms]vmspipe.com
-	copy/log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) []
 
 miniperl : $(DBG)miniperl$(E)  vmspipe.com
 	@ Continue
@@ -462,29 +475,38 @@ $(DBG)perlshr_xtras.ts : perl.h config.h vmsish.h proto.h [.vms]gen_shrfls.pl $(
 	@ Copy _NLA0: $(DBG)perlshr_xtras.ts
 .endif
 
-$(ARCHDIR)config.pm : [.lib]config.pm
+$(ARCHDIR)Config.pm : [.lib]Config.pm
 	Create/Directory $(ARCHDIR)
-	Copy $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHDIR)
 
-[.lib]config.pm : config.h $(MINIPERL_EXE)
+$(ARCHDIR)Config_heavy.pl : [.lib]Config_heavy.pl
+	Create/Directory $(ARCHDIR)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHDIR)
+
+[.lib]Config.pm : config.h $(MINIPERL_EXE)
 	$(MINIPERL) ConfigPM.
 
 $(ARCHDIR)vmspipe.com : vmspipe.com
-        Copy $(MMS$SOURCE) $(MMS$TARGET)
+        Copy $(MMS$SOURCE) $(ARCHDIR)
 
-[.ext.dynaloader]dl_vms.c : [.ext.dynaloader]dl_vms.xs $(ARCHDIR)Config.pm [.lib.ExtUtils]XSSymSet.pm $(MINIPERL_EXE)
+unidatafiles.ts : $(MINIPERL_EXE) [.lib]Config.pm [.lib.unicore]mktables
+	$(MINIPERL) [.lib.unicore]mktables "-C" [.lib.unicore] 
+	@ If F$Search("$(MMS$TARGET)").nes."" Then Delete/NoLog/NoConfirm $(MMS$TARGET);*
+	@ Copy/NoConfirm _NLA0: $(MMS$TARGET)
+ 
+[.ext.dynaloader]dl_vms.c : [.ext.dynaloader]dl_vms.xs $(ARCHDIR)Config.pm [.lib.ExtUtils]XSSymSet.pm $(MINIPERL_EXE) [.lib.VMS]Filespec.pm 
 	$(XSUBPP) $(MMS$SOURCE) >$(MMS$TARGET)
 
 [.ext.dynaloader]dl_vms$(O) : [.ext.dynaloader]dl_vms.c
 	$(CC) $(CFLAGS) /Include=([],[.ext.dynaloader])/Object=$(MMS$TARGET) $(MMS$SOURCE)
 
-[.lib]DynaLoader.pm : [.ext.dynaloader]dynaloader.pm
-	Copy/Log/NoConfirm [.ext.dynaloader]dynaloader.pm [.lib]DynaLoader.pm
+[.lib]DynaLoader.pm : [.ext.Dynaloader]Dynaloader.pm
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib]
 	@ If F$Search("[.lib]auto.dir").eqs."" Then Create/Directory [.lib.auto]
 	@ $(MINIPERL) -e "use AutoSplit; autosplit_lib_modules(@ARGV)" [.lib]DynaLoader.pm
 
-[.lib]XSLoader.pm : [.ext.dynaloader]xsloader.pm
-	Copy/Log/NoConfirm [.ext.dynaloader]xsloader.pm [.lib]XSLoader.pm
+[.lib]XSLoader.pm : [.ext.Dynaloader]XSLoader.pm
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib]
 	@ If F$Search("[.lib]auto.dir").eqs."" Then Create/Directory [.lib.auto]
 	@ $(MINIPERL) -e "use AutoSplit; autosplit_lib_modules(@ARGV)" [.lib]XSLoader.pm
 
@@ -496,60 +518,84 @@ $(ARCHDIR)vmspipe.com : vmspipe.com
 	$(MINIPERL) $(MMS$SOURCE)
 	@ Rename/Log xsloader.pm [.ext.dynaloader]
 
-dynext : $(LIBPREREQ) $(DBG)perlshr$(E)
-	@make_ext "$(dynamic_ext)" "$(MINIPERL_EXE)" "$(MMS)"
+dynext : $(LIBPREREQ) $(DBG)perlshr$(E) preplibrary
+       @make_ext "$(MINIPERL_EXE)" "$(MMS)"
 
-[.lib]vmsish.pm : [.vms.ext]vmsish.pm
-	Copy/Log/NoConfirm $(MMS$SOURCE) $(MMS$TARGET)
+[.lib]lib.pm : [.lib]lib_pm.PL
+	$(MINIPERL) $(MMS$SOURCE)
 
 [.lib.VMS]Filespec.pm : [.vms.ext]Filespec.pm
 	@ If F$Search("[.lib]VMS.Dir").eqs."" Then Create/Directory [.lib.VMS]
-	Copy/Log/NoConfirm $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.VMS]
 
 [.lib.ExtUtils]XSSymSet.pm : [.vms.ext]XSSymSet.pm
-	@ If F$Search("[.lib]VMS.Dir").eqs."" Then Create/Directory [.lib.VMS]
-	Copy/Log/NoConfirm $(MMS$SOURCE) $(MMS$TARGET)
+	@ If F$Search("[.lib]ExtUtils.Dir").eqs."" Then Create/Directory [.lib.ExtUtils]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.ExtUtils]
 
-[.lib.pod]perldoc.com : [.utils]perldoc.PL $(ARCHDIR)Config.pm
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.utils]perldoc.com $(MMS$TARGET)
+[.lib.pods]perldoc.com : [.utils]perldoc.PL $(ARCHDIR)Config.pm
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.utils]perldoc.com [.lib.pods]
 
 [.lib.ExtUtils]Miniperl.pm : Minimod.PL miniperlmain.c $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE) >$(MMS$TARGET)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE) >$(MMS$TARGET)
+
+[.utils]perlivp.com : [.utils]perlivp.PL $(ARCHDIR)Config.pm
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+
+[.utils]cpan.com : [.utils]cpan.PL $(ARCHDIR)Config.pm
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+
+[.utils]prove.com : [.utils]prove.PL $(ARCHDIR)Config.pm
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
 
 [.utils]c2ph.com : [.utils]c2ph.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
 
 [.utils]dprofpp.com : [.utils]dprofpp.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+
+[.utils]enc2xs.com : [.utils]enc2xs.PL $(ARCHDIR)Config.pm
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
 
 [.utils]h2ph.com : [.utils]h2ph.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
 
 [.utils]h2xs.com : [.utils]h2xs.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+
+[.utils]instmodsh.com : [.utils]instmodsh.PL $(ARCHDIR)Config.pm
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+
+[.utils]libnetcfg.com : [.utils]libnetcfg.PL $(ARCHDIR)Config.pm
+       $(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
 
 [.lib]perlbug.com : [.utils]perlbug.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.utils]perlbug.com $(MMS$TARGET)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.utils]perlbug.com [.lib]
 
 [.lib]perlcc.com : [.utils]perlcc.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.utils]perlcc.com $(MMS$TARGET)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.utils]perlcc.com [.lib]
+
+[.utils]piconv.com : [.utils]piconv.PL $(ARCHDIR)Config.pm
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
 
 [.utils]pl2pm.com : [.utils]pl2pm.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
 
 [.lib]splain.com : [.utils]splain.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.utils]splain.com $(MMS$TARGET)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.utils]splain.com [.lib]
 
 [.x2p]find2perl.com : [.x2p]find2perl.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
 
 [.x2p]s2p.com : [.x2p]s2p.PL $(ARCHDIR)Config.pm
-	$(MINIPERL) $(MMS$SOURCE)
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+
+[.utils]xsubpp.com : [.utils]xsubpp.PL $(ARCHDIR)Config.pm
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
 
 # Rename catches problem with some DECC versions in which object file is
 # placed in current default dir, not same one as source file.
@@ -580,247 +626,609 @@ dynext : $(LIBPREREQ) $(DBG)perlshr$(E)
 	$(CC) $(X2PCFLAGS) /Include=[.x2p] $(MMS$SOURCE)
 .endif
 
-[.lib.pod]pod2html.com : [.pod]pod2html.PL $(ARCHDIR)Config.pm
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.pod]pod2html.com $(MMS$TARGET)
+[.lib.pods]pod2html.com : [.pod]pod2html.PL $(ARCHDIR)Config.pm
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.pod]pod2html.com [.lib.pods]
 
-[.lib.pod]pod2latex.com : [.pod]pod2latex.PL $(ARCHDIR)Config.pm
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.pod]pod2latex.com $(MMS$TARGET)
+[.lib.pods]pod2latex.com : [.pod]pod2latex.PL $(ARCHDIR)Config.pm
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.pod]pod2latex.com [.lib.pods]
 
-[.lib.pod]pod2man.com : [.pod]pod2man.PL $(ARCHDIR)Config.pm
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.pod]pod2man.com $(MMS$TARGET)
+[.lib.pods]pod2man.com : [.pod]pod2man.PL $(ARCHDIR)Config.pm
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.pod]pod2man.com [.lib.pods]
 
-[.lib.pod]pod2text.com : [.pod]pod2text.PL $(ARCHDIR)Config.pm
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.pod]pod2text.com $(MMS$TARGET)
+[.lib.pods]pod2text.com : [.pod]pod2text.PL $(ARCHDIR)Config.pm
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.pod]pod2text.com [.lib.pods]
 
-[.lib.pod]podchecker.com : [.pod]podchecker.PL $(ARCHDIR)Config.pm
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.pod]podchecker.com $(MMS$TARGET)
+[.lib.pods]podchecker.com : [.pod]podchecker.PL $(ARCHDIR)Config.pm
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.pod]podchecker.com [.lib.pods]
 
-[.lib.pod]pod2usage.com : [.pod]pod2usage.PL $(ARCHDIR)Config.pm
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.pod]pod2usage.com $(MMS$TARGET)
+[.lib.pods]pod2usage.com : [.pod]pod2usage.PL $(ARCHDIR)Config.pm
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.pod]pod2usage.com [.lib.pods]
 
-[.lib.pod]podselect.com : [.pod]podselect.PL $(ARCHDIR)Config.pm
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	$(MINIPERL) $(MMS$SOURCE)
-	Copy/Log [.pod]podselect.com $(MMS$TARGET)
+[.lib.pods]podselect.com : [.pod]podselect.PL $(ARCHDIR)Config.pm
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	$(MINIPERL) -"I[-.lib]" $(MMS$SOURCE)
+	Copy/NoConfirm/Log [.pod]podselect.com [.lib.pods]
 
-preplibrary : $(MINIPERL_EXE) $(LIBPREREQ) $(SOCKPM)
+preplibrary : $(MINIPERL_EXE) $(LIBPREREQ) 
 	@ Write Sys$Output "Autosplitting Perl library . . ."
 	@ Create/Directory [.lib.auto]
 	@ $(MINIPERL) -e "use AutoSplit; autosplit_lib_modules(@ARGV)" [.lib]*.pm [.lib.*]*.pm
 
-[.lib.pod]perl.pod : [.pod]perl.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perl5004delta.pod : [.pod]perl5004delta.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perl5005delta.pod : [.pod]perl5005delta.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlapi.pod : [.pod]perlapi.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlapio.pod : [.pod]perlapio.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlbook.pod : [.pod]perlbook.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlbot.pod : [.pod]perlbot.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlcall.pod : [.pod]perlcall.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlcompile.pod : [.pod]perlcompile.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perldata.pod : [.pod]perldata.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perldbmfilter.pod : [.pod]perldbmfilter.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perldebug.pod : [.pod]perldebug.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perldelta.pod : [.pod]perldelta.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perldiag.pod : [.pod]perldiag.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perldsc.pod : [.pod]perldsc.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlembed.pod : [.pod]perlembed.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq.pod : [.pod]perlfaq.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq1.pod : [.pod]perlfaq1.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq2.pod : [.pod]perlfaq2.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq3.pod : [.pod]perlfaq3.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq4.pod : [.pod]perlfaq4.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq5.pod : [.pod]perlfaq5.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq6.pod : [.pod]perlfaq6.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq7.pod : [.pod]perlfaq7.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq8.pod : [.pod]perlfaq8.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfaq9.pod : [.pod]perlfaq9.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfilter.pod : [.pod]perlfilter.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfork.pod : [.pod]perlfork.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlform.pod : [.pod]perlform.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlfunc.pod : [.pod]perlfunc.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlguts.pod : [.pod]perlguts.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlhack.pod : [.pod]perlhack.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlhist.pod : [.pod]perlhist.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlintern.pod : [.pod]perlintern.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlipc.pod : [.pod]perlipc.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perllexwarn.pod : [.pod]perllexwarn.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perllocale.pod : [.pod]perllocale.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perllol.pod : [.pod]perllol.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlmod.pod : [.pod]perlmod.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlmodinstall.pod : [.pod]perlmodinstall.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlmodlib.pod : [.pod]perlmodlib.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlobj.pod : [.pod]perlobj.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlop.pod : [.pod]perlop.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlopentut.pod : [.pod]perlopentut.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlpod.pod : [.pod]perlpod.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlport.pod : [.pod]perlport.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlre.pod : [.pod]perlre.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlref.pod : [.pod]perlref.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlreftut.pod : [.pod]perlreftut.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlrun.pod : [.pod]perlrun.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlsec.pod : [.pod]perlsec.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlstyle.pod : [.pod]perlstyle.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlsub.pod : [.pod]perlsub.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlsyn.pod : [.pod]perlsyn.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlthrtut.pod : [.pod]perlthrtut.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perltie.pod : [.pod]perltie.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perltoc.pod : [.pod]perltoc.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perltodo.pod : [.pod]perltodo.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perltoot.pod : [.pod]perltoot.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perltootc.pod : [.pod]perltootc.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perltrap.pod : [.pod]perltrap.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlunicode.pod : [.pod]perlunicode.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlvar.pod : [.pod]perlvar.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlxs.pod : [.pod]perlxs.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlxstut.pod : [.pod]perlxstut.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]win32.pod : [.lib]win32.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-[.lib.pod]perlvms.pod : [.vms]perlvms.pod
-	@ If F$Search("[.lib]pod.dir").eqs."" Then Create/Directory [.lib.pod]
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+[.lib.pods]perl.pod : [.pod]perl.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl5004delta.pod : [.pod]perl5004delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl5005delta.pod : [.pod]perl5005delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl561delta.pod : [.pod]perl561delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl56delta.pod : [.pod]perl56delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl570delta.pod : [.pod]perl570delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl571delta.pod : [.pod]perl571delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl572delta.pod : [.pod]perl572delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl573delta.pod : [.pod]perl573delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl581delta.pod : [.pod]perl581delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl582delta.pod : [.pod]perl582delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl583delta.pod : [.pod]perl583delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl584delta.pod : [.pod]perl584delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl585delta.pod : [.pod]perl585delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl586delta.pod : [.pod]perl586delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl587delta.pod : [.pod]perl587delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl588delta.pod : [.pod]perl588delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perl58delta.pod : [.pod]perl58delta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlaix.pod : [.pod]perlaix.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlamiga.pod : [.pod]perlamiga.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlapi.pod : [.pod]perlapi.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlapio.pod : [.pod]perlapio.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlapollo.pod : [.pod]perlapollo.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlartistic.pod : [.pod]perlartistic.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlbeos.pod : [.pod]perlbeos.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlbook.pod : [.pod]perlbook.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlboot.pod : [.pod]perlboot.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlbot.pod : [.pod]perlbot.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlbs2000.pod : [.pod]perlbs2000.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlcall.pod : [.pod]perlcall.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlce.pod : [.pod]perlce.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlcheat.pod : [.pod]perlcheat.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlclib.pod : [.pod]perlclib.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlcn.pod : [.pod]perlcn.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlcompile.pod : [.pod]perlcompile.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlcygwin.pod : [.pod]perlcygwin.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldata.pod : [.pod]perldata.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldbmfilter.pod : [.pod]perldbmfilter.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldebguts.pod : [.pod]perldebguts.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldebtut.pod : [.pod]perldebtut.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldebug.pod : [.pod]perldebug.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldelta.pod : [.pod]perldelta.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldgux.pod : [.pod]perldgux.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldiag.pod : [.pod]perldiag.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldoc.pod : [.pod]perldoc.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldos.pod : [.pod]perldos.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perldsc.pod : [.pod]perldsc.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlebcdic.pod : [.pod]perlebcdic.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlembed.pod : [.pod]perlembed.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlepoc.pod : [.pod]perlepoc.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq.pod : [.pod]perlfaq.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq1.pod : [.pod]perlfaq1.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq2.pod : [.pod]perlfaq2.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq3.pod : [.pod]perlfaq3.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq4.pod : [.pod]perlfaq4.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq5.pod : [.pod]perlfaq5.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq6.pod : [.pod]perlfaq6.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq7.pod : [.pod]perlfaq7.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq8.pod : [.pod]perlfaq8.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfaq9.pod : [.pod]perlfaq9.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfilter.pod : [.pod]perlfilter.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfork.pod : [.pod]perlfork.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlform.pod : [.pod]perlform.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfreebsd.pod : [.pod]perlfreebsd.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlfunc.pod : [.pod]perlfunc.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlglossary.pod : [.pod]perlglossary.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlgpl.pod : [.pod]perlgpl.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlguts.pod : [.pod]perlguts.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlhack.pod : [.pod]perlhack.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlhist.pod : [.pod]perlhist.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlhpux.pod : [.pod]perlhpux.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlhurd.pod : [.pod]perlhurd.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlintern.pod : [.pod]perlintern.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlintro.pod : [.pod]perlintro.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perliol.pod : [.pod]perliol.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlipc.pod : [.pod]perlipc.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlirix.pod : [.pod]perlirix.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perljp.pod : [.pod]perljp.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlko.pod : [.pod]perlko.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perllexwarn.pod : [.pod]perllexwarn.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perllinux.pod : [.pod]perllinux.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perllocale.pod : [.pod]perllocale.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perllol.pod : [.pod]perllol.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlmachten.pod : [.pod]perlmachten.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlmacos.pod : [.pod]perlmacos.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlmacosx.pod : [.pod]perlmacosx.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlmint.pod : [.pod]perlmint.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlmod.pod : [.pod]perlmod.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlmodinstall.pod : [.pod]perlmodinstall.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlmodlib.pod : [.pod]perlmodlib.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlmodstyle.pod : [.pod]perlmodstyle.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlmpeix.pod : [.pod]perlmpeix.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlnetware.pod : [.pod]perlnetware.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlnewmod.pod : [.pod]perlnewmod.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlnumber.pod : [.pod]perlnumber.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlobj.pod : [.pod]perlobj.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlop.pod : [.pod]perlop.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlopenbsd.pod : [.pod]perlopenbsd.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlopentut.pod : [.pod]perlopentut.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlos2.pod : [.pod]perlos2.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlos390.pod : [.pod]perlos390.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlos400.pod : [.pod]perlos400.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlothrtut.pod : [.pod]perlothrtut.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlpacktut.pod : [.pod]perlpacktut.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlplan9.pod : [.pod]perlplan9.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlpod.pod : [.pod]perlpod.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlpodspec.pod : [.pod]perlpodspec.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlport.pod : [.pod]perlport.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlqnx.pod : [.pod]perlqnx.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlre.pod : [.pod]perlre.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlref.pod : [.pod]perlref.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlreftut.pod : [.pod]perlreftut.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlrequick.pod : [.pod]perlrequick.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlreref.pod : [.pod]perlreref.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlretut.pod : [.pod]perlretut.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlrun.pod : [.pod]perlrun.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlsec.pod : [.pod]perlsec.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlsolaris.pod : [.pod]perlsolaris.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlstyle.pod : [.pod]perlstyle.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlsub.pod : [.pod]perlsub.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlsyn.pod : [.pod]perlsyn.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlthrtut.pod : [.pod]perlthrtut.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perltie.pod : [.pod]perltie.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perltoc.pod : [.pod]perltoc.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perltodo.pod : [.pod]perltodo.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perltooc.pod : [.pod]perltooc.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perltoot.pod : [.pod]perltoot.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perltrap.pod : [.pod]perltrap.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perltru64.pod : [.pod]perltru64.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perltw.pod : [.pod]perltw.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlunicode.pod : [.pod]perlunicode.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perluniintro.pod : [.pod]perluniintro.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlutil.pod : [.pod]perlutil.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perluts.pod : [.pod]perluts.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlvar.pod : [.pod]perlvar.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlvmesa.pod : [.pod]perlvmesa.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlvms.pod : [.vms]perlvms.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlvos.pod : [.pod]perlvos.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlwin32.pod : [.pod]perlwin32.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlxs.pod : [.pod]perlxs.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
+
+[.lib.pods]perlxstut.pod : [.pod]perlxstut.pod
+	@ If F$Search("[.lib]pods.dir").eqs."" Then Create/Directory [.lib.pods]
+	Copy/NoConfirm/Log $(MMS$SOURCE) [.lib.pods]
 
 install.html : $(perlpods)
 	@ @perl_setup.com
@@ -833,27 +1241,16 @@ printconfig :
 
 .ifdef SOCKET
 
-.ifdef LINK_ONLY
-.else
-[.ext.Socket]Socket$(O) : [.ext.Socket]Socket.c
-	$(CC) $(CFLAGS) /Object=$(MMS$TARGET) $(MMS$SOURCE)
-
-[.ext.Socket]Socket.c : [.ext.Socket]Socket.xs [.lib.ExtUtils]XSSymSet.pm $(MINIPERL_EXE)
-	$(XSUBPP) $(MMS$SOURCE) >$(MMS$TARGET)
-.endif # !LINK_ONLY
-
 vmsish.h : $(SOCKH)
 
-$(SOCKO) : $(SOCKC) EXTERN.h perl.h config.h embed.h perlsdio.h handy.h vmsish.h regexp.h sv.h util.h form.h gv.h cv.h opcode.h opnames.h op.h cop.h av.h hv.h mg.h scope.h perly.h thread.h pp.h proto.h embedvar.h perlvars.h thrdvar.h intrpvar.h perlio.h
+$(SOCKO) : $(SOCKC) $(h)
 
 $(SOCKC) : [.vms]$(SOCKC)
-	Copy/Log/NoConfirm [.vms]$(SOCKC) []$(SOCKC)
+	Copy/NoConfirm/Log $(MMS$SOURCE) []
 
 $(SOCKH) : [.vms]$(SOCKH)
-	Copy/Log/NoConfirm [.vms]$(SOCKH) []$(SOCKH)
+	Copy/NoConfirm/Log $(MMS$SOURCE) []
 
-[.lib]Socket.pm : [.ext.Socket]Socket.pm
-	Copy/Log/NoConfirm $(MMS$SOURCE) $(MMS$TARGET)
 .endif
 
 # The following files are generated automatically
@@ -884,9 +1281,9 @@ regen_headers :
 
 # VMS uses modified perly.[ch] with tags for globaldefs if using DEC compiler
 perly.c : [.vms]perly_c.vms
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(MMS$TARGET)
 perly.h : [.vms]perly_h.vms
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(MMS$TARGET)
 
 .ifdef LINK_ONLY
 .else
@@ -894,17 +1291,30 @@ perly$(O) : perly.c, perly.h, $(h)
 .endif
 
 [.t.lib]vmsfspec.t : [.vms.ext]filespec.t
-	Copy/Log/NoConfirm $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(MMS$TARGET)
 
-[.t.lib]vmsish.t : [.vms.ext]vmsish.t
-	Copy/Log/NoConfirm $(MMS$SOURCE) $(MMS$TARGET)
+[.t.lib]vms_dclsym.t : [.vms.ext.DCLsym]test.pl
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(MMS$TARGET)
+
+[.t.lib]vms_stdio.t : [.vms.ext.Stdio]test.pl
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(MMS$TARGET)
 
 check : test
 	@ Continue
 
-test : all [.t.lib]vmsfspec.t [.t.lib]vmsish.t
+test : all [.t.lib]vmsfspec.t [.t.lib]vms_dclsym.t [.t.lib]vms_stdio.t
+	@ PERL_TEST_DRIVER == "TEST."
 	- @[.VMS]Test.Com "$(E)" "$(__DEBUG__)"
 	@ $(MINIPERL) -e "print ""Ran tests"";" > [.t]rantests.
+
+test_harness : all [.t.lib]vmsfspec.t [.t.lib]vms_dclsym.t [.t.lib]vms_stdio.t
+	@ PERL_TEST_DRIVER == "harness."
+	- @[.VMS]Test.Com "$(E)" "$(__DEBUG__)"
+	@ $(MINIPERL) -e "print ""Ran tests"";" > [.t]rantests.
+
+minitest : $(MINITEST_EXE) [.lib]re.pm [.lib]lib.pm [.lib.VMS]Filespec.pm unidatafiles.ts
+	@ PERL_TEST_DRIVER == "minitest"
+	- @[.VMS]Test.Com "$(E)" "$(__DEBUG__)"
 
 # install ought not need a source, but it doesn't work if one's not
 # there. Go figure...
@@ -919,166 +1329,176 @@ archify : all
 	Backup/Log/Verify [.lib.auto...]*.*;/Exclude=(*.al,*.ix) 'archroot'/New_Version
 	Delete/Log/NoConfirm [.lib.auto...]*.*;*/exclude=(*.al,*.ix,*.dir)
 	Delete/Log/NoConfirm [.lib]Config.pm;*
-	Copy/Log/NoConfirm *$(E);,[.x2p]a2p$(E); $(ARCHDIR)
-	Delete/Log/NoConfirm Perl*$(E);*,[.x2p]a2p$(E);*
+	Delete/Log/NoConfirm [.lib]Config_heavy.pl;*
+	Copy/Log/NoConfirm *$(E);,[.x2p]$(DBG)a2p$(E); $(ARCHDIR)
+	Delete/Log/NoConfirm Perl*$(E);*,[.x2p]$(DBG)a2p$(E);*
+	@ QUALIFIERS := $(MMSQUALIFIERS)
+	@ QUALIFIERS = QUALIFIERS - """" - """"
 	@ Write Sys$Output "Architecture-specific setup completed."
 	@ Write Sys$Output "Before building for another architecture, be sure to"
-	@ Write Sys$Output "    1. $(MMS)$(MMSQUALIFIERS) clean"
+	@ Write Sys$Output "    1. $(MMS)''QUALIFIERS' clean"
 	@ Write Sys$Output "    2. Delete Miniperl$(E)"
 
 # CORE subset for MakeMaker, so we can build Perl without sources
 # Should move to VMS installperl when we get one
 .ifdef SOCKET
 $(SOCKARCH) : $(SOCKH)
-	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+       @ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
+       Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 .endif
 $(ARCHCORE)av.h : av.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)cc_runtime.h : cc_runtime.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)config.h : config.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)cop.h : cop.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)cv.h : cv.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)embed.h : embed.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)embedvar.h : embedvar.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-$(ARCHCORE)extern.h : extern.h
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
+$(ARCHCORE)EXTERN.h : EXTERN.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-.ifdef FAKETHREADED
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)fakethr.h : fakethr.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-.endif
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)form.h : form.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)gv.h : gv.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)handy.h : handy.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)hv.h : hv.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-$(ARCHCORE)intern.h : intern.h
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
+$(ARCHCORE)INTERN.h : INTERN.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)intrpvar.h : intrpvar.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)iperlsys.h : iperlsys.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)keywords.h : keywords.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)mg.h : mg.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)nostdio.h : nostdio.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
-$(ARCHCORE)objxsub.h : objxsub.h
-	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)op.h : op.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)opcode.h : opcode.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)opnames.h : opnames.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
+$(ARCHCORE)pad.h : pad.h
+	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)patchlevel.h : patchlevel.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)perl.h : perl.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)perlapi.h : perlapi.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)perlio.h : perlio.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)perlsdio.h : perlsdio.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
+$(ARCHCORE)perlsfio.h : perlsfio.h
+	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)perlvars.h : perlvars.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)perly.h : perly.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)pp.h : pp.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)pp_proto.h : pp_proto.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)proto.h : proto.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
+$(ARCHCORE)reentr.h : reentr.h
+	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
+$(ARCHCORE)reentr.inc : reentr.inc
+	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)regcomp.h : regcomp.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)regexp.h : regexp.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)regnodes.h : regnodes.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)scope.h : scope.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)sv.h : sv.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)thrdvar.h : thrdvar.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)thread.h : thread.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)utf8.h : utf8.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)util.h : util.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)vmsish.h : vmsish.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)warnings.h : warnings.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)xsub.h : xsub.h
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)$(DBG)libperl$(OLB) : $(DBG)libperl$(OLB) $(DBG)perlshr_xtras.ts
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(MMS$SOURCE) $(MMS$TARGET)
+	Copy/NoConfirm/Log $(MMS$SOURCE) $(ARCHCORE)
 $(ARCHCORE)perlshr_attr.opt : $(DBG)perlshr_xtras.ts
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log perlshr_attr.opt $(MMS$TARGET)
+	Copy/NoConfirm/Log perlshr_attr.opt $(ARCHCORE)
 $(ARCHCORE)$(DBG)perlshr_bld.opt : $(DBG)perlshr_xtras.ts
 	@ If F$Search("$(ARCHDIR)CORE.dir").eqs."" Then Create/Directory $(ARCHCORE)
-	Copy/Log $(DBG)perlshr_bld.opt $(MMS$TARGET)
+	Copy/NoConfirm/Log $(DBG)perlshr_bld.opt $(ARCHCORE)
 $(ARCHAUTO)time.stamp :
 	@ If F$Search("$(ARCHDIR)auto.dir").eqs."" Then Create/Directory $(ARCHAUTO)
 	@ If F$Search("$(MMS$TARGET)").eqs."" Then Copy/NoConfirm _NLA0: $(MMS$TARGET)
@@ -1091,74 +1511,86 @@ $(ARCHAUTO)time.stamp :
 #	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
 # AUTOMATICALLY GENERATED MAKE DEPENDENCIES--PUT NOTHING BELOW THIS LINE
 .ifdef SOCKET
-$(SOCKO) : $(SOCKC) extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+$(SOCKO) : $(SOCKC) $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
 .endif
-av$(O) : av.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+av$(O) : av.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-deb$(O) : deb.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+deb$(O) : deb.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-doio$(O) : doio.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+doio$(O) : doio.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-doop$(O) : doop.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+doop$(O) : doop.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-dump$(O) : dump.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h regcomp.h regnodes.h
+dump$(O) : dump.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-globals$(O) : globals.c intern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h perlapi.h
+globals$(O) : globals.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-gv$(O) : gv.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+gv$(O) : gv.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-hv$(O) : hv.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+hv$(O) : hv.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-malloc$(O) : malloc.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+locale$(O) : locale.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-mg$(O) : mg.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+malloc$(O) : malloc.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-miniperlmain$(O) : miniperlmain.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+mg$(O) : mg.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-op$(O) : op.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h keywords.h
+miniperlmain$(O) : miniperlmain.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-perl$(O) : perl.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h patchlevel.h intrpvar.h thrdvar.h
+numeric$(O) : numeric.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-perlapi$(O) : perlapi.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h patchlevel.h intrpvar.h thrdvar.h
+op$(O) : op.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-perlio$(O) : perlio.c config.h extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+pad$(O) : pad.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-perlmain$(O) : perlmain.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+perl$(O) : perl.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-perly$(O) : perly.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+perlapi$(O) : perlapi.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-pp$(O) : pp.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+perlio$(O) : perlio.c config.h $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-pp_ctl$(O) : pp_ctl.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+perlmain$(O) : perlmain.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-pp_hot$(O) : pp_hot.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+perly$(O) : perly.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-pp_sys$(O) : pp_sys.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+pp$(O) : pp.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-regcomp$(O) : regcomp.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h intern.h regcomp.h regnodes.h
+pp_ctl$(O) : pp_ctl.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-regexec$(O) : regexec.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h regcomp.h regnodes.h
+pp_hot$(O) : pp_hot.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-run$(O) : run.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+pp_pack$(O) : pp_pack.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-scope$(O) : scope.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+pp_sort$(O) : pp_sort.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-sv$(O) : sv.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+pp_sys$(O) : pp_sys.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-taint$(O) : taint.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+reentr$(O) : reentr.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-toke$(O) : toke.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h keywords.h
+regcomp$(O) : regcomp.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-universal$(O) : universal.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h xsub.h perlapi.h objxsub.h
+regexec$(O) : regexec.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-utf8$(O) : utf8.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+run$(O) : run.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-util$(O) : util.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+scope$(O) : scope.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-vms$(O) : vms.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h
+sv$(O) : sv.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
-xsutils$(O) : xsutils.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCKH) iperlsys.h perlsdio.h perl.h regexp.h sv.h util.h form.h gv.h cv.h opnames.h op.h cop.h av.h hv.h mg.h scope.h warnings.h utf8.h perly.h thread.h pp.h proto.h pp_proto.h opcode.h embedvar.h intrpvar.h thrdvar.h perlvars.h patchlevel.h xsub.h perlapi.h objxsub.h
+taint$(O) : taint.c $(h)
+	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
+toke$(O) : toke.c $(h)
+	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
+universal$(O) : universal.c $(h)
+	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
+utf8$(O) : utf8.c $(h)
+	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
+util$(O) : util.c $(h)
+	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
+vms$(O) : vms.c $(h)
+	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
+xsutils$(O) : xsutils.c $(h)
 	$(CC) $(CORECFLAGS) $(MMS$SOURCE)
 
 [.x2p]hash$(O) : [.x2p]hash.c [.x2p]EXTERN.h [.x2p]a2p.h [.x2p]hash.h [.x2p]str.h [.x2p]util.h config.h handy.h vmsish.h $(SOCKH)
@@ -1177,14 +1609,13 @@ xsutils$(O) : xsutils.c extern.h perl.h config.h embed.h handy.h vmsish.h $(SOCK
 .endif # !LINK_ONLY
 
 vmsish.h : [.vms]vmsish.h
-	Copy/Log/NoConfirm [.vms]vmsish.h []vmsish.h
+	Copy/Log/NoConfirm [.vms]vmsish.h []
 
 vms.c : [.vms]vms.c
 	Copy/Log/Noconfirm [.vms]vms.c []
 
 $(CRTL) : $(MAKEFILE)
 	@ @[.vms]genopt "$(CRTL)/Write" "|" "$(LIBS1)|$(FULLLIBS2)|$(SOCKLIB)"
-
 
 ok : $(utils)
 	$(MINIPERL) lib/perlbug.com -ok -s "(UNINSTALLED)"
@@ -1204,7 +1635,6 @@ nokfile : $(utils)
 	@ write sys$output " "
 	@ write sys$output "$(MINIPERLQ) lib/perlbug.com -nok -s ""(UNINSTALLED)"" ""-F"" perl.nok"
 
-
 cleanlis :
 	- If F$Search("*.Lis").nes."" Then Delete/NoConfirm/Log *.Lis;*
 	- If F$Search("*.CPP").nes."" Then Delete/NoConfirm/Log *.CPP;*
@@ -1221,15 +1651,12 @@ tidy : cleanlis
 	- If F$Search("[...]*$(E);-1").nes."" Then Purge/NoConfirm/Log [...]*$(E)
 	- If F$Search("Config.H;-1").nes."" Then Purge/NoConfirm/Log Config.H
 	- If F$Search("Config.SH;-1").nes."" Then Purge/NoConfirm/Log Config.SH
-	- If F$Search("perly.c;-1").nes."" Then Purge/NoConfirm/Log perly.c
-	- If F$Search("perly.h;-1").nes."" Then Purge/NoConfirm/Log perly.h
 	- If F$Search("VMSish.H;-1").nes."" Then Purge/NoConfirm/Log VMSish.H
 	- If F$Search("VMS.C;-1")   .nes."" Then Purge/NoConfirm/Log VMS.C
 	- If F$Search("Perlmain.C;-1")   .nes."" Then Purge/NoConfirm/Log Perlmain.C
 	- If F$Search("Perlshr_Gbl*.Mar;-1")   .nes."" Then Purge/NoConfirm/Log Perlshr_Gbl*.Mar
 	- If F$Search("[.Ext.DynaLoader]DL_VMS$(O);-1").nes."" Then Purge/NoConfirm/Log [.Ext.DynaLoader]DL_VMS$(O)
 	- If F$Search("[.Ext.DynaLoader]DL_VMS.C;-1").nes."" Then Purge/NoConfirm/Log [.Ext.DynaLoader]DL_VMS.C
-	- If F$Search("[.Ext.Socket]Socket.C;-1").nes."" Then Purge/NoConfirm/Log [.Ext.DynaLoader]DL_VMS.C
 	- If F$Search("[.Ext.Opcode...];-1").nes."" Then Purge/NoConfirm/Log [.Ext.Opcode]
 	- If F$Search("[.VMS.Ext...]*.C;-1").nes."" Then Purge/NoConfirm/Log [.VMS.Ext...]*.C
 	- If F$Search("[.VMS.Ext...]*$(O);-1").nes."" Then Purge/NoConfirm/Log [.VMS.Ext...]*$(O)
@@ -1237,30 +1664,27 @@ tidy : cleanlis
 	- If F$Search("[.Lib.Auto...]autosplit.ix;-1").nes."" Then Purge/NoConfirm/Log [.Lib.Auto...]autosplit.ix
 	- If F$Search("[.Lib]DynaLoader.pm;-1").nes."" Then Purge/NoConfirm/Log [.Lib]DynaLoader.pm
 	- If F$Search("[.Lib]XSLoader.pm;-1").nes."" Then Purge/NoConfirm/Log [.Lib]XSLoader.pm
-	- If F$Search("[.Lib]Socket.pm;-1").nes."" Then Purge/NoConfirm/Log [.Lib]Socket.pm
 	- If F$Search("[.Lib]Config.pm;-1").nes."" Then Purge/NoConfirm/Log [.Lib]Config.pm
 	- If F$Search("$(ARCHDIR)Config.pm;-1").nes."" Then Purge/NoConfirm/Log $(ARCHDIR)Config.pm
+	- If F$Search("[.Lib]Config_heavy.pl;-1").nes."" Then Purge/NoConfirm/Log [.Lib]Config_heavy.pl
+	- If F$Search("$(ARCHDIR)Config_heavy.pl;-1").nes."" Then Purge/NoConfirm/Log $(ARCHDIR)Config_heavy.pl
 	- If F$Search("[.lib.ExtUtils]Miniperl.pm").nes."" Then Purge/NoConfirm/Log [.lib.ExtUtils]Miniperl.pm
 	- If F$Search("[.lib.ExtUtils]XSSymSet.pm").nes."" Then Purge/NoConfirm/Log [.lib.ExtUtils]XSSymSet.pm
 	- If F$Search("[.Lib.VMS]*.*;-1").nes."" Then Purge/NoConfirm/Log [.Lib.VMS]*.*
-	- If F$Search("[.Lib.Pod]*.Pod;-1").nes."" Then Purge/NoConfirm/Log [.Lib.Pod]*.Pod
+	- If F$Search("[.lib.pods]*.Pod;-1").nes."" Then Purge/NoConfirm/Log [.lib.pods]*.Pod
 	- If F$Search("$(ARCHCORE)*.*").nes."" Then Purge/NoConfirm/Log $(ARCHCORE)*.*
 	- If F$Search("[.lib]*.com;-1").nes."" Then Purge/NoConfirm/Log [.lib]*.com
 	- If F$Search("[.pod]*.com;-1").nes."" Then Purge/NoConfirm/Log [.pod]*.com
 	- If F$Search("[.utils]*.com;-1").nes."" Then Purge/NoConfirm/Log [.utils]*.com
 	- If F$Search("[.x2p]*.com;-1").nes."" Then Purge/NoConfirm/Log [.x2p]*.com
-	- If F$Search("[.lib.pod]*.com;-1").nes."" Then Purge/NoConfirm/Log [.lib.pod]*.com
+	- If F$Search("[.lib.pods]*.com;-1").nes."" Then Purge/NoConfirm/Log [.lib.pods]*.com
 
 clean : tidy cleantest
-	- @make_ext "$(dynamic_ext)" "$(MINIPERL_EXE)" "$(MMS)" clean
+	- @make_ext "$(MINIPERL_EXE)" "$(MMS)" clean
 	- If F$Search("*.Opt").nes."" Then Delete/NoConfirm/Log *.Opt;*/Exclude=PerlShr_*.Opt
 	- If F$Search("[...]*$(O);*") .nes."" Then Delete/NoConfirm/Log [...]*$(O);*
 	- If F$Search(F$Parse("Sys$Disk:[]","$(SOCKH)")).nes."" Then Delete/NoConfirm/Log $(SOCKH);*
 	- If F$Search(F$Parse("Sys$Disk:[]","$(SOCKC)")).nes."" Then Delete/NoConfirm/Log $(SOCKC);*
-	- If F$Search("perly.c").nes."" Then Delete/NoConfirm/Log perly.c;*
-	- Copy [.vms]perly_c.vms []perly.c
-	- If F$Search("perly.h").nes."" Then Delete/NoConfirm/Log perly.h;*
-	- Copy [.vms]perly_h.vms []perly.h
 	- If F$Search("VMSish.H").nes."" Then Delete/NoConfirm/Log VMSish.H;*
 	- If F$Search("VMS.C")   .nes."" Then Delete/NoConfirm/Log VMS.C;*
 	- If F$Search("Perlmain.C")   .nes."" Then Delete/NoConfirm/Log Perlmain.C;*
@@ -1270,46 +1694,54 @@ clean : tidy cleantest
 	- If F$Search("[.Ext.DynaLoader]DL_VMS.C").nes."" Then Delete/NoConfirm/Log [.Ext.DynaLoader]DL_VMS.C;*
 	- If F$Search("[.Ext.DynaLoader]DynaLoader.pm").nes."" Then Delete/NoConfirm/Log [.Ext.DynaLoader]DynaLoader.pm;*
 	- If F$Search("[.Ext.DynaLoader]XSLoader.pm").nes."" Then Delete/NoConfirm/Log [.Ext.DynaLoader]XSLoader.pm;*
-	- If F$Search("[.Ext.Socket]Socket$(O)").nes."" Then Delete/NoConfirm/Log [.Ext.Socket]Socket$(O);*
-	- If F$Search("[.Ext.Socket]Socket.C").nes."" Then Delete/NoConfirm/Log [.Ext.Socket]Socket.C;*
 	- If F$Search("[.VMS.Ext...]*.C").nes."" Then Delete/NoConfirm/Log [.VMS.Ext...]*.C;*
 	- If F$Search("[.VMS.Ext...]*$(O)").nes."" Then Delete/NoConfirm/Log [.VMS.Ext...]*$(O);*
 	- If F$Search("[.pod]*.com").nes."" Then Delete/NoConfirm/Log [.pod]*.com;*
+	- If F$Search("[.pod]perldelta.pod").nes."" Then Delete/NoConfirm/Log [.pod]perldelta.pod;*
 	- @extra_pods CLEAN
 
 realclean : clean
-	- @make_ext "$(dynamic_ext)" "$(MINIPERL_EXE)" "$(MMS)" realclean
+	- @make_ext "$(MINIPERL_EXE)" "$(MMS)" realclean
 	- If F$Search("*$(OLB)").nes."" Then Delete/NoConfirm/Log *$(OLB);*
 	- If F$Search("*.Opt").nes."" Then Delete/NoConfirm/Log *.Opt;*
 	- If F$Search("Config.H").nes."" Then Delete/NoConfirm/Log Config.H;*
 	- If F$Search("Config.SH").nes."" Then Delete/NoConfirm/Log Config.SH;*
 	- $(MINIPERL) -e "use File::Path; rmtree(\@ARGV,1,0);" config
+	- If F$Search("[.lib.unicore]*.pl").nes."" Then Delete/NoConfirm/Log [.lib.unicore]*.pl;*
+	- If F$Search("[.lib.unicore]Properties.").nes."" Then Delete/NoConfirm/Log [.lib.unicore]Properties.;*
+	- $(MINIPERL) -e "use File::Path; rmtree(\@ARGV,1,0);" $(unidatadirs)
 	- If F$Search("Descrip.MMS").nes."" Then Delete/NoConfirm/Log Descrip.MMS;*
 	- If F$Search("make_ext.Com").nes."" Then Delete/NoConfirm/Log make_ext.Com;*
 	- If F$Search("extra_pods.Com").nes."" Then Delete/NoConfirm/Log extra_pods.Com;*
+	- If F$Search("extra.pods").nes."" Then Delete/NoConfirm/Log extra.pods;*
 	- $(MINIPERL) -e "use File::Path; rmtree(['lib/auto','lib/VMS','lib/$(ARCH)'],1,0);"
 	- If F$Search("*.TS").nes."" Then Delete/NoConfirm/Log *.TS;*
 	- If F$Search("[.Lib]DynaLoader.pm").nes."" Then Delete/NoConfirm/Log [.Lib]DynaLoader.pm;*
 	- If F$Search("[.Lib]XSLoader.pm").nes."" Then Delete/NoConfirm/Log [.Lib]XSLoader.pm;*
-	- If F$Search("[.Lib]Socket.pm").nes."" Then Delete/NoConfirm/Log [.Lib]Socket.pm;*
 	- If F$Search("[.Lib]Config.pm").nes."" Then Delete/NoConfirm/Log [.Lib]Config.pm;*
+	- If F$Search("[.Lib]Config_heavy.pl").nes."" Then Delete/NoConfirm/Log [.Lib]Config_heavy.pl;*
 	- If F$Search("[.Lib]*.com").nes."" Then Delete/NoConfirm/Log [.Lib]*.com;*
 	- If F$Search("[.pod]*.com").nes."" Then Delete/NoConfirm/Log [.pod]*.com;*
 	- If F$Search("[.utils]*.com").nes."" Then Delete/NoConfirm/Log [.utils]*.com;*
 	- If F$Search("[.x2p]*.com").nes."" Then Delete/NoConfirm/Log [.x2p]*.com;*
 	- If F$Search("$(ARCHDIR)Config.pm").nes."" Then Delete/NoConfirm/Log $(ARCHDIR)Config.pm;*
+	- If F$Search("$(ARCHDIR)Config_heavy.pl").nes."" Then Delete/NoConfirm/Log $(ARCHDIR)Config_heavy.pl;*
 	- If F$Search("[.lib.ExtUtils]Miniperl.pm").nes."" Then Delete/NoConfirm/Log [.lib.ExtUtils]Miniperl.pm;*
 	- If F$Search("[.lib.ExtUtils]XSSymSet.pm").nes."" Then Delete/NoConfirm/Log [.lib.ExtUtils]XSSymSet.pm;*
-	- If F$Search("[.lib.pod]*.pod").nes."" Then Delete/NoConfirm/Log [.lib.pod]*.pod;*
-	- If F$Search("[.lib.pod]perldoc.com").nes."" Then Delete/NoConfirm/Log [.lib.pod]perldoc.com;*
-	- If F$Search("[.lib.pod]pod2*.com").nes."" Then Delete/NoConfirm/Log [.lib.pod]pod2*.com;*
+	- If F$Search("[.lib.pods]*.pod").nes."" Then Delete/NoConfirm/Log [.lib.pods]*.pod;*
+	- If F$Search("[.lib.pods]perldoc.com").nes."" Then Delete/NoConfirm/Log [.lib.pods]perldoc.com;*
+	- If F$Search("[.utils]perlivp.com").nes."" Then Delete/NoConfirm/Log [.utils]perlivp.com;*
+	- If F$Search("[.lib.pods]pod2*.com").nes."" Then Delete/NoConfirm/Log [.lib.pods]pod2*.com;*
 	- If F$Search("[.t.lib]vms*.t").nes."" Then Delete/NoConfirm/Log [.t.lib]vms*.t;*
 	- If F$Search("[...]*$(E)").nes."" Then Delete/NoConfirm/Log [...]*$(E);*
 	- If F$Search("[.vms]Perl_Setup.Com").nes."" Then Delete/NoConfirm/Log [.vms]Perl_Setup.Com;*
 	- If F$Search("[.t]rantests.").nes."" Then Delete/NoConfirm/Log [.t]rantests.;*
+	- If F$Search("[.t.lib]vmsfspec.t").nes."" Then Delete/NoConfirm/Log [.t.lib]vmsfspec.t;*
+	- If F$Search("[.t.lib]vmsish.t").nes."" Then Delete/NoConfirm/Log [.t.lib]vmsish.t;*
+	- If F$Search("[.t.lib]vms_dclsym.t").nes."" Then Delete/NoConfirm/Log [.t.lib]vms_dclsym.t;*
+	- If F$Search("[.t.lib]vms_stdio.t").nes."" Then Delete/NoConfirm/Log [.t.lib]vms_stdio.t;*
 
 cleansrc : clean
-!GROK!THIS!
 	- If F$Search("*.C;-1").nes."" Then Purge/NoConfirm/Log *.C
 	- If F$Search("*.H;-1").nes."" Then Purge/NoConfirm/Log *.H
 	- If F$Search("*.VMS;-1").nes."" Then Purge/NoConfirm/Log *.VMS
@@ -1320,3 +1752,4 @@ cleansrc : clean
 	- If F$Search("[.VMS]*.VMS;-1").nes."" Then Purge/NoConfirm/Log [.VMS]*.VMS
 	- If F$Search("[.VMS...]*.pm;-1").nes."" Then Purge/NoConfirm/Log [.VMS...]*.pm
 	- If F$Search("[.VMS...]*.xs;-1").nes."" Then Purge/NoConfirm/Log [.VMS...]*.xs
+!GROK!THIS!

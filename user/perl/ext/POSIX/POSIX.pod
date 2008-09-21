@@ -19,10 +19,14 @@ POSIX - Perl interface to IEEE Std 1003.1
 
 The POSIX module permits you to access all (or nearly all) the standard
 POSIX 1003.1 identifiers.  Many of these identifiers have been given Perl-ish
-interfaces.  Things which are C<#defines> in C, like EINTR or O_NDELAY, are
-automatically exported into your namespace.  All functions are only exported
-if you ask for them explicitly.  Most likely people will prefer to use the
-fully-qualified function names.
+interfaces.
+
+I<Everything is exported by default> with the exception of any POSIX
+functions with the same name as a built-in Perl function, such as
+C<abs>, C<alarm>, C<rmdir>, C<write>, etc.., which will be exported
+only if you ask for them explicitly.  This is an unfortunate backwards
+compatibility feature.  You can stop the exporting by saying C<use
+POSIX ()> and then use the fully qualified names (ie. C<POSIX::SEEK_END>).
 
 This document gives a condensed list of the features available in the POSIX
 module.  Consult your operating system's manpages for general information on
@@ -67,6 +71,12 @@ all.  This could be construed to be a bug.
 
 This is identical to the C function C<_exit()>.  It exits the program
 immediately which means among other things buffered I/O is B<not> flushed.
+
+Note that when using threads and in Linux this is B<not> a good way to
+exit a thread because in Linux processes and threads are kind of the
+same thing (Note: while this is the situation in early 2003 there are
+projects under way to have threads with more POSIXly semantics in Linux).
+If you want not to return from a thread, detach the thread.
 
 =item abort
 
@@ -191,7 +201,7 @@ to change file and directory owners and groups, see L<perlfunc/chown>.
 
 =item clearerr
 
-Use the method L<IO::Handle::clearerr()> instead, to reset the error
+Use the method C<IO::Handle::clearerr()> instead, to reset the error
 state (if any) and EOF state (if any) of the given stream.
 
 =item clock
@@ -385,7 +395,7 @@ integer value less than or equal to the numerical argument.
 
 This is identical to the C function C<fmod()>.
 
-	$r = modf($x, $y);
+	$r = fmod($x, $y);
 
 It returns the remainder C<$r = $x - $n*$y>, where C<$n = trunc($x/$y)>.
 The C<$r> has the same sign as C<$x> and magnitude (absolute value)
@@ -407,9 +417,9 @@ Retrieves the value of a configurable limit on a file or directory.  This
 uses file descriptors such as those obtained by calling C<POSIX::open>.
 
 The following will determine the maximum length of the longest allowable
-pathname on the filesystem which holds C</tmp/foo>.
+pathname on the filesystem which holds C</var/foo>.
 
-	$fd = POSIX::open( "/tmp/foo", &POSIX::O_RDONLY );
+	$fd = POSIX::open( "/var/foo", &POSIX::O_RDONLY );
 	$path_max = POSIX::fpathconf( $fd, &POSIX::_PC_PATH_MAX );
 
 Returns C<undef> on failure.
@@ -465,6 +475,10 @@ Perl's builtin C<stat> function.
 	$fd = POSIX::open( "foo", &POSIX::O_RDONLY );
 	@stats = POSIX::fstat( $fd );
 
+=item fsync
+
+Use method C<IO::Handle::sync()> instead.
+
 =item ftell
 
 Use method C<IO::Seekable::tell()> instead, or see L<perlfunc/tell>.
@@ -495,7 +509,7 @@ variable C<$(>, see L<perlvar/$EGID>.
 
 =item getenv
 
-Returns the value of the specified enironment variable.
+Returns the value of the specified environment variable.
 The same information is available through the C<%ENV> array.
 
 =item geteuid
@@ -533,7 +547,7 @@ L<perlfunc/getlogin>.
 =item getpgrp
 
 This is identical to Perl's builtin C<getpgrp()> function for
-returning the prcess group identifier of the current process, see
+returning the process group identifier of the current process, see
 L<perlfunc/getpgrp>.
 
 =item getpid
@@ -580,15 +594,20 @@ see L<perlfunc/gmtime>.
 
 =item isalnum
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:isalnum:]]/> construct instead, or possibly the C</\w/> construct.
+This is identical to the C function, except that it can apply to a
+single character or to a whole string.  Note that locale settings may
+affect what characters are considered C<isalnum>.  Does not work on
+Unicode characters code point 256 or higher.  Consider using regular
+expressions and the C</[[:alnum:]]/> construct instead, or possibly
+the C</\w/> construct.
 
 =item isalpha
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:isalpha:]]/> construct instead.
+This is identical to the C function, except that it can apply to
+a single character or to a whole string.  Note that locale settings
+may affect what characters are considered C<isalpha>.  Does not work
+on Unicode characters code point 256 or higher.  Consider using regular
+expressions and the C</[[:alpha:]]/> construct instead.
 
 =item isatty
 
@@ -597,57 +616,82 @@ to a tty.  Similar to the C<-t> operator, see L<perlfunc/-X>.
 
 =item iscntrl
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:iscntrl:]]/> construct instead.
+This is identical to the C function, except that it can apply to
+a single character or to a whole string.  Note that locale settings
+may affect what characters are considered C<iscntrl>.  Does not work
+on Unicode characters code point 256 or higher.  Consider using regular
+expressions and the C</[[:cntrl:]]/> construct instead.
 
 =item isdigit
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:isdigit:]]/> construct instead, or the C</\d/> construct.
+This is identical to the C function, except that it can apply to
+a single character or to a whole string.  Note that locale settings
+may affect what characters are considered C<isdigit> (unlikely, but
+still possible). Does not work on Unicode characters code point 256
+or higher.  Consider using regular expressions and the C</[[:digit:]]/>
+construct instead, or the C</\d/> construct.
 
 =item isgraph
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:isgraph:]]/> construct instead.
+This is identical to the C function, except that it can apply to
+a single character or to a whole string.  Note that locale settings
+may affect what characters are considered C<isgraph>.  Does not work
+on Unicode characters code point 256 or higher.  Consider using regular
+expressions and the C</[[:graph:]]/> construct instead.
 
 =item islower
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:islower:]]/> construct instead.  Do B<not> use C</a-z/>.
+This is identical to the C function, except that it can apply to
+a single character or to a whole string.  Note that locale settings
+may affect what characters are considered C<islower>.  Does not work
+on Unicode characters code point 256 or higher.  Consider using regular
+expressions and the C</[[:lower:]]/> construct instead.  Do B<not> use
+C</[a-z]/>.
 
 =item isprint
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:isprint:]]/> construct instead.
+This is identical to the C function, except that it can apply to
+a single character or to a whole string.  Note that locale settings
+may affect what characters are considered C<isprint>.  Does not work
+on Unicode characters code point 256 or higher.  Consider using regular
+expressions and the C</[[:print:]]/> construct instead.
 
 =item ispunct
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:ispunct:]]/> construct instead.
+This is identical to the C function, except that it can apply to
+a single character or to a whole string.  Note that locale settings
+may affect what characters are considered C<ispunct>.  Does not work
+on Unicode characters code point 256 or higher.  Consider using regular
+expressions and the C</[[:punct:]]/> construct instead.
 
 =item isspace
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:isspace:]]/> construct instead, or the C</\s/> construct.
+This is identical to the C function, except that it can apply to
+a single character or to a whole string.  Note that locale settings
+may affect what characters are considered C<isspace>.  Does not work
+on Unicode characters code point 256 or higher.  Consider using regular
+expressions and the C</[[:space:]]/> construct instead, or the C</\s/>
+construct.  (Note that C</\s/> and C</[[:space:]]/> are slightly
+different in that C</[[:space:]]/> can normally match a vertical tab,
+while C</\s/> does not.)
 
 =item isupper
 
-This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:isupper:]]/> construct instead.  Do B<not> use C</A-Z/>.
+This is identical to the C function, except that it can apply to
+a single character or to a whole string.  Note that locale settings
+may affect what characters are considered C<isupper>.  Does not work
+on Unicode characters code point 256 or higher.  Consider using regular
+expressions and the C</[[:upper:]]/> construct instead.  Do B<not> use
+C</[A-Z]/>.
 
 =item isxdigit
 
 This is identical to the C function, except that it can apply to a single
-character or to a whole string.  Consider using regular expressions and the
-C</[[:isxdigit:]]/> construct instead, or simply C</[0-9a-f]/i>.
+character or to a whole string.  Note that locale settings may affect what
+characters are considered C<isxdigit> (unlikely, but still possible).
+Does not work on Unicode characters code point 256 or higher.
+Consider using regular expressions and the C</[[:xdigit:]]/>
+construct instead, or simply C</[0-9a-f]/i>.
 
 =item kill
 
@@ -875,7 +919,7 @@ See also L<perlfunc/sysopen>.
 
 Open a directory for reading.
 
-	$dir = POSIX::opendir( "/tmp" );
+	$dir = POSIX::opendir( "/var" );
 	@files = POSIX::readdir( $dir );
 	POSIX::closedir( $dir );
 
@@ -886,9 +930,9 @@ Returns C<undef> on failure.
 Retrieves the value of a configurable limit on a file or directory.
 
 The following will determine the maximum length of the longest allowable
-pathname on the filesystem which holds C</tmp>.
+pathname on the filesystem which holds C</var>.
 
-	$path_max = POSIX::pathconf( "/tmp", &POSIX::_PC_PATH_MAX );
+	$path_max = POSIX::pathconf( "/var", &POSIX::_PC_PATH_MAX );
 
 Returns C<undef> on failure.
 
@@ -911,9 +955,9 @@ variable instead, see L<perlfunc/warn> and L<perlvar/$ERRNO>.
 Create an interprocess channel.  This returns file descriptors like those
 returned by C<POSIX::open>.
 
-	($fd0, $fd1) = POSIX::pipe();
-	POSIX::write( $fd0, "hello", 5 );
-	POSIX::read( $fd1, $buf, 5 );
+	my ($read, $write) = POSIX::pipe();
+	POSIX::write( $write, "hello", 5 );
+	POSIX::read( $read, $buf, 5 );
 
 See also L<perlfunc/pipe>.
 
@@ -1008,9 +1052,12 @@ see L<perlre>.
 
 =item setgid
 
-Sets the real group identifier for this process.
-Identical to assigning a value to the Perl's builtin C<$)> variable,
-see L<perlvar/$UID>.
+Sets the real group identifier and the effective group identifier for
+this process.  Similar to assigning a value to the Perl's builtin
+C<$)> variable, see L<perlvar/$GID>, except that the latter
+will change only the real user identifier, and that the setgid()
+uses only a single numeric argument, as opposed to a space-separated
+list of numbers.
 
 =item setjmp
 
@@ -1037,7 +1084,7 @@ argument means 'query'.)
 
 The following will set the LC_CTYPE behaviour according to the locale
 environment variables (the second argument C<"">).
-Please see your systems L<setlocale(3)> documentation for the locale
+Please see your systems C<setlocale(3)> documentation for the locale
 environment variables' meaning or consult L<perllocale>.
 
 	$loc = setlocale( LC_CTYPE, "" );
@@ -1063,9 +1110,10 @@ setting the session identifier of the current process.
 
 =item setuid
 
-Sets the real user identifier for this process.
-Identical to assigning a value to the Perl's builtin C<$E<lt>> variable,
-see L<perlvar/$UID>.
+Sets the real user identifier and the effective user identifier for
+this process.  Similar to assigning a value to the Perl's builtin
+C<$E<lt>> variable, see L<perlvar/$UID>, except that the latter
+will change only the real user identifier.
 
 =item sigaction
 
@@ -1075,9 +1123,11 @@ manpage for details.
 
 Synopsis:
 
-	sigaction(sig, action, oldaction = 0)
+	sigaction(signal, action, oldaction = 0)
 
-Returns C<undef> on failure.
+Returns C<undef> on failure.  The C<signal> must be a number (like
+SIGHUP), not a string (like "SIGHUP"), though Perl does try hard
+to understand you.
 
 =item siglongjmp
 
@@ -1138,9 +1188,12 @@ See also L<Math::Trig>.
 
 =item sleep
 
-This is identical to Perl's builtin C<sleep()> function
-for suspending the execution of the current for process
-for certain number of seconds, see L<perlfunc/sleep>.
+This is functionally identical to Perl's builtin C<sleep()> function
+for suspending the execution of the current for process for certain
+number of seconds, see L<perlfunc/sleep>.  There is one significant 
+difference, however: C<POSIX::sleep()> returns the number of
+B<unslept> seconds, while the C<CORE::sleep()> returns the
+number of slept seconds.
 
 =item sprintf
 
@@ -1166,7 +1219,7 @@ see L<perlre>.
 =item stat
 
 This is identical to Perl's builtin C<stat()> function
-for retutning information about files and directories.
+for returning information about files and directories.
 
 =item strcat
 
@@ -1214,12 +1267,23 @@ I.e. January is 0, not 1; Sunday is 0, not 1; January 1st is 0, not 1.  The
 year (C<year>) is given in years since 1900.  I.e., the year 1995 is 95; the
 year 2001 is 101.  Consult your system's C<strftime()> manpage for details
 about these and the other arguments.
+
 If you want your code to be portable, your format (C<fmt>) argument
 should use only the conversion specifiers defined by the ANSI C
-standard.  These are C<aAbBcdHIjmMpSUwWxXyYZ%>.
-The given arguments are made consistent
-as though by calling C<mktime()> before calling your system's
-C<strftime()> function, except that the C<isdst> value is not affected.
+standard (C89, to play safe).  These are C<aAbBcdHIjmMpSUwWxXyYZ%>.
+But even then, the B<results> of some of the conversion specifiers are
+non-portable.  For example, the specifiers C<aAbBcpZ> change according
+to the locale settings of the user, and both how to set locales (the
+locale names) and what output to expect are non-standard.
+The specifier C<c> changes according to the timezone settings of the
+user and the timezone computation rules of the operating system.
+The C<Z> specifier is notoriously unportable since the names of
+timezones are non-standard. Sticking to the numeric specifiers is the
+safest route.
+
+The given arguments are made consistent as though by calling
+C<mktime()> before calling your system's C<strftime()> function,
+except that the C<isdst> value is not affected.
 
 The string for Tuesday, December 12, 1995.
 
@@ -1278,8 +1342,8 @@ To parse a string $str as a floating point number use
 
 The second returned item and $! can be used to check for valid input:
 
-    if (($str eq '') || ($n_unparsed != 0) || !$!) {
-        die "Non-numeric input $str" . $! ? ": $!\n" : "\n";
+    if (($str eq '') || ($n_unparsed != 0) || $!) {
+        die "Non-numeric input $str" . ($! ? ": $!\n" : "\n");
     }
 
 When called in a scalar context strtod returns the parsed number.
@@ -1381,7 +1445,7 @@ Returns C<undef> on failure.
 =item tcflush
 
 This is similar to the C function C<tcflush()> for flushing
-the I/O buffers of its argumeny stream.
+the I/O buffers of its argument stream.
 
 Returns C<undef> on failure.
 
@@ -1529,7 +1593,7 @@ see L<perlfunc/wait>.
 Wait for a child process to change state.  This is identical to Perl's
 builtin C<waitpid()> function, see L<perlfunc/waitpid>.
 
-	$pid = POSIX::waitpid( -1, &POSIX::WNOHANG );
+	$pid = POSIX::waitpid( -1, POSIX::WNOHANG );
 	print "status = ", ($? / 256), "\n";
 
 =item wcstombs
@@ -1577,10 +1641,42 @@ object, it defaults to the empty set.  The third parameter contains the
 C<sa_flags>, it defaults to 0.
 
 	$sigset = POSIX::SigSet->new(SIGINT, SIGQUIT);
-	$sigaction = POSIX::SigAction->new( 'main::handler', $sigset, &POSIX::SA_NOCLDSTOP );
+	$sigaction = POSIX::SigAction->new( \&main::handler, $sigset, &POSIX::SA_NOCLDSTOP );
 
-This C<POSIX::SigAction> object should be used with the C<POSIX::sigaction()>
+This C<POSIX::SigAction> object is intended for use with the C<POSIX::sigaction()>
 function.
+
+=back
+
+=over 8
+
+=item handler
+
+=item mask
+
+=item flags
+
+accessor functions to get/set the values of a SigAction object.
+
+	$sigset = $sigaction->mask;
+	$sigaction->flags(&POSIX::SA_RESTART);
+
+=item safe
+
+accessor function for the "safe signals" flag of a SigAction object; see
+L<perlipc> for general information on safe (a.k.a. "deferred") signals.  If
+you wish to handle a signal safely, use this accessor to set the "safe" flag
+in the C<POSIX::SigAction> object:
+
+	$sigaction->safe(1);
+
+You may also examine the "safe" flag on the output action object which is
+filled in when given as the third parameter to C<POSIX::sigaction()>:
+
+	sigaction(SIGINT, $new_action, $old_action);
+	if ($old_action->safe) {
+	    # previous SIGINT handler used safe signals
+	}
 
 =back
 
@@ -1827,7 +1923,7 @@ _POSIX_ARG_MAX _POSIX_CHILD_MAX _POSIX_CHOWN_RESTRICTED _POSIX_JOB_CONTROL _POSI
 
 =item Constants
 
-_SC_ARG_MAX _SC_CHILD_MAX _SC_CLK_TCK _SC_JOB_CONTROL _SC_NGROUPS_MAX _SC_OPEN_MAX _SC_SAVED_IDS _SC_STREAM_MAX _SC_TZNAME_MAX _SC_VERSION
+_SC_ARG_MAX _SC_CHILD_MAX _SC_CLK_TCK _SC_JOB_CONTROL _SC_NGROUPS_MAX _SC_OPEN_MAX _SC_PAGESIZE _SC_SAVED_IDS _SC_STREAM_MAX _SC_TZNAME_MAX _SC_VERSION
 
 =back
 
@@ -1976,9 +2072,56 @@ R_OK SEEK_CUR SEEK_END SEEK_SET STDIN_FILENO STDOUT_FILENO STDERR_FILENO W_OK X_
 
 WNOHANG WUNTRACED
 
+=over 16
+
+=item WNOHANG
+
+Do not suspend the calling process until a child process
+changes state but instead return immediately.
+
+=item WUNTRACED
+
+Catch stopped child processes.
+
+=back
+
 =item Macros
 
 WIFEXITED WEXITSTATUS WIFSIGNALED WTERMSIG WIFSTOPPED WSTOPSIG
+
+=over 16
+
+=item WIFEXITED
+
+WIFEXITED($?) returns true if the child process exited normally
+(C<exit()> or by falling off the end of C<main()>)
+
+=item WEXITSTATUS
+
+WEXITSTATUS($?) returns the normal exit status of the child process
+(only meaningful if WIFEXITED($?) is true)
+
+=item WIFSIGNALED
+
+WIFSIGNALED($?) returns true if the child process terminated because
+of a signal
+
+=item WTERMSIG
+
+WTERMSIG($?) returns the signal the child process terminated for
+(only meaningful if WIFSIGNALED($?) is true)
+
+=item WIFSTOPPED
+
+WIFSTOPPED($?) returns true if the child process is currently stopped
+(can happen only if you specified the WUNTRACED flag to waitpid())
+
+=item WSTOPSIG
+
+WSTOPSIG($?) returns the signal the child process was stopped for
+(only meaningful if WIFSTOPPED($?) is true)
+
+=back
 
 =back
 

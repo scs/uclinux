@@ -21,6 +21,11 @@ d_voidsig='define'
 
 usemymalloc='n'
 
+# malloc wrap works
+case "$usemallocwrap" in
+'') usemallocwrap='define' ;;
+esac
+
 # setre?[ug]id() have been replaced by the _POSIX_SAVED_IDS versions.
 # See <A HREF="http://www.bsdi.com/bsdi-man?setuid">http://www.bsdi.com/bsdi-man?setuid</A>(2)
 d_setregid='undef'
@@ -98,7 +103,6 @@ case "$osvers" in
 	case "$cc" in
 	'')	cc='cc'			# cc is gcc2 in 4.0
 		cccdlflags="-fPIC"
-		ccdlflags="-rdynamic -Wl,-rpath,$privlib/$archname/CORE"
 		;;
 	esac
 

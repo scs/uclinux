@@ -1,6 +1,6 @@
 # NOTE: this file tests how large files (>2GB) work with perlio (stdio/sfio).
 # sysopen(), sysseek(), syswrite(), sysread() are tested in t/lib/syslfs.t.
-# If you modify/add tests here, remember to update also t/lib/syslfs.t.
+# If you modify/add tests here, remember to update also ext/Fcntl/t/syslfs.t.
 
 BEGIN {
 	chdir 't' if -d 't';
@@ -54,10 +54,12 @@ EOM
     print "1..0 # Skip: @_\n" if @_;
 }
 
+$| = 1;
+
 print "# checking whether we have sparse files...\n";
 
 # Known have-nots.
-if ($^O eq 'MSWin32' || $^O eq 'VMS') {
+if ($^O eq 'MSWin32' || $^O eq 'NetWare' || $^O eq 'VMS') {
     print "1..0 # Skip: no sparse files in $^O\n";
     bye();
 }
@@ -65,7 +67,7 @@ if ($^O eq 'MSWin32' || $^O eq 'VMS') {
 # Known haves that have problems running this test
 # (for example because they do not support sparse files, like UNICOS)
 if ($^O eq 'unicos') {
-    print "1..0 # Skip: no sparse files in $^0, unable to test large files\n";
+    print "1..0 # Skip: no sparse files in $^O, unable to test large files\n";
     bye();
 }
 
@@ -266,7 +268,11 @@ explain() if $fail;
 bye(); # does the necessary cleanup
 
 END {
-   unlink "big"; # be paranoid about leaving 5 gig files lying around
+    # unlink may fail if applied directly to a large file
+    # be paranoid about leaving 5 gig files lying around
+    open(BIG, ">big"); # truncate
+    close(BIG);
+    1 while unlink "big"; # standard portable idiom
 }
 
 # eof

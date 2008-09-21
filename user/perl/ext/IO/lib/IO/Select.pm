@@ -11,7 +11,7 @@ use warnings::register;
 use     vars qw($VERSION @ISA);
 require Exporter;
 
-$VERSION = "1.14";
+$VERSION = "1.17";
 
 @ISA = qw(Exporter); # This is only so we can do version checking
 
@@ -131,7 +131,7 @@ sub has_exception
 
 sub has_error
 {
- warnings::warn("Call to depreciated method 'has_error', use 'has_exception'")
+ warnings::warn("Call to deprecated method 'has_error', use 'has_exception'")
 	if warnings::enabled();
  goto &has_exception;
 }
@@ -250,13 +250,13 @@ IO::Select - OO interface to the select system call
 
     @ready = $s->can_read($timeout);
 
-    @ready = IO::Select->new(@handles)->read(0);
+    @ready = IO::Select->new(@handles)->can_read(0);
 
 =head1 DESCRIPTION
 
 The C<IO::Select> package implements an object approach to the system C<select>
 function call. It allows the user to see what IO handles, see L<IO::Handle>,
-are ready for reading, writing or have an error condition pending.
+are ready for reading, writing or have an exception pending.
 
 =head1 CONSTRUCTOR
 
@@ -281,7 +281,7 @@ cache which is indexed by the C<fileno> of the handle, so if more than one
 handle with the same C<fileno> is specified then only the last one is cached.
 
 Each handle can be an C<IO::Handle> object, an integer or an array
-reference where the first element is a C<IO::Handle> or an integer.
+reference where the first element is an C<IO::Handle> or an integer.
 
 =item remove ( HANDLES )
 
@@ -324,16 +324,16 @@ the C<select> static method.
 
 Return the bit string suitable as argument to the core select() call.
 
-=item select ( READ, WRITE, ERROR [, TIMEOUT ] )
+=item select ( READ, WRITE, EXCEPTION [, TIMEOUT ] )
 
-C<select> is a static method, that is you call it with the package
-name like C<new>. C<READ>, C<WRITE> and C<ERROR> are either C<undef>
-or C<IO::Select> objects. C<TIMEOUT> is optional and has the same
-effect as for the core select call.
+C<select> is a static method, that is you call it with the package name
+like C<new>. C<READ>, C<WRITE> and C<EXCEPTION> are either C<undef> or
+C<IO::Select> objects. C<TIMEOUT> is optional and has the same effect as
+for the core select call.
 
 The result will be an array of 3 elements, each a reference to an array
 which will hold the handles that are ready for reading, writing and have
-error conditions respectively. Upon error an empty array is returned.
+exceptions respectively. Upon error an empty list is returned.
 
 =back
 

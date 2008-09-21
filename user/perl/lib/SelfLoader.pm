@@ -3,17 +3,19 @@ package SelfLoader;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(AUTOLOAD);
-$VERSION = "1.0902";
+$VERSION = "1.0904";
 sub Version {$VERSION}
 $DEBUG = 0;
 
 my %Cache;      # private cache for all SelfLoader's client packages
 
 # allow checking for valid ': attrlist' attachments
-my $nested;
+# (we use 'our' rather than 'my' here, due to the rather complex and buggy
+# behaviour of lexicals with qr// and (??{$lex}) )
+our $nested;
 $nested = qr{ \( (?: (?> [^()]+ ) | (??{ $nested }) )* \) }x;
-my $one_attr = qr{ (?> (?! \d) \w+ (?:$nested)? ) (?:\s*\:\s*|\s+(?!\:)) }x;
-my $attr_list = qr{ \s* : \s* (?: $one_attr )* }x;
+our $one_attr = qr{ (?> (?! \d) \w+ (?:$nested)? ) (?:\s*\:\s*|\s+(?!\:)) }x;
+our $attr_list = qr{ \s* : \s* (?: $one_attr )* }x;
 
 sub croak { require Carp; goto &Carp::croak }
 
@@ -47,7 +49,8 @@ AUTOLOAD {
 sub load_stubs { shift->_load_stubs((caller)[0]) }
 
 sub _load_stubs {
-    my($self, $callpack) = @_;
+    # $endlines is used by Devel::SelfStubber to capture lines after __END__
+    my($self, $callpack, $endlines) = @_;
     my $fh = \*{"${callpack}::DATA"};
     my $currpack = $callpack;
     my($line,$name,@lines, @stubs, $protoype);
@@ -94,7 +97,16 @@ sub _load_stubs {
             push(@lines,$line);
         }
     }
-    close($fh) unless defined($line) && $line =~ /^__END__\s*DATA/;     # __END__
+    if (defined($line) && $line =~ /^__END__/) { # __END__
+        unless ($line =~ /^__END__\s*DATA/) {
+            if ($endlines) {
+                # Devel::SelfStubber would like us to capture the lines after
+                # __END__ so it can write out the entire file
+                @$endlines = <$fh>;
+            }
+            close($fh);
+        }
+    }
     push(@stubs, $self->_add_to_cache($name, $currpack, \@lines, $protoype));
     eval join('', @stubs) if @stubs;
 }

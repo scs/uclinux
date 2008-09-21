@@ -4,6 +4,7 @@
 #   Original written by Ulrich Pfeifer on 2 Jan 1997.
 #   Greatly extended by Tom Phoenix <rootbeer@teleport.com> on 28 Jan 1997.
 #
+#   Run with -debug for debugging output.
 
 BEGIN {
     chdir 't' if -d 't';
@@ -11,12 +12,15 @@ BEGIN {
 }
 
 use Config;
+require './test.pl'; # for runperl()
 
-print "1..171\n";
+print "1..187\n";
 
 my $test = 1;
 sub test (&) {
-  print ((&{$_[0]})?"ok $test\n":"not ok $test\n");
+  my $ok = &{$_[0]};
+  print $ok ? "ok $test\n" : "not ok $test\n";
+  printf "# Failed at line %d\n", (caller)[2] unless $ok;
   $test++;
 }
 
@@ -234,14 +238,14 @@ test {
 
 	  $code = "# This is a test script built by t/op/closure.t\n\n";
 
-	  $code .= <<"DEBUG_INFO" if $debugging;
-# inner_type: $inner_type 
+	  print <<"DEBUG_INFO" if $debugging;
+# inner_type:     $inner_type 
 # where_declared: $where_declared 
-# within: $within
-# nc_attempt: $nc_attempt
-# call_inner: $call_inner
-# call_outer: $call_outer
-# undef_outer: $undef_outer
+# within:         $within
+# nc_attempt:     $nc_attempt
+# call_inner:     $call_inner
+# call_outer:     $call_outer
+# undef_outer:    $undef_outer
 DEBUG_INFO
 
 	  $code .= <<"END_MARK_ONE";
@@ -262,9 +266,9 @@ END_MARK_TWO
 {
     my \$test = $test;
     sub test (&) {
-      my \$result = &{\$_[0]};
-      print "not " unless \$result;
-      print "ok \$test\\n";
+      my \$ok = &{\$_[0]};
+      print \$ok ? "ok \$test\n" : "not ok \$test\n";
+      printf "# Failed at line %d\n", (caller)[2] unless \$ok;
       \$test++;
     }
 }
@@ -429,7 +433,7 @@ END
 	    $test++;
 	  }
 
-	  if ($Config{d_fork} and $^O ne 'VMS' and $^O ne 'MSWin32') {
+	  if ($Config{d_fork} and $^O ne 'VMS' and $^O ne 'MSWin32' and $^O ne 'NetWare') {
 	    # Fork off a new perl to run the tests.
 	    # (This is so we can catch spurious warnings.)
 	    $| = 1; print ""; $| = 0; # flush output before forking
@@ -443,8 +447,8 @@ END
 	      close READ2;
 	      open STDOUT, ">&WRITE"  or die "Can't redirect STDOUT: $!";
 	      open STDERR, ">&WRITE2" or die "Can't redirect STDERR: $!";
-	      exec './perl', '-w', '-'
-		or die "Can't exec ./perl: $!";
+	      exec which_perl(), '-w', '-'
+		or die "Can't exec perl: $!";
 	    } else {
 	      # Parent process here.
 	      close WRITE;
@@ -463,11 +467,9 @@ END
 	    my $errfile = "terr$$";  $errfile++ while -e $errfile;
 	    my @tmpfiles = ($cmdfile, $errfile);
 	    open CMD, ">$cmdfile"; print CMD $code; close CMD;
-	    my $cmd = (($^O eq 'VMS') ? "MCR $^X"
-		       : ($^O eq 'MSWin32') ? '.\perl'
-		       : './perl');
+	    my $cmd = which_perl();
 	    $cmd .= " -w $cmdfile 2>$errfile";
-	    if ($^O eq 'VMS' or $^O eq 'MSWin32') {
+	    if ($^O eq 'VMS' or $^O eq 'MSWin32' or $^O eq 'NetWare') {
 	      # Use pipe instead of system so we don't inherit STD* from
 	      # this process, and then foul our pipe back to parent by
 	      # redirecting output in the child.
@@ -497,7 +499,7 @@ END
 	    }
 	  }
 	  printf "not ok: exited with error code %04X\n", $? if $?;
-	  print "-" x 30, "\n" if $debugging;
+	  print '#', "-" x 30, "\n" if $debugging;
 
 	}	# End of foreach $within
       }	# End of foreach $where_declared
@@ -505,3 +507,156 @@ END
 
 }
 
+# The following dumps core with perl <= 5.8.0 (bugid 9535) ...
+BEGIN { $vanishing_pad = sub { eval $_[0] } }
+$some_var = 123;
+test { $vanishing_pad->( '$some_var' ) == 123 };
+
+# ... and here's another coredump variant - this time we explicitly
+# delete the sub rather than using a BEGIN ...
+
+sub deleteme { $a = sub { eval '$newvar' } }
+deleteme();
+*deleteme = sub {}; # delete the sub
+$newvar = 123; # realloc the SV of the freed CV
+test { $a->() == 123 };
+
+# ... and a further coredump variant - the fixup of the anon sub's
+# CvOUTSIDE pointer when the middle eval is freed, wasn't good enough to
+# survive the outer eval also being freed.
+
+$x = 123;
+$a = eval q(
+    eval q[
+	sub { eval '$x' }
+    ]
+);
+@a = ('\1\1\1\1\1\1\1') x 100; # realloc recently-freed CVs
+test { $a->() == 123 };
+
+# this coredumped on <= 5.8.0 because evaling the closure caused
+# an SvFAKE to be added to the outer anon's pad, which was then grown.
+my $outer;
+sub {
+    my $x;
+    $x = eval 'sub { $outer }';
+    $x->();
+    $a = [ 99 ];
+    $x->();
+}->();
+test {1};
+
+# [perl #17605] found that an empty block called in scalar context
+# can lead to stack corruption
+{
+    my $x = "foooobar";
+    $x =~ s/o//eg;
+    test { $x eq 'fbar' }
+}
+
+# DAPM 24-Nov-02
+# SvFAKE lexicals should be visible thoughout a function.
+# On <= 5.8.0, the third test failed,  eg bugid #18286
+
+{
+    my $x = 1;
+    sub fake {
+		test { sub {eval'$x'}->() == 1 };
+	{ $x;	test { sub {eval'$x'}->() == 1 } }
+		test { sub {eval'$x'}->() == 1 };
+    }
+}
+fake();
+
+# undefining a sub shouldn't alter visibility of outer lexicals
+
+{
+    $x = 1;
+    my $x = 2;
+    sub tmp { sub { eval '$x' } }
+    my $a = tmp();
+    undef &tmp;
+    test { $a->() == 2 };
+}
+
+# handy class: $x = Watch->new(\$foo,'bar')
+# causes 'bar' to be appended to $foo when $x is destroyed
+sub Watch::new { bless [ $_[1], $_[2] ], $_[0] }
+sub Watch::DESTROY { ${$_[0][0]} .= $_[0][1] }
+
+
+# bugid 1028:
+# nested anon subs (and associated lexicals) not freed early enough
+
+sub linger {
+    my $x = Watch->new($_[0], '2');
+    sub {
+	$x;
+	my $y;
+	sub { $y; };
+    };
+}
+{
+    my $watch = '1';
+    linger(\$watch);
+    test { $watch eq '12' }
+}
+
+require "./test.pl";
+
+curr_test(182);
+
+# Because change #19637 was not applied to 5.8.1.
+SKIP: { skip("tests not in 5.8.", 3) }
+
+$test= 185;
+
+{
+   # bugid #23265 - this used to coredump during destruction of PL_maincv
+   # and its children
+
+    my $progfile = "b23265.pl";
+    open(T, ">$progfile") or die "$0: $!\n";
+    print T << '__EOF__';
+        print
+            sub {$_[0]->(@_)} -> (
+                sub {
+                    $_[1]
+                        ?  $_[0]->($_[0], $_[1] - 1) .  sub {"x"}->()
+                        : "y"
+                },   
+                2
+            )
+            , "\n"
+        ;
+__EOF__
+    close T;
+    my $got = runperl(progfile => $progfile);
+    test { chomp $got; $got eq "yxx" };
+    END { 1 while unlink $progfile }
+}
+
+{
+    # bugid #24914 = used to coredump restoring PL_comppad in the
+    # savestack, due to the early freeing of the anon closure
+
+    my $got = runperl(stderr => 1, prog => 
+'sub d {die} my $f; $f = sub {my $x=1; $f = 0; d}; eval{$f->()}; print qq(ok\n)'
+    );
+    test { $got eq "ok\n" };
+}
+
+# After newsub is redefined outside the BEGIN, it's CvOUTSIDE should point
+# to main rather than BEGIN, and BEGIN should be freed.
+
+{
+    my $flag = 0;
+    sub  X::DESTROY { $flag = 1 }
+    {
+	my $x;
+	BEGIN {$x = \&newsub }
+	sub newsub {};
+	$x = bless {}, 'X';
+    }
+    test { $flag == 1 };
+}

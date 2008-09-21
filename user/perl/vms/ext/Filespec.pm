@@ -1,7 +1,7 @@
 #   Perl hooks into the routines in vms.c for interconversion
 #   of VMS and Unix file specification syntax.
 #
-#   Version:  1.1
+#   Version:  see $VERSION below
 #   Author:   Charles Bailey  bailey@newman.upenn.edu
 #   Revised:  08-Mar-1995
 
@@ -128,6 +128,7 @@ This document was last revised 22-Feb-1996, for Perl 5.002.
 package VMS::Filespec;
 require 5.002;
 
+our $VERSION = '1.11';
 
 # If you want to use this package on a non-VMS system,
 # uncomment the following line.
@@ -179,6 +180,7 @@ sub rmsexpand ($;$) {
   ($node,$dev,$dir,$name,$type,$ver) = $fspec =~
      /([^:]*::)?([^:]*:)?([^>\]]*[>\]])?([^.;]*)(\.?[^.;]*)([.;]?\d*)/;
   foreach ((@$defaults,$ENV{'DEFAULT'})) {
+    next unless defined;
     last if $node && $ver && $type && $dev && $dir && $name;
     ($dnode,$ddev,$ddir,$dname,$dtype,$dver) =
        /([^:]*::)?([^:]*:)?([^>\]]*[>\]])?([^.;]*)(\.?[^.;]*)([.;]?\d*)/;
@@ -338,7 +340,7 @@ sub candelete ($) {
   return '' unless -w $fspec;
   $fspec =~ s#/$##;
   if ($fspec =~ m#/#) {
-    ($parent = $fspec) =~ s#/[^/]+$#;
+    ($parent = $fspec) =~ s#/[^/]+$##;
     return (-w $parent);
   }
   elsif ($parent = fileify($fspec)) { # fileify() here to expand lnms

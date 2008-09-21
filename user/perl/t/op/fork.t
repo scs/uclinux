@@ -7,8 +7,10 @@ BEGIN {
     @INC = '../lib';
     require Config; import Config;
     unless ($Config{'d_fork'}
-	    or ($^O eq 'MSWin32' and $Config{useithreads}
-		and $Config{ccflags} =~ /-DPERL_IMPLICIT_SYS/))
+	    or (($^O eq 'MSWin32' || $^O eq 'NetWare') and $Config{useithreads}
+		and $Config{ccflags} =~ /-DPERL_IMPLICIT_SYS/ 
+#               and !defined $Config{'useperlio'}
+               ))
     {
 	print "1..0 # Skip: no fork\n";
 	exit 0;
@@ -31,7 +33,7 @@ $tmpfile = "forktmp000";
 1 while -f ++$tmpfile;
 END { close TEST; unlink $tmpfile if $tmpfile; }
 
-$CAT = (($^O eq 'MSWin32') ? '.\perl -e "print <>"' : 'cat');
+$CAT = (($^O eq 'MSWin32') ? '.\perl -e "print <>"' : (($^O eq 'NetWare') ? 'perl -e "print <>"' : 'cat'));
 
 for (@prgs){
     my $switch;
@@ -48,6 +50,9 @@ for (@prgs){
     my $results;
     if ($^O eq 'MSWin32') {
       $results = `.\\perl -I../lib $switch $tmpfile 2>&1`;
+    }
+    elsif ($^O eq 'NetWare') {
+      $results = `perl -I../lib $switch $tmpfile 2>&1`;
     }
     else {
       $results = `./perl $switch $tmpfile 2>&1`;
@@ -253,7 +258,7 @@ ok 1 child
 $| = 1;
 $\ = "\n";
 my $getenv;
-if ($^O eq 'MSWin32') {
+if ($^O eq 'MSWin32' || $^O eq 'NetWare') {
     $getenv = qq[$^X -e "print \$ENV{TST}"];
 }
 else {
@@ -421,3 +426,21 @@ waitpid() returned ok
 forked second kid
 second child
 wait() returned ok
+########
+pipe(RDR,WTR) or die $!;
+my $pid = fork;
+die "fork: $!" if !defined $pid;
+if ($pid == 0) {
+    my $rand_child = rand;
+    close RDR;
+    print WTR $rand_child, "\n";
+    close WTR;
+} else {
+    my $rand_parent = rand;
+    close WTR;
+    chomp(my $rand_child  = <RDR>);
+    close RDR;
+    print $rand_child ne $rand_parent, "\n";
+}
+EXPECT
+1

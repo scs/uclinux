@@ -1,16 +1,16 @@
 =head1 NAME
 
-Term::ReadLine - Perl interface to various C<readline> packages. If
-no real package is found, substitutes stubs instead of basic functions.
+Term::ReadLine - Perl interface to various C<readline> packages.
+If no real package is found, substitutes stubs instead of basic functions.
 
 =head1 SYNOPSIS
 
   use Term::ReadLine;
-  $term = new Term::ReadLine 'Simple Perl calc';
-  $prompt = "Enter your arithmetic expression: ";
-  $OUT = $term->OUT || STDOUT;
+  my $term = new Term::ReadLine 'Simple Perl calc';
+  my $prompt = "Enter your arithmetic expression: ";
+  my $OUT = $term->OUT || \*STDOUT;
   while ( defined ($_ = $term->readline($prompt)) ) {
-    $res = eval($_), "\n";
+    my $res = eval($_);
     warn $@ if $@;
     print $OUT $res, "\n" unless $@;
     $term->addhistory($_) if /\S/;
@@ -18,10 +18,9 @@ no real package is found, substitutes stubs instead of basic functions.
 
 =head1 DESCRIPTION
 
-This package is just a front end to some other packages. At the moment
-this description is written, the only such package is Term-ReadLine,
-available on CPAN near you. The real target of this stub package is to
-set up a common interface to whatever Readline emerges with time.
+This package is just a front end to some other packages. It's a stub to
+set up a common interface to the various ReadLine implementations found on
+CPAN (under the C<Term::ReadLine::*> namespace).
 
 =head1 Minimal set of supported functions
 
@@ -33,7 +32,7 @@ or as
 
   $term->addhistory('row');
 
-where $term is a return value of Term::ReadLine-E<gt>Init.
+where $term is a return value of Term::ReadLine-E<gt>new().
 
 =over 12
 
@@ -41,7 +40,7 @@ where $term is a return value of Term::ReadLine-E<gt>Init.
 
 returns the actual package that executes the commands. Among possible
 values are C<Term::ReadLine::Gnu>, C<Term::ReadLine::Perl>,
-C<Term::ReadLine::Stub Exporter>.
+C<Term::ReadLine::Stub>.
 
 =item C<new>
 
@@ -60,7 +59,7 @@ support. Trailing newline is removed. Returns C<undef> on C<EOF>.
 adds the line to the history of input, from where it can be used if
 the actual C<readline> is present.
 
-=item C<IN>, $C<OUT>
+=item C<IN>, C<OUT>
 
 return the filehandles for input and output or C<undef> if C<readline>
 input and output cannot be used for Perl.
@@ -100,7 +99,7 @@ method C<Attribs> is not dummy.
 =head1 Additional supported functions
 
 Actually C<Term::ReadLine> can use some other package, that will
-support reacher set of commands.
+support a richer set of commands.
 
 All these commands are callable via method interface and have names
 which conform to standard conventions with the leading C<rl_> stripped.
@@ -157,13 +156,34 @@ empty, the best available package is loaded.
 (Note that processing of C<PERL_RL> for ornaments is in the discretion of the 
 particular used C<Term::ReadLine::*> package).
 
+=head1 CAVEATS
+
+It seems that using Term::ReadLine from Emacs minibuffer doesn't work
+quite right and one will get an error message like
+
+    Cannot open /dev/tty for read at ...
+
+One possible workaround for this is to explicitly open /dev/tty like this
+
+    open (FH, "/dev/tty" )
+      or eval 'sub Term::ReadLine::findConsole { ("&STDIN", "&STDERR") }';
+    die $@ if $@;
+    close (FH);
+
+or you can try using the 4-argument form of Term::ReadLine->new().
+
 =cut
 
+use strict;
+
 package Term::ReadLine::Stub;
-@ISA = qw'Term::ReadLine::Tk Term::ReadLine::TermCap';
+our @ISA = qw'Term::ReadLine::Tk Term::ReadLine::TermCap';
 
 $DB::emacs = $DB::emacs;	# To peacify -w
+our @rl_term_set;
 *rl_term_set = \@Term::ReadLine::TermCap::rl_term_set;
+
+sub PERL_UNICODE_STDIN () { 0x0001 }
 
 sub ReadLine {'Term::ReadLine::Stub'}
 sub readline {
@@ -177,6 +197,9 @@ sub readline {
   #$str = scalar <$in>;
   $str = $self->get_line;
   $str =~ s/^\s*\Q$prompt\E// if ($^O eq 'MacOS');
+  utf8::upgrade($str)
+      if (${^UNICODE} & PERL_UNICODE_STDIN || defined ${^ENCODING}) &&
+         utf8::valid($str);
   print $out $rl_term_set[3]; 
   # bug in 5.000: chomping empty string creats length -1:
   chomp $str if defined $str;
@@ -208,7 +231,7 @@ sub findConsole {
       }
     }
 
-    $consoleOUT = $console;
+    my $consoleOUT = $console;
     $console = "&STDIN" unless defined $console;
     if (!defined $consoleOUT) {
       $consoleOUT = defined fileno(STDERR) ? "&STDERR" : "&STDOUT";
@@ -222,19 +245,19 @@ sub new {
   #local (*FIN, *FOUT);
   my ($FIN, $FOUT, $ret);
   if (@_==2) {
-    ($console, $consoleOUT) = findConsole;
+    my($console, $consoleOUT) = $_[0]->findConsole;
 
     open(FIN, "<$console"); 
     open(FOUT,">$consoleOUT");
     #OUT->autoflush(1);		# Conflicts with debugger?
-    $sel = select(FOUT);
+    my $sel = select(FOUT);
     $| = 1;				# for DB::OUT
     select($sel);
     $ret = bless [\*FIN, \*FOUT];
   } else {			# Filehandles supplied
     $FIN = $_[2]; $FOUT = $_[3];
     #OUT->autoflush(1);		# Conflicts with debugger?
-    $sel = select($FOUT);
+    my $sel = select($FOUT);
     $| = 1;				# for DB::OUT
     select($sel);
     $ret = bless [$FIN, $FOUT];
@@ -266,6 +289,8 @@ sub Features { \%features }
 
 package Term::ReadLine;		# So late to allow the above code be defined?
 
+our $VERSION = '1.02';
+
 my ($which) = exists $ENV{PERL_RL} ? split /\s+/, $ENV{PERL_RL} : undef;
 if ($which) {
   if ($which =~ /\bgnu\b/i){
@@ -285,11 +310,13 @@ if ($which) {
 
 # To make possible switch off RL in debugger: (Not needed, work done
 # in debugger).
-
+our @ISA;
 if (defined &Term::ReadLine::Gnu::readline) {
   @ISA = qw(Term::ReadLine::Gnu Term::ReadLine::Stub);
 } elsif (defined &Term::ReadLine::Perl::readline) {
   @ISA = qw(Term::ReadLine::Perl Term::ReadLine::Stub);
+} elsif (defined $which && defined &{"Term::ReadLine::$which\::readline"}) {
+  @ISA = "Term::ReadLine::$which";
 } else {
   @ISA = qw(Term::ReadLine::Stub);
 }
@@ -298,10 +325,11 @@ package Term::ReadLine::TermCap;
 
 # Prompt-start, prompt-end, command-line-start, command-line-end
 #     -- zero-width beautifies to emit around prompt and the command line.
-@rl_term_set = ("","","","");
+our @rl_term_set = ("","","","");
 # string encoded:
-$rl_term_set = ',,,';
+our $rl_term_set = ',,,';
 
+our $terminal;
 sub LoadTermCap {
   return if defined $terminal;
   
@@ -329,8 +357,10 @@ sub ornaments {
 
 package Term::ReadLine::Tk;
 
+our($count_handle, $count_DoOne, $count_loop);
 $count_handle = $count_DoOne = $count_loop = 0;
 
+our($giveup);
 sub handle {$giveup = 1; $count_handle++}
 
 sub Tk_loop {

@@ -134,7 +134,7 @@ of the error message that caused the script to die.  Example:
        sub handle_errors {
           my $msg = shift;
           print "<h1>Oh gosh</h1>";
-          print "Got an error: $msg";
+          print "<p>Got an error: $msg</p>";
       }
       set_message(\&handle_errors);
     }
@@ -161,14 +161,47 @@ warnings from being sent to the browser while you are printing some
 content where HTML comments are not allowed:
 
     warningsToBrowser(0);    # disable warnings
-    print "<SCRIPT type=javascript><!--\n";
+    print "<script type=\"text/javascript\"><!--\n";
     print_some_javascript_code();
-    print "//--></SCRIPT>\n";
+    print "//--></script>\n";
     warningsToBrowser(1);    # re-enable warnings
 
 Note: In this respect warningsToBrowser() differs fundamentally from
 fatalsToBrowser(), which you should never call yourself!
 
+=head1 OVERRIDING THE NAME OF THE PROGRAM
+
+CGI::Carp includes the name of the program that generated the error or
+warning in the messages written to the log and the browser window.
+Sometimes, Perl can get confused about what the actual name of the
+executed program was.  In these cases, you can override the program
+name that CGI::Carp will use for all messages.
+
+The quick way to do that is to tell CGI::Carp the name of the program
+in its use statement.  You can do that by adding
+"name=cgi_carp_log_name" to your "use" statement.  For example:
+
+    use CGI::Carp qw(name=cgi_carp_log_name);
+
+.  If you want to change the program name partway through the program,
+you can use the C<set_progname()> function instead.  It is not
+exported by default, you must import it explicitly by saying
+
+    use CGI::Carp qw(set_progname);
+
+Once you've done that, you can change the logged name of the program
+at any time by calling
+
+    set_progname(new_program_name);
+
+You can set the program back to the default by calling
+
+    set_progname(undef);
+
+Note that this override doesn't happen until after the program has
+compiled, so any compile-time errors will still show up with the
+non-overridden program name
+  
 =head1 CHANGE LOG
 
 1.05 carpout() added and minor corrections by Marc Hedlund
@@ -199,9 +232,22 @@ fatalsToBrowser(), which you should never call yourself!
      warningsToBrowser().  Replaced <CODE> tags with <PRE> in
      fatalsToBrowser() output.
 
+1.23 ineval() now checks both $^S and inspects the message for the "eval" pattern
+     (hack alert!) in order to accomodate various combinations of Perl and
+     mod_perl.
+
+1.24 Patch from Scott Gifford (sgifford@suspectclass.com): Add support
+     for overriding program name.
+
+1.26 Replaced CORE::GLOBAL::die with the evil $SIG{__DIE__} because the
+     former isn't working in some people's hands.  There is no such thing
+     as reliable exception handling in Perl.
+
+1.27 Replaced tell STDOUT with bytes=tell STDOUT.
+
 =head1 AUTHORS
 
-Copyright 1995-1998, Lincoln D. Stein.  All rights reserved.  
+Copyright 1995-2002, Lincoln D. Stein.  All rights reserved.  
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
@@ -212,26 +258,46 @@ Address bug reports and comments to: lstein@cshl.org
 
 Carp, CGI::Base, CGI::BasePlus, CGI::Request, CGI::MiniSvr, CGI::Form,
 CGI::Response
+    if (defined($CGI::Carp::PROGNAME)) 
+    {
+      $file = $CGI::Carp::PROGNAME;
+    }
 
 =cut
 
 require 5.000;
 use Exporter;
-use Carp;
+#use Carp;
+BEGIN { 
+  require Carp; 
+  *CORE::GLOBAL::die = \&CGI::Carp::die;
+}
+
+use File::Spec;
 
 @ISA = qw(Exporter);
 @EXPORT = qw(confess croak carp);
-@EXPORT_OK = qw(carpout fatalsToBrowser warningsToBrowser wrap set_message cluck);
+@EXPORT_OK = qw(carpout fatalsToBrowser warningsToBrowser wrap set_message set_progname cluck ^name= die);
 
 $main::SIG{__WARN__}=\&CGI::Carp::warn;
-$main::SIG{__DIE__}=\&CGI::Carp::die;
-$CGI::Carp::VERSION = '1.20';
+
+$CGI::Carp::VERSION    = '1.29';
 $CGI::Carp::CUSTOM_MSG = undef;
+
 
 # fancy import routine detects and handles 'errorWrap' specially.
 sub import {
     my $pkg = shift;
     my(%routines);
+    my(@name);
+  
+    if (@name=grep(/^name=/,@_))
+      {
+        my($n) = (split(/=/,$name[0]))[1];
+        set_progname($n);
+        @_=grep(!/^name=/,@_);
+      }
+
     grep($routines{$_}++,@_,@EXPORT);
     $WRAP++ if $routines{'fatalsToBrowser'} || $routines{'wrap'};
     $WARN++ if $routines{'warningsToBrowser'};
@@ -239,6 +305,8 @@ sub import {
     $Exporter::ExportLevel = 1;
     Exporter::import($pkg,keys %routines);
     $Exporter::ExportLevel = $oldlevel;
+    $main::SIG{__DIE__} =\&CGI::Carp::die if $routines{'fatalsToBrowser'};
+#    $pkg->export('CORE::GLOBAL','die');
 }
 
 # These are the originals
@@ -248,21 +316,31 @@ sub realdie { CORE::die(@_); }
 sub id {
     my $level = shift;
     my($pack,$file,$line,$sub) = caller($level);
-    my($id) = $file=~m|([^/]+)$|;
+    my($dev,$dirs,$id) = File::Spec->splitpath($file);
     return ($file,$line,$id);
 }
 
 sub stamp {
     my $time = scalar(localtime);
     my $frame = 0;
-    my ($id,$pack,$file);
-    do {
-	$id = $file;
-	($pack,$file) = caller($frame++);
-    } until !$file;
-    ($id) = $id=~m|([^/]+)$|;
+    my ($id,$pack,$file,$dev,$dirs);
+    if (defined($CGI::Carp::PROGNAME)) {
+        $id = $CGI::Carp::PROGNAME;
+    } else {
+        do {
+  	  $id = $file;
+	  ($pack,$file) = caller($frame++);
+        } until !$file;
+    }
+    ($dev,$dirs,$id) = File::Spec->splitpath($id);
     return "[$time] $id: ";
 }
+
+sub set_progname {
+    $CGI::Carp::PROGNAME = shift;
+    return $CGI::Carp::PROGNAME;
+}
+
 
 sub warn {
     my $message = shift;
@@ -288,27 +366,38 @@ sub _warn {
     }
 }
 
-sub ineval { _longmess() =~ /eval [\{\']/m }
 
 # The mod_perl package Apache::Registry loads CGI programs by calling
 # eval.  These evals don't count when looking at the stack backtrace.
 sub _longmess {
     my $message = Carp::longmess();
-    my $mod_perl = exists $ENV{MOD_PERL};
-    $message =~ s,eval[^\n]+Apache/Registry\.pm.*,,s if $mod_perl;
-    return $message;    
+    $message =~ s,eval[^\n]+(ModPerl|Apache)/(?:Registry|Dispatch)\w*\.pm.*,,s
+        if exists $ENV{MOD_PERL};
+    return $message;
+}
+
+sub ineval {
+  (exists $ENV{MOD_PERL} ? 0 : $^S) || _longmess() =~ /eval [\{\']/m
 }
 
 sub die {
-  realdie @_ if ineval;
-  my ($message) = @_;
-  my $time = scalar(localtime);
-  my($file,$line,$id) = id(1);
-  $message .= " at $file line $line." unless $message=~/\n$/;
-  &fatalsToBrowser($message) if $WRAP;
-  my $stamp = stamp;
-  $message=~s/^/$stamp/gm;
-  realdie $message;
+  my ($arg,@rest) = @_;
+  realdie ($arg,@rest) if ineval();
+
+  if (!ref($arg)) {
+    $arg = join("", ($arg,@rest));
+    my($file,$line,$id) = id(1);
+    $arg .= " at $file line $line." unless $arg=~/\n$/;
+    &fatalsToBrowser($arg) if $WRAP;
+    if (($arg =~ /\n$/) || !exists($ENV{MOD_PERL})) {
+      my $stamp = stamp;
+      $arg=~s/^/$stamp/gm;
+    }
+    if ($arg !~ /\n$/) {
+      $arg .= "\n";
+    }
+  }
+  realdie $arg;
 }
 
 sub set_message {
@@ -316,18 +405,10 @@ sub set_message {
     return $CGI::Carp::CUSTOM_MSG;
 }
 
-# Avoid generating "subroutine redefined" warnings with the following
-# hack:
-{
-    local $^W=0;
-    eval <<EOF;
-sub confess { CGI::Carp::die Carp::longmess \@_; }
-sub croak   { CGI::Carp::die Carp::shortmess \@_; }
-sub carp    { CGI::Carp::warn Carp::shortmess \@_; }
-sub cluck   { CGI::Carp::warn Carp::longmess \@_; }
-EOF
-    ;
-}
+sub confess { CGI::Carp::die Carp::longmess @_; }
+sub croak   { CGI::Carp::die Carp::shortmess @_; }
+sub carp    { CGI::Carp::warn Carp::shortmess @_; }
+sub cluck   { CGI::Carp::warn Carp::longmess @_; }
 
 # We have to be ready to accept a filehandle as a reference
 # or a string.
@@ -348,57 +429,82 @@ sub warningsToBrowser {
 
 # headers
 sub fatalsToBrowser {
-    my($msg) = @_;
-    $msg=~s/&/&amp;/g;
-    $msg=~s/>/&gt;/g;
-    $msg=~s/</&lt;/g;
-    $msg=~s/\"/&quot;/g;
-    my($wm) = $ENV{SERVER_ADMIN} ? 
-	qq[the webmaster (<a href="mailto:$ENV{SERVER_ADMIN}">$ENV{SERVER_ADMIN}</a>)] :
-	"this site's webmaster";
-    my ($outer_message) = <<END;
+  my($msg) = @_;
+  $msg=~s/&/&amp;/g;
+  $msg=~s/>/&gt;/g;
+  $msg=~s/</&lt;/g;
+  $msg=~s/\"/&quot;/g;
+  my($wm) = $ENV{SERVER_ADMIN} ? 
+    qq[the webmaster (<a href="mailto:$ENV{SERVER_ADMIN}">$ENV{SERVER_ADMIN}</a>)] :
+      "this site's webmaster";
+  my ($outer_message) = <<END;
 For help, please send mail to $wm, giving this error message 
 and the time and date of the error.
 END
-    ;
-    my $mod_perl = exists $ENV{MOD_PERL};
-    print STDOUT "Content-type: text/html\n\n" 
-	unless $mod_perl;
+  ;
+  my $mod_perl = exists $ENV{MOD_PERL};
 
-    warningsToBrowser(1);    # emit warnings before dying
-
-    if ($CUSTOM_MSG) {
-	if (ref($CUSTOM_MSG) eq 'CODE') {
-	    &$CUSTOM_MSG($msg); # nicer to perl 5.003 users
-	    return;
-	} else {
-	    $outer_message = $CUSTOM_MSG;
-	}
-    }
-    
-    my $mess = <<END;
-<H1>Software error:</H1>
-<PRE>$msg</PRE>
-<P>
-$outer_message
-END
-    ;
-
-    if ($mod_perl && (my $r = Apache->request)) {
-	# If bytes have already been sent, then
-	# we print the message out directly.
-	# Otherwise we make a custom error
-	# handler to produce the doc for us.
-	if ($r->bytes_sent) {
-	    $r->print($mess);
-	    $r->exit;
-	} else {
-	    $r->status(500);
-	    $r->custom_response(500,$mess);
-	}
+  if ($CUSTOM_MSG) {
+    if (ref($CUSTOM_MSG) eq 'CODE') {
+      print STDOUT "Content-type: text/html\n\n" 
+        unless $mod_perl;
+      &$CUSTOM_MSG($msg); # nicer to perl 5.003 users
+      return;
     } else {
-	print STDOUT $mess;
+      $outer_message = $CUSTOM_MSG;
     }
+  }
+
+  my $mess = <<END;
+<h1>Software error:</h1>
+<pre>$msg</pre>
+<p>
+$outer_message
+</p>
+END
+  ;
+
+  if ($mod_perl) {
+    my $r;
+    if ($ENV{MOD_PERL_API_VERSION} && $ENV{MOD_PERL_API_VERSION} == 2) {
+      $mod_perl = 2;
+      require Apache2::RequestRec;
+      require Apache2::RequestIO;
+      require Apache2::RequestUtil;
+      require APR::Pool;
+      require ModPerl::Util;
+      require Apache2::Response;
+      $r = Apache2::RequestUtil->request;
+    }
+    else {
+      $r = Apache->request;
+    }
+    # If bytes have already been sent, then
+    # we print the message out directly.
+    # Otherwise we make a custom error
+    # handler to produce the doc for us.
+    if ($r->bytes_sent) {
+      $r->print($mess);
+      $mod_perl == 2 ? ModPerl::Util::exit(0) : $r->exit;
+    } else {
+      # MSIE won't display a custom 500 response unless it is >512 bytes!
+      if ($ENV{HTTP_USER_AGENT} =~ /MSIE/) {
+        $mess = "<!-- " . (' ' x 513) . " -->\n$mess";
+      }
+      $r->custom_response(500,$mess);
+    }
+  } else {
+    my $bytes_written = eval{tell STDOUT};
+    if (defined $bytes_written && $bytes_written > 0) {
+        print STDOUT $mess;
+    }
+    else {
+        print STDOUT "Content-type: text/html\n\n";
+        print STDOUT $mess;
+    }
+  }
+
+  warningsToBrowser(1);    # emit warnings before dying
 }
 
 # Cut and paste from CGI.pm so that we don't have the overhead of

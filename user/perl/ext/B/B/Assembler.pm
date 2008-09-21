@@ -10,11 +10,13 @@ use Exporter;
 use B qw(ppname);
 use B::Asmdata qw(%insn_data @insn_name);
 use Config qw(%Config);
-require ByteLoader;		# we just need its $VERSIOM
+require ByteLoader;		# we just need its $VERSION
+
+no warnings;			# XXX
 
 @ISA = qw(Exporter);
-@EXPORT_OK = qw(assemble_fh newasm endasm assemble);
-$VERSION = 0.02;
+@EXPORT_OK = qw(assemble_fh newasm endasm assemble asm);
+$VERSION = 0.07;
 
 use strict;
 my %opnumber;
@@ -34,6 +36,15 @@ sub error {
 my $debug = 0;
 sub debug { $debug = shift }
 
+sub limcheck($$$$){
+    my( $val, $lo, $hi, $loc ) = @_;
+    if( $val < $lo || $hi < $val ){
+        error "argument for $loc outside [$lo, $hi]: $val";
+        $val = $hi;
+    }
+    return $val;
+}
+
 #
 # First define all the data conversion subs to which Asmdata will refer
 #
@@ -47,32 +58,46 @@ sub B::Asmdata::PUT_U8 {
 	    $c = substr($c, 0, 1);
 	}
     } else {
+        $arg = limcheck( $arg, 0, 0xff, 'U8' );
 	$c = chr($arg);
     }
     return $c;
 }
 
-sub B::Asmdata::PUT_U16 { pack("S", $_[0]) }
-sub B::Asmdata::PUT_U32 { pack("L", $_[0]) }
-sub B::Asmdata::PUT_I32 { pack("L", $_[0]) }
+sub B::Asmdata::PUT_U16 {
+    my $arg = limcheck( $_[0], 0, 0xffff, 'U16' );
+    pack("S", $arg);
+}
+sub B::Asmdata::PUT_U32 {
+    my $arg = limcheck( $_[0], 0, 0xffffffff, 'U32' );
+    pack("L", $arg);
+}
+sub B::Asmdata::PUT_I32 {
+    my $arg = limcheck( $_[0], -0x80000000, 0x7fffffff, 'I32' );
+    pack("l", $arg);
+}
 sub B::Asmdata::PUT_NV  { sprintf("%s\0", $_[0]) } # "%lf" looses precision and pack('d',...)
 						   # may not even be portable between compilers
-sub B::Asmdata::PUT_objindex { pack("L", $_[0]) } # could allow names here
+sub B::Asmdata::PUT_objindex { # could allow names here
+    my $arg = limcheck( $_[0], 0, 0xffffffff, '*index' );
+    pack("L", $arg);
+} 
 sub B::Asmdata::PUT_svindex { &B::Asmdata::PUT_objindex }
 sub B::Asmdata::PUT_opindex { &B::Asmdata::PUT_objindex }
 sub B::Asmdata::PUT_pvindex { &B::Asmdata::PUT_objindex }
 
 sub B::Asmdata::PUT_strconst {
     my $arg = shift;
-    $arg = uncstring($arg);
-    if (!defined($arg)) {
+    my $str = uncstring($arg);
+    if (!defined($str)) {
 	error "bad string constant: $arg";
-	return "";
+	$str = '';
     }
-    if ($arg =~ s/\0//g) {
+    if ($str =~ s/\0//g) {
 	error "string constant argument contains NUL: $arg";
+        $str = '';
     }
-    return $arg . "\0";
+    return $str . "\0";
 }
 
 sub B::Asmdata::PUT_pvcontents {
@@ -82,9 +107,12 @@ sub B::Asmdata::PUT_pvcontents {
 }
 sub B::Asmdata::PUT_PV {
     my $arg = shift;
-    $arg = uncstring($arg);
-    error "bad string argument: $arg" unless defined($arg);
-    return pack("L", length($arg)) . $arg;
+    my $str = uncstring($arg);
+    if( ! defined($str) ){
+        error "bad string argument: $arg";
+        $str = '';
+    }
+    return pack("L", length($str)) . $str;
 }
 sub B::Asmdata::PUT_comment_t {
     my $arg = shift;
@@ -102,18 +130,24 @@ sub B::Asmdata::PUT_none {
     return "";
 }
 sub B::Asmdata::PUT_op_tr_array {
-    my $arg = shift;
-    my @ary = split(/\s*,\s*/, $arg);
-    if (@ary != 256) {
-	error "wrong number of arguments to op_tr_array";
-	@ary = (0) x 256;
-    }
-    return pack("S256", @ary);
+    my @ary = split /\s*,\s*/, shift;
+    return pack "S*", @ary;
 }
-# XXX Check this works
+
 sub B::Asmdata::PUT_IV64 {
-    my $arg = shift;
-    return pack("LL", $arg >> 32, $arg & 0xffffffff);
+    return pack "Q", shift;
+}
+
+sub B::Asmdata::PUT_IV {
+    $Config{ivsize} == 4 ? &B::Asmdata::PUT_I32 : &B::Asmdata::PUT_IV64;
+}
+
+sub B::Asmdata::PUT_PADOFFSET {
+    $Config{ptrsize} == 8 ? &B::Asmdata::PUT_IV64 : &B::Asmdata::PUT_U32;
+}
+
+sub B::Asmdata::PUT_long {
+    $Config{longsize} == 8 ? &B::Asmdata::PUT_IV64 : &B::Asmdata::PUT_U32;
 }
 
 my %unesc = (n => "\n", r => "\r", t => "\t", a => "\a",
@@ -129,9 +163,8 @@ sub uncstring {
 sub strip_comments {
     my $stmt = shift;
     # Comments only allowed in instructions which don't take string arguments
+    # Treat string as a single line so .* eats \n characters.
     $stmt =~ s{
-	(?sx)	# Snazzy extended regexp coming up. Also, treat
-		# string as a single line so .* eats \n characters.
 	^\s*	# Ignore leading whitespace
 	(
 	  [^"]*	# A double quote '"' indicates a string argument. If we
@@ -139,7 +172,7 @@ sub strip_comments {
 	)
 	\s*\#	# Any amount of whitespace plus the comment marker...
 	.*$	# ...which carries on to end-of-string.
-    }{$1};	# Keep only the instruction and optional argument.
+    }{$1}sx;	# Keep only the instruction and optional argument.
     return $stmt;
 }
 
@@ -156,22 +189,19 @@ sub gen_header {
     $header .= B::Asmdata::PUT_strconst(qq["$ByteLoader::VERSION"]);
     $header .= B::Asmdata::PUT_U32($Config{ivsize});
     $header .= B::Asmdata::PUT_U32($Config{ptrsize});
-    $header .= B::Asmdata::PUT_strconst(sprintf(qq["0x%s"], $Config{byteorder}));
-
     $header;
 }
 
 sub parse_statement {
     my $stmt = shift;
     my ($insn, $arg) = $stmt =~ m{
-	(?sx)
 	^\s*	# allow (but ignore) leading whitespace
 	(.*?)	# Instruction continues up until...
 	(?:	# ...an optional whitespace+argument group
 	    \s+		# first whitespace.
 	    (.*)	# The argument is all the rest (newlines included).
 	)?$	# anchor at end-of-line
-    };	
+    }sx;
     if (defined($arg)) {
 	if ($arg =~ s/^0x(?=[0-9a-fA-F]+$)//) {
 	    $arg = hex($arg);
@@ -247,12 +277,25 @@ sub assemble {
 	$quotedline =~ s/"/\\"/g;
 	$out->(assemble_insn("comment", qq("$quotedline")));
     }
-    $line = strip_comments($line) or next;
-    ($insn, $arg) = parse_statement($line);
-    $out->(assemble_insn($insn, $arg));
-    if ($debug) {
-	$out->(assemble_insn("nop", undef));
+    if( $line = strip_comments($line) ){
+        ($insn, $arg) = parse_statement($line);
+        $out->(assemble_insn($insn, $arg));
+        if ($debug) {
+	    $out->(assemble_insn("nop", undef));
+        }
     }
+}
+
+### temporary workaround
+
+sub asm {
+    return if $_[0] =~ /\s*\W/;
+    if (defined $_[1]) {
+	return if $_[1] eq "0" and
+	    $_[0] !~ /^(?:newsvx?|av_pushx?|av_extend|xav_flags)$/;
+	return if $_[1] eq "1" and $_[0] =~ /^(?:sv_refcnt)$/;
+    }
+    assemble "@_";
 }
 
 1;

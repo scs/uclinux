@@ -1,5 +1,7 @@
 package B::Lint;
 
+our $VERSION = '1.03';
+
 =head1 NAME
 
 B::Lint - Perl lint
@@ -11,7 +13,7 @@ perl -MO=Lint[,OPTIONS] foo.pl
 =head1 DESCRIPTION
 
 The B::Lint module is equivalent to an extended version of the B<-w>
-option of B<perl>. It is named after the program B<lint> which carries
+option of B<perl>. It is named after the program F<lint> which carries
 out a similar process for C programs.
 
 =head1 OPTIONS AND LINT CHECKS
@@ -34,6 +36,7 @@ context. For example, both of the lines
 
     $foo = length(@bar);
     $foo = @bar;
+
 will elicit a warning. Using an explicit B<scalar()> silences the
 warning. For example,
 
@@ -55,9 +58,21 @@ Both B<implicit-read> and B<implicit-write> warn about this:
 
     for (@a) { ... }
 
+=item B<bare-subs>
+
+This option warns whenever a bareword is implicitly quoted, but is also
+the name of a subroutine in the current package. Typical mistakes that it will
+trap are:
+
+    use constant foo => 'bar';
+    @a = ( foo => 1 );
+    $b{foo} = 2;
+
+Neither of these will do what a naive user would expect.
+
 =item B<dollar-underscore>
 
-This option warns whenever $_ is used either explicitly anywhere or
+This option warns whenever C<$_> is used either explicitly anywhere or
 as the implicit argument of a B<print> statement.
 
 =item B<private-names>
@@ -65,7 +80,7 @@ as the implicit argument of a B<print> statement.
 This option warns on each use of any variable, subroutine or
 method name that lives in a non-current package but begins with
 an underscore ("_"). Warnings aren't issued for the special case
-of the single character name "_" by itself (e.g. $_ and @_).
+of the single character name "_" by itself (e.g. C<$_> and C<@_>).
 
 =item B<undefined-subs>
 
@@ -78,8 +93,8 @@ mechanism.
 
 =item B<regexp-variables>
 
-This option warns whenever one of the regexp variables $', $& or
-$' is used. Any occurrence of any of these variables in your
+This option warns whenever one of the regexp variables C<$`>, C<$&> or C<$'>
+is used. Any occurrence of any of these variables in your
 program can slow your whole program down. See L<perlre> for
 details.
 
@@ -109,6 +124,8 @@ include other package names whose subs are then checked by Lint.
 
 This is only a very preliminary version.
 
+This module doesn't work correctly on thread-enabled perls.
+
 =head1 AUTHOR
 
 Malcolm Beattie, mbeattie@sable.ox.ac.uk.
@@ -116,8 +133,8 @@ Malcolm Beattie, mbeattie@sable.ox.ac.uk.
 =cut
 
 use strict;
-use B qw(walkoptree main_root walksymtable svref_2object parents
-         OPf_WANT_LIST OPf_WANT OPf_STACKED G_ARRAY
+use B qw(walkoptree_slow main_root walksymtable svref_2object parents
+         OPf_WANT_LIST OPf_WANT OPf_STACKED G_ARRAY SVf_POK
         );
 
 my $file = "unknown";		# shadows current filename
@@ -141,7 +158,7 @@ my %valid_check;
 BEGIN {
     map($valid_check{$_}++,
 	qw(context implicit_read implicit_write dollar_underscore
-	   private_names undefined_subs regexp_variables));
+	   private_names bare_subs undefined_subs regexp_variables));
 }
 
 # Debugging options
@@ -162,7 +179,7 @@ sub gimme {
     my $op = shift;
     my $flags = $op->flags;
     if ($flags & OPf_WANT) {
-	return(($flags & OPf_WANT_LIST) ? 1 : 0);
+	return(($flags & OPf_WANT) == OPf_WANT_LIST ? 1 : 0);
     }
     return undef;
 }
@@ -234,6 +251,14 @@ sub B::LOOP::lint {
 
 sub B::SVOP::lint {
     my $op = shift;
+    if ( $check{bare_subs} && $op->name eq 'const'
+         && $op->private & 64 )		# OPpCONST_BARE = 64 in op.h
+    {
+	my $sv = $op->sv;
+	if( $sv->FLAGS & SVf_POK && exists &{$curstash.'::'.$sv->PV} ) {
+	    warning "Bare sub name '" . $sv->PV . "' interpreted as string";
+	}
+    }
     if ($check{dollar_underscore} && $op->name eq "gvsv"
 	&& $op->gv->NAME eq "_")
     {
@@ -245,6 +270,11 @@ sub B::SVOP::lint {
 	    my $gv = $op->gv;
 	    if ($gv->NAME =~ /^_./ && $gv->STASH->NAME ne $curstash) {
 		warning('Illegal reference to private name %s', $gv->NAME);
+	    }
+	} elsif ($opname eq "method_named") {
+	    my $method = $op->gv->PV;
+	    if ($method =~ /^_./) {
+		warning("Illegal reference to private method name $method");
 	    }
 	}
     }
@@ -277,20 +307,20 @@ sub B::GV::lintcv {
     return if !$$cv || $done_cv{$$cv}++;
     my $root = $cv->ROOT;
     #warn "    root = $root (0x$$root)\n";#debug
-    walkoptree($root, "lint") if $$root;
+    walkoptree_slow($root, "lint") if $$root;
 }
 
 sub do_lint {
     my %search_pack;
-    walkoptree(main_root, "lint") if ${main_root()};
+    walkoptree_slow(main_root, "lint") if ${main_root()};
     
     # Now do subs in main
     no strict qw(vars refs);
-    my $sym;
     local(*glob);
-    while (($sym, *glob) = each %{"main::"}) {
-	#warn "Trying $sym\n";#debug
-	svref_2object(\*glob)->EGV->lintcv unless $sym =~ /::$/;
+    for my $sym (keys %main::) {
+	next if $sym =~ /::$/;
+	*glob = $main::{$sym};
+        svref_2object(\*glob)->EGV->lintcv;
     }
 
     # Now do subs in non-main packages given by -u options
@@ -345,7 +375,7 @@ sub compile {
 	    %check = ();
 	}
 	else {
-	    if ($opt =~ s/^no-//) {
+	    if ($opt =~ s/^no_//) {
 		$check{$opt} = 0;
 	    }
 	    else {

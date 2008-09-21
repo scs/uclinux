@@ -1,23 +1,26 @@
 /*    pp.h
  *
- *    Copyright (c) 1991-2001, Larry Wall
+ *    Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999,
+ *    2000, 2001, 2002, 2003, 2004, 2005 by Larry Wall and others
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
  */
 
-#ifdef USE_THREADS
+#ifdef USE_5005THREADS
 #define ARGS thr
 #define dARGS struct perl_thread *thr;
 #else
 #define ARGS
 #define dARGS
-#endif /* USE_THREADS */
+#endif /* USE_5005THREADS */
 
 #define PP(s) OP * Perl_##s(pTHX)
 
 /*
+=head1 Stack Manipulation Macros
+
 =for apidoc AmU||SP
 Stack pointer.  This is usually handled by C<xsubpp>.  See C<dSP> and
 C<SPAGAIN>.
@@ -25,13 +28,20 @@ C<SPAGAIN>.
 =for apidoc AmU||MARK
 Stack marker variable for the XSUB.  See C<dMARK>.
 
-=for apidoc Ams||PUSHMARK
+=for apidoc Am|void|PUSHMARK|SP
 Opening bracket for arguments on a callback.  See C<PUTBACK> and
 L<perlcall>.
 
 =for apidoc Ams||dSP
 Declares a local copy of perl's stack pointer for the XSUB, available via
 the C<SP> macro.  See C<SP>.
+
+=for apidoc ms||djSP
+
+Declare Just C<SP>. This is actually identical to C<dSP>, and declares
+a local copy of perl's stack pointer, available via the C<SP> macro.
+See C<SP>.  (Available for backward source code compatibility with the
+old (Perl 5.005) thread model.)
 
 =for apidoc Ams||dMARK
 Declare a stack marker variable, C<mark>, for the XSUB.  See C<MARK> and
@@ -46,17 +56,19 @@ The original stack mark for the XSUB.  See C<dORIGMARK>.
 =for apidoc Ams||SPAGAIN
 Refetch the stack pointer.  Used after a callback.  See L<perlcall>.
 
-=cut
-*/
+=cut */
 
 #undef SP /* Solaris 2.7 i386 has this in /usr/include/sys/reg.h */
 #define SP sp
 #define MARK mark
 #define TARG targ
 
-#define PUSHMARK(p) if (++PL_markstack_ptr == PL_markstack_max)	\
-			markstack_grow();			\
-		    *PL_markstack_ptr = (p) - PL_stack_base
+#define PUSHMARK(p)	\
+	STMT_START {					\
+	    if (++PL_markstack_ptr == PL_markstack_max)	\
+	    markstack_grow();				\
+	    *PL_markstack_ptr = (p) - PL_stack_base;	\
+	} STMT_END
 
 #define TOPMARK		(*PL_markstack_ptr)
 #define POPMARK		(*PL_markstack_ptr--)
@@ -64,12 +76,11 @@ Refetch the stack pointer.  Used after a callback.  See L<perlcall>.
 #define dSP		register SV **sp = PL_stack_sp
 #define djSP		dSP
 #define dMARK		register SV **mark = PL_stack_base + POPMARK
-#define dORIGMARK	I32 origmark = mark - PL_stack_base
-#define SETORIGMARK	origmark = mark - PL_stack_base
+#define dORIGMARK	const I32 origmark = mark - PL_stack_base
 #define ORIGMARK	(PL_stack_base + origmark)
 
 #define SPAGAIN		sp = PL_stack_sp
-#define MSPAGAIN	sp = PL_stack_sp; mark = ORIGMARK
+#define MSPAGAIN	STMT_START { sp = PL_stack_sp; mark = ORIGMARK; } STMT_END
 
 #define GETTARGETSTACKED targ = (PL_op->op_flags & OPf_STACKED ? POPs : PAD_SV(PL_op->op_targ))
 #define dTARGETSTACKED SV * GETTARGETSTACKED
@@ -84,6 +95,9 @@ Refetch the stack pointer.  Used after a callback.  See L<perlcall>.
 
 #define NORMAL PL_op->op_next
 #define DIE return Perl_die
+#ifndef PERL_CORE
+#  define DIE_NULL return DieNull
+#endif
 
 /*
 =for apidoc Ams||PUTBACK
@@ -94,7 +108,13 @@ See C<PUSHMARK> and L<perlcall> for other uses.
 Pops an SV off the stack.
 
 =for apidoc Amn|char*|POPp
+Pops a string off the stack. Deprecated. New code should use POPpx.
+
+=for apidoc Amn|char*|POPpx
 Pops a string off the stack.
+
+=for apidoc Amn|char*|POPpbytex
+Pops a string off the stack which must consist of bytes i.e. characters < 256.
 
 =for apidoc Amn|NV|POPn
 Pops a double off the stack.
@@ -115,7 +135,9 @@ Pops a long off the stack.
 
 #define POPs		(*sp--)
 #define POPp		(SvPVx(POPs, PL_na))		/* deprecated */
-#define POPpx		(SvPVx(POPs, n_a))
+#define POPpx		(SvPVx_nolen(POPs))
+#define POPpconstx	(SvPVx_nolen_const(POPs))
+#define POPpbytex	(SvPVbytex_nolen(POPs))
 #define POPn		(SvNVx(POPs))
 #define POPi		((IV)SvIVx(POPs))
 #define POPu		((UV)SvUVx(POPs))
@@ -127,8 +149,10 @@ Pops a long off the stack.
 #endif
 
 #define TOPs		(*sp)
+#define TOPm1s		(*(sp-1))
+#define TOPp1s		(*(sp+1))
 #define TOPp		(SvPV(TOPs, PL_na))		/* deprecated */
-#define TOPpx		(SvPV(TOPs, n_a))
+#define TOPpx		(SvPV_nolen(TOPs))
 #define TOPn		(SvNV(TOPs))
 #define TOPi		((IV)SvIV(TOPs))
 #define TOPu		((UV)SvUV(TOPs))
@@ -149,56 +173,128 @@ onto the stack.
 
 =for apidoc Am|void|PUSHs|SV* sv
 Push an SV onto the stack.  The stack must have room for this element.
-Does not handle 'set' magic.  See C<XPUSHs>.
+Does not handle 'set' magic.  Does not use C<TARG>.  See also C<PUSHmortal>,
+C<XPUSHs> and C<XPUSHmortal>.
 
 =for apidoc Am|void|PUSHp|char* str|STRLEN len
 Push a string onto the stack.  The stack must have room for this element.
-The C<len> indicates the length of the string.  Handles 'set' magic.  See
-C<XPUSHp>.
+The C<len> indicates the length of the string.  Handles 'set' magic.  Uses
+C<TARG>, so C<dTARGET> or C<dXSTARG> should be called to declare it.  Do not
+call multiple C<TARG>-oriented macros to return lists from XSUB's - see
+C<mPUSHp> instead.  See also C<XPUSHp> and C<mXPUSHp>.
 
 =for apidoc Am|void|PUSHn|NV nv
 Push a double onto the stack.  The stack must have room for this element.
-Handles 'set' magic.  See C<XPUSHn>.
+Handles 'set' magic.  Uses C<TARG>, so C<dTARGET> or C<dXSTARG> should be
+called to declare it.  Do not call multiple C<TARG>-oriented macros to
+return lists from XSUB's - see C<mPUSHn> instead.  See also C<XPUSHn> and
+C<mXPUSHn>.
 
 =for apidoc Am|void|PUSHi|IV iv
 Push an integer onto the stack.  The stack must have room for this element.
-Handles 'set' magic.  See C<XPUSHi>.
+Handles 'set' magic.  Uses C<TARG>, so C<dTARGET> or C<dXSTARG> should be
+called to declare it.  Do not call multiple C<TARG>-oriented macros to 
+return lists from XSUB's - see C<mPUSHi> instead.  See also C<XPUSHi> and
+C<mXPUSHi>.
 
 =for apidoc Am|void|PUSHu|UV uv
 Push an unsigned integer onto the stack.  The stack must have room for this
-element.  See C<XPUSHu>.
+element.  Handles 'set' magic.  Uses C<TARG>, so C<dTARGET> or C<dXSTARG>
+should be called to declare it.  Do not call multiple C<TARG>-oriented
+macros to return lists from XSUB's - see C<mPUSHu> instead.  See also
+C<XPUSHu> and C<mXPUSHu>.
 
 =for apidoc Am|void|XPUSHs|SV* sv
 Push an SV onto the stack, extending the stack if necessary.  Does not
-handle 'set' magic.  See C<PUSHs>.
+handle 'set' magic.  Does not use C<TARG>.  See also C<XPUSHmortal>,
+C<PUSHs> and C<PUSHmortal>.
 
 =for apidoc Am|void|XPUSHp|char* str|STRLEN len
 Push a string onto the stack, extending the stack if necessary.  The C<len>
-indicates the length of the string.  Handles 'set' magic.  See
-C<PUSHp>.
+indicates the length of the string.  Handles 'set' magic.  Uses C<TARG>, so
+C<dTARGET> or C<dXSTARG> should be called to declare it.  Do not call
+multiple C<TARG>-oriented macros to return lists from XSUB's - see
+C<mXPUSHp> instead.  See also C<PUSHp> and C<mPUSHp>.
 
 =for apidoc Am|void|XPUSHn|NV nv
 Push a double onto the stack, extending the stack if necessary.  Handles
-'set' magic.  See C<PUSHn>.
+'set' magic.  Uses C<TARG>, so C<dTARGET> or C<dXSTARG> should be called to
+declare it.  Do not call multiple C<TARG>-oriented macros to return lists
+from XSUB's - see C<mXPUSHn> instead.  See also C<PUSHn> and C<mPUSHn>.
 
 =for apidoc Am|void|XPUSHi|IV iv
 Push an integer onto the stack, extending the stack if necessary.  Handles
-'set' magic. See C<PUSHi>.
+'set' magic.  Uses C<TARG>, so C<dTARGET> or C<dXSTARG> should be called to
+declare it.  Do not call multiple C<TARG>-oriented macros to return lists
+from XSUB's - see C<mXPUSHi> instead.  See also C<PUSHi> and C<mPUSHi>.
 
 =for apidoc Am|void|XPUSHu|UV uv
 Push an unsigned integer onto the stack, extending the stack if necessary.
-See C<PUSHu>.
+Handles 'set' magic.  Uses C<TARG>, so C<dTARGET> or C<dXSTARG> should be
+called to declare it.  Do not call multiple C<TARG>-oriented macros to
+return lists from XSUB's - see C<mXPUSHu> instead.  See also C<PUSHu> and
+C<mPUSHu>.
+
+=for apidoc Am|void|PUSHmortal
+Push a new mortal SV onto the stack.  The stack must have room for this
+element.  Does not handle 'set' magic.  Does not use C<TARG>.  See also
+C<PUSHs>, C<XPUSHmortal> and C<XPUSHs>.
+
+=for apidoc Am|void|mPUSHp|char* str|STRLEN len
+Push a string onto the stack.  The stack must have room for this element.
+The C<len> indicates the length of the string.  Handles 'set' magic.  Does
+not use C<TARG>.  See also C<PUSHp>, C<mXPUSHp> and C<XPUSHp>.
+
+=for apidoc Am|void|mPUSHn|NV nv
+Push a double onto the stack.  The stack must have room for this element.
+Handles 'set' magic.  Does not use C<TARG>.  See also C<PUSHn>, C<mXPUSHn>
+and C<XPUSHn>.
+
+=for apidoc Am|void|mPUSHi|IV iv
+Push an integer onto the stack.  The stack must have room for this element.
+Handles 'set' magic.  Does not use C<TARG>.  See also C<PUSHi>, C<mXPUSHi>
+and C<XPUSHi>.
+
+=for apidoc Am|void|mPUSHu|UV uv
+Push an unsigned integer onto the stack.  The stack must have room for this
+element.  Handles 'set' magic.  Does not use C<TARG>.  See also C<PUSHu>,
+C<mXPUSHu> and C<XPUSHu>.
+
+=for apidoc Am|void|XPUSHmortal
+Push a new mortal SV onto the stack, extending the stack if necessary.  Does
+not handle 'set' magic.  Does not use C<TARG>.  See also C<XPUSHs>,
+C<PUSHmortal> and C<PUSHs>.
+
+=for apidoc Am|void|mXPUSHp|char* str|STRLEN len
+Push a string onto the stack, extending the stack if necessary.  The C<len>
+indicates the length of the string.  Handles 'set' magic.  Does not use
+C<TARG>.  See also C<XPUSHp>, C<mPUSHp> and C<PUSHp>.
+
+=for apidoc Am|void|mXPUSHn|NV nv
+Push a double onto the stack, extending the stack if necessary.  Handles
+'set' magic.  Does not use C<TARG>.  See also C<XPUSHn>, C<mPUSHn> and
+C<PUSHn>.
+
+=for apidoc Am|void|mXPUSHi|IV iv
+Push an integer onto the stack, extending the stack if necessary.  Handles
+'set' magic.  Does not use C<TARG>.  See also C<XPUSHi>, C<mPUSHi> and
+C<PUSHi>.
+
+=for apidoc Am|void|mXPUSHu|UV uv
+Push an unsigned integer onto the stack, extending the stack if necessary.
+Handles 'set' magic.  Does not use C<TARG>.  See also C<XPUSHu>, C<mPUSHu>
+and C<PUSHu>.
 
 =cut
 */
 
-#define EXTEND(p,n)	STMT_START { if (PL_stack_max - p < (n)) {		\
+#define EXTEND(p,n)	STMT_START { if (PL_stack_max - p < (int)(n)) {		\
 			    sp = stack_grow(sp,p, (int) (n));		\
 			} } STMT_END
 
 /* Same thing, but update mark register too. */
-#define MEXTEND(p,n)	STMT_START {if (PL_stack_max - p < (n)) {		\
-			    int markoff = mark - PL_stack_base;		\
+#define MEXTEND(p,n)	STMT_START {if (PL_stack_max - p < (int)(n)) {	\
+			    const int markoff = mark - PL_stack_base;	\
 			    sp = stack_grow(sp,p,(int) (n));		\
 			    mark = PL_stack_base + markoff;		\
 			} } STMT_END
@@ -217,6 +313,18 @@ See C<PUSHu>.
 #define XPUSHi(i)	STMT_START { sv_setiv(TARG, (IV)(i)); XPUSHTARG; } STMT_END
 #define XPUSHu(u)	STMT_START { sv_setuv(TARG, (UV)(u)); XPUSHTARG; } STMT_END
 #define XPUSHundef	STMT_START { SvOK_off(TARG); XPUSHs(TARG); } STMT_END
+
+#define PUSHmortal	PUSHs(sv_newmortal())
+#define mPUSHp(p,l)	sv_setpvn_mg(PUSHmortal, (p), (l))
+#define mPUSHn(n)	sv_setnv_mg(PUSHmortal, (NV)(n))
+#define mPUSHi(i)	sv_setiv_mg(PUSHmortal, (IV)(i))
+#define mPUSHu(u)	sv_setuv_mg(PUSHmortal, (UV)(u))
+
+#define XPUSHmortal	XPUSHs(sv_newmortal())
+#define mXPUSHp(p,l)	STMT_START { EXTEND(sp,1); sv_setpvn_mg(PUSHmortal, (p), (l)); } STMT_END
+#define mXPUSHn(n)	STMT_START { EXTEND(sp,1); sv_setnv_mg(PUSHmortal, (NV)(n)); } STMT_END
+#define mXPUSHi(i)	STMT_START { EXTEND(sp,1); sv_setiv_mg(PUSHmortal, (IV)(i)); } STMT_END
+#define mXPUSHu(u)	STMT_START { EXTEND(sp,1); sv_setuv_mg(PUSHmortal, (UV)(u)); } STMT_END
 
 #define SETs(s)		(*sp = s)
 #define SETTARG		STMT_START { SvSETMAGIC(TARG); SETs(TARG); } STMT_END
@@ -303,7 +411,7 @@ See C<PUSHu>.
 #define tryAMAGICbinW(meth,assign,set) STMT_START { \
           if (PL_amagic_generation) { \
 	    SV* tmpsv; \
-	    SV* right= *(sp); SV* left= *(sp-1);\
+	    SV* const right= *(sp); SV* const left= *(sp-1);\
 	    if ((SvAMAGIC(left)||SvAMAGIC(right))&&\
 		(tmpsv=amagic_call(left, \
 				   right, \
@@ -326,6 +434,7 @@ See C<PUSHu>.
           if (PL_amagic_generation) { \
 	    SV* tmpsv; \
 	    SV* arg= sp[shift]; \
+          if(0) goto am_again;  /* shut up unused warning */ \
 	  am_again: \
 	    if ((SvAMAGIC(arg))&&\
 		(tmpsv=AMG_CALLun(arg,meth))) {\
@@ -339,17 +448,20 @@ See C<PUSHu>.
 #define tryAMAGICun(meth)	tryAMAGICunW(meth,SETsvUN,0,RETURN)
 #define tryAMAGICunSET(meth)	tryAMAGICunW(meth,SETs,0,RETURN)
 #define tryAMAGICunTARGET(meth, shift)					\
-	{ dSP; sp--; 	/* get TARGET from below PL_stack_sp */		\
+	STMT_START { dSP; sp--; 	/* get TARGET from below PL_stack_sp */		\
 	    { dTARGETSTACKED; 						\
-		{ dSP; tryAMAGICunW(meth,FORCE_SETs,shift,RETURN);}}}
+		{ dSP; tryAMAGICunW(meth,FORCE_SETs,shift,RETURN);}}} STMT_END
 
-#define setAGAIN(ref) sv = ref;							\
-  if (!SvROK(ref))								\
-      Perl_croak(aTHX_ "Overloaded dereference did not return a reference");	\
-  if (ref != arg && SvRV(ref) != SvRV(arg)) {					\
-      arg = ref;								\
-      goto am_again;								\
-  }
+#define setAGAIN(ref)	\
+    STMT_START {					\
+	sv = ref;					\
+	if (!SvROK(ref))				\
+	    Perl_croak(aTHX_ "Overloaded dereference did not return a reference");	\
+	if (ref != arg && SvRV(ref) != SvRV(arg)) {	\
+	    arg = ref;					\
+	    goto am_again;				\
+	}						\
+    } STMT_END
 
 #define tryAMAGICunDEREF(meth) tryAMAGICunW(meth,setAGAIN,0,(void)0)
 
@@ -371,8 +483,8 @@ See C<PUSHu>.
    changed SV* ref to SV* tmpRef */
 #define RvDEEPCP(rv) STMT_START { SV* tmpRef=SvRV(rv);      \
   if (SvREFCNT(tmpRef)>1) {                 \
+    SvRV_set(rv, AMG_CALLun(rv,copy));	\
     SvREFCNT_dec(tmpRef);                   \
-    SvRV(rv)=AMG_CALLun(rv,copy);        \
   } } STMT_END
 
 /*
@@ -381,3 +493,13 @@ True if this op will be the return value of an lvalue subroutine
 
 =cut */
 #define LVRET ((PL_op->op_private & OPpMAYBE_LVSUB) && is_lvalue_sub())
+
+/*
+ * Local variables:
+ * c-indentation-style: bsd
+ * c-basic-offset: 4
+ * indent-tabs-mode: t
+ * End:
+ *
+ * ex: set ts=8 sts=4 sw=4 noet:
+ */

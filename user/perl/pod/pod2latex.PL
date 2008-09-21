@@ -37,11 +37,26 @@ print OUT <<'!NO!SUBS!';
 
 # pod2latex conversion program
 
+use strict;
 use Pod::LaTeX;
 use Pod::Find qw/ pod_find /;
 use Pod::Usage;
 use Getopt::Long;
 use File::Basename;
+use Symbol;
+
+my $VERSION = "1.01";
+
+# return the entire contents of a text file
+# whose name is given as argument
+sub _get {
+    my $fn = shift;
+    my $infh = gensym;
+    open $infh, $fn
+        or die "Could not open file $fn: $!\n";
+    local $/;
+    return <$infh>;
+}
 
 # Read command line arguments
 
@@ -53,7 +68,15 @@ my %options = (
 	       "out"    => undef,
 	       "verbose" => 0,
 	       "modify" => 0,
+	       "h1level" => 1,  # section is equivalent to H1
+	       "preamble" => [],
+	       "postamble" => [],
 	      );
+# "prefile" is just like "preamble", but the argument 
+# comes from the file named by the argument
+$options{"prefile"} = sub { shift; push @{$options{"preamble"}}, _get(shift) };
+# the same between "postfile" and "postamble"
+$options{"postfile"} = sub { shift; push @{$options{"postamble"}}, _get(shift) };
 
 GetOptions(\%options, 
 	   "help",
@@ -63,6 +86,11 @@ GetOptions(\%options,
 	   "sections=s@",
 	   "out=s",
 	   "modify",
+	   "h1level=i",
+	   "preamble=s@",
+	   "postamble=s@",
+	   "prefile=s", 
+	   "postfile=s"
 	  ) || pod2usage(2);
 
 pod2usage(1)  if ($options{help});
@@ -92,6 +120,14 @@ if ($#pods == -1) {
   warn "None of the supplied Pod files actually exist\n";
   exit;
 }
+
+# Only want to override the preamble and postamble if we have
+# been given values.
+my %User;
+$User{UserPreamble} = join("\n", @{$options{'preamble'}})
+  if ($options{preamble} && @{$options{preamble}});
+$User{UserPostamble} = join("\n", @{$options{'postamble'}})
+  if ($options{postamble} && @{$options{postamble}});
 
 
 
@@ -126,6 +162,9 @@ if ($multi_documents) {
 				  TableOfContents => $options{'full'},
 				  ReplaceNAMEwithSection => $options{'modify'},
 				  UniqueLabels => $options{'modify'},
+				  Head1Level => $options{'h1level'},
+				  LevelNoNum => $options{'h1level'} + 1,
+                                  %User,
 				 );
 
       # Select sections if supplied
@@ -143,7 +182,7 @@ if ($multi_documents) {
 
   }
 } else {
-  
+
   # Case where we want everything to be in a single document
 
   # Need to open the output file ourselves
@@ -151,7 +190,6 @@ if ($multi_documents) {
   $output .= '.tex' unless $output =~ /\.tex$/;
 
   # Use auto-vivified file handle in perl 5.6
-  use Symbol;
   my $outfh = gensym;
   open ($outfh, ">$output") || die "Could not open output file: $!\n";
 
@@ -173,11 +211,8 @@ if ($multi_documents) {
 
       # if this is the first file to be converted we may want to add
       # a preamble (controlled by command line option)
-      if ($converted == 0 && $options{'full'}) {
-	$preamble = 1;
-      } else {
-	$preamble = 0;
-      }
+      my $preamble = 0;
+      $preamble = 1 if ($converted == 0 && $options{'full'});
 
       # if this is the last file to be converted may want to add
       # a postamble (controlled by command line option)
@@ -196,6 +231,9 @@ if ($multi_documents) {
 				  StartWithNewPage => $options{'full'},
 				  AddPreamble => $preamble,
 				  AddPostamble => $postamble,
+				  Head1Level => $options{'h1level'},
+				  LevelNoNum => $options{'h1level'} + 1,
+                                  %User
 				 );
 
       # Store the file name for error messages
@@ -245,6 +283,8 @@ pod2latex - convert pod documentation to latex format
 
   pod2latex -full -sections 'DESCRIPTION|NAME' SomeDir
 
+  pod2latex -prefile h.tex -postfile t.tex my.pod
+
 =head1 DESCRIPTION
 
 C<pod2latex> is a program to convert POD format documentation
@@ -254,7 +294,7 @@ combined output file.
 
 =head1 OPTIONS AND ARGUMENTS
 
-This section describes the supported command line options. Minium
+This section describes the supported command line options. Minimum
 matching is supported.
 
 =over 4
@@ -294,6 +334,13 @@ which is helpful for including module descriptions in documentation.
 Also forces C<latex> label and index entries to be prefixed by the
 name of the module.
 
+=item B<-h1level>
+
+Specifies the C<latex> section that is equivalent to a C<H1> pod
+directive. This is an integer between 0 and 5 with 0 equivalent to a
+C<latex> chapter, 1 equivalent to a C<latex> section etc. The default
+is 1 (C<H1> equivalent to a latex section).
+
 =item B<-help>
 
 Print a brief help message and exit.
@@ -306,6 +353,30 @@ Print the manual page and exit.
 
 Print information messages as each document is processed.
 
+=item B<-preamble>
+
+A user-supplied preamble for the LaTeX code. Multiple values
+are supported and appended in order separated by "\n".
+See B<-prefile> for reading the preamble from a file.
+
+=item B<-postamble>
+
+A user supplied postamble for the LaTeX code. Multiple values
+are supported and appended in order separated by "\n".
+See B<-postfile> for reading the postamble from a file.
+
+=item B<-prefile>
+
+A user-supplied preamble for the LaTeX code to be read from the
+named file. Multiple values are supported and appended in
+order. See B<-preamble>.
+
+=item B<-postfile>
+
+A user-supplied postamble for the LaTeX code to be read from the
+named file. Multiple values are supported and appended in
+order. See B<-postamble>.
+
 =back
 
 =head1 BUGS
@@ -314,14 +385,14 @@ Known bugs are:
 
 =over 4
 
-=item * 
+=item *
 
 Cross references between documents are not resolved when multiple
 pod documents are converted into a single output C<latex> file.
 
-=item * 
+=item *
 
-Functions and variables are not automatically recognized 
+Functions and variables are not automatically recognized
 and they will therefore not be marked up in any special way
 unless instructed by an explicit pod command.
 
@@ -333,12 +404,12 @@ L<Pod::LaTeX>
 
 =head1 AUTHOR
 
-Tim Jenness E<lt>t.jenness@jach.hawaii.eduE<gt>
+Tim Jenness E<lt>tjenness@cpan.orgE<gt>
 
 This program is free software; you can redistribute it
 and/or modify it under the same terms as Perl itself.
 
-Copyright (C) 2000 Tim Jenness.
+Copyright (C) 2000, 2003, 2004 Tim Jenness. All Rights Reserved.
 
 =cut
 

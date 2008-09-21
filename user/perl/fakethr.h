@@ -1,3 +1,12 @@
+/*    fakethr.h
+ *
+ *    Copyright (C) 1999, by Larry Wall and others
+ *
+ *    You may distribute under the terms of either the GNU General Public
+ *    License or the Artistic License, as specified in the README file.
+ *
+ */
+
 typedef int perl_mutex;
 typedef int perl_key;
 

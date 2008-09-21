@@ -1,7 +1,7 @@
 #############################################################################  
 # Pod/Find.pm -- finds files containing POD documentation
 #
-# Author: Marek Rouchal <marek@saftsack.fs.uni-bayreuth.de>
+# Author: Marek Rouchal <marekr@cpan.org>
 # 
 # Copyright (C) 1999-2000 by Marek Rouchal (and borrowing code
 # from Nick Ing-Simmon's PodToHtml). All rights reserved.
@@ -13,7 +13,7 @@
 package Pod::Find;
 
 use vars qw($VERSION);
-$VERSION = 0.21;   ## Current version of this package
+$VERSION = 1.34;   ## Current version of this package
 require  5.005;   ## requires this Perl version or later
 use Carp;
 
@@ -42,6 +42,9 @@ no function is exported by default to avoid pollution of your namespace,
 so be sure to specify them in the B<use> statement if you need them:
 
   use Pod::Find qw(pod_find);
+
+From this version on the typical SCM (software configuration management)
+files/directories like RCS, CVS, SCCS, .svn are ignored.
 
 =cut
 
@@ -128,12 +131,29 @@ sub pod_find
 
     if($opts{-script}) {
         require Config;
-        push(@search, $Config::Config{scriptdir});
+        push(@search, $Config::Config{scriptdir})
+            if -d $Config::Config{scriptdir};
         $opts{-perl} = 1;
     }
 
     if($opts{-inc}) {
-        push(@search, grep($_ ne '.',@INC));
+        if ($^O eq 'MacOS') {
+            # tolerate '.', './some_dir' and '(../)+some_dir' on Mac OS
+            my @new_INC = @INC;
+            for (@new_INC) {
+                if ( $_ eq '.' ) {
+                    $_ = ':';
+                } elsif ( $_ =~ s|^((?:\.\./)+)|':' x (length($1)/3)|e ) {
+                    $_ = ':'. $_;
+                } else {
+                    $_ =~ s|^\./|:|;
+                }
+            }
+            push(@search, grep($_ ne File::Spec->curdir, @new_INC));
+        } else {
+            push(@search, grep($_ ne File::Spec->curdir, @INC));
+        }
+
         $opts{-perl} = 1;
     }
 
@@ -144,9 +164,18 @@ sub pod_find
         # * remove e.g. "i586-linux" (from 'archname')
         # * remove e.g. 5.00503
         # * remove pod/ if followed by *.pod (e.g. in pod/perlfunc.pod)
-        $SIMPLIFY_RX =
-          qq!^(?i:site(_perl)?/|\Q$Config::Config{archname}\E/|\\d+\\.\\d+([_.]?\\d+)?/|pod/(?=.*?\\.pod\\z))*!;
 
+        # Mac OS:
+        # * remove ":?site_perl:"
+        # * remove :?pod: if followed by *.pod (e.g. in :pod:perlfunc.pod)
+
+        if ($^O eq 'MacOS') {
+            $SIMPLIFY_RX =
+              qq!^(?i:\:?site_perl\:|\:?pod\:(?=.*?\\.pod\\z))*!;
+        } else {
+            $SIMPLIFY_RX =
+              qq!^(?i:site(_perl)?/|\Q$Config::Config{archname}\E/|\\d+\\.\\d+([_.]?\\d+)?/|pod/(?=.*?\\.pod\\z))*!;
+        }
     }
 
     my %dirs_visited;
@@ -163,6 +192,7 @@ sub pod_find
         # on VMS canonpath will vmsify:[the.path], but File::Find::find
         # wants /unixy/paths
         $try = File::Spec->canonpath($try) if ($^O ne 'VMS');
+        $try = VMS::Filespec::unixify($try) if ($^O eq 'VMS');
         my $name;
         if(-f $try) {
             if($name = _check_and_extract_name($try, $opts{-verbose})) {
@@ -170,11 +200,15 @@ sub pod_find
             }
             next;
         }
-        my $root_rx = qq!^\Q$try\E/!;
+        my $root_rx = $^O eq 'MacOS' ? qq!^\Q$try\E! : qq!^\Q$try\E/!;
         File::Find::find( sub {
             my $item = $File::Find::name;
             if(-d) {
-                if($dirs_visited{$item}) {
+                if($item =~ m{/(?:RCS|CVS|SCCS|\.svn)$}) {
+                    $File::Find::prune = 1;
+                    return;
+                }
+                elsif($dirs_visited{$item}) {
                     warn "Directory '$item' already seen, skipping.\n"
                         if($opts{-verbose});
                     $File::Find::prune = 1;
@@ -217,7 +251,7 @@ sub _check_and_extract_name {
 
     # check extension or executable flag
     # this involves testing the .bat extension on Win32!
-    unless(-f $file && -T _ && ($file =~ /\.(pod|pm|plx?)\z/i || -x _ )) {
+    unless(-f $file && -T $file && ($file =~ /\.(pod|pm|plx?)\z/i || -x $file )) {
       return undef;
     }
 
@@ -231,10 +265,19 @@ sub _check_and_extract_name {
         $name =~ s!$SIMPLIFY_RX!!os if(defined $SIMPLIFY_RX);
     }
     else {
-        $name =~ s:^.*/::s;
+        if ($^O eq 'MacOS') {
+            $name =~ s/^.*://s;
+        } else {
+            $name =~ s:^.*/::s;
+        }
     }
     _simplify($name);
     $name =~ s!/+!::!g; #/
+    if ($^O eq 'MacOS') {
+        $name =~ s!:+!::!g; # : -> ::
+    } else {
+        $name =~ s!/+!::!g; # / -> ::
+    }
     $name;
 }
 
@@ -251,7 +294,11 @@ F<.bat>, F<.cmd> on Win32 and OS/2, or F<.com> on VMS, respectively.
 sub simplify_name {
     my ($str) = @_;
     # remove all path components
-    $str =~ s:^.*/::s;
+    if ($^O eq 'MacOS') {
+        $str =~ s/^.*://s;
+    } else {
+        $str =~ s:^.*/::s;
+    }
     _simplify($str);
     $str;
 }
@@ -294,7 +341,7 @@ List directories as they are searched
 
 =back
 
-Returns the full path of the first occurence to the file.
+Returns the full path of the first occurrence to the file.
 Package names (eg 'A::B') are automatically converted to directory
 names in the selected directory. (eg on unix 'A::B' is converted to
 'A/B'). Additionally, '.pm', '.pl' and '.pod' are appended to the
@@ -319,7 +366,7 @@ sub pod_where {
   my %options = (
          '-inc' => 0,
          '-verbose' => 0,
-         '-dirs' => [ '.' ],
+         '-dirs' => [ File::Spec->curdir ],
         );
 
   # Check for an options hash as first argument
@@ -347,7 +394,22 @@ sub pod_where {
     require Config;
 
     # Add @INC
-    push (@search_dirs, @INC) if $options{'-inc'};
+    if ($^O eq 'MacOS' && $options{'-inc'}) {
+        # tolerate '.', './some_dir' and '(../)+some_dir' on Mac OS
+        my @new_INC = @INC;
+        for (@new_INC) {
+            if ( $_ eq '.' ) {
+                $_ = ':';
+            } elsif ( $_ =~ s|^((?:\.\./)+)|':' x (length($1)/3)|e ) {
+                $_ = ':'. $_;
+            } else {
+                $_ =~ s|^\./|:|;
+            }
+        }
+        push (@search_dirs, @new_INC);
+    } elsif ($options{'-inc'}) {
+        push (@search_dirs, @INC);
+    }
 
     # Add location of pod documentation for perl man pages (eg perlfunc)
     # This is a pod directory in the private install tree
@@ -361,10 +423,13 @@ sub pod_where {
       if -d $Config::Config{'scriptdir'};
   }
 
+  warn "Search path is: ".join(' ', @search_dirs)."\n"
+        if $options{'-verbose'};
+
   # Loop over directories
   Dir: foreach my $dir ( @search_dirs ) {
 
-    # Don't bother if cant find the directory
+    # Don't bother if can't find the directory
     if (-d $dir) {
       warn "Looking in directory $dir\n" 
         if $options{'-verbose'};
@@ -387,6 +452,17 @@ sub pod_where {
       warn "Directory $dir does not exist\n"
         if $options{'-verbose'};
       next Dir;
+    }
+    # for some strange reason the path on MacOS/darwin/cygwin is
+    # 'pods' not 'pod'
+    # this could be the case also for other systems that
+    # have a case-tolerant file system, but File::Spec
+    # does not recognize 'darwin' yet. And cygwin also has "pods",
+    # but is not case tolerant. Oh well...
+    if((File::Spec->case_tolerant || $^O =~ /macos|darwin|cygwin/i)
+     && -d File::Spec->catdir($dir,'pods')) {
+      $dir = File::Spec->catdir($dir,'pods');
+      redo Dir;
     }
     if(-d File::Spec->catdir($dir,'pod')) {
       $dir = File::Spec->catdir($dir,'pod');
@@ -418,7 +494,7 @@ sub contains_pod {
   local $/ = undef;
   my $pod = <POD>;
   close(POD) || die "Error closing $file: $!\n";
-  unless($pod =~ /\n=(head\d|pod|over|item)\b/s) {
+  unless($pod =~ /^=(head\d|pod|over|item)\b/m) {
     warn "No POD in $file, skipping.\n"
       if($verbose);
     return 0;
@@ -429,7 +505,9 @@ sub contains_pod {
 
 =head1 AUTHOR
 
-Marek Rouchal E<lt>marek@saftsack.fs.uni-bayreuth.deE<gt>,
+Please report bugs using L<http://rt.cpan.org>.
+
+Marek Rouchal E<lt>marekr@cpan.orgE<gt>,
 heavily borrowing code from Nick Ing-Simmons' PodToHtml.
 
 Tim Jenness E<lt>t.jenness@jach.hawaii.eduE<gt> provided

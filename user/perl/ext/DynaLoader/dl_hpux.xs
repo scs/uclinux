@@ -26,17 +26,23 @@
 #include "perl.h"
 #include "XSUB.h"
 
+typedef struct {
+    AV *	x_resolve_using;
+} my_cxtx_t;		/* this *must* be named my_cxtx_t */
 
+#define DL_CXT_EXTRA	/* ask for dl_cxtx to be defined in dlutils.c */
 #include "dlutils.c"	/* for SaveError() etc */
 
-static AV *dl_resolve_using = Nullav;
-
+#define dl_resolve_using	(dl_cxtx.x_resolve_using)
 
 static void
 dl_private_init(pTHX)
 {
     (void)dl_generic_private_init(aTHX);
-    dl_resolve_using = get_av("DynaLoader::dl_resolve_using", GV_ADDMULTI);
+    {
+	dMY_CXT;
+	dl_resolve_using = get_av("DynaLoader::dl_resolve_using", GV_ADDMULTI);
+    }
 }
 
 MODULE = DynaLoader     PACKAGE = DynaLoader
@@ -52,6 +58,7 @@ dl_load_file(filename, flags=0)
     PREINIT:
     shl_t obj = NULL;
     int	i, max, bind_type;
+    dMY_CXT;
     CODE:
     DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dl_load_file(%s,%x):\n", filename,flags));
     if (flags & 0x01)
@@ -93,6 +100,19 @@ end:
         SaveError(aTHX_ "%s",Strerror(errno));
     else
         sv_setiv( ST(0), PTR2IV(obj) );
+
+
+int
+dl_unload_file(libref)
+    void *	libref
+  CODE:
+    DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dl_unload_file(%lx):\n", PTR2ul(libref)));
+    RETVAL = (shl_unload(libref) == 0 ? 1 : 0);
+    if (!RETVAL)
+	SaveError(aTHX_ "%s", Strerror(errno));
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, " retval = %d\n", RETVAL));
+  OUTPUT:
+    RETVAL
 
 
 void *
@@ -152,7 +172,8 @@ dl_install_xsub(perl_name, symref, filename="$Package")
 char *
 dl_error()
     CODE:
-    RETVAL = LastError ;
+    dMY_CXT;
+    RETVAL = dl_last_error ;
     OUTPUT:
     RETVAL
 

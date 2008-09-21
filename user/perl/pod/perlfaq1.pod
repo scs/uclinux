@@ -33,13 +33,17 @@ distribution for more details.  See L<perlhist> (new as of 5.005)
 for Perl's milestone releases.
 
 In particular, the core development team (known as the Perl Porters)
-are a rag-tag band of highly altruistic individuals committed
-to producing better software for free than you could hope to
-purchase for money.  You may snoop on pending developments via
-nntp://news.perl.com/perl.porters-gw/ and the Deja archive at
-http://www.deja.com/ using the perl.porters-gw newsgroup, or you can
-subscribe to the mailing list by sending perl5-porters-request@perl.org
-a subscription request.
+are a rag-tag band of highly altruistic individuals committed to
+producing better software for free than you could hope to purchase for
+money.  You may snoop on pending developments via the archives at
+http://www.xray.mpe.mpg.de/mailing-lists/perl5-porters/
+and http://archive.develooper.com/perl5-porters@perl.org/
+or the news gateway nntp://nntp.perl.org/perl.perl5.porters or
+its web interface at http://nntp.perl.org/group/perl.perl5.porters ,
+or read the faq at http://simon-cozens.org/writings/p5p-faq ,
+or you can subscribe to the mailing list by sending
+perl5-porters-request@perl.org a subscription request
+(an empty message with no subject is fine).
 
 While the GNU project includes Perl in its distributions, there's no
 such thing as "GNU Perl".  Perl is not produced nor maintained by the
@@ -52,55 +56,130 @@ users the informal support will more than suffice.  See the answer to
 
 =head2 Which version of Perl should I use?
 
-You should definitely use version 5.  Version 4 is old, limited, and
-no longer maintained; its last patch (4.036) was in 1992, long ago and
-far away.  Sure, it's stable, but so is anything that's dead; in fact,
-perl4 had been called a dead, flea-bitten camel carcass.  The most recent
-production release is 5.6 (although 5.005_03 is still supported).
-The most cutting-edge development release is 5.7.  Further references
-to the Perl language in this document refer to the production release
-unless otherwise specified.  There may be one or more official bug fixes
-by the time you read this, and also perhaps some experimental versions
-on the way to the next release.  All releases prior to 5.004 were subject
-to buffer overruns, a grave security issue.
+(contributed by brian d foy)
 
-=head2 What are perl4 and perl5?
+There is often a matter of opinion and taste, and there isn't any
+one answer that fits anyone.  In general, you want to use either
+the current stable release, or the stable release immediately prior
+to that one.  Currently, those are perl5.8.x and perl5.6.x, respectively.
 
-Perl4 and perl5 are informal names for different versions of the Perl
-programming language.  It's easier to say "perl5" than it is to say
-"the 5(.004) release of Perl", but some people have interpreted this
-to mean there's a language called "perl5", which isn't the case.
-Perl5 is merely the popular name for the fifth major release (October 1994),
-while perl4 was the fourth major release (March 1991).  There was also a
-perl1 (in January 1988), a perl2 (June 1988), and a perl3 (October 1989).
+Beyond that, you have to consider several things and decide which
+is best for you.
 
-The 5.0 release is, essentially, a ground-up rewrite of the original
-perl source code from releases 1 through 4.  It has been modularized,
-object-oriented, tweaked, trimmed, and optimized until it almost doesn't
-look like the old code.  However, the interface is mostly the same, and
-compatibility with previous releases is very high. 
-See L<perltrap/"Perl4 to Perl5 Traps">.
+=over 4
 
-To avoid the "what language is perl5?" confusion, some people prefer to
-simply use "perl" to refer to the latest version of perl and avoid using
-"perl5" altogether.  It's not really that big a deal, though.
+=item *
+
+If things aren't broken, upgrading perl may break
+them (or at least issue new warnings).
+
+=item *
+
+The latest versions of perl have more bug fixes.
+
+=item *
+
+The Perl community is geared toward supporting the most
+recent releases, so you'll have an easier time finding help for
+those.
+
+=item *
+
+Versions prior to perl5.004 had serious security problems with
+buffer overflows, and in some cases have CERT advisories (for
+instance, http://www.cert.org/advisories/CA-1997-17.html ).
+
+=item *
+
+The latest versions are probably the least deployed and
+widely tested, so you may want to wait a few months after their
+release and see what problems others have if you are risk averse.
+
+=item *
+
+The immediate, previous releases (i.e. perl5.6.x ) are usually
+maintained for a while, although not at the same level as the
+current releases.
+
+=item *
+
+No one is actively supporting perl4.x.  Five years ago it was
+a dead camel carcass (according to this document).  Now it's barely
+a skeleton as its whitewashed bones have fractured or eroded.
+
+=item *
+
+There is no perl6.x for the next couple of years.  Stay tuned,
+but don't worry that you'll have to change major versions of Perl
+soon (i.e. before 2006).
+
+=item *
+
+There are really two tracks of perl development: a
+maintenance version and an experimental version.  The
+maintenance versions are stable, and have an even number
+as the minor release (i.e. perl5.8.x, where 8 is the minor
+release).  The experimental versions may include features that
+don't make it into the stable versions, and have an odd number
+as the minor release (i.e. perl5.9.x, where 9 is the minor release).
+
+=back
+
+
+=head2 What are perl4, perl5, or perl6?
+
+(contributed by brian d foy)
+
+In short, perl4 is the past, perl5 is the present, and perl6 is the
+future.
+
+The number after perl (i.e. the 5 after perl5) is the major release
+of the perl interpreter as well as the version of the language.  Each
+major version has significant differences that earlier versions cannot
+support.
+
+The current major release of Perl is perl5, and was released in 1994.
+It can run scripts from the previous major release, perl4 (March 1991),
+but has significant differences. It introduced the concept of references,
+complex data structures, and modules.  The perl5 interpreter was a
+complete re-write of the previous perl sources.
+
+Perl6 is the next major version of Perl, but it's still in development
+in both its syntax and design.  The work started in 2002 and is still
+ongoing.  Many of the most interesting features have shown up in the
+latest versions of perl5, and some perl5 modules allow you to use some
+perl6 syntax in your programs.  You can learn more about perl6 at
+http://dev.perl.org/perl6/ .
 
 See L<perlhist> for a history of Perl revisions.
 
+=head2 What is Ponie?
+
+At The O'Reilly Open Source Software Convention in 2003, Artur
+Bergman, Fotango, and The Perl Foundation announced a project to
+run perl5 on the Parrot virtual machine named Ponie. Ponie stands for
+Perl On New Internal Engine.  The Perl 5.10 language implementation
+will be used for Ponie, and there will be no language level
+differences between perl5 and ponie.  Ponie is not a complete rewrite
+of perl5.
+
+For more details, see http://www.poniecode.org/
+
 =head2 What is perl6?
 
-At The Second O'Reilly Open Source Software Convention, Larry Wall            
+At The Second O'Reilly Open Source Software Convention, Larry Wall
 announced Perl6 development would begin in earnest. Perl6 was an oft
 used term for Chip Salzenberg's project to rewrite Perl in C++ named
-Topaz. However, Topaz should not be confused with the nisus to rewrite
-Perl while keeping the lessons learned from other software, as well as
-Perl5, in mind.
+Topaz. However, Topaz provided valuable insights to the next version
+of Perl and its implementation, but was ultimately abandoned.
 
-If you have a desire to help in the crusade to make Perl a better place
-then peruse the Perl6 developers page at http://www.perl.org/perl6/ and 
-get involved.
+If you want to learn more about Perl6, or have a desire to help in
+the crusade to make Perl a better place then peruse the Perl6 developers
+page at http://dev.perl.org/perl6/ and get involved.
 
-The first alpha release is expected by Summer 2001.
+Perl6 is not scheduled for release yet, and Perl5 will still be supported
+for quite awhile after its release. Do not wait for Perl6 to do whatever
+you need to do.
 
 "We're really serious about reinventing everything that needs reinventing."
 --Larry Wall
@@ -155,7 +234,7 @@ Probably the best thing to do is try to write equivalent code to do a
 set of tasks.  These languages have their own newsgroups in which you
 can learn about (but hopefully not argue about) them.
 
-Some comparison documents can be found at http://language.perl.com/versus/
+Some comparison documents can be found at http://www.perl.com/doc/FMTEYEWTK/versus/
 if you really can't stop yourself.
 
 =head2 Can I do [task] in Perl?
@@ -211,7 +290,7 @@ i.e. the current interpreter.  Hence Tom's quip that "Nothing but perl
 can parse Perl."  You may or may not choose to follow this usage.  For
 example, parallelism means "awk and perl" and "Python and Perl" look
 OK, while "awk and Perl" and "Python and perl" do not.  But never
-write "PERL", because perl isn't really an acronym, apocryphal
+write "PERL", because perl is not an acronym, apocryphal
 folklore and post-facto expansions notwithstanding.
 
 =head2 Is it a Perl program or a Perl script?
@@ -252,18 +331,14 @@ programmers prefer to avoid them altogether.
 These are the "just another perl hacker" signatures that some people
 sign their postings with.  Randal Schwartz made these famous.  About
 100 of the earlier ones are available from
-http://www.perl.com/CPAN/misc/japh .
+http://www.cpan.org/misc/japh .
 
 =head2 Where can I get a list of Larry Wall witticisms?
 
 Over a hundred quips by Larry, from postings of his or source code,
-can be found at http://www.perl.com/CPAN/misc/lwall-quotes.txt.gz .
+can be found at http://www.cpan.org/misc/lwall-quotes.txt.gz .
 
-Newer examples can be found by perusing Larry's postings:
-
-    http://x1.dejanews.com/dnquery.xp?QRY=*&DBS=2&ST=PS&defaultOp=AND&LNG=ALL&format=terse&showsort=date&maxhits=100&subjects=&groups=&authors=larry@*wall.org&fromdate=&todate=
-
-=head2 How can I convince my sysadmin/supervisor/employees to use version 5/5.005/Perl instead of some other language?
+=head2 How can I convince my sysadmin/supervisor/employees to use version 5/5.6.1/Perl instead of some other language?
 
 If your manager or employees are wary of unsupported software, or
 software which doesn't officially ship with your operating system, you
@@ -295,11 +370,14 @@ for any given task.  Also mention that the difference between version
 (Well, OK, maybe it's not quite that distinct, but you get the idea.)
 If you want support and a reasonable guarantee that what you're
 developing will continue to work in the future, then you have to run
-the supported version.  As of April 2001 that probably means
-running either of the releases 5.6.1 (released in April 2001) or
-5.005_03 (released in March 1999), although 5.004_05 isn't that bad
-if you B<absolutely> need such an old version (released in April 1999)
-for stability reasons.  Anything older than 5.004_05 shouldn't be used.
+the supported version.  As of December 2003 that means running either
+5.8.2 (released in November 2003), or one of the older releases like
+5.6.2 (also released in November 2003; a maintenance release to let perl
+5.6 compile on newer systems as 5.6.1 was released in April 2001) or
+5.005_03 (released in March 1999),
+although 5.004_05 isn't that bad if you B<absolutely> need such an old
+version (released in April 1999) for stability  reasons.
+Anything older than 5.004_05 shouldn't be used.
 
 Of particular note is the massive bug hunt for buffer overflow
 problems that went into the 5.004 release.  All releases prior to
@@ -310,16 +388,18 @@ In August 2000 in all Linux distributions a new security problem was
 found in the optional 'suidperl' (not built or installed by default)
 in all the Perl branches 5.6, 5.005, and 5.004, see
 http://www.cpan.org/src/5.0/sperl-2000-08-05/
+Perl maintenance releases 5.6.1 and 5.8.0 have this security hole closed.
+Most, if not all, Linux distribution have patches for this
+vulnerability available, see http://www.linuxsecurity.com/advisories/ ,
+but the most recommendable way is to upgrade to at least Perl 5.6.1.
 
 =head1 AUTHOR AND COPYRIGHT
 
-Copyright (c) 1997, 1998, 1999, 2000, 2001 Tom Christiansen and Nathan
-Torkington.  All rights reserved.
+Copyright (c) 1997-2006 Tom Christiansen, Nathan Torkington, and
+other authors as noted. All rights reserved.
 
-When included as an integrated part of the Standard Distribution
-of Perl or of its documentation (printed or otherwise), this works is
-covered under Perl's Artistic Licence.  For separate distributions of
-all or part of this FAQ outside of that, see L<perlfaq>.
+This documentation is free; you can redistribute it and/or modify it
+under the same terms as Perl itself.
 
 Irrespective of its distribution, all code examples here are in the public
 domain.  You are permitted and encouraged to use this code and any

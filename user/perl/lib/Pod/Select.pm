@@ -10,7 +10,7 @@
 package Pod::Select;
 
 use vars qw($VERSION);
-$VERSION = 1.13;  ## Current version of this package
+$VERSION = 1.30;  ## Current version of this package
 require  5.005;    ## requires this Perl version or later
 
 #############################################################################
@@ -181,7 +181,7 @@ Where I<cmd-expr> is intended to match the name of one or more POD
 commands, and I<text-expr> is intended to match the paragraph text for
 the command. If a range-regex is supposed to match a POD command, then
 the first character of the regex (the one after the initial '/')
-absolutely I<must> be an single '=' character; it may not be anything
+absolutely I<must> be a single '=' character; it may not be anything
 else (not even a regex meta-character) if it is supposed to match
 against the name of a POD command.
 
@@ -505,7 +505,8 @@ sub is_selected {
 
     ## Keep track of current sections levels and headings
     $_ = $paragraph;
-    if (/^=((?:sub)*)(?:head(?:ing)?|sec(?:tion)?)(\d*)\s+(.*)\s*$/) {
+    if (/^=((?:sub)*)(?:head(?:ing)?|sec(?:tion)?)(\d*)\s+(.*)\s*$/)
+    {
         ## This is a section heading command
         my ($level, $heading) = ($2, $3);
         $level = 1 + (length($1) / 3)  if ((! length $level) || (length $1));
@@ -581,15 +582,15 @@ filenames are given).
 
 sub podselect {
     my(@argv) = @_;
-    my %defaults   = ();
+    my %defaults = ();
     my $pod_parser = new Pod::Select(%defaults);
     my $num_inputs = 0;
     my $output = ">&STDOUT";
-    my %opts = ();
+    my %opts;
     local $_;
     for (@argv) {
         if (ref($_)) {
-            next unless (ref($_) eq 'HASH');
+        next unless (ref($_) eq 'HASH');
             %opts = (%defaults, %{$_});
 
             ##-------------------------------------------------------------
@@ -740,6 +741,8 @@ L<Pod::Parser>
 
 =head1 AUTHOR
 
+Please report bugs using L<http://rt.cpan.org>.
+
 Brad Appleton E<lt>bradapp@enteract.comE<gt>
 
 Based on code for B<pod2text> written by
@@ -748,4 +751,4 @@ Tom Christiansen E<lt>tchrist@mox.perl.comE<gt>
 =cut
 
 1;
-
+# vim: ts=4 sw=4 et

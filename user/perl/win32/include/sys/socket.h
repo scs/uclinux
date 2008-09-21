@@ -1,7 +1,7 @@
-// sys/socket.h
+/* sys/socket.h */
 
-// djl
-// Provide UNIX compatibility
+/* djl */
+/* Provide UNIX compatibility */
 
 #ifndef  _INC_SYS_SOCKET
 #define  _INC_SYS_SOCKET
@@ -15,7 +15,11 @@ extern "C" {
 #  define Win32_Winsock
 #endif
 #include <windows.h>
-#include <winsock.h>
+
+/* Too late to include winsock2.h if winsock.h has already been loaded */
+#ifndef _WINSOCKAPI_
+#  include <winsock2.h>
+#endif
 
 #include "win32.h"
 
@@ -109,9 +113,9 @@ void win32_endprotoent(void);
 void win32_endservent(void);
 
 #ifndef WIN32SCK_IS_STDSCK
-//
-// direct to our version
-//
+
+/* direct to our version */
+
 #define htonl		win32_htonl
 #define htons		win32_htons
 #define ntohl		win32_ntohl
@@ -176,4 +180,4 @@ void win32_endservent(void);
 }
 #endif
 
-#endif	// _INC_SYS_SOCKET
+#endif	/* _INC_SYS_SOCKET */

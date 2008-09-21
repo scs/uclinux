@@ -32,6 +32,9 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
+/* most changes between the version above and the one below have been ported:
+static char sscsid[]=  "$OpenBSD: glob.c,v 1.8.10.1 2001/04/10 jason Exp $";
+ */
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -70,7 +73,7 @@ static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #ifdef I_PWD
 #	include <pwd.h>
 #else
-#ifdef HAS_PASSWD
+#if defined(HAS_PASSWD) && !defined(VMS)
 	struct passwd *getpwnam(char *);
 	struct passwd *getpwuid(Uid_t);
 #endif
@@ -83,6 +86,30 @@ static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #      define	MAXPATHLEN	255
 #    else
 #      define	MAXPATHLEN	1024
+#    endif
+#  endif
+#endif
+
+#ifdef I_LIMITS
+#include <limits.h>
+#endif
+
+#ifndef ARG_MAX
+#  ifdef MACOS_TRADITIONAL
+#    define		ARG_MAX		65536	/* Mac OS is actually unlimited */
+#  else
+#    ifdef _SC_ARG_MAX
+#      define		ARG_MAX		(sysconf(_SC_ARG_MAX))
+#    else
+#      ifdef _POSIX_ARG_MAX
+#        define		ARG_MAX		_POSIX_ARG_MAX
+#      else
+#        ifdef WIN32
+#          define	ARG_MAX		14500	/* from VC's limits.h */
+#        else
+#          define	ARG_MAX		4096	/* from POSIX, be conservative */
+#        endif
+#      endif
 #    endif
 #  endif
 #endif
@@ -146,20 +173,20 @@ typedef U8 Char;
 
 static int	 compare(const void *, const void *);
 static int	 ci_compare(const void *, const void *);
-static void	 g_Ctoc(const Char *, char *);
+static int	 g_Ctoc(const Char *, char *, STRLEN);
 static int	 g_lstat(Char *, Stat_t *, glob_t *);
 static DIR	*g_opendir(Char *, glob_t *);
 static Char	*g_strchr(Char *, int);
-#ifdef notdef
-static Char	*g_strcat(Char *, const Char *);
-#endif
 static int	 g_stat(Char *, Stat_t *, glob_t *);
 static int	 glob0(const Char *, glob_t *);
-static int	 glob1(Char *, glob_t *);
-static int	 glob2(Char *, Char *, Char *, glob_t *);
-static int	 glob3(Char *, Char *, Char *, Char *, glob_t *);
-static int	 globextend(const Char *, glob_t *);
-static const Char *	 globtilde(const Char *, Char *, glob_t *);
+static int	 glob1(Char *, Char *, glob_t *, size_t *);
+static int	 glob2(Char *, Char *, Char *, Char *, Char *, Char *,
+		       glob_t *, size_t *);
+static int	 glob3(Char *, Char *, Char *, Char *, Char *, Char *,
+		       Char *, Char *, glob_t *, size_t *);
+static int	 globextend(const Char *, glob_t *, size_t *);
+static const Char *
+		 globtilde(const Char *, Char *, size_t, glob_t *);
 static int	 globexp1(const Char *, glob_t *);
 static int	 globexp2(const Char *, const Char *, glob_t *, int *);
 static int	 match(Char *, Char *, Char *, int);
@@ -173,10 +200,48 @@ static Direntry_t *	my_readdir(DIR*);
 static Direntry_t *
 my_readdir(DIR *d)
 {
+#ifndef NETWARE
     return PerlDir_read(d);
+#else
+    return (DIR *)PerlDir_read(d);
+#endif
 }
 #else
-#define	my_readdir	readdir
+
+/* ReliantUNIX (OS formerly known as SINIX) defines readdir
+ * in LFS-mode to be a 64-bit version of readdir.  */
+
+#   ifdef sinix
+static Direntry_t *    my_readdir(DIR*);
+
+static Direntry_t *
+my_readdir(DIR *d)
+{
+    return readdir(d);
+}
+#   else
+
+#       define	my_readdir	readdir
+
+#   endif
+
+#endif
+
+#ifdef MACOS_TRADITIONAL
+#include <Files.h>
+#include <Types.h>
+#include <string.h>
+
+#define NO_UPDIR_ERR 1	/* updir resolving failed */
+
+static Boolean g_matchVol; /* global variable */
+static short updir(char *path);
+static short resolve_updirs(char *new_pattern);
+static void remove_trColon(char *path);
+static short glob_mark_Mac(Char *pathbuf, Char *pathend, Char *pathend_last);
+static OSErr GetVolInfo(short volume, Boolean indexed, FSSpec *spec);
+static void name_f_FSSpec(StrFileName volname, FSSpec *spec);
+
 #endif
 
 int
@@ -185,21 +250,36 @@ bsd_glob(const char *pattern, int flags,
 {
 	const U8 *patnext;
 	int c;
-	Char *bufnext, *bufend, patbuf[MAXPATHLEN+1];
+	Char *bufnext, *bufend, patbuf[MAXPATHLEN];
 
+#ifdef MACOS_TRADITIONAL
+	char *new_pat, *p, *np;
+	int err;
+	size_t len;
+#endif
+
+#ifndef MACOS_TRADITIONAL
 	patnext = (U8 *) pattern;
+#endif
+	/* TODO: GLOB_APPEND / GLOB_DOOFFS aren't supported yet */
+#if 0
 	if (!(flags & GLOB_APPEND)) {
 		pglob->gl_pathc = 0;
 		pglob->gl_pathv = NULL;
 		if (!(flags & GLOB_DOOFFS))
 			pglob->gl_offs = 0;
 	}
+#else
+	pglob->gl_pathc = 0;
+	pglob->gl_pathv = NULL;
+	pglob->gl_offs = 0;
+#endif
 	pglob->gl_flags = flags & ~GLOB_MAGCHAR;
 	pglob->gl_errfunc = errfunc;
 	pglob->gl_matchc = 0;
 
 	bufnext = patbuf;
-	bufend = bufnext + MAXPATHLEN;
+	bufend = bufnext + MAXPATHLEN - 1;
 #ifdef DOSISH
 	/* Nasty hack to treat patterns like "C:*" correctly. In this
 	 * case, the * should match any file in the current directory
@@ -207,7 +287,7 @@ bsd_glob(const char *pattern, int flags,
 	 * colon specially, so it looks for files beginning "C:" in
 	 * the current directory. To fix this, change the pattern to
 	 * add an explicit "./" at the start (just after the drive
-	 * letter and colon - ie change to "C:./*").
+	 * letter and colon - ie change to "C:./").
 	 */
 	if (isalpha(pattern[0]) && pattern[1] == ':' &&
 	    pattern[2] != BG_SEP && pattern[2] != BG_SEP2 &&
@@ -219,6 +299,62 @@ bsd_glob(const char *pattern, int flags,
 		patnext += 2;
 	}
 #endif
+
+#ifdef MACOS_TRADITIONAL
+	/* Check if we need to match a volume name (e.g. '*HD:*') */
+	g_matchVol = false;
+	p = (char *) pattern;
+	if (*p != BG_SEP) {
+	    p++;
+	    while (*p != BG_EOS) {
+		if (*p == BG_SEP) {
+		    g_matchVol = true;
+		    break;
+		}
+		p++;
+	    }
+	}
+
+	/* Transform the pattern:
+	 * (a) Resolve updirs, e.g.
+	 *     '*:t*p::'       -> '*:'
+	 *	   ':a*:tmp::::'   -> '::'
+	 *	   ':base::t*p:::' -> '::'
+	 *     '*HD::'         -> return 0 (error, quit silently)
+	 *
+	 * (b) Remove a single trailing ':', unless it's a "match volume only"
+	 *     pattern like '*HD:'; e.g.
+	 *     '*:tmp:' -> '*:tmp'  but
+	 *     '*HD:'   -> '*HD:'
+	 *     (If we don't do that, even filenames will have a trailing ':' in
+	 *     the result.)
+	 */
+
+	/* We operate on a copy of the pattern */
+	len = strlen(pattern);
+	Newx(new_pat, len + 1, char);
+	if (new_pat == NULL)
+	    return (GLOB_NOSPACE);
+
+	p = (char *) pattern;
+	np = new_pat;
+	while (*np++ = *p++) ;
+
+	/* Resolve updirs ... */
+	err = resolve_updirs(new_pat);
+	if (err) {
+	    Safefree(new_pat);
+	    /* The pattern is incorrect: tried to move
+	       up above the volume root, see above.
+	       We quit silently. */
+	    return 0;
+	}
+	/* remove trailing colon ... */
+	remove_trColon(new_pat);
+	patnext = (U8 *) new_pat;
+
+#endif /* MACOS_TRADITIONAL */
+
 	if (flags & GLOB_QUOTE) {
 		/* Protect the quoted characters. */
 		while (bufnext < bufend && (c = *patnext++) != BG_EOS)
@@ -239,19 +375,26 @@ bsd_glob(const char *pattern, int flags,
 					--patnext;
 				}
 				*bufnext++ = c | M_PROTECT;
-			}
-			else
+			} else
 				*bufnext++ = c;
-	}
-	else
-	    while (bufnext < bufend && (c = *patnext++) != BG_EOS)
-		    *bufnext++ = c;
+	} else
+		while (bufnext < bufend && (c = *patnext++) != BG_EOS)
+			*bufnext++ = c;
 	*bufnext = BG_EOS;
 
+#ifdef MACOS_TRADITIONAL
+	if (flags & GLOB_BRACE)
+	    err = globexp1(patbuf, pglob);
+	else
+	    err = glob0(patbuf, pglob);
+	Safefree(new_pat);
+	return err;
+#else
 	if (flags & GLOB_BRACE)
 	    return globexp1(patbuf, pglob);
 	else
 	    return glob0(patbuf, pglob);
+#endif
 }
 
 /*
@@ -259,7 +402,8 @@ bsd_glob(const char *pattern, int flags,
  * invoke the standard globbing routine to glob the rest of the magic
  * characters
  */
-static int globexp1(const Char *pattern, glob_t *pglob)
+static int
+globexp1(const Char *pattern, glob_t *pglob)
 {
 	const Char* ptr = pattern;
 	int rv;
@@ -281,17 +425,19 @@ static int globexp1(const Char *pattern, glob_t *pglob)
  * If it succeeds then it invokes globexp1 with the new pattern.
  * If it fails then it tries to glob the rest of the pattern and returns.
  */
-static int globexp2(const Char *ptr, const Char *pattern,
-		    glob_t *pglob, int *rv)
+static int
+globexp2(const Char *ptr, const Char *pattern,
+	 glob_t *pglob, int *rv)
 {
 	int     i;
 	Char   *lm, *ls;
 	const Char *pe, *pm, *pl;
-	Char    patbuf[MAXPATHLEN + 1];
+	Char    patbuf[MAXPATHLEN];
 
 	/* copy part up to the brace */
 	for (lm = patbuf, pm = pattern; pm != ptr; *lm++ = *pm++)
-		continue;
+		;
+	*lm = BG_EOS;
 	ls = lm;
 
 	/* Find the balanced brace */
@@ -299,7 +445,7 @@ static int globexp2(const Char *ptr, const Char *pattern,
 		if (*pe == BG_LBRACKET) {
 			/* Ignore everything between [] */
 			for (pm = pe++; *pe != BG_RBRACKET && *pe != BG_EOS; pe++)
-				continue;
+				;
 			if (*pe == BG_EOS) {
 				/*
 				 * We could not find a matching BG_RBRACKET.
@@ -307,8 +453,7 @@ static int globexp2(const Char *ptr, const Char *pattern,
 				 */
 				pe = pm;
 			}
-		}
-		else if (*pe == BG_LBRACE)
+		} else if (*pe == BG_LBRACE)
 			i++;
 		else if (*pe == BG_RBRACE) {
 			if (i == 0)
@@ -322,12 +467,12 @@ static int globexp2(const Char *ptr, const Char *pattern,
 		return 0;
 	}
 
-	for (i = 0, pl = pm = ptr; pm <= pe; pm++)
+	for (i = 0, pl = pm = ptr; pm <= pe; pm++) {
 		switch (*pm) {
 		case BG_LBRACKET:
 			/* Ignore everything between [] */
 			for (pl = pm++; *pm != BG_RBRACKET && *pm != BG_EOS; pm++)
-				continue;
+				;
 			if (*pm == BG_EOS) {
 				/*
 				 * We could not find a matching BG_RBRACKET.
@@ -343,8 +488,8 @@ static int globexp2(const Char *ptr, const Char *pattern,
 
 		case BG_RBRACE:
 			if (i) {
-			    i--;
-			    break;
+				i--;
+				break;
 			}
 			/* FALLTHROUGH */
 		case BG_COMMA:
@@ -353,13 +498,14 @@ static int globexp2(const Char *ptr, const Char *pattern,
 			else {
 				/* Append the current string */
 				for (lm = ls; (pl < pm); *lm++ = *pl++)
-					continue;
+					;
+
 				/*
 				 * Append the rest of the pattern after the
 				 * closing brace
 				 */
-				for (pl = pe + 1; (*lm++ = *pl++) != BG_EOS;)
-					continue;
+				for (pl = pe + 1; (*lm++ = *pl++) != BG_EOS; )
+					;
 
 				/* Expand the current pattern */
 #ifdef GLOB_DEBUG
@@ -375,6 +521,7 @@ static int globexp2(const Char *ptr, const Char *pattern,
 		default:
 			break;
 		}
+	}
 	*rv = 0;
 	return 0;
 }
@@ -385,22 +532,27 @@ static int globexp2(const Char *ptr, const Char *pattern,
  * expand tilde from the passwd file.
  */
 static const Char *
-globtilde(const Char *pattern, Char *patbuf, glob_t *pglob)
+globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 {
-	struct passwd *pwd;
 	char *h;
 	const Char *p;
-	Char *b;
+	Char *b, *eb;
 
 	if (*pattern != BG_TILDE || !(pglob->gl_flags & GLOB_TILDE))
 		return pattern;
 
 	/* Copy up to the end of the string or / */
-	for (p = pattern + 1, h = (char *) patbuf; *p && *p != BG_SLASH;
-	     *h++ = *p++)
-		continue;
+	eb = &patbuf[patbuf_len - 1];
+	for (p = pattern + 1, h = (char *) patbuf;
+	     h < (char*)eb && *p && *p != BG_SLASH; *h++ = (char)*p++)
+		;
 
 	*h = BG_EOS;
+
+#if 0
+	if (h == (char *)eb)
+		return what;
+#endif
 
 	if (((char *) patbuf)[0] == BG_EOS) {
 		/*
@@ -409,6 +561,7 @@ globtilde(const Char *pattern, Char *patbuf, glob_t *pglob)
 		 */
 		if ((h = getenv("HOME")) == NULL) {
 #ifdef HAS_PASSWD
+			struct passwd *pwd;
 			if ((pwd = getpwuid(getuid())) == NULL)
 				return pattern;
 			else
@@ -417,12 +570,12 @@ globtilde(const Char *pattern, Char *patbuf, glob_t *pglob)
                         return pattern;
 #endif
 		}
-	}
-	else {
+	} else {
 		/*
 		 * Expand a ~user
 		 */
 #ifdef HAS_PASSWD
+		struct passwd *pwd;
 		if ((pwd = getpwnam((char*) patbuf)) == NULL)
 			return pattern;
 		else
@@ -433,12 +586,13 @@ globtilde(const Char *pattern, Char *patbuf, glob_t *pglob)
 	}
 
 	/* Copy the home directory */
-	for (b = patbuf; *h; *b++ = *h++)
-		continue;
+	for (b = patbuf; b < eb && *h; *b++ = *h++)
+		;
 
 	/* Append the rest of the pattern */
-	while ((*b++ = *p++) != BG_EOS)
-		continue;
+	while (b < eb && (*b++ = *p++) != BG_EOS)
+		;
+	*b = BG_EOS;
 
 	return patbuf;
 }
@@ -456,15 +610,16 @@ glob0(const Char *pattern, glob_t *pglob)
 {
 	const Char *qpat, *qpatnext;
 	int c, err, oldflags, oldpathc;
-	Char *bufnext, patbuf[MAXPATHLEN+1];
+	Char *bufnext, patbuf[MAXPATHLEN];
+	size_t limit = 0;
 
 #ifdef MACOS_TRADITIONAL
 	if ( (*pattern == BG_TILDE) && (pglob->gl_flags & GLOB_TILDE) ) {
-		return(globextend(pattern, pglob));
+		return(globextend(pattern, pglob, &limit));
 	}
 #endif
 
-	qpat = globtilde(pattern, patbuf, pglob);
+	qpat = globtilde(pattern, patbuf, MAXPATHLEN, pglob);
 	qpatnext = qpat;
 	oldflags = pglob->gl_flags;
 	oldpathc = pglob->gl_pathc;
@@ -510,7 +665,7 @@ glob0(const Char *pattern, glob_t *pglob)
 			 * to avoid exponential behavior
 			 */
 			if (bufnext == patbuf || bufnext[-1] != M_ALL)
-			    *bufnext++ = M_ALL;
+				*bufnext++ = M_ALL;
 			break;
 		default:
 			*bufnext++ = CHAR(c);
@@ -522,7 +677,7 @@ glob0(const Char *pattern, glob_t *pglob)
 	qprintf("glob0:", patbuf);
 #endif /* GLOB_DEBUG */
 
-	if ((err = glob1(patbuf, pglob)) != 0) {
+	if ((err = glob1(patbuf, patbuf+MAXPATHLEN-1, pglob, &limit)) != 0) {
 		pglob->gl_flags = oldflags;
 		return(err);
 	}
@@ -542,11 +697,11 @@ glob0(const Char *pattern, glob_t *pglob)
 		printf("calling globextend from glob0\n");
 #endif /* GLOB_DEBUG */
 		pglob->gl_flags = oldflags;
-		return(globextend(qpat, pglob));
+		return(globextend(qpat, pglob, &limit));
         }
 	else if (!(pglob->gl_flags & GLOB_NOSORT))
 		qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
-		    pglob->gl_pathc - oldpathc, sizeof(char *), 
+		    pglob->gl_pathc - oldpathc, sizeof(char *),
 		    (pglob->gl_flags & (GLOB_ALPHASORT|GLOB_NOCASE))
 			? ci_compare : compare);
 	pglob->gl_flags = oldflags;
@@ -556,19 +711,19 @@ glob0(const Char *pattern, glob_t *pglob)
 static int
 ci_compare(const void *p, const void *q)
 {
-    const char *pp = *(const char **)p;
-    const char *qq = *(const char **)q;
-    int ci;
-    while (*pp && *qq) {
-	if (tolower(*pp) != tolower(*qq))
-	    break;
-	++pp;
-	++qq;
-    }
-    ci = tolower(*pp) - tolower(*qq);
-    if (ci == 0)
-	return compare(p, q);
-    return ci;
+	const char *pp = *(const char **)p;
+	const char *qq = *(const char **)q;
+	int ci;
+	while (*pp && *qq) {
+		if (toLOWER(*pp) != toLOWER(*qq))
+			break;
+		++pp;
+		++qq;
+	}
+	ci = toLOWER(*pp) - toLOWER(*qq);
+	if (ci == 0)
+		return compare(p, q);
+	return ci;
 }
 
 static int
@@ -578,14 +733,16 @@ compare(const void *p, const void *q)
 }
 
 static int
-glob1(Char *pattern, glob_t *pglob)
+glob1(Char *pattern, Char *pattern_last, glob_t *pglob, size_t *limitp)
 {
-	Char pathbuf[MAXPATHLEN+1];
+	Char pathbuf[MAXPATHLEN];
 
 	/* A null pathname is invalid -- POSIX 1003.1 sect. 2.4. */
 	if (*pattern == BG_EOS)
 		return(0);
-	return(glob2(pathbuf, pathbuf, pattern, pglob));
+	return(glob2(pathbuf, pathbuf+MAXPATHLEN-1,
+		     pathbuf, pathbuf+MAXPATHLEN-1,
+		     pattern, pattern_last, pglob, limitp));
 }
 
 /*
@@ -594,7 +751,8 @@ glob1(Char *pattern, glob_t *pglob)
  * meta characters.
  */
 static int
-glob2(Char *pathbuf, Char *pathend, Char *pattern, glob_t *pglob)
+glob2(Char *pathbuf, Char *pathbuf_last, Char *pathend, Char *pathend_last,
+      Char *pattern, Char *pattern_last, glob_t *pglob, size_t *limitp)
 {
 	Stat_t sb;
 	Char *p, *q;
@@ -607,7 +765,6 @@ glob2(Char *pathbuf, Char *pathend, Char *pattern, glob_t *pglob)
 	for (anymeta = 0;;) {
 		if (*pattern == BG_EOS) {		/* End of pattern? */
 			*pathend = BG_EOS;
-
 			if (g_lstat(pathbuf, &sb, pglob))
 				return(0);
 
@@ -616,18 +773,27 @@ glob2(Char *pathbuf, Char *pathend, Char *pattern, glob_t *pglob)
 #ifdef DOSISH
 			    && pathend[-1] != BG_SEP2
 #endif
-			    ) && (S_ISDIR(sb.st_mode)
-			    || (S_ISLNK(sb.st_mode) &&
+			    ) && (S_ISDIR(sb.st_mode) ||
+				  (S_ISLNK(sb.st_mode) &&
 			    (g_stat(pathbuf, &sb, pglob) == 0) &&
 			    S_ISDIR(sb.st_mode)))) {
+#ifdef MACOS_TRADITIONAL
+				short err;
+				err = glob_mark_Mac(pathbuf, pathend, pathend_last);
+				if (err)
+					return (err);
+#else
+				if (pathend+1 > pathend_last)
+					return (1);
 				*pathend++ = BG_SEP;
 				*pathend = BG_EOS;
+#endif
 			}
 			++pglob->gl_matchc;
 #ifdef GLOB_DEBUG
                         printf("calling globextend from glob2\n");
 #endif /* GLOB_DEBUG */
-			return(globextend(pathbuf, pglob));
+			return(globextend(pathbuf, pglob, limitp));
 		}
 
 		/* Find end of next segment, copy tentatively to pathend. */
@@ -640,6 +806,8 @@ glob2(Char *pathbuf, Char *pathend, Char *pattern, glob_t *pglob)
 		       ) {
 			if (ismeta(*p))
 				anymeta = 1;
+			if (q+1 > pathend_last)
+				return (1);
 			*q++ = *p++;
 		}
 
@@ -650,17 +818,24 @@ glob2(Char *pathbuf, Char *pathend, Char *pattern, glob_t *pglob)
 #ifdef DOSISH
 			       || *pattern == BG_SEP2
 #endif
-			       )
+			       ) {
+				if (pathend+1 > pathend_last)
+					return (1);
 				*pathend++ = *pattern++;
-		} else			/* Need expansion, recurse. */
-			return(glob3(pathbuf, pathend, pattern, p, pglob));
+			}
+		} else
+			/* Need expansion, recurse. */
+			return(glob3(pathbuf, pathbuf_last, pathend,
+				     pathend_last, pattern, pattern_last,
+				     p, pattern_last, pglob, limitp));
 	}
 	/* NOTREACHED */
 }
 
 static int
-glob3(Char *pathbuf, Char *pathend, Char *pattern,
-      Char *restpattern, glob_t *pglob)
+glob3(Char *pathbuf, Char *pathbuf_last, Char *pathend, Char *pathend_last,
+      Char *pattern, Char *pattern_last,
+      Char *restpattern, Char *restpattern_last, glob_t *pglob, size_t *limitp)
 {
 	register Direntry_t *dp;
 	DIR *dirp;
@@ -676,28 +851,76 @@ glob3(Char *pathbuf, Char *pathend, Char *pattern,
 	 */
 	Direntry_t *(*readdirfunc)(DIR*);
 
+	if (pathend > pathend_last)
+		return (1);
 	*pathend = BG_EOS;
 	errno = 0;
 
 #ifdef VMS
         {
-            Char *q = pathend;
-            if (q - pathbuf > 5) {
-                q -= 5;
-                if (q[0] == '.' && tolower(q[1]) == 'd' && tolower(q[2]) == 'i'
-		    && tolower(q[3]) == 'r' && q[4] == '/')
-		{
-                    q[0] = '/';
-                    q[1] = BG_EOS;
-                    pathend = q+1;
-                }
-            }
+		Char *q = pathend;
+		if (q - pathbuf > 5) {
+			q -= 5;
+			if (q[0] == '.' &&
+			    tolower(q[1]) == 'd' && tolower(q[2]) == 'i' &&
+			    tolower(q[3]) == 'r' && q[4] == '/')
+			{
+				q[0] = '/';
+				q[1] = BG_EOS;
+				pathend = q+1;
+			}
+		}
         }
 #endif
+
+#ifdef MACOS_TRADITIONAL
+	if ((!*pathbuf) && (g_matchVol)) {
+	    FSSpec spec;
+	    short index;
+	    StrFileName vol_name; /* unsigned char[64] on MacOS */
+
+	    err = 0;
+	    nocase = ((pglob->gl_flags & GLOB_NOCASE) != 0);
+
+	    /* Get and match a list of volume names */
+	    for (index = 0; !GetVolInfo(index+1, true, &spec); ++index) {
+		register U8 *sc;
+		register Char *dc;
+
+		name_f_FSSpec(vol_name, &spec);
+
+		/* Initial BG_DOT must be matched literally. */
+		if (*vol_name == BG_DOT && *pattern != BG_DOT)
+		    continue;
+		dc = pathend;
+		sc = (U8 *) vol_name;
+		while (dc < pathend_last && (*dc++ = *sc++) != BG_EOS)
+		    ;
+		if (dc >= pathend_last) {
+		    *dc = BG_EOS;
+		    err = 1;
+		    break;
+		}
+
+		if (!match(pathend, pattern, restpattern, nocase)) {
+		    *pathend = BG_EOS;
+		    continue;
+		}
+		err = glob2(pathbuf, pathbuf_last, --dc, pathend_last,
+		    restpattern, restpattern_last, pglob, limitp);
+		if (err)
+		    break;
+	    }
+	    return(err);
+
+	} else { /* open dir */
+#endif /* MACOS_TRADITIONAL */
+
 	if ((dirp = g_opendir(pathbuf, pglob)) == NULL) {
 		/* TODO: don't call for ENOENT or ENOTDIR? */
 		if (pglob->gl_errfunc) {
-			g_Ctoc(pathbuf, buf);
+			if (g_Ctoc(pathbuf, buf, sizeof(buf)))
+				return (GLOB_ABEND);
 			if (pglob->gl_errfunc(buf, errno) ||
 			    (pglob->gl_flags & GLOB_ERR))
 				return (GLOB_ABEND);
@@ -710,7 +933,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pattern,
 
 	/* Search directory for matching names. */
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
-               readdirfunc = (Direntry_t *(*)(DIR *))pglob->gl_readdir;
+		readdirfunc = (Direntry_t *(*)(DIR *))pglob->gl_readdir;
 	else
 		readdirfunc = my_readdir;
 	while ((dp = (*readdirfunc)(dirp))) {
@@ -720,14 +943,22 @@ glob3(Char *pathbuf, Char *pathend, Char *pattern,
 		/* Initial BG_DOT must be matched literally. */
 		if (dp->d_name[0] == BG_DOT && *pattern != BG_DOT)
 			continue;
-		for (sc = (U8 *) dp->d_name, dc = pathend;
-		     (*dc++ = *sc++) != BG_EOS;)
-			continue;
+		dc = pathend;
+		sc = (U8 *) dp->d_name;
+		while (dc < pathend_last && (*dc++ = *sc++) != BG_EOS)
+			;
+		if (dc >= pathend_last) {
+			*dc = BG_EOS;
+			err = 1;
+			break;
+		}
+
 		if (!match(pathend, pattern, restpattern, nocase)) {
 			*pathend = BG_EOS;
 			continue;
 		}
-		err = glob2(pathbuf, --dc, restpattern, pglob);
+		err = glob2(pathbuf, pathbuf_last, --dc, pathend_last,
+			    restpattern, restpattern_last, pglob, limitp);
 		if (err)
 			break;
 	}
@@ -737,6 +968,10 @@ glob3(Char *pathbuf, Char *pathend, Char *pattern,
 	else
 		PerlDir_close(dirp);
 	return(err);
+
+#ifdef MACOS_TRADITIONAL
+	}
+#endif
 }
 
 
@@ -755,10 +990,11 @@ glob3(Char *pathbuf, Char *pathend, Char *pattern,
  *	gl_pathv points to (gl_offs + gl_pathc + 1) items.
  */
 static int
-globextend(const Char *path, glob_t *pglob)
+globextend(const Char *path, glob_t *pglob, size_t *limitp)
 {
 	register char **pathv;
 	register int i;
+	STRLEN newsize, len;
 	char *copy;
 	const Char *p;
 
@@ -769,13 +1005,18 @@ globextend(const Char *path, glob_t *pglob)
         printf("\n");
 #endif /* GLOB_DEBUG */
 
+	newsize = sizeof(*pathv) * (2 + pglob->gl_pathc + pglob->gl_offs);
 	if (pglob->gl_pathv)
-		pathv = Renew(pglob->gl_pathv,
-			      (2 + pglob->gl_pathc + pglob->gl_offs),char*);
+		pathv = Renew(pglob->gl_pathv,newsize,char*);
 	else
-		New(0,pathv,(2 + pglob->gl_pathc + pglob->gl_offs),char*);
-	if (pathv == NULL)
+		Newx(pathv,newsize,char*);
+	if (pathv == NULL) {
+		if (pglob->gl_pathv) {
+			Safefree(pglob->gl_pathv);
+			pglob->gl_pathv = NULL;
+		}
 		return(GLOB_NOSPACE);
+	}
 
 	if (pglob->gl_pathv == NULL && pglob->gl_offs > 0) {
 		/* first time around -- clear initial gl_offs items */
@@ -786,13 +1027,25 @@ globextend(const Char *path, glob_t *pglob)
 	pglob->gl_pathv = pathv;
 
 	for (p = path; *p++;)
-		continue;
-	New(0, copy, p-path, char);
+		;
+	len = (STRLEN)(p - path);
+	*limitp += len;
+	Newx(copy, p-path, char);
 	if (copy != NULL) {
-		g_Ctoc(path, copy);
+		if (g_Ctoc(path, copy, len)) {
+			Safefree(copy);
+			return(GLOB_NOSPACE);
+		}
 		pathv[pglob->gl_offs + pglob->gl_pathc++] = copy;
 	}
 	pathv[pglob->gl_offs + pglob->gl_pathc] = NULL;
+
+	if ((pglob->gl_flags & GLOB_LIMIT) &&
+	    newsize + *limitp >= ARG_MAX) {
+		errno = 0;
+		return(GLOB_NOSPACE);
+	}
+
 	return(copy == NULL ? GLOB_NOSPACE : 0);
 }
 
@@ -816,7 +1069,8 @@ match(register Char *name, register Char *pat, register Char *patend, int nocase
 			do
 			    if (match(name, pat, patend, nocase))
 				    return(1);
-			while (*name++ != BG_EOS);
+			while (*name++ != BG_EOS)
+				;
 			return(0);
 		case M_ONE:
 			if (*name++ == BG_EOS)
@@ -866,6 +1120,7 @@ bsd_globfree(glob_t *pglob)
 			if (*pp)
 				Safefree(*pp);
 		Safefree(pglob->gl_pathv);
+		pglob->gl_pathv = NULL;
 	}
 }
 
@@ -881,13 +1136,14 @@ g_opendir(register Char *str, glob_t *pglob)
 		strcpy(buf, ".");
 #endif
 	} else {
-		g_Ctoc(str, buf);
+		if (g_Ctoc(str, buf, sizeof(buf)))
+			return(NULL);
 	}
 
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
 		return((*pglob->gl_opendir)(buf));
-	else
-	    return(PerlDir_open(buf));
+
+	return(PerlDir_open(buf));
 }
 
 static int
@@ -895,7 +1151,8 @@ g_lstat(register Char *fn, Stat_t *sb, glob_t *pglob)
 {
 	char buf[MAXPATHLEN];
 
-	g_Ctoc(fn, buf);
+	if (g_Ctoc(fn, buf, sizeof(buf)))
+		return(-1);
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
 		return((*pglob->gl_lstat)(buf, sb));
 #ifdef HAS_LSTAT
@@ -910,7 +1167,8 @@ g_stat(register Char *fn, Stat_t *sb, glob_t *pglob)
 {
 	char buf[MAXPATHLEN];
 
-	g_Ctoc(fn, buf);
+	if (g_Ctoc(fn, buf, sizeof(buf)))
+		return(-1);
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
 		return((*pglob->gl_stat)(buf, sb));
 	return(PerlLIO_stat(buf, sb));
@@ -926,29 +1184,14 @@ g_strchr(Char *str, int ch)
 	return (NULL);
 }
 
-#ifdef notdef
-static Char *
-g_strcat(Char *dst, const Char *src)
+static int
+g_Ctoc(register const Char *str, char *buf, STRLEN len)
 {
-	Char *sdst = dst;
-
-	while (*dst++)
-		continue;
-	--dst;
-	while((*dst++ = *src++) != BG_EOS)
-	    continue;
-
-	return (sdst);
-}
-#endif
-
-static void
-g_Ctoc(register const Char *str, char *buf)
-{
-	register char *dc;
-
-	for (dc = buf; (*dc++ = *str++) != BG_EOS;)
-		continue;
+	while (len--) {
+		if ((*buf++ = (char)*str++) == BG_EOS)
+			return (0);
+	}
+	return (1);
 }
 
 #ifdef GLOB_DEBUG
@@ -969,3 +1212,209 @@ qprintf(const char *str, register Char *s)
 	(void)printf("\n");
 }
 #endif /* GLOB_DEBUG */
+
+
+#ifdef MACOS_TRADITIONAL
+
+/* Replace the last occurrence of the pattern ":[^:]+::", e.g. ":lib::",
+   with a single ':', if possible. It is not an error, if the pattern
+   doesn't match (we return -1), but if there are two consecutive colons
+   '::', there must be a preceding ':[^:]+'. Hence,  a volume path like
+   "HD::" is considered to be an error (we return 1), that is, it can't
+   be resolved. We return 0 on success.
+*/
+
+static short
+updir(char *path)
+{
+	char *pb, *pe, *lastchar;
+	char *bgn_mark, *end_mark;
+	char *f, *m, *b; /* front, middle, back */
+	size_t len;
+
+	len = strlen(path);
+	lastchar = path + (len-1);
+	b = lastchar;
+	m = lastchar-1;
+	f = lastchar-2;
+
+	/* find a '[^:]::' (e.g. b::) pattern ... */
+	while ( !( (*f != BG_SEP) && (*m == BG_SEP) && (*b == BG_SEP) )
+	        && (f >= path)) {
+		f--;
+		m--;
+		b--;
+	}
+
+	if (f < path) { /* no (more) match */
+		return -1;
+	}
+
+	end_mark = b;
+
+	/* ... and now find its preceding colon ':' */
+	while ((*f != BG_SEP) && (f >= path)) {
+		f--;
+	}
+	if (f < path) {
+		/* No preceding colon found, must be a
+		   volume path. We can't move up the
+		   tree and that's an error */
+		return 1;
+	}
+	bgn_mark = f;
+
+	/* Shrink path, i.e. exclude all characters between
+	   bgn_mark and end_mark */
+
+	pb = bgn_mark;
+	pe = end_mark;
+	while (*pb++ = *pe++) ;
+	return 0;
+}
+
+
+/* Resolve all updirs in pattern. */
+
+static short
+resolve_updirs(char *new_pattern)
+{
+	short err;
+
+	do {
+		err = updir(new_pattern);
+	} while (!err);
+	if (err == 1) {
+		return NO_UPDIR_ERR;
+	}
+	return 0;
+}
+
+
+/* Remove a trailing colon from the path, but only if it's
+   not a volume path (e.g. HD:) and not a path consisting
+   solely of colons. */
+
+static void
+remove_trColon(char *path)
+{
+	char *lastchar, *lc;
+
+	/* if path matches the pattern /:[^:]+:$/, we can
+	   remove the trailing ':' */
+
+	lc = lastchar = path + (strlen(path) - 1);
+	if (*lastchar == BG_SEP) {
+		/* there's a trailing ':', there must be at least
+		   one preceding char != ':' and a preceding ':' */
+		lc--;
+		if ((*lc != BG_SEP) && (lc >= path)) {
+			lc--;
+		} else {
+			return;
+		}
+		while ((*lc != BG_SEP) && (lc >= path)) {
+			lc--;
+		}
+		if (lc >= path) {
+			/* ... there's a preceding ':', we remove
+			   the trailing colon */
+			*lastchar = BG_EOS;
+		}
+	}
+}
+
+
+/* With the GLOB_MARK flag on, we append a colon, if pathbuf
+   is a directory. If the directory name contains no colons,
+   e.g. 'lib', we can't simply append a ':', since this (e.g.
+   'lib:') is not a valid (relative) path on Mac OS. Instead,
+   we add a leading _and_ trailing ':'. */
+
+static short
+glob_mark_Mac(Char *pathbuf, Char *pathend, Char *pathend_last)
+{
+	Char *p, *pe;
+	Boolean is_file = true;
+
+	/* check if pathbuf contains a ':',
+	   i.e. is not a file name */
+	p = pathbuf;
+	while (*p != BG_EOS) {
+		if (*p == BG_SEP) {
+			is_file = false;
+			break;
+		}
+		p++;
+	}
+
+	if (is_file) {
+		if (pathend+2 > pathend_last) {
+			return (1);
+		}
+		/* right shift one char */
+		pe = p = pathend;
+		p--;
+		pathend++;
+		while (p >= pathbuf) {
+			*pe-- = *p--;
+		}
+		/* first char becomes a colon */
+		*pathbuf = BG_SEP;
+		/* append a colon */
+		*pathend++ = BG_SEP;
+		*pathend = BG_EOS;
+
+	} else {
+		if (pathend+1 > pathend_last) {
+			return (1);
+		}
+		*pathend++ = BG_SEP;
+		*pathend = BG_EOS;
+	}
+	return 0;
+}
+
+
+/* Return a FSSpec record for the specified volume
+   (borrowed from MacPerl.xs). */
+
+static OSErr
+GetVolInfo(short volume, Boolean indexed, FSSpec* spec)
+{
+	OSErr		err; /* OSErr: 16-bit integer */
+	HParamBlockRec	pb;
+
+	pb.volumeParam.ioNamePtr	= spec->name;
+	pb.volumeParam.ioVRefNum	= indexed ? 0 : volume;
+	pb.volumeParam.ioVolIndex	= indexed ? volume : 0;
+
+	if (err = PBHGetVInfoSync(&pb))
+		return err;
+
+	spec->vRefNum	= pb.volumeParam.ioVRefNum;
+	spec->parID	= 1;
+
+	return noErr; /* 0 */
+}
+
+/* Extract a C name from a FSSpec. Note that there are
+   no leading or trailing colons. */
+
+static void
+name_f_FSSpec(StrFileName name, FSSpec *spec)
+{
+	unsigned char *nc;
+	const short len = spec->name[0];
+	short i;
+
+	/* FSSpec.name is a Pascal string,
+	   convert it to C ... */
+	nc = name;
+	for (i=1; i<=len; i++) {
+		*nc++ = spec->name[i];
+	}
+	*nc = BG_EOS;
+}
+
+#endif /* MACOS_TRADITIONAL */

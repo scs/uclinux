@@ -1,11 +1,9 @@
-/* $RCSfile: INTERN.h,v $$Revision$$Date$
+/*    INTERN.h
  *
- *    Copyright (c) 1991-2001, Larry Wall
+ *    Copyright (C) 1993, 1994, by Larry Wall and others
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
- *
- * $Log:	INTERN.h,v $
  */
 
 #undef EXT
