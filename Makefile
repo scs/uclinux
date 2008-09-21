@@ -393,12 +393,18 @@ distclean: mrproper
 	-rm -f tools/cksum
 
 bugreport:
-	rm -f ./bugreport.tgz ./toolchain_vers ./host_vers
-	$(HOSTCC) -v 2> ./host_vers
-	$(CROSS_COMPILE)gcc -v 2> ./toolchain_vers
-	tar -czf bugreport.tgz .config linux-2.6.x/.config config/.config toolchain_vers host_vers
-	rm -f ./toolchain_vers ./host_vers
-	echo -e "Please attach the file 'bugreport.tgz' to a bug report at\n http://blackfin.uclinux.org/gf/project/uclinux-dist/tracker/?action=TrackerItemAdd&tracker_id=141"
+	rm -rf ./bugreport.tgz ./bugreport
+	mkdir bugreport
+	$(HOSTCC) -v 2> ./bugreport/host_vers
+	$(CROSS_COMPILE)gcc -v 2> ./bugreport/toolchain_vers
+	cp .config bugreport/
+	mkdir bugreport/linux-2.6.x
+	cp linux-2.6.x/.config bugreport/linux-2.6.x/
+	mkdir bugreport/config
+	cp config/.config bugreport/config
+	tar czf bugreport.tgz bugreport
+	rm -rf ./bugreport
+	@printf "\nPlease attach the file 'bugreport.tgz' to a bug report at\n http://blackfin.uclinux.org/gf/project/uclinux-dist/tracker/?action=TrackerItemAdd&tracker_id=141\n\n"
 
 %_only:
 	@case "$(@)" in \
