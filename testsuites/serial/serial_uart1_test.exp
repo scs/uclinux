@@ -219,9 +219,9 @@ send -s "diff -u $file boa.conf \r"
 while 1 {
 expect {
           -re "\\\+\\\+\\\+.*\[\r\n]$sh_prompt" {
-                         puts "\nTwo files diffs. $expect_out(0,string)\n"
+                         puts "\nTwo files diffs.\n $expect_out(0,string)\n"
                          case_fail $case_num
-                          }
+                         }
           -re  "$sh_prompt" 
                       {
                         puts "Success case.\n"
@@ -230,7 +230,7 @@ expect {
                         }   
           "differ"
                       {
-                         puts "Two files diffs.\n"
+                         puts "Two files diffs!\n"
                          case_fail $case_num
                         }
 
@@ -245,7 +245,8 @@ expect {
 step "Convert the console to ttyBF1."
 
 set spawn_id $target_id
-append bootargs_param7 " console=$ttyBFdev"
+set console [file tail /dev/ttyBF1]
+append bootargs_param7 " console=$console"
 set bootargs             $bootargs_param7
 source ../reboot_kernel.exp
 
@@ -257,7 +258,8 @@ incr case_num
     while 1 {
         expect {
             "ermit>" {
-                send -s "set line $ttyUSBdev\r"
+                send -s "q\r"
+                expect -re ">"
                 set back_flag SUCCESS
                 break
             }
@@ -268,13 +270,19 @@ incr case_num
             }
         }
     }
-    send -s "connect\r"
+
+set ttydev $ttyUSBdev
+step "Start kermit."
+source ../spawn_kermit.exp
+set timeout 20
+
     send -s "\r"
+    expect -re "$kernel_prompt"
+    send -s "ls\r"
     while 1 {
         expect {
             -re "$kernel_prompt" {
                 case_pass $case_num
-                set close_flag SUCCESS
                 break
             }
 
@@ -285,6 +293,7 @@ incr case_num
             }
         }
 }
+
 
 
 send_log "\n"
