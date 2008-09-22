@@ -106,12 +106,8 @@ image.rootfs.romfs.force:
 	$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
 	$(MKFS_ROMFS) $(MKFS_ROMFS_FLAGS) -f $(IMAGE_ROMFS_BASE).romfs -d $(ROMFSDIR); \
 	rm -rf $(ROMFSDIR)/dev/*
-image.rootfs.romfs:
 ifeq ($(CONFIG_ROMFS_FS),y)
-	set -e ; \
-	if which $(MKFS_ROMFS) >/dev/null 2>&1; then \
-		$(MAKE) image.rootfs.romfs.force; \
-	fi
+image.rootfs.romfs: image.rootfs.romfs.force
 endif
 
 .PHONY: image.rootfs.yaffs image.rootfs.yaffs.force
@@ -170,12 +166,8 @@ endif
 .PHONY: image.kernel.romfs image.kernel.romfs.force
 image.kernel.romfs.force: image.kernel.vmlinux
 	$(call MAKE_KERNEL_ROMFS,romfs)
-image.kernel.romfs:
 ifeq ($(CONFIG_ROMFS_FS),y)
-	set -e ; \
-	if which $(MKFS_ROMFS) >/dev/null 2>&1; then \
-		$(MAKE) image.kernel.romfs.force; \
-	fi
+image.kernel.romfs: image.kernel.romfs.force
 endif
 
 .PHONY: image.kernel.vmlinux
@@ -259,12 +251,8 @@ image.uimage.initramfs:
 .PHONY: image.uimage.romfs image.uimage.romfs.force
 image.uimage.romfs.force:
 	$(call MAKE_UIMAGE_ROMFS,romfs)
-image.uimage.romfs:
 ifeq ($(CONFIG_ROMFS_FS),y)
-	set -e ; \
-	if which $(MKFS_ROMFS) >/dev/null 2>&1; then \
-		$(MAKE) image.uimage.romfs.force; \
-	fi
+image.uimage.romfs: image.uimage.romfs.force
 endif
 
 # this should be handled by the kernel build already ...
