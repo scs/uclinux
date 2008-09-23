@@ -3,6 +3,8 @@ dir_n =
 dir_  =
 
 dir_$(CONFIG_USER_BLACKFIN_PPIFCDCGI)            += ppifcd-cgi
+dir_$(CONFIG_USER_IMGUPD_IMGUPD)		 += imgupd
+dir_$(CONFIG_USER_BOARDENV_BOARDENV)		 += boardenv
 dir_$(CONFIG_USER_BLACKFIN_LINPHONE)             += linphone
 dir_$(CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST)  += devfbapp
 dir_$(CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT)    += devvoutapp

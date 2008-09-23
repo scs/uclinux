@@ -279,3 +279,7 @@ bool	'bf53x_pfbuttons'		CONFIG_USER_BLACKFIN_DRV_PFBUTTONS
 bool	'tea5764'			CONFIG_USER_BLACKFIN_DRV_TEA5764
 
 endmenu
+
+#############################################################################
+
+source config-blackfin-scs.in

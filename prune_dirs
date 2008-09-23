@@ -1,0 +1,111 @@
+## This scripts deletes many of the folders of the uclinux-dist tree 
+## that are not necessary for compilation for the Low-Cost-Vision 
+## platform. 
+##
+## !!!! Only execute in the uclinux-dist folder and at your own 
+## responsibility!!!!
+
+rm -rf ./openswan
+rm -rf ./freeswan
+rm -rf ./testsuites
+
+rm -rf ./linux-2.6.x/arch/alpha
+rm -rf ./linux-2.6.x/arch/arm
+rm -rf ./linux-2.6.x/arch/arm26
+rm -rf ./linux-2.6.x/arch/avr32
+rm -rf ./linux-2.6.x/arch/cris
+rm -rf ./linux-2.6.x/arch/frv
+rm -rf ./linux-2.6.x/arch/h8300
+rm -rf ./linux-2.6.x/arch/i386
+rm -rf ./linux-2.6.x/arch/ia64
+rm -rf ./linux-2.6.x/arch/m32r
+rm -rf ./linux-2.6.x/arch/m68k
+rm -rf ./linux-2.6.x/arch/m68knommu
+rm -rf ./linux-2.6.x/arch/mips
+rm -rf ./linux-2.6.x/arch/parisc
+rm -rf ./linux-2.6.x/arch/powerpc
+rm -rf ./linux-2.6.x/arch/ppc
+rm -rf ./linux-2.6.x/arch/sh
+rm -rf ./linux-2.6.x/arch/sh64
+rm -rf ./linux-2.6.x/arch/sparc
+rm -rf ./linux-2.6.x/arch/sparc64
+rm -rf ./linux-2.6.x/arch/um
+rm -rf ./linux-2.6.x/arch/v850
+rm -rf ./linux-2.6.x/arch/x86_64
+rm -rf ./linux-2.6.x/arch/xtensa
+
+rm -rf ./lib/alsa-lib
+rm -rf ./lib/bluez-libs
+rm -rf ./lib/avahi
+rm -rf ./lib/faad2
+rm -rf ./lib/flac
+rm -rf ./lib/libatm
+rm -rf ./lib/libaudio
+rm -rf ./lib/libiconv
+rm -rf ./lib/libid3tag
+rm -rf ./lib/libidn
+rm -rf ./lib/libldap
+rm -rf ./lib/libsdl
+rm -rf ./lib/libupnp
+rm -rf ./lib/ncurses
+rm -rf ./lib/osip2
+rm -rf ./lib/pcre
+rm -rf ./lib/readline
+rm -rf ./lib/speex
+rm -rf ./lib/STLport
+rm -rf ./lib/tslib-1.0
+
+rm -rf ./user/asterisk
+rm -rf ./user/bash
+rm -rf ./user/bind
+rm -rf ./user/blkfin-apps/alsa-utils
+rm -rf ./user/blkfin-apps/asterisk
+rm -rf ./user/blkfin-apps/bluez-utils
+rm -rf ./user/blkfin-apps/linphone
+rm -rf ./user/blkfin-apps/musicpd
+rm -rf ./user/blkfin-apps/vlc
+rm -rf ./user/camserv
+rm -rf ./user/clamav
+rm -rf ./user/clamsmtp
+rm -rf ./user/conntrack
+rm -rf ./user/diald
+rm -rf ./user/e2fsprogs
+rm -rf ./user/ez-ipupdate
+rm -rf ./user/fdisk
+rm -rf ./user/freeradius
+rm -rf ./user/frox
+rm -rf ./user/games
+rm -rf ./user/gdb
+rm -rf ./user/hostap
+rm -rf ./user/httptunnel
+rm -rf ./user/lilo
+rm -rf ./user/lirc
+rm -rf ./user/lm-sensors
+rm -rf ./user/lpr
+rm -rf ./user/lrzsz
+rm -rf ./user/lua
+rm -rf ./user/mail
+rm -rf ./user/mawk
+rm -rf ./user/mp3play
+rm -rf ./user/mysql
+rm -rf ./user/nessus
+rm -rf ./user/ntp
+rm -rf ./user/oggplay
+rm -rf ./user/openvpn
+rm -rf ./user/p7zip
+rm -rf ./user/pcmcia-cs
+rm -rf ./user/perl
+rm -rf ./user/pppd
+rm -rf ./user/proftpd
+rm -rf ./user/python
+rm -rf ./user/quagga
+rm -rf ./user/reiserfsprogs
+rm -rf ./user/samba
+rm -rf ./user/ser
+rm -rf ./user/shadow
+rm -rf ./user/speedtouch
+rm -rf ./user/squid
+rm -rf ./user/tcsh
+rm -rf ./user/unzip
+rm -rf ./user/wlan-ng
+rm -rf ./user/zebra

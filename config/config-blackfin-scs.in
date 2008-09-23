@@ -1,0 +1,15 @@
+# TOOLS specific to the LCV platform
+mainmenu_option next_comment
+comment 'Low-cost Vision Applications'
+
+bool 'imgupd'                   CONFIG_USER_IMGUPD_IMGUPD
+if [ "$CONFIG_USER_IMGUPD_IMGUPD" = "y" ]; then
+   string '  imgupd tftp server ip'  CONFIG_USER_IMGUPD_SERVER_IP '192.168.0.3'
+fi
+
+bool 'boardenv'                   CONFIG_USER_BOARDENV_BOARDENV
+
+endmenu
+
+#############################################################################
+
