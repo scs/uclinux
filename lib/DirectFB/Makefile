@@ -34,11 +34,12 @@ build-$(VER)/Makefile:
 clean:
 	rm -rf build*
 
+LIB_VER = $(shell echo $(patsubst DirectFB-%,%,$(VER)) | cut -d. -f1,2)
 romfs:
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libdirect-1.1.so.0 /usr/lib/libdirect-1.1.so.0
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libdirectfb-1.1.so.0 /usr/lib/libdirectfb-1.1.so.0
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libfusion-1.1.so.0 /usr/lib/libfusion-1.1.so.0
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/directfb-1.1-0 /usr/lib/directfb-1.1-0
-	find $(ROMFSDIR)/usr/lib/directfb-1.1-0 -type f -name '*.la' -print0 | xargs -0 rm -f
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libdirect-$(LIB_VER).so.0 /usr/lib/libdirect-$(LIB_VER).so.0
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libdirectfb-$(LIB_VER).so.0 /usr/lib/libdirectfb-$(LIB_VER).so.0
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libfusion-$(LIB_VER).so.0 /usr/lib/libfusion-$(LIB_VER).so.0
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/directfb-$(LIB_VER)-0 /usr/lib/directfb-$(LIB_VER)-0
+	find $(ROMFSDIR)/usr/lib/directfb-$(LIB_VER)-0 -type f -name '*.la' -print0 | xargs -0 rm -f
 
 .PHONY: all clean romfs
