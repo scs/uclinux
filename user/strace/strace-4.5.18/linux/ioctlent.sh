@@ -68,7 +68,19 @@ lookup_ioctls '7[12]' linux/videotext.h
 lookup_ioctls 89 $asm/sockios.h linux/sockios.h
 lookup_ioctls 8B linux/wireless.h
 
-files="linux/* $asm/* scsi/* sound/*"
+if [ -e $dir/Kbuild ] ; then
+	# kernel has exported user space headers, so query only them
+	files=$(
+		cd $dir
+		find . -mindepth 2 -name Kbuild | \
+			sed -e 's:^\./::' -e 's:/Kbuild:/*:' | \
+			grep -v '^asm-'
+		echo "$asm/* asm-generic/*"
+	)
+else
+	# older kernel so just assume some headers
+	files="linux/* $asm/* scsi/* sound/*"
+fi
 
 # Build the list of all ioctls
 regexp='^[[:space:]]*#[[:space:]]*define[[:space:]]\+[A-Z][A-Z0-9_]*[[:space:]]\+_S\?\(IO\|IOW\|IOR\|IOWR\)\>'

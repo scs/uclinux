@@ -1,5 +1,26 @@
---- strace-4.5.15/linux/ioctlent.sh
-+++ strace-4.5.15/linux/ioctlent.sh
+--- strace-4.5.18/linux/ioctlent.sh
++++ strace-4.5.18/linux/ioctlent.sh
+@@ -68,7 +68,19 @@
+ lookup_ioctls 89 $asm/sockios.h linux/sockios.h
+ lookup_ioctls 8B linux/wireless.h
+ 
+-files="linux/* $asm/* scsi/* sound/*"
++if [ -e $dir/Kbuild ] ; then
++	# kernel has exported user space headers, so query only them
++	files=$(
++		cd $dir
++		find . -mindepth 2 -name Kbuild | \
++			sed -e 's:^\./::' -e 's:/Kbuild:/*:' | \
++			grep -v '^asm-'
++		echo "$asm/* asm-generic/*"
++	)
++else
++	# older kernel so just assume some headers
++	files="linux/* $asm/* scsi/* sound/*"
++fi
+ 
+ # Build the list of all ioctls
+ regexp='^[[:space:]]*#[[:space:]]*define[[:space:]]\+[A-Z][A-Z0-9_]*[[:space:]]\+_S\?\(IO\|IOW\|IOR\|IOWR\)\>'
 @@ -78,12 +78,48 @@
  	>> ioctls.h
  
@@ -51,8 +72,8 @@
 +		echo
 +	fi
  done
---- strace-4.5.15/linux/ioctlsort.c
-+++ strace-4.5.15/linux/ioctlsort.c
+--- strace-4.5.18/linux/ioctlsort.c
++++ strace-4.5.18/linux/ioctlsort.c
 @@ -35,9 +35,9 @@
  int main(int argc, char** argv) {
  	int i;
@@ -65,8 +86,8 @@
  #endif
  
  	qsort(ioctls, nioctls, sizeof(ioctls[0]), compare);
---- strace-4.5.15/syscallent.sh
-+++ strace-4.5.15/syscallent.sh
+--- strace-4.5.18/syscallent.sh
++++ strace-4.5.18/syscallent.sh
 @@ -59,6 +59,7 @@
  		print s
  	}
