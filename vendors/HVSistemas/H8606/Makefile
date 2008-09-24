@@ -9,7 +9,7 @@ include $(CONFIG_CONFIG)
 ROMFSIMG = $(IMAGEDIR)/rootfs
 IMAGE    = $(IMAGEDIR)/linux
 
-MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
+MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/mkfs.jffs2
 MKFS_YAFFS  = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffsimage
 MKFS_YAFFS2 = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffs2image
 
