@@ -4,7 +4,7 @@ source ../kernel_config.exp
 source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
-set debug_port "uart"
+set debug_port "ethernet"
 
 if { $argc >= 2} {
 set debug_port [lindex $argv 1]
@@ -17,18 +17,18 @@ send_log "\n#### This port $debug_port is not supported. Sorry.\n"
 exit
 }
 
-if { $debug_port == "ethernet" } {
-
-set bootparam "root=/dev/mtdblock0 rw kgdboe=@10.100.4.50/,@10.100.4.174/"
-
 step "Apply kgdb patch."
 
 cd $uclinux_path/linux-2.6.x
 
-exec patch -p1  < ../bfin_patch/kgdb_patch/kgdb_bfin_linux-2.6.x.patch
+if { $debug_port == "ethernet" } {
 
-exec patch -p1  < ../bfin_patch/kgdb_patch/kgdb_bfin_linux-2.6.x_test.patch
+exec patch -p0  < ../bfin_patch/kgdb_patch/kgdboe_bfin_linux-2.6.x.patch
+
 }
+
+exec patch -p1  < ../testsuites/kgdb/kgdb_bfin_linux-2.6.x_test.patch
+
 
 cd $uclinux_path/testsuites
 
@@ -67,12 +67,8 @@ while 1 {
         -re "KGDB: kernel debugging with remote gdb.*KGDB.*\\\[.*]" {
             send "Y\r"
         }
-        
-        -re "KGDB: connect over.*Ethernet.*KGDB_ETH.*UART.*KGDB_UART.*choice.*\\\[.*]" {
-            send "1\r"
-        }
-
-        -re "KGDB: test.*KGDB_TEST.*\\\[.*]" {
+    
+        -re "KGDB: On ethernet.*KGDBOE.*\\\[.*]" {
             send "Y\r"
         }
         
@@ -80,10 +76,13 @@ while 1 {
             send "Y\r"             
         }      
 
-        -re "Initial kernel command string.*CMDLINE.*\\\[.*]" {
-            send -s "$bootparam\r"
-        }
+        -re "Initial kernel command string.*CMDLINE.*\\\[(.*)]" {
+            send -s "$expect_out(1,string) kgdboe=@10.100.4.50/,@10.100.4.174/\r"
+         }
 
+         -re "Blackfin On-Chip Watchdog Timer.*BFIN_WDT.*\\\[.*]" {
+            send -s "N\r"
+         }
 
         "\\\(*) \\\[*]" {
             sleep .01 
@@ -189,6 +188,20 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
+
+
+step "Revert kgdb patch."
+
+cd $uclinux_path/linux-2.6.x
+
+if { $debug_port == "ethernet" } {
+
+exec patch -p0 -R < ../bfin_patch/kgdb_patch/kgdboe_bfin_linux-2.6.x.patch
+
+}
+
+exec patch -p1 -R < ../testsuites/kgdb/kgdb_bfin_linux-2.6.x_test.patch
+
 
 send_user "Ending $argv0\n"
 log_file

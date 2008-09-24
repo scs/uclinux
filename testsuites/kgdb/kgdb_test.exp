@@ -14,6 +14,19 @@ source ../spawn_kermit.exp
 step "Reboot the kernel."
 source ../reboot_kernel.exp
 
+set debug_port "ethernet"
+
+if { $argc >= 2} {
+set debug_port [lindex $argv 1]
+}
+
+if { $debug_port == "uart" || $debug_port == "ethernet" } {
+send_log "\n#### Debugging is through $debug_port port.\n"
+} else {
+send_log "\n#### This port $debug_port is not supported. Sorry.\n"
+exit
+}
+
 step "Start $TITLE\r"
 
 proc clean_host_gdb { } {
@@ -24,7 +37,7 @@ global sh_prompt
 spawn /bin/sh
 expect -re  $sh_prompt
 
-set timeout 5
+set timeout 10
 send -s "ps aux | grep bfin-uclinux-gdb\r"
 while 1 {
    expect {
@@ -52,7 +65,7 @@ while 1 {
 }
 }
 
-set timeout 20
+set timeout 30
 set case_num 0
 
 set timeout 8
@@ -74,6 +87,24 @@ while 1 {
      }
 }
 
+send -s "\x81"
+send -s "b"
+send -s "g"
+sleep 3
+while 1 {
+        expect {
+               -re "SysRq : GDB.*Entering KGDB" {
+                send_log "Prepare KGDB through uart port debug!"
+                break
+            }
+
+            timeout {
+                send_user "ERROR: enter to kgdb error\n"
+                break
+            }
+        }
+}
+
 incr case_num
 spawn bfin-uclinux-gdb $uclinux_path/linux-2.6.x/vmlinux
 set gdb_id $spawn_id
@@ -92,6 +123,7 @@ while 1 {
 
 while 1 {
 	incr case_num
+        if { $debug_port == "ethernet" } {
 	send "target remote udp:$targetip:6443\r"
 	expect {
 		"breakpoint () at kernel" {
@@ -107,6 +139,34 @@ while 1 {
 			exit
 		}
 	}
+        } elseif { $debug_port == "uart" } {
+        send "set remotebaud 57600\r"
+        expect {
+                "(gdb)" {
+                case_pass $case_num
+                }
+                timeout {
+                clean_host_gdb
+                case_fail $case_num
+                exit
+                }
+        }
+        send "target remote $ttyUSBdev\r"
+        expect {
+                "Remote debugging using $ttyUSBdev" {
+                case_pass $case_num
+                        expect {
+                                "(gdb) " {
+                                }
+                        }
+                }
+                timeout {
+                clean_host_gdb
+                case_fail $case_num
+                        exit
+                }
+        }
+        }
 	incr case_num
 	send "break kgdb_test\r"
 	expect {
@@ -420,6 +480,7 @@ while 1 {
 	}
 	incr case_num
 	set spawn_id $gdb_id
+        sleep 3
 	send "\3"
 	expect {
 		"breakpoint" {
