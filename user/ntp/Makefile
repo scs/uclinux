@@ -56,10 +56,10 @@ clean:
 	rm -rf build*
 
 romfs:
-	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPD builddir/ntpd/ntpd /bin/ntpd
-	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPDATE builddir/ntpdate/ntpdate /bin/ntpdate
-	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPDC builddir/ntpdc/ntpdc /bin/ntpdc
-	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPQ builddir/ntpq/ntpq /bin/ntpq
+	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPD build-$(VER)/ntpd/ntpd /bin/ntpd
+	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPDATE build-$(VER)/ntpdate/ntpdate /bin/ntpdate
+	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPDC build-$(VER)/ntpdc/ntpdc /bin/ntpdc
+	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPQ build-$(VER)/ntpq/ntpq /bin/ntpq
 	$(ROMFSINST) -a "ntp	123/tcp" /etc/services
 	$(ROMFSINST) -a "ntp	123/udp" /etc/services
 
