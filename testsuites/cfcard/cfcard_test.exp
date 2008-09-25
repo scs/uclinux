@@ -24,7 +24,8 @@ incr case_num
 send "dmesg\r" 
 while 1 {
    expect {
-      "hda: hda1" {
+     -re "bfin_cf_pcmcia: Blackfin CompactFlash/PCMCIA Socket Driver.*pcmcia: registering new device pcmcia0.0.*sda: sda1" {
+                expect -re $kernel_prompt
                 case_pass $case_num
 		break
       }
@@ -36,10 +37,64 @@ while 1 {
      }
 }
 
+incr case_num
+send -s "cardctl ident\r"
+while 1 {
+   expect {
+     -re "product info.*SanDisk" {
+                expect -re $kernel_prompt
+                case_pass $case_num
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+
+
+incr case_num
+send "dump_cis\r"
+while 1 {
+   expect {
+     -re "Socket 0:.*dev_info.*SanDisk.*disk_interface.*cftable_entry" {
+                expect -re $kernel_prompt
+                case_pass $case_num
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+
+incr case_num
+send "cardctl status\r"
+while 1 {
+   expect {
+     -re "Socket 0:.*function 0:.*ready" {
+                expect -re $kernel_prompt
+                case_pass $case_num
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+
+
+
 while 1 {
 
 incr case_num
-send "fdisk /dev/hda\r" 
+send "fdisk /dev/sda1\r" 
 expect {
      -re "Command .*:" {		
       }
@@ -144,11 +199,13 @@ send "w\r"
      }
 }
 
+expect -re $kernel_prompt
 incr case_num
-send "mke2fs /dev/hda1\r" 
+send "mke2fs /dev/sda1\r" 
 while 1 {
    expect {
      -re "done.*done" {
+                expect -re $kernel_prompt
                 case_pass $case_num
 		break
       }
@@ -161,13 +218,18 @@ while 1 {
 }
 
 incr case_num
-send "mount /dev/hda1 /mnt\r" 
+send "mount /dev/sda1 /mnt\r" 
 while 1 {
    expect {
-      ">" {
+       -re $kernel_prompt {
                 case_pass $case_num
 		break
       }
+
+      "Error|No" {
+                case_fail $case_num
+                exit
+         }
 
       timeout {
                 case_fail $case_num
@@ -181,7 +243,7 @@ incr case_num
 send "cp /bin/pwd /mnt\r" 
 while 1 {
    expect {
-      ">" {
+       -re $kernel_prompt {
                 case_pass $case_num
 		break
       }
@@ -197,7 +259,7 @@ incr case_num
 send "ls -al /mnt\r" 
 while 1 {
    expect {
-      ">" {
+       -re $kernel_prompt {
                 case_pass $case_num
 		break
       }
@@ -214,23 +276,7 @@ send "time cat /mnt/pwd > /dev/null\r"
 while 1 {
    expect {
      -re "real.*user.*sys" {
-                case_pass $case_num
-		break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
-}
-
-incr case_num
-send "hdparm -i /dev/hda\r" 
-while 1 {
-   expect {
-     -re "Model=.*Config=.*AdvancedPM.*" {
-                sleep 1
+                expect -re $kernel_prompt
                 case_pass $case_num
 		break
       }
@@ -246,7 +292,8 @@ incr case_num
 send "cat /proc/filesystems\r" 
 while 1 {
    expect {
-     -re "msdos.*vfat.*" {
+     -re "ext2.*msdos.*vfat" {
+                expect -re $kernel_prompt
                 case_pass $case_num
 		break
       }
@@ -262,7 +309,8 @@ incr case_num
 send "df\r" 
 while 1 {
    expect {
-      "/dev/hda1" {
+      "/dev/sda1" {
+                expect -re $kernel_prompt
                 case_pass $case_num
 		break
       }
@@ -281,6 +329,7 @@ while 1 {
       -re "\[0-9a-z]+  /mnt/pwd" {
                 sleep 3
                 send "\3"
+                expect -re $kernel_prompt
                 case_pass $case_num
 		break
       }
@@ -296,7 +345,7 @@ incr case_num
 send "umount /mnt\r" 
 while 1 {
    expect {
-      ">" {
+      -re $kernel_prompt {
                 case_pass $case_num
 		break
       }
@@ -304,6 +353,23 @@ while 1 {
       timeout {
                 case_fail $case_num
                 exit      
+         }
+     }
+}
+
+incr case_num
+send "cardctl eject\r"
+while 1 {
+   expect {
+     -re "pccard: card ejected from slot 0" {
+                expect -re $kernel_prompt
+                case_pass $case_num
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
          }
      }
 }

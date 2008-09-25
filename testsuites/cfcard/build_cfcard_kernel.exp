@@ -5,35 +5,6 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-step "Change config file in /vender folder."
-
-cd $uclinux_path
-sleep 3
-set timeout 2
-      spawn ex vendors/AnalogDevices/$board_type/Makefile
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/EXT2_BLOCKS\r"
-      expect "EXT2_BLOCKS*="
-      send "d\r"
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "EXT2_BLOCKS = 16384\r"
-      sleep .5
-      send ".\r"
-      expect ":"
-      send "wq\r"
-      expect eof
-
-
 cd $uclinux_path/testsuites
 
 step "Make config."
@@ -78,52 +49,47 @@ while 1 {
             send "8\r"
         }
 
-        -re "ATA.ATAPI.MFM.RLL support.*IDE.*\\\[.*]" {
+        -re "PCCard.*PCMCIA/CardBus.*support.*PCCARD.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "Enhanced IDE.MFM.RLL disk.cdrom.tape.floppy support.*BLK_DEV_IDE.*\\\[.*]" {
+        -re "16-bit PCMCIA support.*PCMCIA.*\\\[.*]" {
             send "Y\r"
         }
-
-        -re "Include IDE.ATA-2 DISK support.*BLK_DEV_IDEDISK.*\\\[.*]" {
+        -re "Load CIS updates from userspace.*PCMCIA_LOAD_CIS.*\\\[.*]" {
             send "Y\r"
         }
-
-        -re "IDE Interface Address Mapping .*16-bit mapping for multimode CF Interface.*BFIN_IDE_ADDRESS_MAPPING_MODE1.*choice.*\\\[.*]" {
-            send "2\r"
+        -re "PCMCIA control ioctl.*PCMCIA_IOCTL.*\\\[.*]" {
+            send "Y\r"
         }
-
-        -re "IDE register base address.*BFIN_IDE_BASE.*\\\[.*]" {
-            send "0x2031C020\r"
+        -re "Blackfin CompactFlash PCMCIA Driver.*BFIN_CFPCMCIA.*\\\[.*]" {
+            send "Y\r"
         }
-
-        -re "IDE register alternate address.*BFIN_IDE_ALT.*\\\[.*]" {
-            send "0x2031C01C\r"
+ 
+        -re "Bank 2.*\\\(BANK_2\\\).*\\\[.*]" {
+            send -s "0xFFC3\r"
         }
-
-        -re "IDE IRQ no.*BFIN_IDE_IRQ.*\\\[.*]" {
-            send "34\r"
-        }
-
-        -re "IDE IRQ PFx no.*BFIN_IDE_IRQ_PFX.*\\\[.*]" {
-            send "4\r"
-        }
-
-        -re "Blackfin A.* used as CF A0.*BFIN_IDE_ADDRESS_AX.*\\\[.*]" {
-            send "13\r"
-        }
-
-        -re "Address for enabling CF TRUE IDE MODE.*ATASEL.*CF_ATASEL_ENA.*\\\[.*]" {
-            send "0x20311802\r"
-        }
-
-        -re "Address for disabling CF TRUE IDE MODE.*ATASEL.*CF_ATASEL_DIS.*\\\[.*]" {
-            send "0x20311800\r"
-        }
-
         -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
             send -s "0xFFC3\r"
+        }
+
+        -re "SCSI device support.*SCSI.*\\\[.*]" {
+            send "Y\r"
+        }
+        -re "SCSI disk support.*BLK_DEV_SD.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Serial ATA.*and Parallel ATA.*drivers.*ATA.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "PCMCIA PATA support.*PATA_PCMCIA.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+            send "N\r"
         }
 
         -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
@@ -162,31 +128,7 @@ while 1 {
             send "Y\r"
         }
 
-        -re "hdparm.*USER_BUSYBOX_HDPARM.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "Support obtaining detailed information directly from drives.*USER_BUSYBOX_FEATURE_HDPARM_GET_IDENTITY.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "Register an IDE interface.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_SCAN_HWIF.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "Un-register an IDE interface.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_UNREGISTER_HWIF.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "perform device reset.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_DRIVE_RESET.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "tristate device for hotswap.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_TRISTATE_HWIF.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "get/set using_dma flag.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_GETSET_DMA.*\\\[.*]" {
+        -re "pcmcia-cs.*USER_PCMCIA_CS.*\\\[.*]" {
              send "Y\r"
       }
 
