@@ -1,1 +1,1 @@
-source ../user/busybox/busybox-1.11.1/Kconfig
+source ../user/busybox/busybox-1.12.0/Kconfig
