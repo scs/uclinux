@@ -44,6 +44,7 @@ romfs::
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
 ifeq ($(CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG),y)
 	gzip -9c $(ROOTDIR)/config/.config > $(ROMFSDIR)/root/uclinux-config.gz
+	gzip -9c $(ROOTDIR)/.config > $(ROMFSDIR)/root/vendor-board-config.gz
 endif
 
 ifeq ($(CONFIG_USER_DEV_DYNAMIC),y)
