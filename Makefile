@@ -226,6 +226,26 @@ gconfig: Kconfig conf gconf
 	 fi
 	@config/setconfig final
 
+.PHONY: remoteconfig
+remoteconfig:
+#ifndef IP
+ifeq ($(IP),)
+	@echo "NOTE : 'make remoteconfig' requires a valid IP number, to be set"
+	@echo "        example 'make remoteconfig IP=192.168.0.1'"
+	@echo "             or 'make remoteconfig IP=address.foo.bar'"
+else
+	ping -c 1 $(IP)
+	rcp root@$(IP):/root/vendor-board-config.gz $(ROOTDIR)/vendor-board-config.gz
+	rcp root@$(IP):/proc/config.gz $(LINUX_CONFIG).gz
+	rcp root@$(IP):/root/uclinux-config.gz $(CONFIG_CONFIG).gz
+	@$(MAKE) -s distclean
+	gunzip -f $(ROOTDIR)/vendor-board-config.gz
+	mv -f $(ROOTDIR)/vendor-board-config $(ROOTDIR)/.config
+	gunzip -f $(LINUX_CONFIG).gz
+	gunzip -f $(CONFIG_CONFIG).gz
+	$(MAKE) oldconfig
+endif
+
 .PHONY: oldconfig
 oldconfig: Kconfig conf
 	$(SCRIPTSDIR)/conf -o Kconfig
@@ -434,7 +454,7 @@ bugreport:
 	if [ "`grep -s CONFIG_VENDOR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_VENDOR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
 	   [ "`grep -s CONFIG_LINUXDIR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_LINUXDIR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
 	   [ "`grep -s -e 'TARGET_.*=y' ./uClibc/.config`" = "`grep -s -e 'TARGET_.*=y' vendors/$(@:_config=)/config.uClibc`" ] ; then \
-		$(MAKE) -s -C linux-2.6.x distclean ; \
+		$(MAKEARCH_KERNEL) -s -C linux-2.6.x distclean ; \
 	else \
 		$(MAKE) -s distclean ; \
 	fi
@@ -513,6 +533,7 @@ help:
 	@echo "make single                non-parallelised build"
 	@echo "make single[make-target]   non-parallelised build of \"make-target\""
 	@echo "make V/P_default           full default build for V=Vendor/P=Product"
+	@echo "make remoteconfig IP=bar   grab the (kernel & userspace) config files from remote target
 	@echo "make prune                 clean out uncompiled source (be careful)"
 	@echo ""
 	@echo "Typically you want to start with this sequence before experimenting."
