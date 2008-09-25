@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.3 2005/12/19 06:40:40 dtucker Exp $ */
+/* $Id: openssl-compat.h,v 1.10 2007/06/14 13:47:31 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -29,6 +29,11 @@
 #endif
 
 #ifdef USE_BUILTIN_RIJNDAEL
+# include "rijndael.h"
+# define AES_KEY rijndael_ctx
+# define AES_BLOCK_SIZE 16
+# define AES_encrypt(a, b, c)		rijndael_encrypt(c, a, b)
+# define AES_set_encrypt_key(a, b, c)	rijndael_set_key(c, (char *)a, b, 1)
 # define EVP_aes_128_cbc evp_rijndael
 # define EVP_aes_192_cbc evp_rijndael
 # define EVP_aes_256_cbc evp_rijndael
@@ -46,6 +51,11 @@ extern const EVP_CIPHER *evp_acss(void);
 # endif
 #endif
 
+/* OpenSSL 0.9.8e returns cipher key len not context key len */
+#if (OPENSSL_VERSION_NUMBER == 0x0090805fL)
+# define EVP_CIPHER_CTX_key_length(c) ((c)->key_len)
+#endif
+
 /*
  * We overload some of the OpenSSL crypto functions with ssh_* equivalents
  * which cater for older and/or less featureful OpenSSL version.
@@ -54,21 +64,27 @@ extern const EVP_CIPHER *evp_acss(void);
  * define SSH_DONT_OVERLOAD_OPENSSL_FUNCS before including this file and
  * implement the ssh_* equivalents.
  */
-#ifdef SSH_OLD_EVP
+#ifndef SSH_DONT_OVERLOAD_OPENSSL_FUNCS
 
-# ifndef SSH_DONT_REDEF_EVP
-
+# ifdef SSH_OLD_EVP
 #  ifdef EVP_Cipher
 #   undef EVP_Cipher
 #  endif
-
 #  define EVP_CipherInit(a,b,c,d,e)	ssh_EVP_CipherInit((a),(b),(c),(d),(e))
 #  define EVP_Cipher(a,b,c,d)		ssh_EVP_Cipher((a),(b),(c),(d))
 #  define EVP_CIPHER_CTX_cleanup(a)	ssh_EVP_CIPHER_CTX_cleanup((a))
-# endif
+# endif /* SSH_OLD_EVP */
+
+# ifdef USE_OPENSSL_ENGINE
+#  ifdef SSLeay_add_all_algorithms
+#   undef SSLeay_add_all_algorithms
+#  endif
+#  define SSLeay_add_all_algorithms()	ssh_SSLeay_add_all_algorithms()
+#endif
 
 int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,
     unsigned char *, int);
 int ssh_EVP_Cipher(EVP_CIPHER_CTX *, char *, char *, int);
 int ssh_EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *);
-#endif
+void ssh_SSLeay_add_all_algorithms(void);
+#endif	/* SSH_DONT_OVERLOAD_OPENSSL_FUNCS */

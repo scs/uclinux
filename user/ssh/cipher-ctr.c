@@ -1,3 +1,4 @@
+/* $OpenBSD: cipher-ctr.c,v 1.10 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -14,23 +15,21 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: cipher-ctr.c,v 1.6 2005/07/17 07:17:55 djm Exp $");
+
+#include <sys/types.h>
+
+#include <stdarg.h>
+#include <string.h>
 
 #include <openssl/evp.h>
 
-#include "log.h"
 #include "xmalloc.h"
+#include "log.h"
 
 /* compatibility with old or broken OpenSSL versions */
 #include "openbsd-compat/openssl-compat.h"
 
-#ifdef USE_BUILTIN_RIJNDAEL
-#include "rijndael.h"
-#define AES_KEY rijndael_ctx
-#define AES_BLOCK_SIZE 16
-#define AES_encrypt(a, b, c) rijndael_encrypt(c, a, b)
-#define AES_set_encrypt_key(a, b, c) rijndael_set_key(c, (char *)a, b, 1)
-#else
+#ifndef USE_BUILTIN_RIJNDAEL
 #include <openssl/aes.h>
 #endif
 

@@ -1,3 +1,4 @@
+/* $OpenBSD: kexdhs.c,v 1.9 2006/11/06 21:25:28 markus Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -23,15 +24,25 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kexdhs.c,v 1.3 2005/11/04 05:15:59 djm Exp $");
+
+#include <sys/types.h>
+
+#include <stdarg.h>
+#include <string.h>
+#include <signal.h>
 
 #include "xmalloc.h"
+#include "buffer.h"
 #include "key.h"
+#include "cipher.h"
 #include "kex.h"
 #include "log.h"
 #include "packet.h"
 #include "dh.h"
 #include "ssh2.h"
+#ifdef GSSAPI
+#include "ssh-gss.h"
+#endif
 #include "monitor_wrap.h"
 
 void
@@ -41,8 +52,8 @@ kexdh_server(Kex *kex)
 	DH *dh;
 	Key *server_host_key;
 	u_char *kbuf, *hash, *signature = NULL, *server_host_key_blob = NULL;
-	u_int sbloblen, klen, kout, hashlen;
-	u_int slen;
+	u_int sbloblen, klen, hashlen, slen;
+	int kout;
 
 	/* generate server DH public key */
 	switch (kex->kex_type) {
@@ -90,13 +101,15 @@ kexdh_server(Kex *kex)
 
 	klen = DH_size(dh);
 	kbuf = xmalloc(klen);
-	kout = DH_compute_key(kbuf, dh_client_pub, dh);
+	if ((kout = DH_compute_key(kbuf, dh_client_pub, dh)) < 0)
+		fatal("DH_compute_key: failed");
 #ifdef DEBUG_KEXDH
 	dump_digest("shared secret", kbuf, kout);
 #endif
 	if ((shared_secret = BN_new()) == NULL)
 		fatal("kexdh_server: BN_new failed");
-	BN_bin2bn(kbuf, kout, shared_secret);
+	if (BN_bin2bn(kbuf, kout, shared_secret) == NULL)
+		fatal("kexdh_server: BN_bin2bn failed");
 	memset(kbuf, 0, klen);
 	xfree(kbuf);
 

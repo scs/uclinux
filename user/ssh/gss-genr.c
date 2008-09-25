@@ -1,7 +1,7 @@
-/*	$OpenBSD: gss-genr.c,v 1.6 2005/10/13 22:24:31 stevesk Exp $	*/
+/* $OpenBSD: gss-genr.c,v 1.19 2007/06/12 11:56:15 dtucker Exp $ */
 
 /*
- * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
+ * Copyright (c) 2001-2007 Simon Wilkinson. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,8 +28,15 @@
 
 #ifdef GSSAPI
 
+#include <sys/types.h>
+#include <sys/param.h>
+
+#include <stdarg.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "xmalloc.h"
-#include "bufaux.h"
+#include "buffer.h"
 #include "log.h"
 #include "ssh2.h"
 
@@ -72,7 +79,11 @@ ssh_gssapi_set_oid(Gssctxt *ctx, gss_OID oid)
 void
 ssh_gssapi_error(Gssctxt *ctxt)
 {
-	debug("%s", ssh_gssapi_last_error(ctxt, NULL, NULL));
+	char *s;
+
+	s = ssh_gssapi_last_error(ctxt, NULL, NULL);
+	debug("%s", s);
+	xfree(s);
 }
 
 char *
@@ -96,7 +107,7 @@ ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
 	/* The GSSAPI error */
 	do {
 		gss_display_status(&lmin, ctxt->major,
-		    GSS_C_GSS_CODE, GSS_C_NULL_OID, &ctx, &msg);
+		    GSS_C_GSS_CODE, ctxt->oid, &ctx, &msg);
 
 		buffer_append(&b, msg.value, msg.length);
 		buffer_put_char(&b, '\n');
@@ -107,7 +118,7 @@ ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
 	/* The mechanism specific error */
 	do {
 		gss_display_status(&lmin, ctxt->minor,
-		    GSS_C_MECH_CODE, GSS_C_NULL_OID, &ctx, &msg);
+		    GSS_C_MECH_CODE, ctxt->oid, &ctx, &msg);
 
 		buffer_append(&b, msg.value, msg.length);
 		buffer_put_char(&b, '\n');
@@ -131,9 +142,7 @@ ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
 void
 ssh_gssapi_build_ctx(Gssctxt **ctx)
 {
-	*ctx = xmalloc(sizeof (Gssctxt));
-	(*ctx)->major = 0;
-	(*ctx)->minor = 0;
+	*ctx = xcalloc(1, sizeof (Gssctxt));
 	(*ctx)->context = GSS_C_NO_CONTEXT;
 	(*ctx)->name = GSS_C_NO_NAME;
 	(*ctx)->oid = GSS_C_NO_OID;
@@ -203,45 +212,17 @@ OM_uint32
 ssh_gssapi_import_name(Gssctxt *ctx, const char *host)
 {
 	gss_buffer_desc gssbuf;
+	char *val;
 
-	gssbuf.length = sizeof("host@") + strlen(host);
-	gssbuf.value = xmalloc(gssbuf.length);
-	snprintf(gssbuf.value, gssbuf.length, "host@%s", host);
+	xasprintf(&val, "host@%s", host);
+	gssbuf.value = val;
+	gssbuf.length = strlen(gssbuf.value);
 
 	if ((ctx->major = gss_import_name(&ctx->minor,
 	    &gssbuf, GSS_C_NT_HOSTBASED_SERVICE, &ctx->name)))
 		ssh_gssapi_error(ctx);
 
 	xfree(gssbuf.value);
-	return (ctx->major);
-}
-
-/* Acquire credentials for a server running on the current host.
- * Requires that the context structure contains a valid OID
- */
-
-/* Returns a GSSAPI error code */
-OM_uint32
-ssh_gssapi_acquire_cred(Gssctxt *ctx)
-{
-	OM_uint32 status;
-	char lname[MAXHOSTNAMELEN];
-	gss_OID_set oidset;
-
-	gss_create_empty_oid_set(&status, &oidset);
-	gss_add_oid_set_member(&status, ctx->oid, &oidset);
-
-	if (gethostname(lname, MAXHOSTNAMELEN))
-		return (-1);
-
-	if (GSS_ERROR(ssh_gssapi_import_name(ctx, lname)))
-		return (ctx->major);
-
-	if ((ctx->major = gss_acquire_cred(&ctx->minor,
-	    ctx->name, 0, oidset, GSS_C_ACCEPT, &ctx->creds, NULL, NULL)))
-		ssh_gssapi_error(ctx);
-
-	gss_release_oid_set(&status, &oidset);
 	return (ctx->major);
 }
 
@@ -267,14 +248,34 @@ ssh_gssapi_buildmic(Buffer *b, const char *user, const char *service,
 	buffer_put_cstring(b, context);
 }
 
-OM_uint32
-ssh_gssapi_server_ctx(Gssctxt **ctx, gss_OID oid)
+int
+ssh_gssapi_check_mechanism(Gssctxt **ctx, gss_OID oid, const char *host)
 {
-	if (*ctx)
-		ssh_gssapi_delete_ctx(ctx);
+	gss_buffer_desc token = GSS_C_EMPTY_BUFFER;
+	OM_uint32 major, minor;
+	gss_OID_desc spnego_oid = {6, (void *)"\x2B\x06\x01\x05\x05\x02"};
+
+	/* RFC 4462 says we MUST NOT do SPNEGO */
+	if (oid->length == spnego_oid.length && 
+	    (memcmp(oid->elements, spnego_oid.elements, oid->length) == 0))
+		return 0; /* false */
+
 	ssh_gssapi_build_ctx(ctx);
 	ssh_gssapi_set_oid(*ctx, oid);
-	return (ssh_gssapi_acquire_cred(*ctx));
+	major = ssh_gssapi_import_name(*ctx, host);
+	if (!GSS_ERROR(major)) {
+		major = ssh_gssapi_init_ctx(*ctx, 0, GSS_C_NO_BUFFER, &token, 
+		    NULL);
+		gss_release_buffer(&minor, &token);
+		if ((*ctx)->context != GSS_C_NO_CONTEXT)
+			gss_delete_sec_context(&minor, &(*ctx)->context,
+			    GSS_C_NO_BUFFER);
+	}
+
+	if (GSS_ERROR(major)) 
+		ssh_gssapi_delete_ctx(ctx);
+
+	return (!GSS_ERROR(major));
 }
 
 #endif /* GSSAPI */

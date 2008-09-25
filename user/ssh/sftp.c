@@ -1,3 +1,4 @@
+/* $OpenBSD: sftp.c,v 1.96 2007/01/03 04:09:15 stevesk Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -16,21 +17,39 @@
 
 #include "includes.h"
 
-RCSID("$OpenBSD: sftp.c,v 1.70 2006/01/31 10:19:02 djm Exp $");
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
 
+#include <errno.h>
+
+#ifdef HAVE_PATHS_H
+# include <paths.h>
+#endif
 #ifdef USE_LIBEDIT
 #include <histedit.h>
 #else
 typedef void EditLine;
 #endif
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdarg.h>
 
-#include "buffer.h"
 #include "xmalloc.h"
 #include "log.h"
 #include "pathnames.h"
 #include "misc.h"
 
 #include "sftp.h"
+#include "buffer.h"
 #include "sftp-common.h"
 #include "sftp-client.h"
 
@@ -147,6 +166,7 @@ static const struct CMD cmds[] = {
 
 int interactive_loop(int fd_in, int fd_out, char *file1, char *file2);
 
+/* ARGSUSED */
 static void
 killchild(int signo)
 {
@@ -158,6 +178,7 @@ killchild(int signo)
 	_exit(1);
 }
 
+/* ARGSUSED */
 static void
 cmd_interrupt(int signo)
 {
@@ -235,7 +256,7 @@ local_do_shell(const char *args)
 		if (errno != EINTR)
 			fatal("Couldn't wait for child: %s", strerror(errno));
 	if (!WIFEXITED(status))
-		error("Shell exited abormally");
+		error("Shell exited abnormally");
 	else if (WEXITSTATUS(status))
 		error("Shell exited with status %d", WEXITSTATUS(status));
 }
@@ -279,11 +300,11 @@ static char *
 path_append(char *p1, char *p2)
 {
 	char *ret;
-	int len = strlen(p1) + strlen(p2) + 2;
+	size_t len = strlen(p1) + strlen(p2) + 2;
 
 	ret = xmalloc(len);
 	strlcpy(ret, p1, len);
-	if (p1[strlen(p1) - 1] != '/')
+	if (p1[0] != '\0' && p1[strlen(p1) - 1] != '/')
 		strlcat(ret, "/", len);
 	strlcat(ret, p2, len);
 
@@ -474,7 +495,7 @@ is_dir(char *path)
 	if (stat(path, &sb) == -1)
 		return(0);
 
-	return(sb.st_mode & S_IFDIR);
+	return(S_ISDIR(sb.st_mode));
 }
 
 static int
@@ -498,7 +519,7 @@ remote_is_dir(struct sftp_conn *conn, char *path)
 		return(0);
 	if (!(a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS))
 		return(0);
-	return(a->perm & S_IFDIR);
+	return(S_ISDIR(a->perm));
 }
 
 static int
@@ -538,6 +559,7 @@ process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 
 		if (g.gl_matchc == 1 && dst) {
 			/* If directory specified, append filename */
+			xfree(tmp);
 			if (is_dir(dst)) {
 				if (infer_path(g.gl_pathv[0], &tmp)) {
 					err = 1;
@@ -562,8 +584,6 @@ process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 
 out:
 	xfree(abs_src);
-	if (abs_dst)
-		xfree(abs_dst);
 	globfree(&g);
 	return(err);
 }
@@ -959,6 +979,7 @@ parse_args(const char **cpp, int *pflag, int *lflag, int *iflag,
 	case I_CHOWN:
 	case I_CHGRP:
 		/* Get numeric arg (mandatory) */
+		errno = 0;
 		l = strtol(cp, &cp2, base);
 		if (cp2 == cp || ((l == LONG_MIN || l == LONG_MAX) &&
 		    errno == ERANGE) || l < 0) {
@@ -1280,6 +1301,7 @@ interactive_loop(int fd_in, int fd_out, char *file1, char *file2)
 			if (parse_dispatch_command(conn, cmd, &pwd, 1) != 0) {
 				xfree(dir);
 				xfree(pwd);
+				xfree(conn);
 				return (-1);
 			}
 		} else {
@@ -1292,6 +1314,7 @@ interactive_loop(int fd_in, int fd_out, char *file1, char *file2)
 			err = parse_dispatch_command(conn, cmd, &pwd, 1);
 			xfree(dir);
 			xfree(pwd);
+			xfree(conn);
 			return (err);
 		}
 		xfree(dir);
@@ -1356,6 +1379,7 @@ interactive_loop(int fd_in, int fd_out, char *file1, char *file2)
 			break;
 	}
 	xfree(pwd);
+	xfree(conn);
 
 #ifdef USE_LIBEDIT
 	if (el != NULL)
@@ -1455,7 +1479,7 @@ main(int argc, char **argv)
 	__progname = ssh_get_progname(argv[0]);
 	memset(&args, '\0', sizeof(args));
 	args.list = NULL;
-	addargs(&args, ssh_program);
+	addargs(&args, "%s", ssh_program);
 	addargs(&args, "-oForwardX11 no");
 	addargs(&args, "-oForwardAgent no");
 	addargs(&args, "-oPermitLocalCommand no");
@@ -1544,7 +1568,7 @@ main(int argc, char **argv)
 				fprintf(stderr, "Missing username\n");
 				usage();
 			}
-			addargs(&args, "-l%s",userhost);
+			addargs(&args, "-l%s", userhost);
 		}
 
 		if ((cp = colon(host)) != NULL) {

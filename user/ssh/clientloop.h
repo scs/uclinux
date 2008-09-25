@@ -1,4 +1,4 @@
-/*	$OpenBSD: clientloop.h,v 1.14 2005/07/04 00:58:43 djm Exp $	*/
+/* $OpenBSD: clientloop.h,v 1.17 2007/08/07 07:32:53 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -35,6 +35,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <termios.h>
+
 /* Client side main loop for the interactive session. */
 int	 client_loop(int, int, int);
 void	 client_x11_get_proto(const char *, const char *, u_int,
@@ -42,6 +44,7 @@ void	 client_x11_get_proto(const char *, const char *, u_int,
 void	 client_global_request_reply_fwd(int, u_int32_t, void *);
 void	 client_session2_setup(int, int, int, const char *, struct termios *,
 	    int, Buffer *, char **, dispatch_fn *);
+int	 client_request_tun_fwd(int, int, int);
 
 /* Multiplexing protocol version */
 #define SSHMUX_VER			1

@@ -85,13 +85,8 @@ ifndef CONFIG_PROP_CONFIG_LIBCONFIG
 	$(ROMFSINST) -o "$(CONFIG_USER_SSH_SSHD)" \
 		-A "nobody:" -a "nobody:x:65534:" /etc/default/group
 endif
-ifeq ($(CONFIG_IPV6),y)
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHD \
-		-a "ssh     stream tcp6 nowait root /bin/sshd -i" /etc/inetd.conf
-else
-	$(ROMFSINST) -e CONFIG_USER_SSH_SSHD \
-		-a "ssh     stream tcp nowait root /bin/sshd -i" /etc/inetd.conf
-endif
+		-a "#ssh details are now in /etc/config/inetd.conf" /etc/inetd.conf
 	##
 	# Optionally add the startup stuff to the /etc/default-static dir.
 	#

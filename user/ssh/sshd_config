@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.73 2005/12/06 22:38:28 reyk Exp $
+#	$OpenBSD: sshd_config,v 1.75 2007/03/19 01:01:29 djm Exp $
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.
@@ -11,11 +11,14 @@
 # default value.
 
 #Port 22
-Protocol 2
-#Protocol 2,1
 #AddressFamily any
 #ListenAddress 0.0.0.0
 #ListenAddress ::
+
+# Disable legacy (protocol version 1) support in the server for new
+# installations. In future the default will change to require explicit
+# activation of protocol 1
+Protocol 2
 
 # HostKey for protocol version 1
 #HostKey /etc/ssh/ssh_host_key
@@ -73,12 +76,16 @@ StrictModes no
 
 # Set this to 'yes' to enable PAM authentication, account processing, 
 # and session processing. If this is enabled, PAM authentication will 
-# be allowed through the ChallengeResponseAuthentication mechanism. 
-# Depending on your PAM configuration, this may bypass the setting of 
-# PasswordAuthentication, PermitEmptyPasswords, and 
-# "PermitRootLogin without-password". If you just want the PAM account and 
-# session checks to run without PAM authentication, then enable this but set 
-# ChallengeResponseAuthentication=no
+# be allowed through the ChallengeResponseAuthentication and
+# PasswordAuthentication.  Depending on your PAM configuration,
+# PAM authentication via ChallengeResponseAuthentication may bypass
+# the setting of "PermitRootLogin without-password".
+# If you just want the PAM account and session checks to run without
+# PAM authentication, then enable this but set PasswordAuthentication
+# and ChallengeResponseAuthentication to 'no'.
+#UsePAM no
+
+# SG default
 UsePAM yes
 
 #AllowTcpForwarding yes
@@ -105,4 +112,10 @@ UseDNS no
 #Banner /some/path
 
 # override default of no subsystems
-#Subsystem	sftp	/usr/libexec/sftp-server
+Subsystem	sftp	/usr/libexec/sftp-server
+
+# Example of overriding settings on a per-user basis
+#Match User anoncvs
+#	X11Forwarding no
+#	AllowTcpForwarding no
+#	ForceCommand cvs server

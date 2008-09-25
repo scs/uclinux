@@ -1,3 +1,4 @@
+/* $OpenBSD: session.c,v 1.221 2007/01/21 01:41:54 stevesk Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -33,12 +34,35 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.191 2005/12/24 02:27:41 djm Exp $");
 
+#include <sys/types.h>
+#include <sys/param.h>
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/wait.h>
+
+#include <arpa/inet.h>
+
+#include <errno.h>
+#include <grp.h>
+#ifdef HAVE_PATHS_H
+#include <paths.h>
+#endif
+#include <pwd.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "xmalloc.h"
 #include "ssh.h"
 #include "ssh1.h"
 #include "ssh2.h"
-#include "xmalloc.h"
 #include "sshpty.h"
 #include "packet.h"
 #include "buffer.h"
@@ -46,7 +70,12 @@ RCSID("$OpenBSD: session.c,v 1.191 2005/12/24 02:27:41 djm Exp $");
 #include "uidswap.h"
 #include "compat.h"
 #include "channels.h"
-#include "bufaux.h"
+#include "key.h"
+#include "cipher.h"
+#ifdef GSSAPI
+#include "ssh-gss.h"
+#endif
+#include "hostfile.h"
 #include "auth.h"
 #include "auth-options.h"
 #include "pathnames.h"
@@ -61,10 +90,6 @@ RCSID("$OpenBSD: session.c,v 1.191 2005/12/24 02:27:41 djm Exp $");
 
 #if defined(KRB5) && defined(USE_AFS)
 #include <kafs.h>
-#endif
-
-#ifdef GSSAPI
-#include "ssh-gss.h"
 #endif
 
 #ifdef EMBED
@@ -179,7 +204,7 @@ auth_input_request_forwarding(struct passwd * pw)
 	sunaddr.sun_family = AF_UNIX;
 	strlcpy(sunaddr.sun_path, auth_sock_name, sizeof(sunaddr.sun_path));
 
-	if (bind(sock, (struct sockaddr *) & sunaddr, sizeof(sunaddr)) < 0)
+	if (bind(sock, (struct sockaddr *)&sunaddr, sizeof(sunaddr)) < 0)
 		packet_disconnect("bind: %.100s", strerror(errno));
 
 	/* Restore the privileged uid. */
@@ -326,7 +351,11 @@ do_authenticated1(Authctxt *authctxt)
 				break;
 			}
 			debug("Received TCP/IP port forwarding request.");
-			channel_input_port_forward_request(s->pw->pw_uid == 0, options.gateway_ports);
+			if (channel_input_port_forward_request(s->pw->pw_uid == 0,
+			    options.gateway_ports) < 0) {
+				debug("Port forwarding failed.");
+				break;
+			}
 			success = 1;
 			break;
 
@@ -659,7 +688,7 @@ do_pre_login(Session *s)
 	fromlen = sizeof(from);
 	if (packet_connection_is_on_socket()) {
 		if (getpeername(packet_get_connection_in(),
-		    (struct sockaddr *) & from, &fromlen) < 0) {
+		    (struct sockaddr *)&from, &fromlen) < 0) {
 			debug("getpeername: %.100s", strerror(errno));
 			cleanup_exit(255);
 		}
@@ -678,10 +707,14 @@ do_pre_login(Session *s)
 void
 do_exec(Session *s, const char *command)
 {
-	if (forced_command) {
+	if (options.adm_forced_command) {
+		original_command = command;
+		command = options.adm_forced_command;
+		debug("Forced command (config) '%.900s'", command);
+	} else if (forced_command) {
 		original_command = command;
 		command = forced_command;
-		debug("Forced command '%.900s'", command);
+		debug("Forced command (key option) '%.900s'", command);
 	}
 
 #ifdef SSH_AUDIT_EVENTS
@@ -853,7 +886,7 @@ child_set_env(char ***envp, u_int *envsizep, const char *name,
 			if (envsize >= 1000)
 				fatal("child_set_env: too many env vars");
 			envsize += 50;
-			env = (*envp) = xrealloc(env, envsize * sizeof(char *));
+			env = (*envp) = xrealloc(env, envsize, sizeof(char *));
 			*envsizep = envsize;
 		}
 		/* Need to set the NULL pointer at end of array beyond the new slot. */
@@ -994,12 +1027,15 @@ do_setup_env(Session *s, const char *shell)
 {
 	char buf[256];
 	u_int i, envsize;
-	char **env, *laddr, *path = NULL;
+	char **env, *laddr;
 	struct passwd *pw = s->pw;
+#ifndef HAVE_LOGIN_CAP
+	char *path = NULL;
+#endif
 
 	/* Initialize the environment. */
 	envsize = 100;
-	env = xmalloc(envsize * sizeof(char *));
+	env = xcalloc(envsize, sizeof(char *));
 	env[0] = NULL;
 
 #ifdef HAVE_CYGWIN
@@ -1301,7 +1337,7 @@ do_setusercontext(struct passwd *pw)
 # ifdef USE_PAM
 		if (options.use_pam) {
 			do_pam_session();
-			do_pam_setcred(0);
+			do_pam_setcred(use_privsep);
 		}
 # endif /* USE_PAM */
 		if (setusercontext(lc, pw, pw->pw_uid,
@@ -1343,7 +1379,7 @@ do_setusercontext(struct passwd *pw)
 		 */
 		if (options.use_pam) {
 			do_pam_session();
-			do_pam_setcred(0);
+			do_pam_setcred(use_privsep);
 		}
 # endif /* USE_PAM */
 # if defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY)
@@ -1352,11 +1388,11 @@ do_setusercontext(struct passwd *pw)
 # ifdef _AIX
 		aix_usrinfo(pw);
 # endif /* _AIX */
-#if defined(HAVE_LIBIAF)  &&  !defined(BROKEN_LIBIAF)
+#ifdef USE_LIBIAF
 		if (set_id(pw->pw_name) != 0) {
 			exit(1);
 		}
-#endif /* HAVE_LIBIAF  && !BROKEN_LIBIAF */
+#endif /* USE_LIBIAF */
 		/* Permanently switch to the desired uid. */
 		permanently_set_uid(pw);
 #endif
@@ -1367,6 +1403,10 @@ do_setusercontext(struct passwd *pw)
 #endif
 	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
 		fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
+
+#ifdef WITH_SELINUX
+	ssh_selinux_setup_exec_context(pw->pw_name);
+#endif
 }
 
 static void
@@ -1594,7 +1634,7 @@ do_child(Session *s, const char *command)
 		do_rc_files(s, shell);
 
 	/* restore SIGPIPE for child */
-	signal(SIGPIPE,  SIG_DFL);
+	signal(SIGPIPE, SIG_DFL);
 
 	if (options.use_login) {
 		launch_login(pw, hostname);
@@ -1877,7 +1917,7 @@ session_subsystem_req(Session *s)
 	struct stat st;
 	u_int len;
 	int success = 0;
-	char *cmd, *subsys = packet_get_string(&len);
+	char *prog, *cmd, *subsys = packet_get_string(&len);
 	u_int i;
 
 	packet_check_eom();
@@ -1885,9 +1925,10 @@ session_subsystem_req(Session *s)
 
 	for (i = 0; i < options.num_subsystems; i++) {
 		if (strcmp(subsys, options.subsystem_name[i]) == 0) {
-			cmd = options.subsystem_command[i];
-			if (stat(cmd, &st) < 0) {
-				error("subsystem: cannot stat %s: %s", cmd,
+			prog = options.subsystem_command[i];
+			cmd = options.subsystem_args[i];
+			if (stat(prog, &st) < 0) {
+				error("subsystem: cannot stat %s: %s", prog,
 				    strerror(errno));
 				break;
 			}
@@ -1984,8 +2025,8 @@ session_env_req(Session *s)
 	for (i = 0; i < options.num_accept_env; i++) {
 		if (match_pattern(name, options.accept_env[i])) {
 			debug2("Setting env %d: %s=%s", s->num_env, name, val);
-			s->env = xrealloc(s->env, sizeof(*s->env) *
-			    (s->num_env + 1));
+			s->env = xrealloc(s->env, s->num_env + 1,
+			    sizeof(*s->env));
 			s->env[s->num_env].name = name;
 			s->env[s->num_env].val = val;
 			s->num_env++;
@@ -2040,7 +2081,7 @@ session_input_channel_req(Channel *c, const char *rtype)
 		} else if (strcmp(rtype, "exec") == 0) {
 			success = session_exec_req(s);
 		} else if (strcmp(rtype, "pty-req") == 0) {
-			success =  session_pty_req(s);
+			success = session_pty_req(s);
 		} else if (strcmp(rtype, "x11-req") == 0) {
 			success = session_x11_req(s);
 		} else if (strcmp(rtype, "auth-agent-req@openssh.com") == 0) {
@@ -2165,7 +2206,7 @@ session_close_single_x11(int id, void *arg)
 
 	debug3("session_close_single_x11: channel %d", id);
 	channel_cancel_cleanup(id);
-	if ((s  = session_by_x11_channel(id)) == NULL)
+	if ((s = session_by_x11_channel(id)) == NULL)
 		fatal("session_close_single_x11: no x11 channel %d", id);
 	for (i = 0; s->x11_chanids[i] != -1; i++) {
 		debug("session_close_single_x11: session %d: "
@@ -2233,7 +2274,7 @@ session_exit_message(Session *s, int status)
 
 	/*
 	 * Adjust cleanup callback attachment to send close messages when
-	 * the channel gets EOF. The session will be then be closed 
+	 * the channel gets EOF. The session will be then be closed
 	 * by session_close_by_channel when the childs close their fds.
 	 */
 	channel_register_cleanup(c->self, session_close_by_channel, 1);
@@ -2269,12 +2310,13 @@ session_close(Session *s)
 	if (s->auth_proto)
 		xfree(s->auth_proto);
 	s->used = 0;
-	for (i = 0; i < s->num_env; i++) {
-		xfree(s->env[i].name);
-		xfree(s->env[i].val);
-	}
-	if (s->env != NULL)
+	if (s->env != NULL) {
+		for (i = 0; i < s->num_env; i++) {
+			xfree(s->env[i].name);
+			xfree(s->env[i].val);
+		}
 		xfree(s->env);
+	}
 	session_proctitle(s);
 }
 
@@ -2492,6 +2534,17 @@ do_cleanup(Authctxt *authctxt)
 
 	if (authctxt == NULL)
 		return;
+
+#ifdef USE_PAM
+	if (options.use_pam) {
+		sshpam_cleanup();
+		sshpam_thread_cleanup();
+	}
+#endif
+
+	if (!authctxt->authenticated)
+		return;
+
 #ifdef KRB5
 	if (options.kerberos_ticket_cleanup &&
 	    authctxt->krb5_ctx)
@@ -2501,13 +2554,6 @@ do_cleanup(Authctxt *authctxt)
 #ifdef GSSAPI
 	if (compat20 && options.gss_cleanup_creds)
 		ssh_gssapi_cleanup_creds();
-#endif
-
-#ifdef USE_PAM
-	if (options.use_pam) {
-		sshpam_cleanup();
-		sshpam_thread_cleanup();
-	}
 #endif
 
 	/* remove agent socket */

@@ -205,6 +205,7 @@ OpenSSH contains no GPL code.
 	Darren Tucker
 	Sun Microsystems
 	The SCO Group
+	Daniel Walsh
 
      * Redistribution and use in source and binary forms, with or without
      * modification, are permitted provided that the following conditions
@@ -287,6 +288,8 @@ OpenSSH contains no GPL code.
 
 	Internet Software Consortium.
 	Todd C. Miller
+	Reyk Floeter
+	Chad Mynhier
 
 	* Permission to use, copy, modify, and distribute this software for any
 	* purpose with or without fee is hereby granted, provided that the above

@@ -1,3 +1,4 @@
+/* $OpenBSD: cipher-bf1.c,v 1.5 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2003 Markus Friedl.  All rights reserved.
  *
@@ -23,15 +24,18 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher-bf1.c,v 1.1 2003/05/15 03:08:29 markus Exp $");
+
+#include <sys/types.h>
 
 #include <openssl/evp.h>
+
+#include <stdarg.h>
+#include <string.h>
+
 #include "xmalloc.h"
 #include "log.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x00906000L
-#define SSH_OLD_EVP
-#endif
+#include "openbsd-compat/openssl-compat.h"
 
 /*
  * SSH1 uses a variation on Blowfish, all bytes must be swapped before

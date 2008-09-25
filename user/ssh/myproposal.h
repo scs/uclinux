@@ -1,4 +1,4 @@
-/*	$OpenBSD: myproposal.h,v 1.18 2005/07/25 11:59:39 markus Exp $	*/
+/* $OpenBSD: myproposal.h,v 1.22 2007/06/07 19:37:34 pvalchev Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -23,9 +23,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#define KEX_DEFAULT_KEX		"diffie-hellman-group-exchange-sha1," \
+
+#include <openssl/opensslv.h>
+
+/* Old OpenSSL doesn't support what we need for DHGEX-sha256 */
+#if OPENSSL_VERSION_NUMBER < 0x00907000L
+# define KEX_DEFAULT_KEX		\
+	"diffie-hellman-group-exchange-sha1," \
 	"diffie-hellman-group14-sha1," \
 	"diffie-hellman-group1-sha1"
+#else
+# define KEX_DEFAULT_KEX		\
+	"diffie-hellman-group-exchange-sha256," \
+	"diffie-hellman-group-exchange-sha1," \
+	"diffie-hellman-group14-sha1," \
+	"diffie-hellman-group1-sha1"
+#endif
+
 #define	KEX_DEFAULT_PK_ALG	"ssh-rsa,ssh-dss"
 #define	KEX_DEFAULT_ENCRYPT \
 	"aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc," \
@@ -33,7 +47,7 @@
 	"aes192-cbc,aes256-cbc,rijndael-cbc@lysator.liu.se," \
 	"aes128-ctr,aes192-ctr,aes256-ctr"
 #define	KEX_DEFAULT_MAC \
-	"hmac-md5,hmac-sha1,hmac-ripemd160," \
+	"hmac-md5,hmac-sha1,umac-64@openssh.com,hmac-ripemd160," \
 	"hmac-ripemd160@openssh.com," \
 	"hmac-sha1-96,hmac-md5-96"
 #define	KEX_DEFAULT_COMP	"none,zlib@openssh.com,zlib"

@@ -24,6 +24,10 @@
 
 #include "includes.h"
 
+#include <sys/types.h>
+#include <unistd.h>
+#include <pwd.h>
+
 # ifdef HAVE_CRYPT_H
 #  include <crypt.h>
 # endif
@@ -94,7 +98,7 @@ shadow_pw(struct passwd *pw)
 		pw_password = spw->sp_pwdp;
 # endif
 
-#if defined(HAVE_LIBIAF)  &&  !defined(BROKEN_LIBIAF)
+#ifdef USE_LIBIAF
 	return(get_iaf_password(pw));
 #endif
 

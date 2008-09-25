@@ -1,3 +1,4 @@
+/* $OpenBSD: ssh-keygen.c,v 1.160 2007/01/21 01:41:54 stevesk Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -12,10 +13,27 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keygen.c,v 1.135 2005/11/29 02:04:55 dtucker Exp $");
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/param.h>
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <netdb.h>
+#ifdef HAVE_PATHS_H
+# include <paths.h>
+#endif
+#include <pwd.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "xmalloc.h"
 #include "key.h"
@@ -23,17 +41,16 @@ RCSID("$OpenBSD: ssh-keygen.c,v 1.135 2005/11/29 02:04:55 dtucker Exp $");
 #include "authfile.h"
 #include "uuencode.h"
 #include "buffer.h"
-#include "bufaux.h"
 #include "pathnames.h"
 #include "log.h"
 #include "misc.h"
 #include "match.h"
 #include "hostfile.h"
+#include "dns.h"
 
 #ifdef SMARTCARD
 #include "scard.h"
 #endif
-#include "dns.h"
 
 /* Number of bits in the RSA/DSA key.  This value can be set on the command line. */
 #define DEFAULT_BITS		2048
@@ -103,7 +120,7 @@ ask_filename(struct passwd *pw, const char *prompt)
 
 	if (key_type_name == NULL)
 		name = _PATH_SSH_CLIENT_ID_RSA;
-	else
+	else {
 		switch (key_type_from_name(key_type_name)) {
 		case KEY_RSA1:
 			name = _PATH_SSH_CLIENT_IDENTITY;
@@ -119,7 +136,7 @@ ask_filename(struct passwd *pw, const char *prompt)
 			exit(1);
 			break;
 		}
-
+	}
 	snprintf(identity_file, sizeof(identity_file), "%s/%s", pw->pw_dir, name);
 	fprintf(stderr, "%s (%s): ", prompt, identity_file);
 	if (fgets(buf, sizeof(buf), stdin) == NULL)
@@ -205,7 +222,8 @@ buffer_get_bignum_bits(Buffer *b, BIGNUM *value)
 	if (buffer_len(b) < bytes)
 		fatal("buffer_get_bignum_bits: input buffer too small: "
 		    "need %d have %d", bytes, buffer_len(b));
-	BN_bin2bn(buffer_ptr(b), bytes, value);
+	if (BN_bin2bn(buffer_ptr(b), bytes, value) == NULL)
+		fatal("buffer_get_bignum_bits: BN_bin2bn failed");
 	buffer_consume(b, bytes);
 }
 
@@ -223,7 +241,7 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 	buffer_init(&b);
 	buffer_append(&b, blob, blen);
 
-	magic  = buffer_get_int(&b);
+	magic = buffer_get_int(&b);
 	if (magic != SSH_COM_PRIVATE_KEY_MAGIC) {
 		error("bad magic 0x%x != 0x%x", magic, SSH_COM_PRIVATE_KEY_MAGIC);
 		buffer_free(&b);
@@ -235,7 +253,7 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 	i2 = buffer_get_int(&b);
 	i3 = buffer_get_int(&b);
 	i4 = buffer_get_int(&b);
-	debug("ignore (%d %d %d %d)", i1,i2,i3,i4);
+	debug("ignore (%d %d %d %d)", i1, i2, i3, i4);
 	if (strcmp(cipher, "none") != 0) {
 		error("unsupported cipher %s", cipher);
 		xfree(cipher);
@@ -266,7 +284,7 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 		buffer_get_bignum_bits(&b, key->dsa->priv_key);
 		break;
 	case KEY_RSA:
-		e  = buffer_get_char(&b);
+		e = buffer_get_char(&b);
 		debug("e %lx", e);
 		if (e < 30) {
 			e <<= 8;
@@ -302,13 +320,43 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 	return key;
 }
 
+static int
+get_line(FILE *fp, char *line, size_t len)
+{
+	int c;
+	size_t pos = 0;
+
+	line[0] = '\0';
+	while ((c = fgetc(fp)) != EOF) {
+		if (pos >= len - 1) {
+			fprintf(stderr, "input line too long.\n");
+			exit(1);
+		}
+		switch (c) {
+		case '\r':
+			c = fgetc(fp);
+			if (c != EOF && c != '\n' && ungetc(c, fp) == EOF) {
+				fprintf(stderr, "unget: %s\n", strerror(errno));
+				exit(1);
+			}
+			return pos;
+		case '\n':
+			return pos;
+		}
+		line[pos++] = c;
+		line[pos] = '\0';
+	}
+	/* We reached EOF */
+	return -1;
+}
+
 static void
 do_convert_from_ssh2(struct passwd *pw)
 {
 	Key *k;
 	int blen;
 	u_int len;
-	char line[1024], *p;
+	char line[1024];
 	u_char blob[8096];
 	char encoded[8096];
 	struct stat st;
@@ -327,12 +375,8 @@ do_convert_from_ssh2(struct passwd *pw)
 		exit(1);
 	}
 	encoded[0] = '\0';
-	while (fgets(line, sizeof(line), fp)) {
-		if (!(p = strchr(line, '\n'))) {
-			fprintf(stderr, "input line too long.\n");
-			exit(1);
-		}
-		if (p > line && p[-1] == '\\')
+	while ((blen = get_line(fp, line, sizeof(line))) != -1) {
+		if (line[blen - 1] == '\\')
 			escaped++;
 		if (strncmp(line, "----", 4) == 0 ||
 		    strstr(line, ": ") != NULL) {
@@ -349,7 +393,6 @@ do_convert_from_ssh2(struct passwd *pw)
 			/* fprintf(stderr, "escaped: %s", line); */
 			continue;
 		}
-		*p = '\0';
 		strlcat(encoded, line, sizeof(encoded));
 	}
 	len = strlen(encoded);
@@ -485,8 +528,10 @@ do_fingerprint(struct passwd *pw)
 		xfree(fp);
 		exit(0);
 	}
-	if (comment)
+	if (comment) {
 		xfree(comment);
+		comment = NULL;
+	}
 
 	f = fopen(identity_file, "r");
 	if (f != NULL) {
@@ -508,7 +553,7 @@ do_fingerprint(struct passwd *pw)
 			for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
 				;
 			if (!*cp || *cp == '\n' || *cp == '#')
-				continue ;
+				continue;
 			i = strtol(cp, &ep, 10);
 			if (i == 0 || ep == NULL || (*ep != ' ' && *ep != '\t')) {
 				int quoted = 0;
@@ -832,30 +877,32 @@ do_change_passphrase(struct passwd *pw)
 /*
  * Print the SSHFP RR.
  */
-static void
-do_print_resource_record(struct passwd *pw, char *hname)
+static int
+do_print_resource_record(struct passwd *pw, char *fname, char *hname)
 {
 	Key *public;
 	char *comment = NULL;
 	struct stat st;
 
-	if (!have_identity)
+	if (fname == NULL)
 		ask_filename(pw, "Enter file in which the key is");
-	if (stat(identity_file, &st) < 0) {
-		perror(identity_file);
+	if (stat(fname, &st) < 0) {
+		if (errno == ENOENT)
+			return 0;
+		perror(fname);
 		exit(1);
 	}
-	public = key_load_public(identity_file, &comment);
+	public = key_load_public(fname, &comment);
 	if (public != NULL) {
 		export_dns_rr(hname, public, stdout, print_generic);
 		key_free(public);
 		xfree(comment);
-		exit(0);
+		return 1;
 	}
 	if (comment)
 		xfree(comment);
 
-	printf("failed to read v2 public key from %s.\n", identity_file);
+	printf("failed to read v2 public key from %s.\n", fname);
 	exit(1);
 }
 
@@ -969,13 +1016,13 @@ usage(void)
 #ifdef SMARTCARD
 	fprintf(stderr, "  -D reader   Download public key from smartcard.\n");
 #endif /* SMARTCARD */
-	fprintf(stderr, "  -e          Convert OpenSSH to IETF SECSH key file.\n");
+	fprintf(stderr, "  -e          Convert OpenSSH to RFC 4716 key file.\n");
 	fprintf(stderr, "  -F hostname Find hostname in known hosts file.\n");
 	fprintf(stderr, "  -f filename Filename of the key file.\n");
 	fprintf(stderr, "  -G file     Generate candidates for DH-GEX moduli.\n");
 	fprintf(stderr, "  -g          Use generic DNS resource record format.\n");
 	fprintf(stderr, "  -H          Hash names in known_hosts file.\n");
-	fprintf(stderr, "  -i          Convert IETF SECSH to OpenSSH key file.\n");
+	fprintf(stderr, "  -i          Convert RFC 4716 to OpenSSH key file.\n");
 	fprintf(stderr, "  -l          Show fingerprint of key file.\n");
 	fprintf(stderr, "  -M memory   Amount of memory (MB) to use for generating DH-GEX moduli.\n");
 	fprintf(stderr, "  -N phrase   Provide new passphrase.\n");
@@ -1001,7 +1048,7 @@ usage(void)
  * Main program for key management.
  */
 int
-main(int ac, char **av)
+main(int argc, char **argv)
 {
 	char dotsshdir[MAXPATHLEN], comment[1024], *passphrase1, *passphrase2;
 	char out_file[MAXPATHLEN], *reader_id = NULL;
@@ -1023,10 +1070,10 @@ main(int ac, char **av)
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 
-	__progname = ssh_get_progname(av[0]);
+	__progname = ssh_get_progname(argv[0]);
 
 	SSLeay_add_all_algorithms();
-	log_init(av[0], SYSLOG_LEVEL_INFO, SYSLOG_FACILITY_USER, 1);
+	log_init(argv[0], SYSLOG_LEVEL_INFO, SYSLOG_FACILITY_USER, 1);
 
 	init_rng();
 	seed_rng();
@@ -1042,11 +1089,11 @@ main(int ac, char **av)
 		exit(1);
 	}
 
-	while ((opt = getopt(ac, av,
+	while ((opt = getopt(argc, argv,
 	    "degiqpclBHvxXyF:b:f:t:U:D:P:N:C:r:g:R:T:G:M:S:a:W:")) != -1) {
 		switch (opt) {
 		case 'b':
-			bits = strtonum(optarg, 768, 32768, &errstr);
+			bits = (u_int32_t)strtonum(optarg, 768, 32768, &errstr);
 			if (errstr)
 				fatal("Bits has bad value %s (%s)",
 					optarg, errstr);
@@ -1116,6 +1163,7 @@ main(int ac, char **av)
 			break;
 		case 'D':
 			download = 1;
+			/*FALLTHROUGH*/
 		case 'U':
 			reader_id = optarg;
 			break;
@@ -1132,19 +1180,20 @@ main(int ac, char **av)
 			rr_hostname = optarg;
 			break;
 		case 'W':
-			generator_wanted = strtonum(optarg, 1, UINT_MAX, &errstr);
+			generator_wanted = (u_int32_t)strtonum(optarg, 1,
+			    UINT_MAX, &errstr);
 			if (errstr)
 				fatal("Desired generator has bad value: %s (%s)",
 					optarg, errstr);
 			break;
 		case 'a':
-			trials = strtonum(optarg, 1, UINT_MAX, &errstr);
+			trials = (u_int32_t)strtonum(optarg, 1, UINT_MAX, &errstr);
 			if (errstr)
 				fatal("Invalid number of trials: %s (%s)",
 					optarg, errstr);
 			break;
 		case 'M':
-			memory = strtonum(optarg, 1, UINT_MAX, &errstr);
+			memory = (u_int32_t)strtonum(optarg, 1, UINT_MAX, &errstr);
 			if (errstr) {
 				fatal("Memory limit is %s: %s", errstr, optarg);
 			}
@@ -1173,9 +1222,9 @@ main(int ac, char **av)
 	}
 
 	/* reinit */
-	log_init(av[0], log_level, SYSLOG_FACILITY_USER, 1);
+	log_init(argv[0], log_level, SYSLOG_FACILITY_USER, 1);
 
-	if (optind < ac) {
+	if (optind < argc) {
 		printf("Too many arguments.\n");
 		usage();
 	}
@@ -1198,7 +1247,27 @@ main(int ac, char **av)
 	if (print_public)
 		do_print_public(pw);
 	if (rr_hostname != NULL) {
-		do_print_resource_record(pw, rr_hostname);
+		unsigned int n = 0;
+
+		if (have_identity) {
+			n = do_print_resource_record(pw,
+			    identity_file, rr_hostname);
+			if (n == 0) {
+				perror(identity_file);
+				exit(1);
+			}
+			exit(0);
+		} else {
+
+			n += do_print_resource_record(pw,
+			    _PATH_HOST_RSA_KEY_FILE, rr_hostname);
+			n += do_print_resource_record(pw,
+			    _PATH_HOST_DSA_KEY_FILE, rr_hostname);
+
+			if (n == 0)
+				fatal("no keys found.");
+			exit(0);
+		}
 	}
 	if (reader_id != NULL) {
 #ifdef SMARTCARD

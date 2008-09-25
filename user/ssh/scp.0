@@ -6,7 +6,7 @@ NAME
 SYNOPSIS
      scp [-1246BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]
          [-l limit] [-o ssh_option] [-P port] [-S program]
-         [[user@]host1:]file1 [...] [[user@]host2:]file2
+         [[user@]host1:]file1 ...  [[user@]host2:]file2
 
 DESCRIPTION
      scp copies files between hosts on a network.  It uses ssh(1) for data
@@ -127,8 +127,7 @@ DESCRIPTION
              about their progress.  This is helpful in debugging connection,
              authentication, and configuration problems.
 
-DIAGNOSTICS
-     scp exits with 0 on success or >0 if an error occurred.
+     The scp utility exits 0 on success, and >0 if an error occurs.
 
 SEE ALSO
      rcp(1), sftp(1), ssh(1), ssh-add(1), ssh-agent(1), ssh-keygen(1),
@@ -142,4 +141,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 3.9                   September 25, 1999                             3
+OpenBSD 4.2                     August 8, 2007                               3

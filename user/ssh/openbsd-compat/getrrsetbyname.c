@@ -49,6 +49,12 @@
 
 #ifndef HAVE_GETRRSETBYNAME
 
+#include <stdlib.h>
+#include <string.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "getrrsetbyname.h"
 
 #if defined(HAVE_DECL_H_ERRNO) && !HAVE_DECL_H_ERRNO
@@ -60,7 +66,10 @@ extern int h_errno;
 # undef _THREAD_PRIVATE
 #endif
 #define _THREAD_PRIVATE(a,b,c) (c)
+
+#ifndef HAVE__RES_EXTERN
 struct __res_state _res;
+#endif
 
 /* Necessary functions and macros */
 
@@ -290,10 +299,12 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
 	}
 
 	/* allocate memory for signatures */
-	rrset->rri_sigs = calloc(rrset->rri_nsigs, sizeof(struct rdatainfo));
-	if (rrset->rri_sigs == NULL) {
-		result = ERRSET_NOMEMORY;
-		goto fail;
+	if (rrset->rri_nsigs > 0) {
+		rrset->rri_sigs = calloc(rrset->rri_nsigs, sizeof(struct rdatainfo));
+		if (rrset->rri_sigs == NULL) {
+			result = ERRSET_NOMEMORY;
+			goto fail;
+		}
 	}
 
 	/* copy answers & signatures */

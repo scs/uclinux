@@ -12,17 +12,39 @@ http://www.openssl.org/
 (OpenSSL 0.9.5a is partially supported, but some ciphers (SSH protocol 1
 Blowfish) do not work correctly.)
 
-OpenSSH can utilise Pluggable Authentication Modules (PAM) if your system
-supports it. PAM is standard on Redhat and Debian Linux, Solaris and
-HP-UX 11.
+The remaining items are optional.
 
 NB. If you operating system supports /dev/random, you should configure
 OpenSSL to use it. OpenSSH relies on OpenSSL's direct support of
-/dev/random. If you don't you will have to rely on ssh-rand-helper, which
-is inferior to a good kernel-based solution.
+/dev/random, or failing that, either prngd or egd.  If you don't have
+any of these you will have to rely on ssh-rand-helper, which is inferior
+to a good kernel-based solution or prngd.
+
+PRNGD:
+
+If your system lacks kernel-based random collection, the use of Lutz
+Jaenicke's PRNGd is recommended.
+
+http://prngd.sourceforge.net/
+
+EGD:
+
+The Entropy Gathering Daemon (EGD) is supported if you have a system which
+lacks /dev/random and don't want to use OpenSSH's internal entropy collection.
+
+http://www.lothar.com/tech/crypto/
 
 PAM:
-http://www.kernel.org/pub/linux/libs/pam/
+
+OpenSSH can utilise Pluggable Authentication Modules (PAM) if your
+system supports it. PAM is standard most Linux distributions, Solaris,
+HP-UX 11, AIX >= 5.2, FreeBSD and NetBSD.
+
+Information about the various PAM implementations are available:
+
+Solaris PAM:	http://www.sun.com/software/solaris/pam/
+Linux PAM:	http://www.kernel.org/pub/linux/libs/pam/
+OpenPAM:	http://www.openpam.org/
 
 If you wish to build the GNOME passphrase requester, you will need the GNOME
 libraries and headers.
@@ -35,19 +57,14 @@ passphrase requester. This is maintained separately at:
 
 http://www.jmknoble.net/software/x11-ssh-askpass/
 
-PRNGD:
+TCP Wrappers:
 
-If your system lacks Kernel based random collection, the use of Lutz
-Jaenicke's PRNGd is recommended.
+If you wish to use the TCP wrappers functionality you will need at least
+tcpd.h and libwrap.a, either in the standard include and library paths,
+or in the directory specified by --with-tcp-wrappers.  Version 7.6 is
+known to work.
 
-http://www.aet.tu-cottbus.de/personen/jaenicke/postfix_tls/prngd.html
-
-EGD:
-
-The Entropy Gathering Daemon (EGD) is supported if you have a system which
-lacks /dev/random and don't want to use OpenSSH's internal entropy collection.
-
-http://www.lothar.com/tech/crypto/
+http://ftp.porcupine.org/pub/security/index.html
 
 S/Key Libraries:
 
@@ -57,12 +74,29 @@ installed.  No other S/Key library is currently known to be supported.
 http://www.sparc.spb.su/solaris/skey/
 
 LibEdit:
-sftp now supports command-line editing via NetBSD's libedit.  If your
-platform has it available natively you can use that, alternatively
-you might try these multi-platform ports:
+
+sftp supports command-line editing via NetBSD's libedit.  If your platform
+has it available natively you can use that, alternatively you might try
+these multi-platform ports:
 
 http://www.thrysoee.dk/editline/
 http://sourceforge.net/projects/libedit/
+
+Autoconf:
+
+If you modify configure.ac or configure doesn't exist (eg if you checked
+the code out of CVS yourself) then you will need autoconf-2.61 to rebuild
+the automatically generated files by running "autoreconf".  Earlier
+versions may also work but this is not guaranteed.
+
+http://www.gnu.org/software/autoconf/
+
+Basic Security Module (BSM):
+
+Native BSM support is know to exist in Solaris from at least 2.5.1,
+FreeBSD 6.1 and OS X.  Alternatively, you may use the OpenBSM
+implementation (http://www.openbsm.org).
+
 
 2. Building / Installation
 --------------------------
@@ -113,6 +147,10 @@ name).
 
 There are a few other options to the configure script:
 
+--with-audit=[module] enable additional auditing via the specified module.
+Currently, drivers for "debug" (additional info via syslog) and "bsm"
+(Sun's Basic Security Module) are supported.
+
 --with-pam enables PAM support. If PAM support is compiled in, it must
 also be enabled in sshd_config (refer to the UsePAM directive).
 
@@ -139,7 +177,7 @@ Integration Architecture.  The default for OSF1 machines is enable.
 need the S/Key libraries and header files installed for this to work.
 
 --with-tcp-wrappers will enable TCP Wrappers (/etc/hosts.allow|deny)
-support. You will need libwrap.a and tcpd.h installed.
+support.
 
 --with-md5-passwords will enable the use of MD5 passwords. Enable this
 if your operating system uses MD5 passwords and the system crypt() does
@@ -157,13 +195,15 @@ $DISPLAY environment variable. Some broken systems need this.
 --with-default-path=PATH allows you to specify a default $PATH for sessions
 started by sshd. This replaces the standard path entirely.
 
---with-pid-dir=PATH specifies the directory in which the ssh.pid file is
+--with-pid-dir=PATH specifies the directory in which the sshd.pid file is
 created.
 
 --with-xauth=PATH specifies the location of the xauth binary
 
 --with-ssl-dir=DIR allows you to specify where your OpenSSL libraries
 are installed.
+
+--with-ssl-engine enables OpenSSL's (hardware) ENGINE support
 
 --with-4in6 Check for IPv4 in IPv6 mapped addresses and convert them to
 real (AF_INET) IPv4 addresses. Works around some quirks on Linux.
@@ -208,7 +248,8 @@ for sshd, ssh and ssh-agent.
 -------------------------
 
 $ make survey
-[check the contents and make sure there's no sensitive information]
+[check the contents of the file "survey" to ensure there's no information
+that you consider sensitive]
 $ make send-survey
 
 This will send configuration information for the currently configured
@@ -225,4 +266,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.70 2005/04/24 07:52:23 dtucker Exp $
+$Id: INSTALL,v 1.84 2007/08/17 12:52:05 dtucker Exp $

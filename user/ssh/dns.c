@@ -1,4 +1,4 @@
-/*	$OpenBSD: dns.c,v 1.16 2005/10/17 14:13:35 stevesk Exp $	*/
+/* $OpenBSD: dns.c,v 1.24 2007/01/03 03:01:40 stevesk Exp $ */
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -26,9 +26,14 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: dns.c,v 1.16 2005/10/17 14:13:35 stevesk Exp $");
+
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include <netdb.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "xmalloc.h"
 #include "key.h"
@@ -122,7 +127,7 @@ dns_read_rdata(u_int8_t *algorithm, u_int8_t *digest_type,
 			*digest = (u_char *) xmalloc(*digest_len);
 			memcpy(*digest, rdata + 2, *digest_len);
 		} else {
-			*digest = xstrdup("");
+			*digest = (u_char *)xstrdup("");
 		}
 
 		success = 1;
@@ -212,7 +217,7 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 	if (fingerprints->rri_nrdatas)
 		*flags |= DNS_VERIFY_FOUND;
 
-	for (counter = 0; counter < fingerprints->rri_nrdatas; counter++)  {
+	for (counter = 0; counter < fingerprints->rri_nrdatas; counter++) {
 		/*
 		 * Extract the key from the answer. Ignore any badly
 		 * formatted fingerprints.

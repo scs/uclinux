@@ -1,5 +1,5 @@
 /* 
- * $Id: bsd-cray.c,v 1.14 2005/02/02 06:10:11 dtucker Exp $
+ * $Id: bsd-cray.c,v 1.17 2007/08/15 09:17:43 dtucker Exp $
  *
  * bsd-cray.c
  *
@@ -52,7 +52,10 @@
 #include <sys/secstat.h>
 #include <sys/stat.h>
 #include <sys/session.h>
+#include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <pwd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -747,8 +750,6 @@ cray_job_termination_handler(int sig)
 	int jid;
 	char *login = NULL;
 	struct jtab jtab;
-
-	debug("received signal %d",sig);
 
 	if ((jid = waitjob(&jtab)) == -1 ||
 	    (login = uid2nam(jtab.j_uid)) == NULL)
