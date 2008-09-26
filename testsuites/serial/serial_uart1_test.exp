@@ -37,6 +37,9 @@ set case_num 0
 incr case_num
 set timeout 5
 
+send "\r"
+expect -re  $kernel_prompt
+
 send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate \r"
 while 1 {
         expect {
