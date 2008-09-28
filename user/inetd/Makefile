@@ -21,5 +21,5 @@ clean:
 	rm -f $(EXEC) *.elf *.gdb *.o
 
 romfs:
-	$(ROMFSINST) /bin/$(EXEC)
-
+	$(ROMFSINST) /sbin/$(EXEC)
+	$(ROMFSINST) -a "inetd:unknown:/sbin/inetd" /etc/inittab
