@@ -3327,6 +3327,11 @@ config USER_UNZOO_UNZOO
 	  The unzoo archive decompression and extraction program.
 	  Can only extract and view contents of zoo archives.
 
+config USER_WATCHDOGD
+	bool "watchdogd"
+	help
+	  A simple watchdog daemon.
+
 config USER_LRZSZ_LRZSZ
 	bool "zmodem utils"
 

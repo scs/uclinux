@@ -403,6 +403,7 @@ dir_$(CONFIG_USER_VPLAY_MIXER)              += vplay
 dir_$(CONFIG_USER_VPNLED_VPNLED)            += vpnled
 dir_$(CONFIG_USER_W3CAM_VIDCAT)             += w3cam
 dir_$(CONFIG_USER_W3CAM_W3CAMD)             += w3cam
+dir_$(CONFIG_USER_WATCHDOGD)                += watchdogd
 dir_$(CONFIG_USER_WGET)                     += wget
 dir_$(CONFIG_USER_WHETSTONE_WHETSTONE)      += whetstone
 dir_$(CONFIG_USER_WIRELESS_TOOLS)           += wireless_tools
