@@ -1,0 +1,15 @@
+
+FLASH PROGRAMMING THE SG590 THROUGH JTAG
+----------------------------------------
+
+The following sequence is what I use on the Mentor Graphics MAJIC-LT
+JTAG debugger for programming the flash on the SG590 board.
+
+    fr m boot.bin 0x100000:p
+    l flasher
+    ed pc = 0
+    g
+
+boot.bin is the boot loader that you want to load.
+flasher is the sg590 flasher program.
+

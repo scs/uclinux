@@ -22,12 +22,21 @@
 # david_mccullough@securecomputing.com
 #
 
-if {$argc <= 0 || $argc > 2 || $argv == "-desc"} {
-	puts "usage: $argv0 core-dump-text-file \[romfs-inst.log\]"
-	puts "       Decode as much as possible from a file containing SH"
-	puts "       or ARM core dump traces. The coredump text can be"
-	puts "       prefixed with misc junk, ie., syslog infomation."
-	exit 0
+package require cmdline
+set options {
+	{m.arg "" "lsmod output"}
+}
+append usage \
+"\[options\] core-dump-text-file \[romfs-inst.log\]\n" \
+"       Decode as much as possible from a file containing SH\n" \
+"       or ARM core dump traces. The coredump text can be\n" \
+"       prefixed with misc junk, ie., syslog infomation.\n" \
+"options:"
+array set params [::cmdline::getoptions argv $options $usage]
+
+if {[llength $argv] < 1} {
+	puts [::cmdline::usage $options $usage]
+	exit 1
 }
 
 # some globals, "ra" or return address may not be possible on all archs
@@ -46,9 +55,14 @@ proc load_coredump {filename} {
 		if {[regexp -nocase {Internal error: Oops:} $line dummy]} {
 			set stackdump 0
 			incr ::coredumps
+			if {[info exists ::segments(lsmod)]} {
+				set ::segments($::coredumps) $::segments(lsmod)
+			}
 			lappend ::segments($::coredumps) [list vmlinux 0x0 0xffffffff]
 			set ::pc($::coredumps) 0
 			set ::ra($::coredumps) 0
+			set ::stack($::coredumps) {}
+			set ::backtrace($::coredumps) {}
 			set oops 1
 			continue
 		}
@@ -57,6 +71,7 @@ proc load_coredump {filename} {
 			incr ::coredumps
 			set ::pc($::coredumps) 0
 			set ::ra($::coredumps) 0
+			set ::backtrace($::coredumps) {}
 			set oops 0
 			continue
 		}
@@ -108,6 +123,22 @@ proc load_coredump {filename} {
 		if {[regexp {([0-9a-f]+)-([0-9a-f]+) r[-w][-x]p .* (/[^ 	]*)\W*$} $line dummy from to segment]} {
 			lappend ::segments($::coredumps) [list $segment 0x$from 0x$to]
 		}
+		# Function backtrace
+		if {[regexp {^Function entered at \[<([0-9a-f]+)>\] from \[\<([0-9a-f]+)>\]$} $line dummy at from]} {
+			lappend ::backtrace($::coredumps) [list 0x$at 0x$from]
+		}
+	}
+	close $f
+}
+
+# load the lsmod output,  converting the data into segments
+proc load_lsmod {filename} {
+	set f [open $filename]
+	while {[gets $f line] >= 0} {
+		if {[regexp {^([^ ]+)\s+(\d+)\s+.*\s+(0x[0-9a-f]{8})(?:\s+.*)?$} $line dummy name size from]} {
+			set to [format 0x%x [expr $from + $size]]
+			lappend ::segments(lsmod) [list ${name}.ko $from $to]
+		}
 	}
 	close $f
 }
@@ -122,6 +153,9 @@ proc load_romfslog {filename} {
 	while {[gets $f line] >= 0} {
 		if {[regexp {^([^ ]+)\W*/.*/romfs/(.*)$} $line dummy src bin]} {
 			set ::binaries([string tolower /$bin]) $src
+			if {[regexp {.*/(.+)} $bin dummy file]} {
+				set ::binaries([string tolower $file]) $src
+			}
 		}
 	}
 	close $f
@@ -208,7 +242,7 @@ proc find_segment {segments addr} {
 		set from [lindex $segment 1]
 		set to [lindex $segment 2]
 		if {$addr >= $from && $addr < $to} {
-			if {[regexp {\.so} $seg dummy]} {
+			if {[regexp {\.[ks]o} $seg dummy]} {
 				set saddr [expr $addr - $from]
 			} else {
 				set saddr $addr
@@ -249,13 +283,28 @@ proc examine_coredump {filename} {
 				}
 			}
 		}
+		puts ""
+		foreach backtrace $::backtrace($i) {
+			set at [find_segment $::segments($i) [lindex $backtrace 0]]
+			set from [find_segment $::segments($i) [lindex $backtrace 1]]
+			if {$at == ""} {
+				set at [lindex $backtrace 0]
+			}
+			if {$from == ""} {
+				set from [lindex $backtrace 1]
+			}
+			puts "Function entered at $at from $from"
+		}
 	}
 }
 
 # main program
 
-set coredump "[lindex $argv 0]"
-if {$argc > 1} {
-	load_romfslog [lindex $argv 1]
+set coredump [lindex $argv 0]
+foreach file [lrange $argv 1 end] {
+	load_romfslog $file
+}
+if {$params(m) != ""} {
+	load_lsmod $params(m)
 }
 puts [examine_coredump $coredump]

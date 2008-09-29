@@ -43,6 +43,42 @@ void args_add(ARGS *args, const char *s)
 	args->argv[args->argc] = NULL;
 }
 
+/* does the same as args_add(), but if the string s contains spaces, splits it into separate args 
+ * deals with spaces at the beginning and end */
+void args_add_with_spaces(ARGS *args, const char *s)
+{
+	char *tmp_arg;
+	int i;
+	int arg_index = 0;
+	int space = 0;
+	int text = 0;
+
+	for (i = 0; i <= strlen(s); i++) {
+		if (s[i] == ' ' || s[i] == '\0') {
+			if (text) {
+				/* end of arg */
+				tmp_arg = strndup(&s[arg_index], i - arg_index);
+				if (tmp_arg) {
+					args_add(args, tmp_arg);
+					free (tmp_arg);
+				} else {
+					perror("strndup");
+					exit(1);
+				}
+			}
+			text = 0;
+			space = 1;
+		} else {
+			if (space) {
+				/* new arg */
+				arg_index = i;
+			}
+			text = 1;
+			space = 0;
+		}
+	}
+}
+
 /* pop the last element off the args list */
 void args_pop(ARGS *args, int n)
 {

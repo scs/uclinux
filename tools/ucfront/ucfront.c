@@ -59,10 +59,18 @@ static enum {
  */
 static int flat_executable = 0;
 
+static int cplusplus = 0;
+
 static int ucfront_debug = 0;
 
 static const char *libpaths[100];
 static int num_lib_paths = 0;
+
+static struct {
+	const char *old;
+	const char *new;
+} map_dirs[100];
+static int num_map_dirs = 0;
 
 static char *rootdir;
 static const char *argv0;
@@ -241,6 +249,34 @@ static char *find_gcc_file(const char *path, const char *filename)
 	return strdup(buf);
 }
 
+
+static void parse_map_dirs(const char *mapping)
+{
+	const char *cp, *ep;
+	int n;
+
+	if (!mapping)
+		return;
+
+	cp = mapping;
+	while (*cp) {
+		/* skip whitespace */
+		if (*cp == ' ' || *cp == '\t') {
+			cp++;
+			continue;
+		}
+		/* dir=newdir */
+		ep = strchr(cp, '=');
+		if (!ep)
+			break;
+		n = strcspn(ep+1, " \t");
+		map_dirs[num_map_dirs].old = strndup(cp, ep - cp);
+		map_dirs[num_map_dirs].new = strndup(ep+1, n);
+		num_map_dirs++;
+		cp = ep + (1 + n);
+	}
+}
+
 /**
  * 'lib' is something like -labc
  * 
@@ -398,8 +434,8 @@ static void find_lib_env(void)
 	else if (getenv("CONFIG_DEFAULTS_LIBC_GLIBC")) {
 		if (config_libcdir) {
 			libtype = LIBTYPE_GLIBC;
-			x_asprintf(&libc_libdir, "%s/%s/build/lib", rootdir, config_libcdir);
-			x_asprintf(&libc_incdir, "%s/%s/build/include", rootdir, config_libcdir);
+			x_asprintf(&libc_libdir, "%s/%s/install/lib", rootdir, config_libcdir);
+			x_asprintf(&libc_incdir, "%s/%s/install/include", rootdir, config_libcdir);
 		}
 	}
 	else if (getenv("CONFIG_DEFAULTS_LIBC_UC_LIBC")) {
@@ -437,16 +473,22 @@ static void find_lib_env(void)
  */
 static void process_args(int argc, char **argv)
 {
-	static const char *opts[] = {"-I", "-include", "-imacros", "-iprefix",
+	static const char *opts[] = {
+				  "-iprefix", "-imacros",
 				  "-iwithprefix", "-iwithprefixbefore",
 				  "-D", "-U", "-x", "-MF", 
-				  "-MT", "-MQ", "-isystem", "-aux-info",
+				  "-MT", "-MQ", "-aux-info",
 				  "--param", "-A", "-Xlinker", "-u",
-				  "-idirafter", "-x",
+				  "-x",
+				  NULL};
+	static const char *includes[] = {
+				  "-I", "-include",
+				  "-isystem", "-idirafter",
 				  NULL};
 
 	int i;
 	int j;
+	int k;
 	int input_files = 0;
 	struct stat st;
 	char *e;
@@ -514,6 +556,14 @@ static void process_args(int argc, char **argv)
 			else {
 				e = argv[i] + 2;
 			}
+			for (k = 0; k < num_map_dirs; k++)
+				if (strncmp(map_dirs[k].old, e, strlen(map_dirs[k].old)) == 0) {
+					char *newval;
+					x_asprintf(&newval, "%s%s",
+						map_dirs[k].new, &e[strlen(map_dirs[k].old)]);
+					e = newval;
+					break;
+				}
 			libpaths[num_lib_paths++] = e;
 			args_add(stripped_args, "-L");
 			args_add(stripped_args, e);
@@ -527,6 +577,34 @@ static void process_args(int argc, char **argv)
 				invoke_original_compiler();
 			}
 			args_add(stripped_args, argv[i]);
+			continue;
+		}
+
+		/* include processing */
+		for (j=0;includes[j];j++) {
+			if (strcmp(argv[i], includes[j]) == 0) {
+				if (i == argc-1) {
+					fatal("missing argument to %s\n", includes[j]);
+				}
+				e = argv[++i];
+			} else if (strncmp(argv[i],includes[j],strlen(includes[j])) == 0) {
+				e = argv[i] + strlen(includes[j]);
+			} else {
+				continue;
+			}
+			for (k = 0; k < num_map_dirs; k++)
+				if (strncmp(map_dirs[k].old, e, strlen(map_dirs[k].old)) == 0) {
+					char *newval;
+					x_asprintf(&newval, "%s%s",
+						map_dirs[k].new, &e[strlen(map_dirs[k].old)]);
+					e = newval;
+					break;
+				}
+			args_add(stripped_args, includes[j]);
+			args_add(stripped_args, e);
+			break;
+		}
+		if (includes[j]) {
 			continue;
 		}
 
@@ -682,6 +760,10 @@ static void process_args(int argc, char **argv)
 				/*
 				 * ensure cross references are fixed
 				 */
+				if (cplusplus) {
+					args_add_with_spaces(stripped_args, getenv("SLIBSTDCPP") ?: "-lstdc++");
+					args_add_with_spaces(stripped_args, getenv("CXXSUP") ?: "-lsupc++");
+				}
 				args_add(stripped_args, "-Wl,--start-group");
 				args_add(stripped_args, "-lc");
 				args_add(stripped_args, "-lgcc");
@@ -732,6 +814,14 @@ static void process_args(int argc, char **argv)
 		args_add_prefix(stripped_args, "-I");
 	}
 #endif
+
+	if (cplusplus) {
+		if (getenv("STL_INCDIR"))
+			x_asprintf(&e, "-I%s", getenv("STL_INCDIR"));
+		else
+			x_asprintf(&e, "-I%s/include/c++", rootdir);
+		args_add_prefix(stripped_args, e);
+	}
 
 	/* Do this in reverse order. We use -idirafter so that user-specified include paths come first */
 	x_asprintf(&e, "%s/include", rootdir);
@@ -805,6 +895,9 @@ static void ucfront(int argc, char *argv[])
 	if (getenv("UCFRONT_DISABLE")) {
 		invoke_original_compiler();
 	}
+
+	/* load remapped directories */
+	parse_map_dirs(getenv("UCFRONT_MAPDIRS"));
 	
 	/* process argument list, returning a new set of arguments for pre-processing */
 	process_args(orig_args->argc, orig_args->argv);
@@ -874,6 +967,10 @@ int main(int argc, char *argv[])
 
 	/* Try to find this executable on the path */
 	argv0 = find_on_path(argv[0], getenv("PATH") ?: "") ?: argv[0];
+
+	/* check for c++ */
+	if (strlen(argv[0]) > 2 && strcmp(argv[0] + strlen(argv[0]) - 2, "++") == 0)
+		cplusplus = 1;
 
 	/* check if we are being invoked as "ucfront" */
 	if (strlen(argv[0]) >= strlen(MYNAME) &&

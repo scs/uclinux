@@ -19,6 +19,7 @@ $0: [options] [src] dst
     -E env-var  : only take action if env-var is not set to "y".
     -o option   : only take action if option is set to "y".
     -O option   : only take action if option is not set to "y".
+    -c          : process with cpp+cflags
     -p perms    : chmod style permissions for dst.
     -d          : make dst directory if it doesn't exist
     -S          : don't strip after installing
@@ -27,6 +28,8 @@ $0: [options] [src] dst
     -l link     : dst is a hard link to 'link'.
     -s sym-link : dst is a sym-link to 'sym-link'.
     -M          : install kernel module into dst subdir of module dir
+    -r          : root directory of install (default ROMFSDIR)
+    -f          : do not follow symlinks
 
     if "src" is not provided,  basename is run on dst to determine the
     source in the current directory.
@@ -69,11 +72,17 @@ file_copy()
 			cd ${src} || return 1
 			V=
 			[ "$v" ] && V=v
-			find . -print | grep -E -v '/CVS|/\.svn' | cpio -p${V}dumL ${ROMFSDIR}${dst}
+			find . -print | grep -E -v '/CVS|/\.svn' | cpio -p${V}dum${follow} ${ROMFSDIR}${dst}
 			rc=$?
 			# And make sure these files are still writable
 			find . -print | grep -E -v '/CVS|/\.svn' | ( cd ${ROMFSDIR}${dst}; xargs chmod u+w )
 			setperm ${ROMFSDIR}${dst}
+			find . -type f | grep -E -v '/CVS|/\.svn' | while read t; do
+				if [ -n "$strip" ]; then
+					${STRIPTOOL} ${ROMFSDIR}${dst}/$t 2>/dev/null
+					${STRIPTOOL} -R .comment -R .note ${ROMFSDIR}${dst}/$t 2>/dev/null
+				fi
+			done
 		)
 	else
 		if [ -d ${ROMFSDIR}${dst} ]; then
@@ -147,16 +156,25 @@ sym_link()
 }
 
 #############################################################################
+
+cpp_file()
+{
+	set -x
+	if [ -d ${ROMFSDIR}${dst} ]; then
+		dstfile=${ROMFSDIR}${dst}/`basename ${src}`
+	else
+		dstfile=${ROMFSDIR}${dst}
+	fi
+	rm -f ${dstfile}
+	[ "$v" ] && echo "${CROSS_COMPILE}cpp ${CFLAGS} -P < ${src} > ${dstfile}"
+	${CROSS_COMPILE}cpp ${CFLAGS} -P < ${src} > ${dstfile}
+	return $?
+}
+
+#############################################################################
 #
 # main program entry point
 #
-
-if [ -z "$ROMFSDIR" ]
-then
-	echo "ROMFSDIR is not set" >&2
-	usage
-	exit 1
-fi
 
 v=
 option=y
@@ -169,12 +187,15 @@ src=
 dst=
 strip=1
 kernmod=
+r=
+follow=L
 
-while getopts 'dSMve:E:o:O:A:p:a:l:s:' opt "$@"
+while getopts 'dfSMvce:E:o:O:A:p:a:l:s:r:' opt "$@"
 do
 	case "$opt" in
 	v) v="1";                           ;;
 	d) mdir="1";                        ;;
+	f) follow=;                         ;;
 	S) strip=;							;;
 	M) kernmod="1";                     ;;
 	o) option="$OPTARG";                ;;
@@ -186,6 +207,8 @@ do
 	A) pattern="$OPTARG";               ;;
 	l) src="$OPTARG"; func=hard_link;   ;;
 	s) src="$OPTARG"; func=sym_link;    ;;
+	r) ROMFSDIR="$OPTARG"; r=1;         ;;
+	c) func=cpp_file;                   ;;
 
 	*)  break ;;
 	esac
@@ -213,6 +236,18 @@ do
 		;;
 	esac
 done
+
+if [ -z "$ROMFSDIR" -a -z "$r" ]
+then
+	echo "ROMFSDIR is not set" >&2
+	usage
+	exit 1
+fi
+
+if [ -z "$STRIPTOOL" ]
+then
+	STRIPTOOL=strip
+fi	
 
 shift `expr $OPTIND - 1`
 

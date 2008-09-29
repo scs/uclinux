@@ -1,0 +1,132 @@
+##### MAJIC Debugger History file #####################
+
+[MON COMMAND]
+db 0:p l 64
+ed 0x000107000000081
+fr m /home/gerg/new-wave.sg590/u-boot/u-boot-octeon_cn3010_evb_hs5_failsafe.bin
+fr m /home/gerg/new-wave.sg590/u-boot/u-boot-octeon_cn3010_evb_hs5_failsafe.bin 0x100000:p
+dw 0x100000:p l 64
+db 0x100000:p 64
+dw 0x100000:p
+dw 0:p l 20,i
+db 0x1fc00000:p l 64
+db 0x100000:p l 64
+dw 0x1fc00000:p
+dd ra
+dw 0x100000:p l 32
+db 0x100000:p l 32
+ew 0x100000:p
+ew 0x100080:p
+dw 0 l 32
+fr m /home/gerg/new-wave.sg590/u-boot/u-boot-octeon_cn3010_evb_hs5_failsafe.bin. 0p
+fr m /home/gerg/new-wave.sg590/u-boot/u-boot-octeon_cn3010_evb_hs5_failsafe.bin. 0
+hb memcheck
+help b
+help s
+s 5000
+bs mem_check
+bs memcheck
+s 10
+dd 0x200000:p l 16
+dw
+s 10
+dd 0x20000:p l 16
+ed
+s 100
+s 200
+s 300
+s 500
+dd v1
+dd 0x20000:p l 16
+dd 0x100000:p l 16
+dd 0x2c000:p l 16
+dd 0x11c000:p l 16
+dd 0:0 l 16
+dd 0:p l 16
+ed 0x100000:p
+ed pc = 0
+ew 0:p
+dw 0x1f000000:p l 32
+dw 0x1000010000000:P l 32
+dw 0x000001F400000:P l 32
+eb 0x000
+dw 0x8000000:p l 32
+db 0x00
+dw 0:0p l 32
+dw 0x100000:0 l 32
+ew 0x100070
+mt 0x000001FC00000:P l 0
+ed 0x1180000000840:P
+db 000001FC00000:P l 64
+ew 000001FC00000:P =
+help e
+eh 0x
+ed 0x100ff8:p
+dw 0x100f80:p l 32
+dw 0x10007c:p
+dw 0x100000:p 32
+dw 0x103600:p l 32
+l flasher
+l flasher
+l flasher
+bs core_0_contl
+s 1500
+s 1200
+s 1000
+dd tr
+dd t9
+dd gp
+dw 0xBFC2A0A0:p
+dw 0x1FC2A0A0:p
+dw 0x1FC2A0A0:p l 32
+dw 0x1fc00000:p l 32
+dw 0x1fc20000:p l 32
+dw 0x1fc40000:p l 32
+l flasher
+l flasher
+l flasher
+dw 0:p l 32
+e 0:p
+help mt
+dd 0x8001180088000010:p l 16
+dd 0x8001180088000010 l 16
+dd 0x8001180088000010 l 32
+l flasher
+dd lmc_ctrl l 32
+dd .lmc0_ctl l 32
+dd lmc0_cfg0 l 32
+l flasher
+l flasher
+dd lmc0_mem_cfg0 l 32
+d
+l memchecker
+l flasher
+l flasher
+fr m /home/gerg/new-wave.sg590/u-boot/u-boot-octeon_cn3010_evb_hs5_failsafe.bin. 0x100000:p
+fr m /tmp/boot.bin. 0x100000:p
+eb 0x1fc00000 = 0x90
+l flasher
+l flasher
+db 0x1fc00000
+db 0x1fc00000 l 32
+dd 0 l 32
+ed 0:p
+dd 0:p l 32
+dw 0x100000:p l 32
+fr m /tmp/boot.bin 0x100000:p
+l flasher
+ed pc = 0
+bs 0xffffffff80578000:p
+bs 0xffffffff80578000
+help
+help hb
+hb 0xffffffff805d1000
+
+[MON DATA]
+1234567812345678
+5555aaaa
+5555aaaa55aa55aa
+12345678050a50a0
+12345678
+ffffffffffffffff
+123456788765432

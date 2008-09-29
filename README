@@ -5,6 +5,8 @@ uClinux/distribution
 Contents
 --------
 
+i) Preface
+0) Introduction
 1) Instructions for compiling
 2) Changing the applications/kernel-options/libraries
 3) Documentation
@@ -15,13 +17,28 @@ i) Preface - Blackfin specific info
      from Analog Devices. For more information goto the Blackfin/uClinux
      web site at : http://blackfin.uclinux.org
 
+0) Introduction
+---------------
+
+The uClinux-dist source package is an "all-in-one" build framework for
+generating a complete system. It has been developed with embedded devices
+in mind, but it can just as equally be used for normal computing devices
+(like a PC for example). It is ideal for building small, light weigth
+systems.
+
+The uClinux-dist was originally targeted specifically at non-MMU
+microprocessors. But for many years now it has supported full VM processors.
+It supports a wide varity of hardware, many CPUs and  a large number of
+target boards.
+
+
 1) Instructions for Compiling
 -----------------------------
 
   1. You will need a cross-compiler package for your target. Many binary
      tool packages exists specifically for compiling uClinux. Install
      that in the standard way first. For example, if you are targeting m68k
-     or ColdFire systems then you can use the m68k-elf-tools binary
+     or ColdFire systems then you can use the m68k-uclinux-tools binary
      packages of www.uclinux.org.
  
   2. If you have not un-archived the source package then do that now.
@@ -53,11 +70,10 @@ i) Preface - Blackfin specific info
 
      You can also select between different kernel versions and libraries,
      at this top level. Not all kernel versions support all boards, as a
-     general rule choose 2.4.x. Also typically you would use glibc only on
-     target processors that support virtual memory (x86, SH4, XSCALE).
-     Most MMUless processors use uClibc. If you choose a combination that
-     doesn't have a default configuration file then the xconfig step will
-     issue a message letting you know.
+     general rule choose 2.6.x. uClibc is the perferred library choice on
+     all targets (both MMU-less and VM processors). If you choose a
+     combination that doesn't have a default configuration file then the
+     config step will issue a message letting you know.
  
      Based on what platform you choose in this step the build will generate
      an appropriate default application set.
@@ -68,10 +84,13 @@ i) Preface - Blackfin specific info
      configuration you have chosen.  If this happens the safest option is
      to answer 'N' to each question as they appear.
 
-  5. Build the dependencies:
+  5. Build the dependencies (if required):
  
           make dep
  
+     If you selected the 2.6.x kernel then you do not need to do this step.
+     If you choose the 2.4.x or 2.0.x kernels you must run the make dep.
+
   6. Build the image:
  
           make
@@ -101,8 +120,8 @@ i) Preface - Blackfin specific info
         make menuconfig    - text menu based config
         make config        - plain text shell script based config
 
-  Xconfig is by far the simplest to use, I would reccomend using that
-  if you can.
+  Menuconfig and xconfig are the simplest, I would recommend using one of
+  them.
 
   The key options under the "Target Platform Selection" menu are the
   following:
