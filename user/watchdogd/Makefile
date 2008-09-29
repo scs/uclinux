@@ -1,12 +1,10 @@
 CFLAGS += -Wall
 
-EXEC = watchdogd
-
-all: $(EXEC)
+all: watchdogd
 
 romfs:
-	$(ROMFSINST) -e CONFIG_USER_BLACKFIN_WATCHDOGD /bin/$(EXEC)
-	$(ROMFSINST) -e CONFIG_USER_BLACKFIN_WATCHDOGD -a "watchdogd:unknown:/bin/watchdogd -f -s" /etc/inittab
+	$(ROMFSINST) -e CONFIG_USER_WATCHDOGD /bin/$(EXEC)
+	$(ROMFSINST) -e CONFIG_USER_WATCHDOGD -a "watchdogd:unknown:/bin/watchdogd -f -s" /etc/inittab
 
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o
