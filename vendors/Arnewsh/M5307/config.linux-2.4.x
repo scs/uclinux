@@ -60,6 +60,7 @@ CONFIG_CLOCK_45MHz=y
 # CONFIG_CLOCK_64MHz is not set
 # CONFIG_CLOCK_66MHz is not set
 # CONFIG_CLOCK_70MHz is not set
+# CONFIG_CLOCK_80MHz is not set
 # CONFIG_CLOCK_100MHz is not set
 # CONFIG_CLOCK_140MHz is not set
 # CONFIG_CLOCK_150MHz is not set
@@ -294,6 +295,7 @@ CONFIG_PPP=y
 # CONFIG_PPP_SYNC_TTY is not set
 # CONFIG_PPP_DEFLATE is not set
 # CONFIG_PPP_BSDCOMP is not set
+# CONFIG_PPP_MPPE is not set
 # CONFIG_PPPOE is not set
 CONFIG_SLIP=y
 CONFIG_SLIP_COMPRESSED=y
@@ -630,6 +632,7 @@ CONFIG_NLS_DEFAULT="iso8859-1"
 # CONFIG_MAGIC_SYSRQ is not set
 # CONFIG_CONTIGUOUS_PAGE_ALLOC is not set
 # CONFIG_MEM_MAP is not set
+# CONFIG_NO_MMU_LARGE_ALLOCS is not set
 # CONFIG_PROFILE is not set
 # CONFIG_DUMPTOFLASH is not set
 # CONFIG_NO_KERNEL_MSG is not set

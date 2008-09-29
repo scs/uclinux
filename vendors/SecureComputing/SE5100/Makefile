@@ -107,10 +107,10 @@ romfs:
 	$(ROMFSINST) -s ./bin /sbin
 	$(ROMFSINST) -s /var/tmp /tmp
 	$(ROMFSINST) -s /var/tmp/log /dev/log
-	$(ROMFSINST) ../romfs /
-	$(ROMFSINST) ../httpd /home/httpd
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/inittab
+	$(ROMFSINST) ../romfs /
+	-$(ROMFSINST) ../httpd /home/httpd
 	case "$(LINUXDIR)" in \
 	*2.4.*) ;; \
 	*) echo "ttyS0:linux:/bin/sh" >> $(ROMFSDIR)/etc/inittab ;; \
@@ -144,24 +144,24 @@ image: mkcramfs
 	#
 	# and put it back
 	#
-	@echo '********************************************************' > /dev/tty
-	@echo '********************************************************' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '** Time to make the real filesystem image.            **' > /dev/tty
-	@echo '** For this you need to be "root". You will also need **' > /dev/tty
-	@echo '** a kernel with the loopback device enabled and ext2 **' > /dev/tty
-	@echo '** filesystem support.  Enter the root password below **' > /dev/tty
-	@echo '** if asked,  or ^C to abort.                         **' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '********************************************************' > /dev/tty
-	@echo '********************************************************' > /dev/tty
-	@echo > /dev/tty
-	if [ -x /usr/bin/sudo ]; then \
-		sudo su root -c "$(MAKE) extimage"; \
+	@if [ -x /usr/local/bin/root ]; then \
+		/usr/local/bin/root $(MAKE) extimage ; \
 	else \
-		su root -c "$(MAKE) extimage" < /dev/tty > /dev/tty 2>&1; \
+		@echo '********************************************************' > /dev/tty ; \
+		@echo '********************************************************' > /dev/tty ; \
+		@echo '**                                                    **' > /dev/tty ; \
+		@echo '**                                                    **' > /dev/tty ; \
+		@echo '** Time to make the real filesystem image.            **' > /dev/tty ; \
+		@echo '** For this you need to be "root". You will also need **' > /dev/tty ; \
+		@echo '** a kernel with the loopback device enabled and ext2 **' > /dev/tty ; \
+		@echo '** filesystem support.  Enter the root password below **' > /dev/tty ; \
+		@echo '** if asked,  or ^C to abort.                         **' > /dev/tty ; \
+		@echo '**                                                    **' > /dev/tty ; \
+		@echo '**                                                    **' > /dev/tty ; \
+		@echo '********************************************************' > /dev/tty ; \
+		@echo '********************************************************' > /dev/tty ; \
+		@echo > /dev/tty ; \
+		su root -c "$(MAKE) extimage" < /dev/tty > /dev/tty 2>&1 ; \
 	fi
 
 #

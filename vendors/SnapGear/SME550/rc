@@ -1,21 +1,27 @@
 echo "/etc/rc processing ..."
-hostname SME550 
-echo "Making Filesystems ..."
-# /dev/ram0 is the root filesystem for recovery images
-/bin/expand /etc/ramfs.img /dev/ram1
-/bin/expand /etc/ramfs.img /dev/ram2
+echo "Starting watchdog ..."
+watchdog /dev/watchdog
+hostname SME550
 echo "Mounting Filesystems ..."
 mount -t proc proc /proc
-mount -t ext2 /dev/ram1 /var
-mount -t ext2 /dev/ram2 /etc/config
-mkdir /var/tmp
-mkdir /var/log
-mkdir /var/run
-mkdir /var/lock
-mkdir /var/empty
+mount -t tmpfs -o size=512k tmpfs /var
+mount -t tmpfs -o size=1024k tmpfs /etc/config
+mkdir -m 1777 /var/tmp
+mkdir -m 755 /var/log
+mkdir -m 755 /var/run
+mkdir -m 1777 /var/lock
+mkdir -m 755 /var/empty
+mkdir -m 755 /var/mnt
 echo "Processing Config Filesystem ..."
-/bin/flatfsd -r
-cp /etc/config/resolv.user /etc/config/resolv.conf
+flatfsd -r -n
 echo "Setting system clock ..."
 hwclock --hctosys --utc
+logd boot
+echo 1 >/proc/sys/net/ipv4/conf/all/promote_secondaries
+echo "Loading crypto drivers."
+insmod safenet
+insmod safenet_sg
+insmod authd
+initconf -v
+ifconfig lo 127.0.0.1
 echo "/etc/rc complete."

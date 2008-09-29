@@ -187,7 +187,7 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_FEC is not set
 # CONFIG_CS89x0 is not set
 # CONFIG_UCCS8900 is not set
-CONFIG_SKYEYENE2k=y
+# CONFIG_SKYEYENE2k is not set
 # CONFIG_AX88796 is not set
 # CONFIG_DM9000 is not set
 
@@ -366,7 +366,7 @@ CONFIG_EXT2_FS=y
 # CONFIG_CODA_FS is not set
 # CONFIG_INTERMEZZO_FS is not set
 CONFIG_NFS_FS=y
-CONFIG_NFS_V3=y
+# CONFIG_NFS_V3 is not set
 # CONFIG_NFS_DIRECTIO is not set
 # CONFIG_ROOT_NFS is not set
 # CONFIG_NFSD is not set
@@ -374,7 +374,6 @@ CONFIG_NFS_V3=y
 # CONFIG_NFSD_TCP is not set
 CONFIG_SUNRPC=y
 CONFIG_LOCKD=y
-CONFIG_LOCKD_V4=y
 # CONFIG_SMB_FS is not set
 # CONFIG_NCP_FS is not set
 # CONFIG_NCPFS_PACKET_SIGNING is not set
@@ -400,6 +399,7 @@ CONFIG_COREDUMP_PRINTK=y
 #
 # CONFIG_INPUT is not set
 # CONFIG_INPUT_KEYBDEV is not set
+# CONFIG_DUMMY_KEYB is not set
 # CONFIG_INPUT_MOUSEDEV is not set
 # CONFIG_INPUT_JOYDEV is not set
 # CONFIG_INPUT_EVDEV is not set

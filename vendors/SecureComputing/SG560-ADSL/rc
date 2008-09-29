@@ -1,0 +1,55 @@
+echo "/etc/rc processing ..."
+mount -t proc proc /proc
+echo 2 >/proc/cpu/alignment
+echo "Starting watchdog ..."
+watchdog /dev/watchdog
+hostname SG560-ADSL
+echo "Mounting Filesystems ..."
+mount -t sysfs none /sys
+mount -t tmpfs -o size=512k tmpfs /var
+mount -t tmpfs -o size=1024k tmpfs /etc/config
+mkdir -m 1777 /var/tmp
+mkdir -m 755 /var/log
+mkdir -m 755 /var/run
+mkdir -m 755 /var/dev
+mkdir -m 1777 /var/lock
+mkdir -m 755 /var/empty
+mkdir -m 755 /var/mnt
+mount -t tmpfs -o size=4m,mode=0755 tmpfs /dev
+cp -a /lib/udev/devices/* /dev/
+echo "" > /proc/sys/kernel/hotplug
+/sbin/udevd --daemon
+/sbin/udevtrigger
+/sbin/udevsettle
+mount -t devpts devpts /dev/pts
+echo "Setting system clock ..."
+hwclock --hctosys --utc
+echo "Processing Config Filesystem ..."
+flatfsd -r 
+echo "Loading network drivers."
+modprobe ixp400
+cat /etc/IxNpeMicrocode.dat >/dev/ixNpe
+modprobe ixp400_eth
+setmac -p
+echo 1 >/proc/sys/net/ipv4/conf/all/promote_secondaries
+echo "Loading USB drivers."
+modprobe usbcore
+modprobe ehci-hcd
+modprobe ohci-hcd
+mount -t usbfs none /proc/bus/usb
+modprobe usbserial
+modprobe option
+modprobe cdc-acm
+modprobe airprime
+modprobe ark3116
+modprobe ipw
+modprobe sierra
+echo "Loading crypto drivers."
+modprobe ocf
+modprobe ixp4xx
+modprobe cryptodev
+modprobe ipsec
+echo "Updating devices"
+/sbin/udevsettle
+ifconfig lo 127.0.0.1
+echo "/etc/rc complete."

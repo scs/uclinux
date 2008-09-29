@@ -62,6 +62,7 @@ CONFIG_CLOCK_45MHz=y
 # CONFIG_CLOCK_64MHz is not set
 # CONFIG_CLOCK_66MHz is not set
 # CONFIG_CLOCK_70MHz is not set
+# CONFIG_CLOCK_80MHz is not set
 # CONFIG_CLOCK_100MHz is not set
 # CONFIG_CLOCK_140MHz is not set
 # CONFIG_CLOCK_150MHz is not set

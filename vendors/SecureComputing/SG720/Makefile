@@ -24,16 +24,12 @@ all:
 
 clean: image.clean
 
-romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version
+romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version romfs.boot romfs.cryptokey
 	$(ROMFSINST) ../network.init.std /etc/network.init
 	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 	$(ROMFSINST) -e CONFIG_USER_LM_SENSORS_SENSORS sensors.conf /etc/sensors.conf
 
 romfs.post:: romfs.no-ixp400-modules romfs.ixp425-microcode
-	$(ROMFSINST) /etc/lilo.conf
-	$(ROMFSINST) /boot/message
-	$(ROMFSINST) /boot/boot.b
-	$(ROMFSINST) /boot/boot.b.le
 
 image: image.configs image.dir image.arm.zimage image.squashfs7z image.mbr image.bin image.tag image.copy
 

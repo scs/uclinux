@@ -24,6 +24,8 @@ FLASH_DEVICES ?= \
 	image,c,90,4 \
 	all,c,90,6
 
+SGKEY ?= $(HOME)/keys/sgkey.pem
+
 COMMON_ROMFS_DIRS =
 ifdef CONFIG_SYSFS
 COMMON_ROMFS_DIRS += sys
@@ -65,6 +67,16 @@ mksquashfs7z:
 # Tags an image with vendor,product,version and adds the checksum
 image.tag:
 	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(HW_VENDOR) $(HW_PRODUCT) >>$(IMAGE)
+ifdef CONFIG_USER_NETFLASH_CRYPTO
+	if [ -f $(SGKEY) ] ; then \
+		$(ROOTDIR)/prop/cryptimage/cryptimage -k $(SGKEY) -f $(IMAGE) ; \
+		printf '\0%s\0%s\0%s' $(VERSIONPKG) $(HW_VENDOR) $(HW_PRODUCT) >>$(IMAGE) ; \
+	fi
+endif
+ifdef CONFIG_USER_NETFLASH_SHA256
+	cat $(IMAGE) | $(ROOTDIR)/user/netflash/sha256sum -b >> $(IMAGE)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(HW_VENDOR) $(HW_PRODUCT) >>$(IMAGE)
+endif
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
 
 image.size.zimage:
@@ -97,12 +109,20 @@ image.linuz:
 	$(CROSS)objcopy -O binary $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGEDIR)/linux.bin
 	gzip -c -9 < $(IMAGEDIR)/linux.bin >$(ZIMAGE)
 
+# Create ZIMAGE as vmlinux -> objcopy (include bss) -> $(ZIMAGE)
+image.bsslinuz:
+	$(CROSS)objcopy -O binary --set-section-flags .bss=load,contents $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGEDIR)/linux.bin
+	gzip -c -9 < $(IMAGEDIR)/linux.bin >$(ZIMAGE)
+
 # Create ZIMAGE as arm/arm/boot/zImage
 image.arm.zimage:
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/arm/boot/zImage $(ZIMAGE)
 
 image.i386.zimage:
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/i386/boot/bzImage $(ZIMAGE)
+
+image.mips.vmlinux:
+	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(VMLINUX)
 
 # Create a 16MB file for testing
 image.16mb:
@@ -124,7 +144,7 @@ image.squashfs7z: mksquashfs7z
 
 # Create (possibly) mbr + cramfs + zimage/linuz
 image.bin:
-	cat $(MBRIMG) $(ROMFSIMG) $(ZIMAGE) >$(IMAGE)
+	cat $(MBRIMG) $(ROMFSIMG) $(SHIM) $(ZIMAGE) >$(IMAGE)
 
 addr.txt: $(ROOTDIR)/$(LINUXDIR)/vmlinux
 	$(CROSS)nm $(ROOTDIR)/$(LINUXDIR)/vmlinux | \
@@ -156,7 +176,7 @@ image.configs:
 	cp $(ROOTDIR)/.config configs/config.device
 	cp $(ROOTDIR)/config/.config configs/config.vendor-$(patsubst linux-%,%,$(CONFIG_LINUXDIR)) 
 	cp $(ROOTDIR)/$(CONFIG_LINUXDIR)/.config configs/config.$(CONFIG_LINUXDIR)
-	cp $(ROOTDIR)/$(CONFIG_LIBCDIR)/.config configs/config.$(CONFIG_LIBCDIR)
+	-cp $(ROOTDIR)/$(CONFIG_LIBCDIR)/.config configs/config.$(CONFIG_LIBCDIR)
 	tar czf $(IMAGEDIR)/configs.tar.gz configs
 	@rm -rf configs
 	
@@ -221,13 +241,24 @@ romfs.no-ixp400-modules:
 romfs.ixp425-microcode:
 	$(ROMFSINST) -e CONFIG_IXP400_LIB_2_0 -d $(ROOTDIR)/modules/ixp425/ixp400-2.0/IxNpeMicrocode.dat /etc/IxNpeMicrocode.dat
 	$(ROMFSINST) -e CONFIG_IXP400_LIB_2_1 -d $(ROOTDIR)/modules/ixp425/ixp400-2.1/IxNpeMicrocode.dat /etc/IxNpeMicrocode.dat
+	$(ROMFSINST) -e CONFIG_IXP400_LIB_2_4 -d $(ROOTDIR)/modules/ixp425/ixp400-2.4/IxNpeMicrocode.dat /etc/IxNpeMicrocode.dat
 
 romfs.ixp425-boot:
 	-$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/bios.bin /boot/biosplus.bin
 	-$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/boot.bin /boot/bootplus.bin
 
+romfs.boot:
+	-$(ROMFSINST) -d $(ROOTDIR)/boot/boot.bin /boot/boot.bin
+
 romfs.version:
 	echo "$(VERSIONSTR) -- " $(BUILD_START_STRING) > $(ROMFSDIR)/etc/version
+
+romfs.cryptokey:
+ifdef CONFIG_USER_NETFLASH_CRYPTO
+	if [ -f $(SGKEY) ] ; then \
+		openssl rsa -in $(SGKEY) -pubout > $(ROMFSDIR)/etc/publickey.pem ; \
+	fi
+endif
 
 romfs.nooom:
 	[ ! -x $(ROMFSDIR)/bin/no_oom ] || ( ( cd $(ROMFSDIR) && mkdir -p .no_oom ) && for i in `echo ${CONFIG_USER_NOOOM_BINARIES}` ; do [ -x $(ROMFSDIR)/$$i ] && [ x`readlink $(ROMFSDIR)/$$i` != x/bin/no_oom ] && mv $(ROMFSDIR)/$$i $(ROMFSDIR)/.no_oom/`basename $$i` && ln -s /bin/no_oom $(ROMFSDIR)/$$i || "NOTICE: $$i not present in romfs" ; done )

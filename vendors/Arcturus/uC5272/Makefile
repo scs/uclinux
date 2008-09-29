@@ -20,6 +20,8 @@ DEVICES = \
 	\
 	ram0,b,1,0     ram1,b,1,1         ram2,b,1,2       ram3,b,1,3 \
 	\
+	mtdblock0,b,31,0    mtdblock1,b,31,1        mtdblock2,b,31,2      mtdblock3,b,31,3 \
+	mtdblock4,b,31,4    mtdblock5,b,31,5        mtdblock6,b,31,6      mtdblock7,b,31,7 \
 	rom0,b,31,0    rom1,b,31,1        rom2,b,31,2      rom3,b,31,3 \
 	rom4,b,31,4    rom5,b,31,5        rom6,b,31,6      rom7,b,31,7 \
 	rom8,b,31,8    rom9,b,31,9 \
@@ -64,6 +66,7 @@ device_dir:
 
 
 romfs:	devices
+	[ -d $(ROMFSDIR)/$$i ] || mkdir -p $(ROMFSDIR)
 	for i in $(ROMFS_DIRS); do \
 		[ -d $(ROMFSDIR)/$$i ] || mkdir -p $(ROMFSDIR)/$$i; \
 	done
@@ -75,6 +78,7 @@ romfs:	devices
 	$(ROMFSINST) -p 555 /etc/rc
 	$(ROMFSINST) -p 555 rc.d/rc.net /etc/rc.d/rc.net
 	$(ROMFSINST) -p 555 rc.d/rc.dhcpc /etc/rc.d/rc.dhcpc
+	$(ROMFSINST) -p 555 rc.d/rc.qspi /etc/rc.d/rc.qspi
 	$(ROMFSINST) /etc/inittab
 	$(ROMFSINST) /etc/services
 	$(ROMFSINST) /etc/issue
@@ -98,12 +102,15 @@ romfs:	devices
 
 
 image-tools:
-	make -C $(ROOTDIR)/user/boottools uCbootstrap-tools
-	make -C $(ROOTDIR)/user/cramfs host_build
+	touch $(ROOTDIR)/user/boottools/.sgbuilt_user && make -C $(ROOTDIR)/user/boottools uCbootstrap-tools 
+	touch $(ROOTDIR)/user/cramfs/.sgbuilt_user && make -C $(ROOTDIR)/user/cramfs host_build
 
 image: image-tools
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
-	cp $(ROOTDIR)/$(LINUXDIR)/linux.bin $(ROMFSDIR)/
+	rm -rf $(IMAGEDIR)/*
+	$(CROSS)objcopy  --set-section-flags=.romvec=alloc,load,readonly,data \
+			-O binary $(ROOTDIR)/$(LINUXDIR)/linux \
+			$(ROMFSDIR)/linux.bin
 	$(ROOTDIR)/user/cramfs/host_build/mkcramfs -r -n uClinux \
 		$(ROMFSDIR) $(IMAGEDIR)/image.cramfs 
 	$(ROOTDIR)/user/boottools/uCbootstrap-tools/uCmkimage \

@@ -43,7 +43,8 @@ endif
 
 ifndef RELFILES
   RELFILES =	boot/boot.bin,.sgb boot/boot.elf		\
-  		images/image.bin,.sgu $(LINUXDIR)/linux
+  		images/image.bin,.sgu $(LINUXDIR)/linux		\
+		prop/config/metaconfig.conf
 endif
 
 ifndef NFIMAGE
@@ -62,7 +63,25 @@ endif
 ENDIAN        ?= little
 MACHINE        = arm
 ARCH           = arm
+
+ifneq ($(shell which arm-linux-20070808-gcc),)
+ifeq ($(UCLINUX_BUILD_BOOT),1)
+CROSS_COMPILE  = arm-linux-20061213-
+else
+CROSS_COMPILE  = arm-linux-20070808-
+endif
+else
 CROSS_COMPILE  = arm-linux-
+endif
+
+ifdef CONFIG_DEFAULTS_KERNEL_2_4
+ifneq ($(shell which arm-linux-20061213-gcc),)
+KERNEL_CROSS_COMPILE = arm-linux-20061213-
+else
+KERNEL_CROSS_COMPILE = arm-linux-
+endif
+endif
+
 CROSS          = $(CROSS_COMPILE)
 CONFIGURE_HOST = arm-linux
 
@@ -163,7 +182,7 @@ endif
 ifeq ($(UCLINUX_BUILD_SET),1)
 	EXTRA_CFLAGS := $(CPUFLAGS)
 
-	CXXLIBS = $(LIBSTDCPP) $(CXXSUP)
+	CXXLIBS =
   	 
 	LDLIBS = $(LIBBIND)
 	SH_LDFLAGS = $(LDFLAGS)

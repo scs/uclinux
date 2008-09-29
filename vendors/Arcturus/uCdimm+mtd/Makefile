@@ -97,8 +97,8 @@ endif
 	fi
 	$(ROMFSINST) ../../Generic/httpd /home/httpd
 	# better to be running from RAM when hanging it
-	m68k-elf-flthdr -r $(ROMFSDIR)/bin/netflash
-	m68k-elf-flthdr -r $(ROMFSDIR)/bin/flashw
+	$(CROSS)flthdr -r $(ROMFSDIR)/bin/netflash
+	$(CROSS)flthdr -r $(ROMFSDIR)/bin/flashw
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
 image:

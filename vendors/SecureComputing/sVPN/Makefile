@@ -67,13 +67,13 @@ image: mksquashfs7z
 	cat $(RAMDISK) $(KERNELZ) > $(IMAGE)
 	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(IMAGE)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
-
-#
-# build up a flash.bin
-#
-	dd conv=sync if=$(ROOTDIR)/boot/boot.bin bs=256k of=$(FLASH)
-	cat $(IMAGE) >> $(FLASH)
-
+	#
+	# build up a flash.bin
+	#
+	if [ -f $(ROOTDIR)/boot/boot.bin ] ; then \
+		dd conv=sync if=$(ROOTDIR)/boot/boot.bin bs=256k of=$(FLASH) ; \
+		cat $(IMAGE) >> $(FLASH) ; \
+	fi
 	if [ -d /tftpboot -a -z "$(NO_BUILD_INTO_TFTPBOOT)" ]; then \
 		cp $(IMAGE) /tftpboot/ 2> /dev/null; \
 	fi

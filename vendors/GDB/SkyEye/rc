@@ -8,4 +8,3 @@ mkdir /var/run
 mkdir /var/lock
 mkdir /var/empty
 cat /etc/motd
-/bin/ifconfig eth0 up 10.0.0.2

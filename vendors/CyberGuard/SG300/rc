@@ -20,3 +20,4 @@ insmod authd
 initconf -v
 ifconfig lo 127.0.0.1
 echo "/etc/rc complete."
+

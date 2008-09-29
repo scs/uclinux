@@ -137,7 +137,7 @@ image:
 		mv -f $(ROMFSDIR)/$$i $(ROMFSDIR)2/`basename $$i`; \
 	done
 	genromfs -v -V "ROMdisk" -f $(ROMFSIMG) -d $(ROMFSDIR)
-	m68k-elf-objcopy -O binary $(ROOTDIR)/$(LINUXDIR)/linux \
+	$(CROSS)objcopy -O binary $(ROOTDIR)/$(LINUXDIR)/linux \
             $(IMAGEDIR)/linux.bin
 	cat $(IMAGEDIR)/linux.bin $(ROMFSIMG) > $(IMAGE)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
@@ -147,10 +147,10 @@ image:
 	[ -n "$(NO_BUILD_INTO_TFTPBOOT)" ] || cp $(IMAGEZ) /tftpboot
 	genromfs -v -V "ROMdisk2" -f $(ROMFSIMG2) -d $(ROMFSDIR)2
 	[ -n "$(NO_BUILD_INTO_TFTPBOOT)" ] || cp $(ROMFSIMG2) /tftpboot
-	BSS=`m68k-elf-objdump --headers $(ROOTDIR)/$(LINUXDIR)/linux | \
+	BSS=`$(CROSS)objdump --headers $(ROOTDIR)/$(LINUXDIR)/linux | \
 	  grep .bss` ; \
 	ADDR=`set -- $${BSS} ; echo 0x$${4}` ; \
-	m68k-elf-objcopy --add-section=.romfs=$(ROMFSIMG) \
+	$(CROSS)objcopy --add-section=.romfs=$(ROMFSIMG) \
 	  --adjust-section-vma=.romfs=$${ADDR} --no-adjust-warnings \
 	  --set-section-flags=.romfs=alloc,load,data   \
 	  $(ROOTDIR)/$(LINUXDIR)/linux $(ELFIMAGE) 2> /dev/null

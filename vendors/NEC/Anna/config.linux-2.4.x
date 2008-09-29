@@ -189,6 +189,7 @@ CONFIG_PPP_ASYNC=y
 # CONFIG_PPP_SYNC_TTY is not set
 # CONFIG_PPP_DEFLATE is not set
 # CONFIG_PPP_BSDCOMP is not set
+# CONFIG_PPP_MPPE is not set
 # CONFIG_SLIP is not set
 
 #

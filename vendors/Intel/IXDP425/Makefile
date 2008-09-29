@@ -22,7 +22,7 @@ ROMFS_DIRS = \
 clean:
 
 romfs:
-	[ -d $(ROMFSDIR)/$$i ] || mkdir -p $(ROMFSDIR)
+	[ -d $(ROMFSDIR) ] || mkdir -p $(ROMFSDIR)
 	for i in $(ROMFS_DIRS); do \
 		[ -d $(ROMFSDIR)/$$i ] || mkdir -p $(ROMFSDIR)/$$i; \
 	done
@@ -41,6 +41,9 @@ image:
 	    /etc/IxNpeMicrocode.dat
 	-$(ROMFSINST) -e CONFIG_IXP400_LIB_2_1 \
 	    -d $(ROOTDIR)/modules/ixp425/ixp400-2.1/IxNpeMicrocode.dat \
+	    /etc/IxNpeMicrocode.dat
+	-$(ROMFSINST) -e CONFIG_IXP400_LIB_2_4 \
+	    -d $(ROOTDIR)/modules/ixp425/ixp400-2.4/IxNpeMicrocode.dat \
 	    /etc/IxNpeMicrocode.dat
 	genext2fs -b 8192 -f dev.txt -d $(ROMFSDIR) $(RAMDISK)
 	gzip -9 -f $(RAMDISK)

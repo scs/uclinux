@@ -1,26 +1,28 @@
-SNAPGEAR IXP425 FLASH
----------------------
+SNAPGEAR CAVIUM OCTEON FLASH
+----------------------------
 
 1. LOADING BOOT LOADER
 
-   Using OCdemon package, setup with appropriate .gdbinit script.
+   Use MentorGraphics Majic-LT debugger and their EPItools software
+   package. It is a set of 32bit x86 binaries, but I have been running
+   it on a x86_64 box with no problems at all. (I have been using version
+   2.4c).
 
-   Firstly make sure you have the lp drivers loaded, and then load
-   the ocdemon/ravenpp driver:
+   At the root of a built tree run:
 
-      modprobe lp
-      modprobe -f ravenpp
-      mknod /dev/ocdemonpp0 c 254 0
-      mknod /dev/ravenpp0 c 254 0
+       monice.static -d 10.46.12.10:e -7 -vcnmips
 
-   (Ignore the ravenpp load warnings - if any).
+   Substitue an appropriate IP address that you have the Majic-LT box
+   setup for. Or you can use it through the serial port instead of over
+   ethernet.
 
-   Now startup the process demon, and start gdb:
+   Then run the following commands:
 
-      OcdLibRemote -c XSCALE-IXP &
-      /tmp/xscale-elf-gdb -nw
+      fr m boot/boot.bin 0x100000:p
+      l tools/misc/mips/flasher
+      ed pc = 0
+      g
 
-   Now run the "flash16-boot" macro to program the flash with the
-   SnapGear boot loader. The first RealTek 8169 port is the default
-   tftp boot port.
+   That will print out progress trace on the serial port of the SnapGear
+   device being programmed.
 

@@ -57,7 +57,11 @@ endif
 MACHINE       = m68k
 ARCH          = m68knommu
 ENDIAN        = big
-CROSS_COMPILE = m68k-elf-
+ifneq ($(shell which m68k-uclinux-20060615-gcc),)
+CROSS_COMPILE = m68k-uclinux-20060615-
+else
+CROSS_COMPILE = m68k-uclinux-
+endif
 CROSS         = $(CROSS_COMPILE)
 CONFIGURE_HOST = m68k-elf
 
@@ -89,7 +93,7 @@ endif
 # Either configure $(CONFIGURE_OPTS)
 # or     configure --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
 #
-TARGETARCH    := m68k-elf-linux
+TARGETARCH    := $(CROSS)linux
 HOSTARCH      := $(shell sh $(ROOTDIR)/tools/config.guess)
 CONFIGURE_OPTS := --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
 
@@ -207,7 +211,7 @@ endif
 ifeq ($(UCLINUX_BUILD_SET),1)
 	EXTRA_CFLAGS := $(CPUFLAGS)
 
-	CXXLIBS = $(LIBSTDCPP) $(CXXSUP)
+	CXXLIBS =
   	 
 	LDLIBS = $(LIBBIND)
 endif

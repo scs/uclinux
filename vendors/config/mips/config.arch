@@ -1,98 +1,130 @@
 .EXPORT_ALL_VARIABLES:
 ############################################################################
+
 #
-#  A Generic mips config.arch that can be included by other platforms
+#  A generic MIPS config.arch that can be included by other platforms
 #  to reduce the number of places that need to be edited when something
-#  common changes.  If you include this file you may provide:
+#  common changes. If you include this file you should provide:
 #
 #  CPUFLAGS            - cpu specific flags to pass to the compiler
+#  CPULDFLAGS          - cpu specific flags to pass to the linker
 #  VENDOR_CFLAGS       - vendor specific flags to pass to the compiler
-#  LOPT                - library optimisation flags
-#  UOPT                - user optimisation flags
-#  GLIBC_TARGET_OPTS   - flags needed for gcc
 #
-#  David McCullough <davidm@snapgear.com>
+#  Greg Ungerer <gerg@snapgear.com>
 #
+
 ############################################################################
 
+#
+# Default console setting
+#
+
 ifndef CONSOLE_BAUD_RATE
-  CONSOLE_BAUD_RATE = 115200
+CONSOLE_BAUD_RATE = 115200
 endif
 
+ifndef HW_PRODUCT
+  HW_PRODUCT = $(CONFIG_PRODUCT)
+endif
+
+ifndef HW_VENDOR
+  HW_VENDOR = $(CONFIG_VENDOR)
+endif
+
+ifndef EXTRA_MODULE_DIRS
 ifeq ($(ROOTDIR)/modules,$(wildcard $(ROOTDIR)/modules))
-  EXTRA_MODULE_DIRS = $(ROOTDIR)/modules
+ifdef CONFIG_DEFAULTS_KERNEL_2_6
+EXTRA_MODULE_DIRS = $(ROOTDIR)/modules/
+else
+EXTRA_MODULE_DIRS = $(ROOTDIR)/modules
 endif
-
-ifndef VERSIONPKG
-  VERSIONPKG  := 1.0.0
 endif
-
-ifndef VERSIONSTR
-  VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 endif
 
 ifndef RELFILES
-  RELFILES =	boot/boot.bin boot/boot.elf			\
-  		images/image.bin images/flash.bin \
-		$(LINUXDIR)/linux
+  RELFILES =	boot/boot.bin,.sgb boot/boot.elf		\
+  		images/image.bin,.sgu $(LINUXDIR)/linux		\
+		prop/config/metaconfig.conf
+endif
+
+ifndef NFIMAGE
+  NFIMAGE=image.bin
 endif
 
 ############################################################################
+
 #
 # The makefiles need to know how to do things in different contexts
-# To save some pain we put it all here
+# To save some pain we put it all here.
 #
-# First settings we always want for all build
+# First settings we always want for all builds.
 #
 
-ENDIAN        ?= little
-MACHINE       = mips
-ARCH          = mips
-CROSS_COMPILE = mips_fp_le-
-CROSS         = $(CROSS_COMPILE)
-CONFIGURE_HOST = mips_fp_le
+ENDIAN         ?= big
+MACHINE        = mips
+ARCH           = mips
 
-CC        = $(CROSS_COMPILE)gcc $(CPUFLAGS)
+ifndef CROSS_COMPILE
+ifneq ($(shell which mips-linux-20071101-gcc),)
+CROSS_COMPILE  = mips-linux-20071101-
+else
+CROSS_COMPILE  = mips-linux-
+endif
+endif
+
+CONFIGURE_HOST = mips-linux
+
+CC        = $(ucfront_cc) $(CROSS_COMPILE)gcc $(CPUFLAGS)
 AS        = $(CROSS_COMPILE)as $(CPUFLAGS)
-CXX       = $(CROSS_COMPILE)g++ $(CPUFLAGS)
+CXX       = $(ucfront_cxx) $(CROSS_COMPILE)g++ $(CPUFLAGS)
 AR        = $(CROSS_COMPILE)ar
-LD        = $(CROSS_COMPILE)ld
+LD        = $(ucfront_ld) $(CROSS_COMPILE)ld $(CPULDFLAGS)
 OBJCOPY   = $(CROSS_COMPILE)objcopy
 RANLIB    = $(CROSS_COMPILE)ranlib
-ELF2FLT   = elf2flt
 STRIPTOOL = $(CROSS_COMPILE)strip
 STRIP     = $(STRIPTOOL)
 
-GCC_DIR   = $(shell $(CC) -v 2>&1|grep specs|sed -e 's/.* \(.*\)specs/\1\./')
-MACH_DIR  = $(shell $(CC) -print-multi-directory)
-
-UCLINUX_BUILD_SET = 0					# have we set a special config below
+UCLINUX_BUILD_SET = 0		# have we set a special config below
 
 # Pull in common definitions
 include $(ROOTDIR)/vendors/config/common/config.arch
 
+# These can be used by configure.
+# Either configure $(CONFIGURE_OPTS)
+# or     configure --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
+#
+TARGETARCH    ?= mips-linux
+HOSTARCH      := $(shell sh $(ROOTDIR)/tools/config.guess)
+CONFIGURE_OPTS := --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
+
 ############################################################################
 #
-# General purpose lib building rules,  uClibc.config uses these when
-# possible
+# General purpose lib building rules, uClibc.config uses these when
+# possible.
 #
 
 ifdef UCLINUX_BUILD_LIB
+  ifeq ($(findstring glibc,$(LIBCDIR)),glibc)
+	GLIBC_TARGET_OPTS = mips-linux --enable-shared
+  endif
   ifdef CONFIG_LIB_DEBUG
-	CFLAGS  :=  $(if $(LOPT),$(LOPT),-O1) -g
+	CFLAGS  := -g
+	LDFLAGS :=
   else
-	CFLAGS  :=  $(if $(LOPT),$(LOPT),-O2) -g -fomit-frame-pointer
+	CFLAGS  := -O1
+	LDFLAGS := -Wl,-S
   endif
 	CFLAGS  += -pipe
-	CFLAGS  += $(VENDOR_CFLAGS)
-	CFLAGS  += -fno-builtin
-	CFLAGS  += -DEMBED
-	CFLAGS  += $(CPUFLAGS)
-	CFLAGS  += -nostdinc -I$(ROOTDIR)/include -I$(ROOTDIR)/include/include
-	# don't want all the CFLAGS for uClibc/Config
-	ARCH_CFLAGS = $(CFLAGS)
+	CFLAGS  += -fno-common -fno-builtin -Wall #-Werror
 	CFLAGS  += -Dlinux -D__linux__ -Dunix
-	LDFLAGS  = $(CFLAGS) $(CRT0)
+	CFLAGS  += $(VENDOR_CFLAGS) -DEMBED
+	LDFLAGS  += -fno-common -fno-builtin
+
+	CXXFLAGS = $(CFLAGS) -nostdinc++
+	CXXSUP := $(shell $(CXX) -print-file-name=libsupc++.a)
+
+	# don't want all the CFLAGS for uClibc/Config
+	ARCH_CFLAGS := $(CFLAGS)
 	UCLINUX_BUILD_SET=1
 endif
 
@@ -103,45 +135,22 @@ endif
 
 ifdef UCLINUX_BUILD_USER
 
-	LDPATH = -L$(ROOTDIR)/lib
-
   ifdef CONFIG_USER_DEBUG
-	CFLAGS  :=  $(if $(UOPT),$(UOPT),-O1) -g
+	CFLAGS  := -g
+	LDFLAGS :=
   else
-	CFLAGS  :=  $(if $(UOPT),$(UOPT),-O2) -g -fomit-frame-pointer
+	CFLAGS  := -O1
+	LDFLAGS := -g
   endif
-
 	CFLAGS  += -pipe
-	CFLAGS  += $(VENDOR_CFLAGS)
-	CFLAGS  += -Dlinux -D__linux__ -Dunix -DEMBED
-	CFLAGS  += -nostdinc -I$(ROOTDIR)/include -I$(ROOTDIR)/include/include
-	CFLAGS  += -fno-builtin
-	CFLAGS  += $(CPUFLAGS)
-	CFLAGS	+= -nostdlib
-	CXXFLAGS = $(CFLAGS) $(INCCXX)
+	CFLAGS  += -fno-common -fno-builtin -Wall #-Werror
+	CFLAGS  += -Dlinux -D__linux__ -Dunix
+	CFLAGS  += $(VENDOR_CFLAGS) -DEMBED
+	LDFLAGS  += -fno-common -fno-builtin
 
-  ifeq ($(findstring glibc,$(LIBCDIR)),glibc)
-	CRTI     = -nostartfiles $(ROOTDIR)/lib/crt1.o \
-			$(ROOTDIR)/lib/crti.o \
-			$(GCC_DIR)/$(MACH_DIR)/crtbegin.o
-	SH_CRTI  = -nostartfiles $(ROOTDIR)/lib/crti.o \
-			$(GCC_DIR)/$(MACH_DIR)/crtbeginS.o
-	CRAP = 		$(ROOTDIR)/lib/ld.so.1
-	CRTN     = \
-			$(GCC_DIR)/$(MACH_DIR)/crtend.o \
-			$(ROOTDIR)/lib/crtn.o \
-			-lc_nonshared
-	SH_CRTN  = $(GCC_DIR)/$(MACH_DIR)/crtendS.o $(ROOTDIR)/lib/crtn.o
-  else
-	CRTI     = -nostartfiles $(ROOTDIR)/lib/crt0.o
-	CRTN     =
-  endif
-	SH_LDFLAGS := $(LDFLAGS) $(SH_CRTI) $(LDPATH) -nodefaultlibs
-	SH_LDLIBS  := $(LIBC) $(LIBGCC) $(SH_CRTN)
-	LDFLAGS += $(CRTI) $(LDPATH) -nodefaultlibs
-	LDLIBS   = $(LIBC) $(LIBGCC) $(CRTN)
-	CXXLIBS  = -Wl,-Bstatic $(LIBSTDCPP) -Wl,-Bdynamic $(LIBC) $(LIBGCC) $(CRTN)
-	
+	CXXFLAGS = $(CFLAGS) -nostdinc++
+	CXXSUP := $(shell $(CXX) -print-file-name=libsupc++.a)
+
 	FLTFLAGS :=
 	export FLTFLAGS
 
@@ -157,7 +166,17 @@ endif
 #
 
 ifeq ($(UCLINUX_BUILD_SET),1)
-	EXTRA_CFLAGS := -Dlinux $(CPUFLAGS)
+	EXTRA_CFLAGS := $(CPUFLAGS)
+
+	CXXLIBS =
+  	 
+	LDLIBS = $(LIBBIND)
+	SH_LDFLAGS = $(LDFLAGS)
+	SH_LDLIBS = $(LDLIBS)
+
+	ucfront_cc  := ucfront-gcc
+	ucfront_cxx := ucfront-g++
+	ucfront_ld  := ucfront-ld
 endif
 
 ############################################################################

@@ -639,6 +639,7 @@ CONFIG_INET=y
 #
 # CONFIG_INPUT is not set
 # CONFIG_INPUT_KEYBDEV is not set
+# CONFIG_DUMMY_KEYB is not set
 # CONFIG_INPUT_MOUSEDEV is not set
 # CONFIG_INPUT_JOYDEV is not set
 # CONFIG_INPUT_EVDEV is not set
@@ -743,6 +744,7 @@ CONFIG_INET=y
 # Misc devices
 #
 # CONFIG_MICROBLAZE_FSLFIFO is not set
+# CONFIG_XILINX_HWICAP is not set
 
 #
 # File systems

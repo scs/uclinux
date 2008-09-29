@@ -45,7 +45,9 @@ romfs: romfs_dev
 	#
 	# we have to fix the default passwd for uClibc/glibc
 	#
-	grep -v passwd $(ROMFSDIR)/etc/default/config > .config 
+	if [ -f $(ROMFSDIR)/etc/default/config ] ; then \
+		grep -v passwd $(ROMFSDIR)/etc/default/config > .config ; \
+	fi
 	echo "passwd eoP5S.n2WoVNo" >> .config
 	cp .config $(ROMFSDIR)/etc/default/config
 	rm -f .config

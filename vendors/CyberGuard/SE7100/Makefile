@@ -54,11 +54,11 @@ romfs: romfs_dev
 	done
 	rm -rf $(ROMFSDIR)/sbin
 	$(ROMFSINST) -s ./bin /sbin
-	$(ROMFSINST) ../romfs /
-	$(ROMFSINST) ../httpd /home/httpd
 	$(ROMFSINST) -s /var/tmp /tmp
 	$(ROMFSINST) -s /var/mnt /mnt
 	$(ROMFSINST) -s /var/tmp/log /dev/log
+	$(ROMFSINST) ../romfs /
+	-$(ROMFSINST) ../httpd /home/httpd ; \
 	#
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/inittab
@@ -69,7 +69,7 @@ romfs: romfs_dev
 	$(ROMFSINST) /etc/motd
 	$(ROMFSINST) /etc/lilo.conf
 	$(ROMFSINST) /boot/message
-	$(ROMFSINST) /boot/boot.b
+	-$(ROMFSINST) /boot/boot.b
 	echo "$(VERSIONSTR) -- " $(BUILD_START_STRING) > $(ROMFSDIR)/etc/version
 
 mkcramfs: $(ROOTDIR)/user/cramfs/mkcramfs.c
@@ -80,14 +80,14 @@ image: mkcramfs
 	# Hack to build both the 64MByte bootloader and the 16MByte bootloader.
 	#
 	# 16 MByte
-	make -C $(ROOTDIR)/boot clean
-	make -C $(ROOTDIR)/boot
+	-make -C $(ROOTDIR)/boot clean
+	-make -C $(ROOTDIR)/boot
 	-cp $(ROOTDIR)/boot/sh4/biosplus.bin $(ROMFSDIR)/boot/biosplus-16MB.bin
 	-cp $(ROOTDIR)/boot/sh4/bootplus.bin $(ROMFSDIR)/boot/bootplus-16MB.bin
 
 	# 64 MByte
-	make -C $(ROOTDIR)/boot clean
-	make -C $(ROOTDIR)/boot CONFIG_RAM64MB=y
+	-make -C $(ROOTDIR)/boot clean
+	-make -C $(ROOTDIR)/boot CONFIG_RAM64MB=y
 	-cp $(ROOTDIR)/boot/sh4/biosplus.bin $(ROMFSDIR)/boot/biosplus-64MB.bin
 	-cp $(ROOTDIR)/boot/sh4/bootplus.bin $(ROMFSDIR)/boot/bootplus-64MB.bin
 

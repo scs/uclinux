@@ -1,6 +1,7 @@
 # Indicates which files should/shouldn't be included in the Technical Support Report
 # First matching rule takes precedence
-exclude ipsec.secrets ipsec.conf
+include ipsec.secrets ipsec.conf
+  replace .*[ \t]*PSK[ \t]*"([^"]*)"
 include pap-secrets chap-secrets
   replace [^ ]* [^ ]* ([^ ]*) .*
 include config
@@ -28,9 +29,11 @@ include gconfig
   replace .*\.wep\.key3=(.*)
   replace .*\.wep\.key4=(.*)
   replace .*\.wpa_psk\.key=(.*)
+  replace private_key=(.*)
 exclude ssh_host_*
 exclude id_*
 exclude identity identity.pub
+exclude *.der
 exclude *.pem
 include wireless*
   replace wep_key_.* (.*)

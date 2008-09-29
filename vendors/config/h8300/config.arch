@@ -147,7 +147,7 @@ ifdef UCLINUX_BUILD_USER
 
 	LDLIBS         = $(LIBC)
 	LDLIBS_static  = $(SLIBC)
-	CXXLIBS        = $(LIBSTDCPP) $(LIBIOSTREAM) $(LIBIO) $(LIBIBERTY) \
+	CXXLIBS        = $(LIBIOSTREAM) $(LIBIO) $(LIBIBERTY) \
 					 $(LIBC) $(LIBGCC)
 	
   ifndef FLTFLAGS

@@ -1,5 +1,5 @@
 #
-#	Makefile -- Build instructions for SecureEdge/SecureEdge2580
+#	Makefile -- Build instructions for SnapGear/SE2580
 #
 
 include $(LINUX_CONFIG)

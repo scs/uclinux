@@ -19,6 +19,7 @@ clean: image.clean
 
 romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version
 	$(ROMFSINST) ../network.init.std /etc/network.init
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 	$(ROMFSINST) -e CONFIG_MODULES_RALINK_RT61AP $(ROOTDIR)/modules/wireless/ralink-rt61ap/Module/RT2561S.bin /etc/RT2561S.bin
 
 romfs.post:: romfs.ixp425-microcode romfs.no-ixp400-modules 

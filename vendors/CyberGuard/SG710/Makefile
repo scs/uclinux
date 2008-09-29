@@ -27,6 +27,7 @@ clean: image.clean
 
 romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version
 	$(ROMFSINST) ../network.init.std /etc/network.init
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 
 romfs.post:: romfs.no-ixp400-modules romfs.ixp425-microcode romfs.ixp425-boot
 

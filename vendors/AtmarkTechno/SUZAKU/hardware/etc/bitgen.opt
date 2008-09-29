@@ -5,7 +5,7 @@ FLOWTYPE = CONFIG;
 ## Option File For Xilinx FPGA Bitgen Flow
 ## 
 ## Version: 4.1.1
-## $Header: /cvs/sw/new-wave/vendors/AtmarkTechno/SUZAKU/hardware/etc/bitgen.opt,v 1.1 2004/04/30 11:02:52 davidm Exp $
+## $Header: /cvs/sw/new-wave/vendors/AtmarkTechno/SUZAKU/hardware/etc/bitgen.opt,v 1.1 2004-04-30 11:02:52 davidm Exp $
 ###############################################################
 #
 # Options for bitgen (Virtex)

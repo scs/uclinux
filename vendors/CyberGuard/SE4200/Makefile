@@ -43,6 +43,7 @@ romfs: romfs_dev
 	$(ROMFSINST) -s /var/tmp/log /dev/log
 	$(ROMFSINST) ../romfs /
 	$(ROMFSINST) ../network.init.std /etc/network.init
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 	#
 	$(ROMFSINST) /etc/rc
 	echo "$(VERSIONSTR) -- " $(BUILD_START_STRING) > $(ROMFSDIR)/etc/version

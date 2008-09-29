@@ -20,7 +20,7 @@ all:
 
 clean: image.clean
 
-romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version
+romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version romfs.boot romfs.cryptokey
 	$(ROMFSINST) ../network.init.std /etc/network.init
 	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 

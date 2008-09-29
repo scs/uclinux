@@ -142,10 +142,10 @@ romfs:
 mkcramfs: $(ROOTDIR)/user/cramfs/mkcramfs.c
 	$(HOSTCC) -o $@ -I$(ROOTDIR)/$(LINUXDIR)/include $< -lz
 
-LILO_CFLAGS = -I$(ROOTDIR)/user/lilo `cat $(ROOTDIR)/user/lilo/mylilo.h` -DLCF_IGNORECASE -DHAS_BOOT_H -DLCF_M386 -DLCF_READONLY -DLCF_VARSETUP
+LILO_CFLAGS = -I$(ROOTDIR)/user/lilo -DLCF_IGNORECASE -DHAS_BOOT_H -DLCF_M386 -DLCF_READONLY -DLCF_VARSETUP -DLCF_SOLO_CHAIN -DLILO=0xbb920890
 
 LILOSOURCE = lilo.c map.c geometry.c boot.c device.c common.c bsect.c cfg.c \
-	temp.c partition.c identify.c probe.c shs2.c
+	temp.c partition.c identify.c probe.c shs2.c raid.c edit.c
 
 .PHONY: lilo
 lilo:
@@ -161,21 +161,25 @@ image: mkcramfs
 	$(ROMFSINST) $(LINUXIMG) /boot/vmlinuz
 	rm -rf $(ROMFSDIR)/man[1-9]
 	genromfs -v -V "ROMdisk" -f romfs.img -d $(ROMFSDIR)
-	@echo '********************************************************' > /dev/tty
-	@echo '********************************************************' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '** Time to make the final compact flash image.        **' > /dev/tty
-	@echo '** For this you need to be "root". You will also need **' > /dev/tty
-	@echo '** a kernel with the loopback device enabled and ext2 **' > /dev/tty
-	@echo '** filesystem support.  Enter the root password below **' > /dev/tty
-	@echo '** if asked,  or an invalid password to abort.        **' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '********************************************************' > /dev/tty
-	@echo '********************************************************' > /dev/tty
-	@echo > /dev/tty
-	su root -c "$(MAKE) cf-images" < /dev/tty > /dev/tty 2>&1
+	@if [ -x /usr/local/bin/root ]; then \
+		/usr/local/bin/root $(MAKE) cf-images ; \
+	else \
+		echo '********************************************************' > /dev/tty ; \
+		echo '********************************************************' > /dev/tty ; \
+		echo '**                                                    **' > /dev/tty ; \
+		echo '**                                                    **' > /dev/tty ; \
+		echo '** Time to make the final compact flash image.        **' > /dev/tty ; \
+		echo '** For this you need to be "root". You will also need **' > /dev/tty ; \
+		echo '** a kernel with the loopback device enabled and ext2 **' > /dev/tty ; \
+		echo '** filesystem support.  Enter the root password below **' > /dev/tty ; \
+		echo '** if asked,  or an invalid password to abort.        **' > /dev/tty ; \
+		echo '**                                                    **' > /dev/tty ; \
+		echo '**                                                    **' > /dev/tty ; \
+		echo '********************************************************' > /dev/tty ; \
+		echo '********************************************************' > /dev/tty ; \
+		echo > /dev/tty ; \
+		su root -c "$(MAKE) cf-images" < /dev/tty > /dev/tty 2>&1 ; \
+	fi
 
 #############################################################################
 #

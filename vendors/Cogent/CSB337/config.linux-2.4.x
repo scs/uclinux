@@ -568,6 +568,7 @@ CONFIG_AT91_ETHER=y
 #
 # CONFIG_INPUT is not set
 # CONFIG_INPUT_KEYBDEV is not set
+# CONFIG_DUMMY_KEYB is not set
 # CONFIG_INPUT_MOUSEDEV is not set
 # CONFIG_INPUT_JOYDEV is not set
 # CONFIG_INPUT_EVDEV is not set

@@ -1,0 +1,13 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+
+BUILD_NETtel = 1
+LINUXTARGET = vmlinux
+VERSIONPKG  := 2.0.0
+VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
+
+############################################################################
+
+include $(ROOTDIR)/vendors/config/mips/config.arch
+
+############################################################################

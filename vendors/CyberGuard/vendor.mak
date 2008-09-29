@@ -147,6 +147,8 @@ romfs.no-ixp400-modules:
 
 romfs.ixp425-microcode:
 	[ ! -f $(ROOTDIR)/modules/ixp425/ixp400-2.0/IxNpeMicrocode.dat ] || $(ROMFSINST) -d $(ROOTDIR)/modules/ixp425/ixp400-2.0/IxNpeMicrocode.dat /etc/IxNpeMicrocode.dat
+	[ ! -f $(ROOTDIR)/modules/ixp425/ixp400-2.1/IxNpeMicrocode.dat ] || $(ROMFSINST) -d $(ROOTDIR)/modules/ixp425/ixp400-2.1/IxNpeMicrocode.dat /etc/IxNpeMicrocode.dat
+	[ ! -f $(ROOTDIR)/modules/ixp425/ixp400-2.4/IxNpeMicrocode.dat ] || $(ROMFSINST) -d $(ROOTDIR)/modules/ixp425/ixp400-2.4/IxNpeMicrocode.dat /etc/IxNpeMicrocode.dat
 
 romfs.ixp425-boot:
 	-$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/bios.bin /boot/biosplus.bin

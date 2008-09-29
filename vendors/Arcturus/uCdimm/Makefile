@@ -99,7 +99,14 @@ image-tools:
 
 image: image-tools
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
-	cp $(ROOTDIR)/$(LINUXDIR)/linux.bin $(IMAGEDIR)/
+
+	$(CROSS_COMPILE)objcopy -O binary -j .data -j .init \
+		$(ROOTDIR)/$(LINUXDIR)/linux \
+		$(IMAGEDIR)/linux.data
+	$(CROSS_COMPILE)objcopy -O binary -j .romvec -j .text \
+		$(ROOTDIR)/$(LINUXDIR)/linux \
+		$(IMAGEDIR)/linux.text
+	cat $(IMAGEDIR)/linux.text $(IMAGEDIR)/linux.data > $(IMAGEDIR)/linux.bin
 	genromfs -v -V "uC68VZ328 ROMdisk" -f $(ROMFSIMG) -d $(ROMFSDIR)
 	cat $(IMAGEDIR)/linux.bin $(ROMFSIMG) > $(IMAGE)
 	$(ROOTDIR)/user/boottools/uCbootstrap-tools/uCmkimage \

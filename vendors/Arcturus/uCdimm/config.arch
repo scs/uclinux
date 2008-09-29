@@ -8,15 +8,12 @@ CONSOLE_BAUD_RATE = 19200
 
 ############################################################################
 
-CPUFLAGS      = -m68000
-# DISABLE_XIP := 1             # XIP works fine
+CPUFLAGS = -m68000
+DISABLE_XIP := 1             # XIP works fine
 # DISABLE_MOVE_RODATA := 1     # move-rodata is fine
 # DISABLE_SHARED_LIBS := 1     # shared libs is fine
 # LOPT := -Os
 # UOPT := -Os
-
-LINUXTARGET = linux.bin
-
 
 ############################################################################
 

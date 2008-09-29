@@ -7,7 +7,7 @@ IMAGE    = $(IMAGEDIR)/image.bin
 ELFIMAGE = $(IMAGEDIR)/image.elf
 
 
-ROMFS_DIRS = bin dev etc home lib mnt proc usr var
+ROMFS_DIRS = bin dev etc home lib mnt proc sbin usr var
 
 DEVICES = \
 	tty,c,5,0      console,c,5,1      cua0,c,5,64      cua1,c,5,65  \

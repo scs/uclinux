@@ -22,6 +22,8 @@ ARCH          = nios2nommu
 CROSS_COMPILE = nios2-linux-uclibc-
 CROSS         = $(CROSS_COMPILE)
 
+CONFIG_UCLINUX=y
+
 CC        = $(CROSS_COMPILE)gcc
 AS        = $(CROSS_COMPILE)as
 CXX       = $(CROSS_COMPILE)g++

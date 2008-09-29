@@ -1,5 +1,5 @@
 .EXPORT_ALL_VARIABLES:
 #
-# Declare the CyberGuard version in one place.
+# Declare the SecureComputing version in one place.
 #
-VERSIONPKG=3.2.0p1
+VERSIONPKG=4.0.0b5

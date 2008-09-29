@@ -1,5 +1,7 @@
 #
 # Automatically generated make config: don't edit
+# Dist builder
+# Fri Jul 25 12:18:28 2008
 #
 CONFIG_MODULES=y
 
@@ -20,7 +22,6 @@ CONFIG_MODULES_AUTHD_AUTHD=y
 CONFIG_MODULES_AUTHD_BWLIST=y
 CONFIG_MODULES_AUTHD_NASL=y
 # CONFIG_MODULES_AUTHD_P2P is not set
-# CONFIG_MODULES_AUTHD_ZONELABS is not set
 
 #
 # Crypto Modules
@@ -34,12 +35,13 @@ CONFIG_MODULES_AUTHD_NASL=y
 # OCF Configuration
 #
 CONFIG_OCF_OCF=m
-# CONFIG_OCF_FIPS is not set
+# CONFIG_OCF_RANDOMHARVEST is not set
 CONFIG_OCF_CRYPTODEV=m
 CONFIG_OCF_CRYPTOSOFT=m
 # CONFIG_OCF_SAFE is not set
 # CONFIG_OCF_IXP4XX is not set
 # CONFIG_OCF_HIFN is not set
+# CONFIG_OCF_HIFNHIPP is not set
 # CONFIG_OCF_TALITOS is not set
 # CONFIG_OCF_OCFNULL is not set
 # CONFIG_OCF_BENCH is not set
@@ -58,6 +60,19 @@ CONFIG_OCF_CRYPTOSOFT=m
 # XSCALE/IXP400 Modules
 #
 # CONFIG_IXP400_LIB is not set
+# CONFIG_IXP400_ETH_1_3 is not set
+# CONFIG_IXP400_ETH_1_4 is not set
+# CONFIG_IXP400_ETH_2_0 is not set
+# CONFIG_IXP400_ETH_2_1 is not set
+# CONFIG_IXP400_ETH_2_4 is not set
+
+#
+# Components
+#
+
+#
+# Codelets
+#
 
 #
 # LCD Modules
@@ -86,6 +101,15 @@ CONFIG_OCF_CRYPTOSOFT=m
 #
 # CONFIG_MODULES_SAT_PENTANET is not set
 # CONFIG_MODULES_SAT_PENTAVAL is not set
+
+#
+# VMWare Modules
+#
+# CONFIG_MODULES_VMWARE_VMXNET is not set
+# CONFIG_MODULES_VMWARE_VMSYNC is not set
+# CONFIG_MODULES_VMWARE_VMMEMCTL is not set
+# CONFIG_MODULES_VMWARE_VMHGFS is not set
+# CONFIG_MODULES_VMWARE_VMBLOCK is not set
 
 #
 # USB Modules

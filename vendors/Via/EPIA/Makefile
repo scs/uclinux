@@ -26,6 +26,7 @@ ROMFS_DIRS = \
 	etc etc/config etc/default \
 	home home/httpd home/httpd/cgi-bin \
 	lib lib/modules \
+	boot \
 	mnt \
 	proc \
 	sbin \
@@ -116,7 +117,6 @@ romfs:
 	done
 	dirs=$(DIRS) ; for i in $$dirs; do  make -C $$i romfs || exit $? ; done
 	$(ROMFSINST) ../../SecureEdge/romfs_x86 /
-	$(ROMFSINST) ../../SecureEdge/httpd /home/httpd
 
 	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/ip-up /etc/default/ip-up
 	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/ip-down /etc/default/ip-down

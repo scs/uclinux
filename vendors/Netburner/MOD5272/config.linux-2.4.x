@@ -62,6 +62,7 @@ CONFIG_CLOCK_62_5MHz=y
 # CONFIG_CLOCK_64MHz is not set
 # CONFIG_CLOCK_66MHz is not set
 # CONFIG_CLOCK_70MHz is not set
+# CONFIG_CLOCK_80MHz is not set
 # CONFIG_CLOCK_100MHz is not set
 # CONFIG_CLOCK_140MHz is not set
 # CONFIG_CLOCK_150MHz is not set
@@ -76,6 +77,8 @@ CONFIG_CLOCK_62_5MHz=y
 # CONFIG_GILBARCONAP is not set
 CONFIG_BOARD_MOD5272=y
 # CONFIG_BOARD_UC5272 is not set
+# CONFIG_UCBOOTSTRAP is not set
+# CONFIG_ROMFS_IMAGE is not set
 # CONFIG_COBRA5272 is not set
 # CONFIG_CANCam is not set
 # CONFIG_SCALES is not set
@@ -588,6 +591,7 @@ CONFIG_LOCKD_V4=y
 #
 # CONFIG_FULLDEBUG is not set
 # CONFIG_MAGIC_SYSRQ is not set
+# CONFIG_NO_MMU_LARGE_ALLOCS is not set
 # CONFIG_PROFILE is not set
 # CONFIG_DUMPTOFLASH is not set
 # CONFIG_NO_KERNEL_MSG is not set

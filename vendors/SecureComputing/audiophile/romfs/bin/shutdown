@@ -1,0 +1,15 @@
+#!/bin/sh
+cd /
+kill -tstp 1
+killall cron
+killall menu
+killall mp3play
+killall oggplay
+sleep 4
+mount -o remount,ro /usr/msp /usr/logs
+umount /usr/logs/usb
+umount /usr/logs
+umount /usr/msp
+
+echo "$1" > /dev/lcdtxt
+echo -n "$2" > /dev/lcdtxt 

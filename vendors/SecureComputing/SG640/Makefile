@@ -14,13 +14,22 @@ ROMFS_DIRS = $(DEFAULT_ROMFS_DIRS)
 
 DEVICES += $(DEVICE_PTY_64)
 
+FLASH_DEVICES = \
+	boot,c,90,0 \
+	ethmac,c,90,0 \
+	bootarg,c,90,0 \
+	tags,c,90,0 \
+	config,c,90,2 \
+	image,c,90,4 \
+	all,c,90,6
+
 all:
 
 clean: image.clean
 
-romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version
+romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version romfs.boot romfs.cryptokey
 	$(ROMFSINST) ../network.init.bridge /etc/network.init
-	$(ROMFSINST) ../firewall.init.bridge /etc/firewall.init
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 
 romfs.post:: romfs.no-ixp400-modules romfs.ixp425-microcode
 

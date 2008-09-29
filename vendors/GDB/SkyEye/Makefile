@@ -2,10 +2,9 @@
 #	Makefile -- Build instructions for GDB/ARMulator
 #
 
-ROMFSIMG = $(IMAGEDIR)/romfs.img
+ROMFSIMG = $(IMAGEDIR)/boot.rom
 
-
-ROMFS_DIRS = bin dev etc home lib mnt sbin proc usr var
+ROMFS_DIRS = bin dev etc home lib mnt proc sbin usr var
 
 DEVICES = \
 	tty,c,5,0      console,c,5,1      cua0,c,5,64      cua1,c,5,65  \
@@ -47,7 +46,7 @@ romfs:
 	# on non-ptmx ptys
 	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	$(ROMFSINST) -s /var/tmp /tmp
-	$(ROMFSINST) -s /bin /sbin
+	#$(ROMFSINST) -s /bin /sbin
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/inittab
 	$(ROMFSINST) ../../Generic/romfs/etc/services /etc/services

@@ -161,3 +161,8 @@ nod /dev/i2c-0 666 0 0 c 89 0
 nod /dev/i2c-1 666 0 0 c 89 1
 nod /dev/video0 666 0 0 c 81 0
 nod /dev/video1 666 0 0 c 81 1
+nod /dev/mmc0 666 0 0 b 179 0
+nod /dev/mmcblk0 666 0 0 b 179 0
+nod /dev/mmcblk0p1 666 0 0 b 179 1
+nod /dev/mmcblk0p2 666 0 0 b 179 2
+nod /dev/mmcblk0p3 666 0 0 b 179 3

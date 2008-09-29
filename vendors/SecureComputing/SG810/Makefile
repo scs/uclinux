@@ -1,6 +1,6 @@
 #############################################################################
 #
-#	Makefile -- Build instructions for CyberGuard/SG810
+#	Makefile -- Build instructions for SecureComputing/SG810
 #
 #############################################################################
 
@@ -70,8 +70,6 @@ romfs: romfs_dev
 	$(ROMFSINST) -s /var/tmp /tmp
 	$(ROMFSINST) -s /var/mnt /mnt
 	$(ROMFSINST) -s /var/tmp/log /dev/log
-	tclsh $(ROOTDIR)/prop/configdb/rcgen $(ROOTDIR) >$(ROMFSDIR)/etc/rc
-	#
 	echo "$(VERSIONSTR) -- " $(BUILD_START_STRING) > $(ROMFSDIR)/etc/version
 
 #############################################################################
@@ -136,27 +134,22 @@ extimage-128MB: romfs.img
 
 .PHONY: extimage
 extimage: lilo
-	@echo '********************************************************'  1>&2
-	@echo '********************************************************'  1>&2
-	@echo '**                                                    **'  1>&2
-	@echo '** Time to make the final compact flash images.       **'  1>&2
-	@echo '** For this you need to be "root". You will also need **'  1>&2
-	@echo '** a kernel with the loopback device enabled and ext2 **'  1>&2
-	@echo '** filesystem support.  Enter the root password below **'  1>&2
-	@echo '** if asked,  or an invalid password to abort.        **'  1>&2
-	@echo '** To automated this, consider copying make-ext3-image**'  1>&2
-	@echo '** to /usr/local/sbin and adding a NOPASSWD rule for  **'  1>&2
-	@echo '** the build user                                     **'  1>&2
-	@echo '**                                                    **'  1>&2
-	@echo '********************************************************'  1>&2
-	@echo '********************************************************'  1>&2
-	@echo  1>&2
 	rm -f mbr.img ext3.img
-	if [ -x /usr/local/sbin/make-ext3-image ]; then \
-	  cmp -s make-ext3-image /usr/local/sbin/make-ext3-image || \
-	  	( echo "/usr/local/sbin/make-ext3-image is out of date"; exit 1 ); \
-		sudo /usr/local/sbin/make-ext3-image $(CYLS) $(HEADS) $(SECTORS) $(CONFIG); \
+	@if [ -x /usr/local/bin/root ]; then \
+		/usr/local/bin/root sh make-ext3-image $(CYLS) $(HEADS) $(SECTORS) $(CONFIG); \
 	else \
+		echo '********************************************************'  1>&2 ; \
+		echo '********************************************************'  1>&2 ; \
+		echo '**                                                    **'  1>&2 ; \
+		echo '** Time to make the final compact flash images.       **'  1>&2 ; \
+		echo '** For this you need to be "root". You will also need **'  1>&2 ; \
+		echo '** a kernel with the loopback device enabled and ext2 **'  1>&2 ; \
+		echo '** filesystem support.  Enter the root password below **'  1>&2 ; \
+		echo '** if asked,  or an invalid password to abort.        **'  1>&2 ; \
+		echo '**                                                    **'  1>&2 ; \
+		echo '********************************************************'  1>&2 ; \
+		echo '********************************************************'  1>&2 ; \
+		echo  1>&2 ; \
 		sudo sh make-ext3-image $(CYLS) $(HEADS) $(SECTORS) $(CONFIG); \
 	fi
 	cat mbr.img ext3.img | gzip -9 > $(IMAGE)

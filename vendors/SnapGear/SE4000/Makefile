@@ -119,6 +119,7 @@ mkcramfs: $(ROOTDIR)/user/cramfs/mkcramfs.c
 image: mkcramfs
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
 	#./mkcramfs -z -r $(ROMFSDIR) $(RAMDISK)
+	rm -f $(ROMFSDIR)/bin/bash
 	genext2fs -b 8192 -f dev.txt -d $(ROMFSDIR) $(RAMDISK)
 	gzip -9 -f $(RAMDISK)
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/arm/boot/zImage $(KERNELZ)

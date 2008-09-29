@@ -6,8 +6,31 @@ watchdog /dev/watchdog
 hostname SG710
 echo "Mounting Filesystems ..."
 mount -t sysfs none /sys
+mount -t tmpfs -o size=65536k tmpfs /var
+mkdir -m 1777 /var/tmp
+mkdir -m 755 /var/log
+mkdir -m 755 /var/run
+mkdir -m 755 /var/dev
+mkdir -m 1777 /var/lock
+mkdir -m 755 /var/empty
+mkdir -m 755 /var/mnt
 mount -t devpts devpts /dev/pts
-mount -t tmpfs -o size=33m tmpfs /var
+if [ -L /dev/flash/image ]; then
+	DEV=`df | awk '$NF == "/" { sub("[0-9]*$", "", $1); print $1 }'`
+	if [ "$DEV" -a -b "$DEV" ]; then
+		ln -s $DEV /var/dev/image
+	fi
+fi
+if [ -L /dev/flash/config ]; then
+	if [ -f /proc/bus/usb/devices ]; then
+		sleep 2
+		grep usb-storage /proc/bus/usb/devices>/dev/null 2>&1 && sleep 5
+	fi
+	DEV=`sfdisk -l 2>/dev/null | grep -i SpeedStor | tail -1 | awk '{ print $1 }'`
+	if [ "$DEV" ]; then
+		ln -s $DEV /var/dev/config
+	fi
+fi
 if ! mount -t ext3 /dev/flash/config /etc/config
 then
 	mke2fs -j /dev/flash/config
@@ -17,12 +40,6 @@ then
 	fi
 fi
 [ -d /etc/config/persistent ] || mkdir /etc/config/persistent
-mkdir -m 1777 /var/tmp
-mkdir -m 755 /var/log
-mkdir -m 755 /var/run
-mkdir -m 1777 /var/lock
-mkdir -m 755 /var/empty
-mkdir -m 755 /var/mnt
 echo "Setting system clock ..."
 hwclock --hctosys --utc
 echo "Processing Config Filesystem ..."

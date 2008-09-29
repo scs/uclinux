@@ -23,5 +23,4 @@ else
 fi
 /bin/flatfsd -r
 mount -a
-/bin/sh /etc/config/start
 echo "/etc/rc complete."

@@ -18,7 +18,8 @@ include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
 
 HW_VENDOR 	= CyberGuard
 VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
-RELFILES = boot/boot.elf images/image.bin,.sgu $(LINUXDIR)/linux
+RELFILES = boot/boot.elf images/image.bin,.sgu $(LINUXDIR)/linux \
+		prop/config/metaconfig.conf
 
 ############################################################################
 

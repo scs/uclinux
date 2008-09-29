@@ -60,6 +60,7 @@ CONFIG_CLOCK_40MHz=y
 # CONFIG_CLOCK_64MHz is not set
 # CONFIG_CLOCK_66MHz is not set
 # CONFIG_CLOCK_70MHz is not set
+# CONFIG_CLOCK_80MHz is not set
 # CONFIG_CLOCK_100MHz is not set
 # CONFIG_CLOCK_140MHz is not set
 # CONFIG_CLOCK_150MHz is not set
@@ -290,6 +291,7 @@ CONFIG_PPP=y
 # CONFIG_PPP_SYNC_TTY is not set
 # CONFIG_PPP_DEFLATE is not set
 # CONFIG_PPP_BSDCOMP is not set
+# CONFIG_PPP_MPPE is not set
 # CONFIG_PPPOE is not set
 CONFIG_SLIP=y
 CONFIG_SLIP_COMPRESSED=y
@@ -531,18 +533,16 @@ CONFIG_EXT2_FS=y
 #
 # CONFIG_CODA_FS is not set
 # CONFIG_INTERMEZZO_FS is not set
-CONFIG_NFS_FS=y
+# CONFIG_NFS_FS is not set
 # CONFIG_NFS_V3 is not set
 # CONFIG_NFS_DIRECTIO is not set
 # CONFIG_ROOT_NFS is not set
 # CONFIG_NFSD is not set
 # CONFIG_NFSD_V3 is not set
 # CONFIG_NFSD_TCP is not set
-CONFIG_SUNRPC=y
-CONFIG_LOCKD=y
-CONFIG_SMB_FS=y
-# CONFIG_SMB_NLS_DEFAULT is not set
-# CONFIG_SMB_UNIX is not set
+# CONFIG_SUNRPC is not set
+# CONFIG_LOCKD is not set
+# CONFIG_SMB_FS is not set
 # CONFIG_NCP_FS is not set
 # CONFIG_NCPFS_PACKET_SIGNING is not set
 # CONFIG_NCPFS_IOCTL_LOCKING is not set
@@ -559,50 +559,8 @@ CONFIG_SMB_FS=y
 # Partition Types
 #
 # CONFIG_PARTITION_ADVANCED is not set
-CONFIG_SMB_NLS=y
-CONFIG_NLS=y
-
-#
-# Native Language Support
-#
-CONFIG_NLS_DEFAULT="iso8859-1"
-# CONFIG_NLS_CODEPAGE_437 is not set
-# CONFIG_NLS_CODEPAGE_737 is not set
-# CONFIG_NLS_CODEPAGE_775 is not set
-# CONFIG_NLS_CODEPAGE_850 is not set
-# CONFIG_NLS_CODEPAGE_852 is not set
-# CONFIG_NLS_CODEPAGE_855 is not set
-# CONFIG_NLS_CODEPAGE_857 is not set
-# CONFIG_NLS_CODEPAGE_860 is not set
-# CONFIG_NLS_CODEPAGE_861 is not set
-# CONFIG_NLS_CODEPAGE_862 is not set
-# CONFIG_NLS_CODEPAGE_863 is not set
-# CONFIG_NLS_CODEPAGE_864 is not set
-# CONFIG_NLS_CODEPAGE_865 is not set
-# CONFIG_NLS_CODEPAGE_866 is not set
-# CONFIG_NLS_CODEPAGE_869 is not set
-# CONFIG_NLS_CODEPAGE_936 is not set
-# CONFIG_NLS_CODEPAGE_950 is not set
-# CONFIG_NLS_CODEPAGE_932 is not set
-# CONFIG_NLS_CODEPAGE_949 is not set
-# CONFIG_NLS_CODEPAGE_874 is not set
-# CONFIG_NLS_ISO8859_8 is not set
-# CONFIG_NLS_CODEPAGE_1250 is not set
-# CONFIG_NLS_CODEPAGE_1251 is not set
-# CONFIG_NLS_ISO8859_1 is not set
-# CONFIG_NLS_ISO8859_2 is not set
-# CONFIG_NLS_ISO8859_3 is not set
-# CONFIG_NLS_ISO8859_4 is not set
-# CONFIG_NLS_ISO8859_5 is not set
-# CONFIG_NLS_ISO8859_6 is not set
-# CONFIG_NLS_ISO8859_7 is not set
-# CONFIG_NLS_ISO8859_9 is not set
-# CONFIG_NLS_ISO8859_13 is not set
-# CONFIG_NLS_ISO8859_14 is not set
-# CONFIG_NLS_ISO8859_15 is not set
-# CONFIG_NLS_KOI8_R is not set
-# CONFIG_NLS_KOI8_U is not set
-# CONFIG_NLS_UTF8 is not set
+# CONFIG_SMB_NLS is not set
+# CONFIG_NLS is not set
 
 #
 # Sound
@@ -626,6 +584,7 @@ CONFIG_NLS_DEFAULT="iso8859-1"
 # CONFIG_MAGIC_SYSRQ is not set
 # CONFIG_CONTIGUOUS_PAGE_ALLOC is not set
 # CONFIG_MEM_MAP is not set
+# CONFIG_NO_MMU_LARGE_ALLOCS is not set
 # CONFIG_PROFILE is not set
 # CONFIG_DUMPTOFLASH is not set
 # CONFIG_NO_KERNEL_MSG is not set

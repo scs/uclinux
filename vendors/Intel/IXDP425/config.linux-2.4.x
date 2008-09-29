@@ -130,6 +130,7 @@ CONFIG_ARCH_IXDP425=y
 # CONFIG_ARCH_ADI_COYOTE is not set
 # CONFIG_ARCH_SE4000 is not set
 # CONFIG_MACH_SG560 is not set
+# CONFIG_MACH_SG560USB is not set
 # CONFIG_MACH_SG565 is not set
 # CONFIG_MACH_SHIVA1100 is not set
 # CONFIG_MACH_SG580 is not set
@@ -141,6 +142,7 @@ CONFIG_ARCH_IXDP425=y
 # CONFIG_MACH_SGARMAUTO is not set
 # CONFIG_MACH_IVPN is not set
 # CONFIG_MACH_SE5100 is not set
+# CONFIG_IXP425_DEBUG_FIQ is not set
 
 #
 # AT91RM9200 Implementations
@@ -627,6 +629,7 @@ CONFIG_E1000=m
 #
 # CONFIG_INPUT is not set
 # CONFIG_INPUT_KEYBDEV is not set
+# CONFIG_DUMMY_KEYB is not set
 # CONFIG_INPUT_MOUSEDEV is not set
 # CONFIG_INPUT_JOYDEV is not set
 # CONFIG_INPUT_EVDEV is not set

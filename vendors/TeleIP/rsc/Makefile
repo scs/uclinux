@@ -89,7 +89,7 @@ image:
 			$(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/linux.text
 	cat $(IMAGEDIR)/linux.text $(IMAGEDIR)/linux.data $(ROMFSIMG) > $(IMAGE)
 	-cp $(IMAGE) /tftpboot
-	BSS=`m68k-elf-objdump --headers $(ROOTDIR)/$(LINUXDIR)/linux | \
+	BSS=`$(CROSS)objdump --headers $(ROOTDIR)/$(LINUXDIR)/linux | \
 	  grep .bss` ; \
 	ADDR=`set -- $${BSS} ; echo 0x$${4}` ; \
 	$(CROSS_COMPILE)objcopy --remove-section=.ramvec \

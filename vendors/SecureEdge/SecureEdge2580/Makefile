@@ -66,6 +66,7 @@ DEVICES = \
 	ledman,c,126,0 \
 	hifn0,c,28,0 \
 	ppp,c,108,0 \
+	watchdog,c,10,130 \
 	\
 	mtd0,c,90,0	mtdr0,c,90,1	mtdblock0,b,31,0 \
 	mtd1,c,90,2	mtdr1,c,90,3	mtdblock1,b,31,1 \
@@ -120,7 +121,7 @@ ifdef CONFIG_ROMFS_FS
 	$(ROMFSINST) -s /var/tmp /tmp
 endif
 	$(ROMFSINST) -s /var/tmp/log /dev/log
-	echo "ttyS0::respawn:/sbin/getty 9600 -" >> $(ROMFSDIR)/etc/default/inittab
+	#echo "ttyS0::respawn:/sbin/getty 9600 -" >> $(ROMFSDIR)/etc/default/inittab
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 	date '+%Y.%m.%d-%T' > $(ROMFSDIR)/etc/build-date
 

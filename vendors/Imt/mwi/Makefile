@@ -72,14 +72,14 @@ image:
 			$(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/linux.text
 	cat $(IMAGEDIR)/linux.text $(IMAGEDIR)/linux.data $(ROMFSIMG) > $(IMAGE)
 	cat $(IMAGEDIR)/linux.text $(IMAGEDIR)/linux.data > $(IMAGE)
-	BSS=`m68k-elf-objdump --headers $(ROOTDIR)/$(LINUXDIR)/linux | \
+	BSS=`$(CROSS)objdump --headers $(ROOTDIR)/$(LINUXDIR)/linux | \
 	  grep .bss` ; \
 	ADDR=`set -- $${BSS} ; echo 0x$${5}` ; \
-	m68k-elf-objcopy --add-section=.romfs=$(ROMFSIMG) \
+	$(CROSS)objcopy --add-section=.romfs=$(ROMFSIMG) \
 	  --adjust-section-vma=.romfs=$${ADDR} --no-adjust-warnings \
 	  --set-section-flags=.romfs=alloc,load,data   \
 	  $(ROOTDIR)/$(LINUXDIR)/linux $(ELFIMAGE) 2> /dev/null
-	m68k-elf-objcopy -O srec $(ROOTDIR)/$(LINUXDIR)/linux $(ROOTDIR)/images/linux.srec
-	m68k-elf-objcopy -O srec $(ROOTDIR)/images/linux.romfs $(ROOTDIR)/images/linux.romfs.srec
+	$(CROSS)objcopy -O srec $(ROOTDIR)/$(LINUXDIR)/linux $(ROOTDIR)/images/linux.srec
+	$(CROSS)objcopy -O srec $(ROOTDIR)/images/linux.romfs $(ROOTDIR)/images/linux.romfs.srec
 
 

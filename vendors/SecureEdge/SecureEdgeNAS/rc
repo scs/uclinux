@@ -10,7 +10,4 @@ rm -f /var/lock/*
 rm -f /var/empty/*
 /bin/flatfsd -r
 mount -a
-/bin/firewall -i
-/bin/sh /etc/config/start
-/bin/firewall &
 echo "/etc/rc complete."

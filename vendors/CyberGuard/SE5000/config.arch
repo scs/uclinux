@@ -1,17 +1,20 @@
 .EXPORT_ALL_VARIABLES:
 ############################################################################
 
-#
-# Vendor specific settings
-#
+#Get the version.
+include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
+
+# To override the vendor-global version do something like:
+# VERSIONPKG = 2.3.5u1
 
 BUILD_NETtel = 1
 KERNEL_EXTRA_CFLAGS = -DCONFIG_GEODEWATCHDOG -DCONFIG_SE5000
-VENDOR_CFLAGS = -DCONFIG_REEFEDGE -DCONFIG_SECUREEDGE -DCONFIG_NETtel -DCONFIG_X86
-BOOTFLAGS = -DCONFIG_SC1100=1 -DCONFIG_REEFEDGE=1 -DCONFIG_HD_BOOT=1 -DCONFIG_TFTPLOADER=0 -DCONFIG_PXE=1 -DCONFIG_WATCHDOG=1
+VENDOR_CFLAGS = -DCONFIG_SNAPGEAR
 
-VERSIONPKG  := 3.0.0p0
-RELFILES = boot/x86/sc1100-biospxe.bin,.sgb images/bzImage images/image.bin,.sgu
+HW_VENDOR	= CyberGuard
+HW_PRODUCT	= SE5000
+
+VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
 ############################################################################
 

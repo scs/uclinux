@@ -105,7 +105,7 @@ romfs:
 		touch $(ROMFSDIR)/dev/flash/@$$i; \
 	done
 	$(ROMFSINST) ../../SecureEdge/romfs /
-	$(ROMFSINST) ../../SecureEdge/romfs_x86/etc/protocol /etc/protocols
+	$(ROMFSINST) ../../SecureEdge/romfs_x86/etc/protocols /etc/protocols
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/inittab
 	$(ROMFSINST) /etc/lilo.conf
@@ -123,30 +123,34 @@ image:
 	rm -rf $(ROMFSDIR)/man[1-9]
 	genromfs -v -V "ROMdisk" -f $(ROMFSIMG) -d $(ROMFSDIR)
 
-	@echo '********************************************************' > /dev/tty
-	@echo '********************************************************' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '** Time to make the real filesystem image.            **' > /dev/tty
-	@echo '** For this you need to be "root". You will also need **' > /dev/tty
-	@echo '** a kernel with the loopback device enabled and ext2 **' > /dev/tty
-	@echo '** filesystem support.  Enter the root password below **' > /dev/tty
-	@echo '** if asked,  or ^C to abort.                         **' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '**                                                    **' > /dev/tty
-	@echo '********************************************************' > /dev/tty
-	@echo '********************************************************' > /dev/tty
-	@echo > /dev/tty
-	su root -c "$(MAKE) extimage" < /dev/tty > /dev/tty 2>&1
+	@if [ -x /usr/local/bin/root ]; then \
+		/usr/local/bin/root $(MAKE) extimage ; \
+	else \
+		@echo '********************************************************' > /dev/tty ; \
+		@echo '********************************************************' > /dev/tty ; \
+		@echo '**                                                    **' > /dev/tty ; \
+		@echo '**                                                    **' > /dev/tty ; \
+		@echo '** Time to make the real filesystem image.            **' > /dev/tty ; \
+		@echo '** For this you need to be "root". You will also need **' > /dev/tty ; \
+		@echo '** a kernel with the loopback device enabled and ext2 **' > /dev/tty ; \
+		@echo '** filesystem support.  Enter the root password below **' > /dev/tty ; \
+		@echo '** if asked,  or ^C to abort.                         **' > /dev/tty ; \
+		@echo '**                                                    **' > /dev/tty ; \
+		@echo '**                                                    **' > /dev/tty ; \
+		@echo '********************************************************' > /dev/tty ; \
+		@echo '********************************************************' > /dev/tty ; \
+		@echo > /dev/tty ; \
+		su root -c "$(MAKE) extimage" < /dev/tty > /dev/tty 2>&1 ; \
+	fi
 
 #
 # Real filesystem building from here on in
 #
 
-LILO_CFLAGS = -I$(ROOTDIR)/user/lilo -DLCF_IGNORECASE -DHAS_BOOT_H -DLCF_M386 -DLCF_READONLY -DLCF_VARSETUP
+LILO_CFLAGS = -I$(ROOTDIR)/user/lilo -DLCF_IGNORECASE -DHAS_BOOT_H -DLCF_M386 -DLCF_READONLY -DLCF_VARSETUP -DLCF_SOLO_CHAIN -DLILO=0xbb920890
 
 LILOSOURCE = lilo.c map.c geometry.c boot.c device.c common.c bsect.c cfg.c \
-	temp.c partition.c identify.c probe.c shs2.c
+	temp.c partition.c identify.c probe.c shs2.c raid.c edit.c
 
 .PHONY: lilo
 lilo:

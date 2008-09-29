@@ -8,16 +8,13 @@ endif
 BUILD_NETtel = 1
 LINUXTARGET = zImage
 
-
-# To override the vendor-global version do something like:
-# VERSIONPKG = 2.3.5u1
-
-HW_VENDOR = SnapGear
-HW_PRODUCT = SnapGearLITE300
-VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
+include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
 
 #DISABLE_SHARED_SSL = yes
 VENDOR_CFLAGS = -DCONFIG_SNAPGEAR
+
+#We use softfloat now,  get a new toolchain
+CPUFLAGS = -msoft-float
 
 ############################################################################
 

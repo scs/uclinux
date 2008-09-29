@@ -17,7 +17,6 @@ include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
 
 ############################################################################
 
-CROSS_COMPILE = i586-linux-
 include $(ROOTDIR)/vendors/config/i386/config.arch
 
 ############################################################################

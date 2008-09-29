@@ -8,15 +8,14 @@ ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
 VENDOR_TOPDIRS = boot
 endif
 
-VERSIONPKG  := 3.0.0p0
+#Get the version.
+include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
+# VERSIONPKG  := 3.0.0p0
 VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
 
 ############################################################################
 
-ENDIAN := big
-CPUFLAGS := -mbig-endian
-CPULDFLAGS := -EB
 KERNEL_EXTRA_CFLAGS = -DCONFIG_IVPN_20MHZ=1
 VENDOR_CFLAGS = -DCONFIG_SNAPGEAR -DCONFIG_IVPN_20MHZ=1
 BOOTFLAGS = -DCONFIG_IVPN_20MHZ=1
@@ -26,6 +25,6 @@ LINUXTARGET = zImage
 
 ############################################################################
 
-include $(ROOTDIR)/vendors/config/arm/config.arch
+include $(ROOTDIR)/vendors/config/arm/xscale.arch
 
 ############################################################################

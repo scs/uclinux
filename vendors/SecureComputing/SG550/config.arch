@@ -16,6 +16,7 @@ include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
 
 HW_VENDOR	= SnapGear
 HW_PRODUCT	= SnapGearSME550
+LINUXTARGET	= vmlinux
 
 ############################################################################
 

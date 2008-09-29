@@ -146,7 +146,7 @@ romfs:
 	/etc/default/ip-down
 	$(ROMFSINST) -p 755 ../../SecureEdge/romfs/etc/default/ip-up \
 	/etc/default/ip-up
-	$(ROMFSINST) -p 755 ../../SecureEdge/romfs/etc/default/ip-dhcpcd-change \
+	$(ROMFSINST) -p 755 ../../SecureEdge/romfs/etc/default/dhcpcd-change \
 	/etc/default/dhcpcd-change
 
 	$(ROMFSINST) /etc/rc
@@ -155,8 +155,8 @@ romfs:
 
 image:
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
-	flthdr -d $(ROMFSDIR)/bin/*
-	flthdr -d $(ROMFSDIR)/lib/lib[0-9].so
+	$(CROSS)flthdr -d $(ROMFSDIR)/bin/*
+	$(CROSS)flthdr -d $(ROMFSDIR)/lib/lib[0-9].so
 	for i in $(RAM_FILES) ; do \
 		[ ! -f $(ROMFSDIR)/$$i ] || $(CROSS)flthdr -r -z $(ROMFSDIR)/$$i ; \
 	done

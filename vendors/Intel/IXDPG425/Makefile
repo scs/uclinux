@@ -128,6 +128,10 @@ image: mkcramfs
 	-$(ROMFSINST) -e CONFIG_IXP400_LIB_2_1 \
 	    -d $(ROOTDIR)/modules/ixp425/ixp400-2.1/IxNpeMicrocode.dat \
 	    /etc/IxNpeMicrocode.dat
+	-$(ROMFSINST) -e CONFIG_IXP400_LIB_2_4 \
+	    -d $(ROOTDIR)/modules/ixp425/ixp400-2.4/IxNpeMicrocode.dat \
+	    /etc/IxNpeMicrocode.dat
+	genext2fs -b 8192 -f dev.txt -d $(ROMFSDIR) $(RAMDISK)
 	#rm -f $(ROMFSDIR)/lib/modules/*/kernel/ixp425/ixp400/ixp400_*.o
 	rm -f $(ROMFSDIR)/lib/modules/*/kernel/ixp425/ixp400*/ixp400_[abe-z]*.o
 	#rm -f $(ROMFSDIR)/lib/modules/*/kernel/ixp425/ixp400*/ixp400_codelets_[abce-tv-z]*.o

@@ -5,9 +5,6 @@ ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
 VENDOR_TOPDIRS = boot
 endif
 
-ENDIAN := big
-CPUFLAGS := -mbig-endian
-CPULDFLAGS := -EB
 VENDOR_CFLAGS = -DCONFIG_SNAPGEAR
 
 BUILD_NETtel = 1
@@ -17,6 +14,6 @@ VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
 ############################################################################
 
-include $(ROOTDIR)/vendors/config/arm/config.arch
+include $(ROOTDIR)/vendors/config/arm/xscale.arch
 
 ############################################################################

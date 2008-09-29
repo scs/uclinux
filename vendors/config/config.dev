@@ -19,6 +19,8 @@
 # back to root.
 #
 
+SUDO ?= sudo -p "Enter root password for building dev nodes : "
+
 # Some shorthand device permission setups
 DEVICE_PUBLIC=		-group=root	-mode=0666
 DEVICE_PRIVATE=		-group=root	-mode=0600
@@ -42,10 +44,10 @@ DEVICE_SCANNER=		-group=root	-mode=0666
 DEVICE_CODA=		-group=root	-mode=0600
 DEVICE_IPSEC=		-group=root	-mode=0200
 DEVICE_READABLE=	-group=root	-mode=0444
+DEVICE_PRIVREAD=	-group=root	-mode=0644
 DEVICE_CRYPTO=		-group=crypto	-mode=0666
 DEVICE_PTY=		-group=tty	-mode=0620
 DEVICE_TUN=		-group=root	-mode=0700
-
 
 ifdef CONFIG_DEFAULTS_KERNEL_2_0
 	DEVICES += $(DEVICE_CONS) console,c,4,0
@@ -74,9 +76,9 @@ DEVICES += \
 	$(DEVICE_TTY)		tty,c,5,0
 
 ifdef CONFIG_POOR_ENTROPY
-DEVICES += $(DEVICE_READABLE)	urandom,c,1,9	 random,c,1,9
+DEVICES += $(DEVICE_PRIVREAD)	urandom,c,1,9	 random,c,1,9
 else
-DEVICES += $(DEVICE_READABLE)	urandom,c,1,9	 random,c,1,8
+DEVICES += $(DEVICE_PRIVREAD)	urandom,c,1,9	 random,c,1,8
 endif
 
 # Devices that depend on config options.
@@ -134,7 +136,7 @@ ifdef CONFIG_OCF_OCF
 	DEVICES += $(DEVICE_CRYPTO) crypto,c,10,70
 endif
 
-ifneq ($(CONFIG_RTC_DRV_SH)$(CONFIG_RTC_DRV_DS1302),)
+ifneq ($(CONFIG_RTC_INTF_DEV)$(CONFIG_RTC_DRV_SH)$(CONFIG_RTC_DRV_DS1302),)
 	DEVICES += $(DEVICE_PRIVATE) rtc,c,254,0
 else 
 ifneq ($(CONFIG_RTC)$(CONFIG_M41T11M6)$(CONFIG_SENSORS_M41T11)$(CONFIG_NVRAM)$(CONFIG_SH_RTC),)
@@ -144,6 +146,26 @@ endif
 
 ifdef CONFIG_TUN
 	DEVICES += $(DEVICE_TUN) net/tun,c,10,200
+endif
+
+ifdef CONFIG_SOUND_OSS
+	DEVICES += $(DEVICE_AUDIO) \
+		mixer,c,14,0 \
+		mixer1,c,14,16 \
+		sequencer,c,14,1 \
+		sequencer2,c,14,8 \
+		music,c,14,8 \
+		midi00,c,14,2 \
+		midi01,c,14,18 \
+		midi02,c,14,34 \
+		midi03,c,14,50 \
+		dsp,c,14,3 \
+		dsp1,c,14,19 \
+		dspleft,p,0,0 \
+		dspright,p,0,0 \
+		audio,c,14,4 \
+		audio1,c,14,20 \
+		sndstat,c,14,6
 endif
 
 ifneq ($(CONFIG_MODULES_CRYPTO_HIFN7901)$(CONFIG_MODULES_CRYPTO_HIFN7951)$(CONFIG_MODULES_CRYPTO_SAFENET),)
@@ -207,6 +229,18 @@ ifdef CONFIG_NFTL
 		nftla3,b,93,3	nftla4,b,93,4
 endif
 
+ifdef CONFIG_BLK_DEV_LOOP
+	DEVICES += $(DEVICE_DISK) \
+		loop0,b,7,0 \
+		loop1,b,7,1 \
+		loop2,b,7,2 \
+		loop3,b,7,3 \
+		loop4,b,7,4 \
+		loop5,b,7,5 \
+		loop6,b,7,6 \
+		loop7,b,7,7
+endif
+
 ifdef CONFIG_PPP
 	DEVICES += $(DEVICE_DIP) ppp,c,108,0
 endif
@@ -216,6 +250,16 @@ ifneq ($(CONFIG_PCMCIA_IVPN)$(CONFIG_PCMCIA_KS),)
 		io8,c,120,0	io16,c,120,1 \
 		mem8,c,120,2	mem16,c,120,3 \
 		attr8,c,120,4	attr16,c,120,5
+endif
+
+ifdef CONFIG_MODULES_LCD_LCDTXT
+	DEVICES += $(DEVICE_SYSTEM) \
+		lcdtxt,c,120,0
+endif
+
+ifdef CONFIG_MODULES_KEYPAD_KEYPAD
+	DEVICES += $(DEVICE_SYSTEM) \
+		keypad,c,121,0
 endif
 
 ifdef CONFIG_MODULES_QTAB_SMARTREADER
@@ -273,6 +317,13 @@ else
 		cua0,c,204,8	cua1,c,204,9 \
 		ttySC0,c,204,8	ttySC1,c,204,9	ttySC2,c,204,10
 endif
+endif
+
+ifdef CONFIG_SERIAL_EP93XX
+	DEVICES += $(DEVICE_TTY) \
+		ttyS0,c,204,17	ttyS1,c,204,16 \
+		cua0,c,204,17	cua1,c,204,16 \
+		ttyAM0,c,204,16	ttyAM1,c,204,17
 endif
 
 ifdef CONFIG_I2C_CHARDEV
@@ -344,11 +395,18 @@ DEVICES += -reset
 # Creating devices.
 # If you can chgrp properly add "chgrp $$group $$node;" below the touch command
 
-romfs_dev:
+.PHONY: romfs_dirs
+romfs_dirs:
 	[ -d $(ROMFSDIR)/dev ] || mkdir -p $(ROMFSDIR)/dev
 ifdef CONFIG_USER_UDEV
 	[ -d $(ROMFSDIR)/lib/udev/devices ] || mkdir -p $(ROMFSDIR)/lib/udev/devices
 endif
+ifdef CONFIG_OPROFILE
+	[ -d $(ROMFSDIR)/dev/oprofile ] || mkdir -p $(ROMFSDIR)/dev/oprofile
+endif
+
+.PHONY: romfs_dev
+romfs_dev: romfs_dirs
 	for i in -reset $(DEVICES) $(DEVICE_SYSTEM) $(patsubst %,flash/%,$(FLASH_DEVICES));	\
 	do									\
 		case "$$i" in							\
@@ -361,7 +419,7 @@ endif
 					mkdir $(ROMFSDIR)/dev/$$d;		\
 				fi;						\
 				node=$(ROMFSDIR)/dev/$$d/@`basename $$i` ;	\
-				rm -f $$node;					\
+				rm -f `echo $$node | sed 's/,.*//g'`* ; \
 				echo touching $$node; \
 				touch $$node;					\
 				chmod $$mode $$node;				\
@@ -370,7 +428,7 @@ endif
 						mkdir $(ROMFSDIR)/lib/udev/devices/$$d;		\
 					fi;						\
 					node=$(ROMFSDIR)/lib/udev/devices/$$d/@`basename $$i` ;	\
-					rm -f $$node;					\
+					rm -f `echo $$node | sed 's/,.*//g'`* ; \
 					echo touching $$node; \
 					touch $$node;					\
 					chmod $$mode $$node;				\
@@ -378,3 +436,36 @@ endif
 				;;						\
 		esac ;								\
 	done
+
+.PHONY: romfs_dev_sudo
+romfs_dev_sudo: romfs_dirs
+	for i in -reset $(DEVICES) $(DEVICE_SYSTEM) $(patsubst %,flash/%,$(FLASH_DEVICES));	\
+	do									\
+		case "$$i" in							\
+			-mode=*)	mode="`echo $$i | cut -f2 -d=`"  ;;	\
+			-group=*)	group="`echo $$i | cut -f2 -d=`" ;;	\
+			-reset) 	mode=644;	group=root	 ;;	\
+			*)							\
+				d=`dirname $$i` ;				\
+				if [ ! -d $(ROMFSDIR)/dev/$$d ]; then		\
+					mkdir $(ROMFSDIR)/dev/$$d;		\
+				fi;						\
+				node=$(ROMFSDIR)/dev/$$d/`basename $$i` ;	\
+				$(SUDO) rm -f `echo $$node | sed 's/,.*//g'`; \
+				echo mknoding $$node; \
+				$(SUDO) mknod `echo $$node | sed 's/,/ /g'`; \
+				$(SUDO) chmod $$mode `echo $$node | sed 's/,.*$$//g'`; \
+				if [ -d $(ROMFSDIR)/lib/udev ]; then \
+					if [ ! -d $(ROMFSDIR)/lib/udev/devices/$$d ]; then		\
+						mkdir $(ROMFSDIR)/lib/udev/devices/$$d;		\
+					fi;						\
+					node=$(ROMFSDIR)/lib/udev/devices/$$d/`basename $$i` ;	\
+					$(SUDO) rm -f `echo $$node | sed 's/,.*//g'`; \
+					echo mknoding $$node; \
+					$(SUDO) mknod `echo $$node | sed -e 's/,/ /g'`; \
+					$(SUDO)  chmod $$mode `echo $$node | sed 's/,/ /g'`; \
+				fi;						\
+				;;						\
+		esac ;								\
+	done
+

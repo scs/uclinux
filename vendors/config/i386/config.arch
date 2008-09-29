@@ -79,7 +79,11 @@ endif
 ENDIAN        = little
 MACHINE       = i386
 ARCH          = i386
+ifneq ($(shell which i386-linux-20070808-gcc),)
+CROSS_COMPILE ?= i386-linux-20070808-
+else
 CROSS_COMPILE ?= i386-linux-
+endif
 CROSS         = $(CROSS_COMPILE)
 CONFIGURE_HOST = i386-linux
 
@@ -209,7 +213,7 @@ ifeq ($(UCLINUX_BUILD_SET),1)
 
 	EXTRA_CFLAGS := $(CPUFLAGS)
 
-	CXXLIBS = $(LIBSTDCPP) $(CXXSUP)
+	CXXLIBS =
   	 
 	LDLIBS = $(LIBBIND)
 
