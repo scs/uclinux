@@ -570,6 +570,14 @@ config USER_FLATFSD_DISKLIKE
 	help
 	  /dev/flash/config is a disk-like device.
 
+config USER_FLATFSD_CONFIG_BLOBS
+	bool "file blobs"
+	help
+	  The configuration filesystem storage is within a single file blob
+	  on some attached mass storage (could be flash or hard disk).
+	  There may be multiple of these configuration blobs on any mass
+	  storage device.
+
 endchoice
 
 config USER_FLATFSD_COMPRESSED
@@ -852,6 +860,7 @@ config USER_ASTERISK
 	select LIB_LIBOPENH323
 	select LIB_STLPORT
 	select LIB_STLPORT_SHARED
+	select LIB_EXPAT
 	help
 	  Asterisk is a software-based PBX
 
@@ -864,10 +873,6 @@ config USER_ASTERISK_MYSQL
 
 config USER_TRUSTEDSOURCE
 	bool "antispam - trusted source"
-	select USER_CLAMAV_CLAMSMTP
-
-config USER_TRUSTEDSOURCE_V2
-	bool "antispam - trusted source v2"
 	select USER_CLAMAV_CLAMSMTP
 
 config USER_BIND_BIND
@@ -895,6 +900,13 @@ config USER_FNORD_PAM
 	select LIB_LIBPAM
 	help
 	  Uses PAM to authenticate users in fnord.
+
+config USER_FNORD_404_REDIR
+	bool "fnord 404 redirect"
+	depends on USER_FNORD_HTTPD
+	help
+	  Automatically redirects all invalid URL requests to the main 
+	  cgi-bin/ webpage.
 
 config USER_BOA_SRC_BOA
 	bool "boa"
@@ -927,6 +939,7 @@ config USER_BPALOGIN_BPALOGIN
 
 config USER_BR2684CTL_BR2684CTL
 	bool "br2684ctl"
+	select LIB_LIBATM
 	help
 	  ATM to ethernet bridging helper program.
 	  Approx. binary size: 28k
@@ -1105,6 +1118,14 @@ config USER_DNSMASQ2_DNSMASQ2
 	help
 	  DNS masquerading (v2)
 
+config USER_DNSMASQ2_RESOLVE_AS_SERVER
+	bool "Add 'resolve as server IP' feature"
+	depends on USER_DNSMASQ2_DNSMASQ2
+	help
+	  Adds feature where dnsmasq2 will resolve all DNS requests to the 
+	  IP address that they came in on. For use when network isn't setup 
+	  yet and all data should be redirected to the DNS server.
+
 config USER_DROPBEAR_DROPBEAR
 	bool "dropbear"
 	depends on USER_INETD_INETD
@@ -1183,7 +1204,6 @@ config USER_FREESWAN_PLUTO_PLUTO
 	bool "pluto"
 	depends on USER_FREESWAN
 	select LIB_LIBGMP
-	select LIB_LIBDES
 	help
 	  Freeswan pluto.
 	  Approx. binary size: 255k
@@ -1261,7 +1281,6 @@ config USER_OPENSWAN_PLUTO_PLUTO
 	bool "pluto"
 	depends on USER_OPENSWAN
 	select LIB_LIBGMP
-	select LIB_LIBDES
 	help
 
 config USER_OPENSWAN_PLUTO_WHACK
@@ -1296,6 +1315,23 @@ config USER_OPENSWAN_KLIPS_SPIGRP
 config USER_OPENSWAN_KLIPS_TNCFG
 	bool "tncfg"
 	depends on USER_OPENSWAN
+
+config USER_OPENSWAN_PROGRAMS_LWDNSQ
+	bool "lwdnsq (required)"
+	default y
+	depends on USER_OPENSWAN
+
+config IPSEC_CONNECTION_LIMIT_BOOL
+	bool "Enable IPSec tunnel limit"
+	depends on USER_FREESWAN || USER_OPENSWAN
+	help
+	  Enable the limit checking for the maximum tunnels supported by IPSec.
+
+config IPSEC_CONNECTION_LIMIT
+	int "IPSec tunnel limit"
+	depends on IPSEC_CONNECTION_LIMIT_BOOL
+	help
+	  The absolute maximum number of tunnels allowed to be supported by IPSec.
 
 config USER_GNUGK_GNUGK
 	bool "gnugk"
@@ -1640,6 +1676,12 @@ config USER_LINUXIGD_DEFAULT
 	help
 	  Use the unmodified default configuration files for the 
 	  linux-igd daemon and not the snapgear customised files.
+
+config USER_MINIUPNPD
+	bool "miniupnpd"
+	help
+	  Alternate upnpd with less overhead
+	  Approx binary size 60K
 
 config USER_LOATTACH_LOATTACH
 	bool "loattach"
@@ -2002,6 +2044,7 @@ config USER_MARADNS_ZONESERVER
 
 config USER_NMAP_NMAP
 	bool "nmap"
+	select LIB_STLPORT
 	help
 	  Network mapper is a tool for network exploration and security auditing.
 
@@ -2132,7 +2175,6 @@ config USER_PPPD_WITH_PAM
 config USER_PPPD_WITH_MPPE
 	bool "enable MPPE"
 	depends on USER_PPPD_PPPD_PPPD
-	select LIB_LIBDES
 	help
 	  If you want to run PPP/PPTP with encrypted connections, enable this.
 
@@ -2205,8 +2247,13 @@ config USER_PPTPD_PPTPD
 	  PPTP VPN daemon.
 	  Approx. binary size: 31k
 
-config USER_PPTP_CLIENT_PPTP
+config USER_PPTP_PPTP
 	bool "pptp"
+	help
+	  PPTP Client for establishing VPN's.
+
+config USER_PPTP_CLIENT_PPTP
+	bool "pptp client (ok for !MMU)"
 	help
 	  PPTP Client for establishing VPN's.
 	  Approx. binary size: 34k
@@ -2306,6 +2353,11 @@ config USER_RSYNC_RSYNC
 	help
 	  network file copying utility that copies only the differences
 	  between files Approx. binary size on SH4: 255k
+
+config USER_RSYSLOG_RSYSLOGD
+	bool "rsyslog"
+	help
+	  Full featured syslog daemon.
 
 config USER_RSYSLOGD_RSYSLOGD
 	bool "rsyslogd"
@@ -2411,6 +2463,18 @@ config USER_SSH_SCP
 	bool "scp"
 	depends on USER_SSH_SSH
 
+config USER_SSH_SFTP
+	bool "sftp"
+	depends on USER_SSH_SSH
+
+config USER_SSH_SFTP_SERVER
+	bool "sftp-server"
+	depends on USER_SSH_SSH
+
+config USER_SSH_SSH_KEYSIGN
+	bool "ssh-keysign"
+	depends on USER_SSH_SSH
+
 config USER_STP_STP
 	bool "stp"
 	help
@@ -2512,6 +2576,11 @@ config USER_THTTPD_THTTPD
 	help
 	  Tiny HTTPD
 	  Approx. binary size: 52k
+
+config USER_TINYPROXY_TINYPROXY
+	bool "tinyproxy"
+	help
+	  Tiny HTTP proxy
 
 config USER_TRACEROUTE_TRACEROUTE
 	bool "traceroute"
@@ -2923,6 +2992,24 @@ config USER_HD_HD
 config USER_CAN_HORCH
 	bool "horch"
 
+config USER_JAMVM_JAMVM
+	bool "jamvm"
+	help
+	  Virtual machine which conforms to JVM specification 2
+
+config USER_KEXEC_KEXEC
+	bool "kexec loader"
+	help
+	  The kexec-tools "kexec" kernel loader.
+
+config USER_SGUTOOL_SGUTOOL
+	bool "sgutool"
+	help
+	  Tool that can manipulate SGU images. Options to extract the
+	  vendor, hardware and version fields and extract the old style
+	  checksums. Also ability to extract and write out the kernel and
+	  filesystem parts, and also extract crypto signature information.
+
 config USER_LCD_LCD
 	bool "lcd"
 	help
@@ -3306,8 +3393,10 @@ config USER_TINYTCL_TCLSH
 	  Tcl scripts interactively or from a file
 
 config LIB_TINYTCL
-	bool
+	bool "build tinytcl library"
 	default n
+	help
+	  Build the tinytcl library.
 
 config LIB_TINYTCL_STATIC
 	bool "build static libtcl and extensions"

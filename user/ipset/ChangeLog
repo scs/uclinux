@@ -1,0 +1,109 @@
+2.2.9a
+ - use correct type (socklen_t) for getsockopt (H. Nakano)
+ - incorrect return codes fixed (Tomasz Lemiech, Alexey Bortnikov)
+ - kernel header dependency removed (asm/bitops.h)
+ - ipset now tries to load in the ip_set kernel module if the protocol
+   is not available
+
+2.2.9
+ - 'ipset -N' did not generate proper return code
+ - 'limit' module parameter added to the kernel modules of the
+   iphash, ipporthash, nethash and iptree type of sets so that
+   the maximal number of elements can now be limited
+ - zero valued entries (port 0 or IP address 0.0.0.0) were
+   detected as members of the hash/tree kind of sets
+   (reported by Andrew Kraslavsky)
+ - list and save operations used the external identifier
+   of the sets for the bindings instead of the internal one
+   (reported by Amin Azez)
+
+2.2.8
+ - Nasty off-by-one bug fixed in iptree type of sets
+   (bug reported by Pablo Sole)
+
+2.2.7
+ All patches were submitted by Jones Desougi
+ - missing or confusing error message fixes for ipporthash
+ - minor correction in debugging in nethash
+ - copy-paste bug in kernel set types at memory allocation
+   checking fixed
+ - unified memory allocations in ipset
+
+2.2.6
+ - memory allocation in iptree is changed to GFP_ATOMIC because
+   we hold a lock (bug reported by Radek Hladik)
+ - compatibility fix: __nocast is not defined in all 2.6 branches
+   (problem reported by Ming-Ching Tiew)
+ - manpage corrections
+
+2.2.5
+ - garbage collector of iptree type of sets is fixed: flushing
+   sets/removing kernel module could corrupt the timer
+ - new ipporthash type added
+ - manpage fixes and corrections
+
+2.2.4
+ - half-fixed memory allocation bug in iphash and nethash finally
+   completely fixed (bug reported by Nikolai Malykh)
+ - restrictions to enter zero-valued entries into all non-hash type sets
+   were removed
+ - Too strict check on the set size of ipmap type was corrected 
+
+2.2.3
+ - memory allocation bug in iphash and nethash in connection with the SET
+   target was fixed (bug reported by Nikolai Malykh)
+ - lockhelp.h was removed from the 2.6.13 kernel tree, ip_set.c is
+   updated accordingly (Cardoso Didier, Samir Bellabes)
+ - manpage is updated to clearly state the command order in restore mode
+
+2.2.2
+ - Jiffies rollover bug in ip_set_iptree reported and fixed by Rob Nielsen
+ - Compiler warning in the non-SMP case fixed (Marcus Sundberg)
+ - slab cache names shrunk in order to be compatible with 2.4.* (Marcus
+   Sundberg)
+
+2.2.1
+ - Magic number in ip_set_nethash.h was mistyped (bug reported by Rob
+   Carlson)
+ - ipset can now test IP addresses in nethash type of sets (i.e. addresses
+   in netblocks added to the set)
+
+2.2.0
+ - Locking bug in ip_set_nethash.c (Clifford Wolf and Rob Carlson)
+ - Makefile contained an unnecessary variable in IPSET_LIB_DIR (Clifford
+   Wolf)
+ - Safety checkings of restore in ipset was incomplete (Robin H. Johnson)
+ - More careful resizing by avoiding locking completely
+ - stdin stored internally in a temporary file, so we can feed 'ipset -R'
+   from a pipe
+ - iptree maptype added
+
+2.1
+ - Lock debugging used with debugless lock definiton (Piotr Chytla and
+   others).
+ - Bindings were not properly filled out at listing (kernel)
+ - When listing sets from kernel, id was not added to the set structure
+   (ipset)
+ - nethash maptype added
+ - ipset manpage corrections (macipmap)
+
+2.0.1
+ - Missing -fPIC in Makefile (Robert Iakobashvili)
+ - Cut'n'paste bug at saving macipmap types (Vincent Bernat).
+ - Bug in printing/saving SET targets reported and fixed by Michal
+   Pokrywka
+
+2.0
+ - Chaining of sets are changed: child sets replaced by bindings
+ - Kernel-userspace communication reorganized to minimize the number
+   of syscalls
+ - Save and restore functionality implemented
+ - iphash type reworked: clashing resolved by double-hashing and by
+   dynamically growing the set
+
+1.0
+ - Renamed to ipset
+ - Rewritten to support child pools
+ - portmap, iphash pool support added
+ - too much other mods here and there to list...
+
