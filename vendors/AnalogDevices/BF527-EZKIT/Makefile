@@ -73,4 +73,4 @@ clean::
 
 .PHONY: all clean image romfs
 
-include ../vendor.mak
+include ../../AnalogDevices/vendor.mak
