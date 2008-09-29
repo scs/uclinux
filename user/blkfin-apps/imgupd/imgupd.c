@@ -73,6 +73,7 @@ int main(int argc, char** argv)
     case 0xFF800020:
     case 0xFF800040:
     case 0xFF800060:
+    case 0xFFA00000:
       printf("Magic word of U-Boot image found\n");
       printf("Copying to %s...\n", U_BOOT_PARTITION);
       sprintf(sTemp, "cp %s%s %s\n", TEMP_FILE_LOCATION, sImgName, U_BOOT_PARTITION); 
