@@ -141,88 +141,34 @@ Kconfig: vendors/Kconfig
 
 include config/Makefile.conf
 
-.PHONY: config
-config: Kconfig conf
-	$(SCRIPTSDIR)/conf Kconfig
-	@chmod u+x config/setconfig
-	@config/setconfig defaults
-	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
-		$(MAKE) linux_config; \
-	 fi
-	@if egrep "^CONFIG_DEFAULTS_MODULES=y" .config > /dev/null; then \
-		$(MAKE) modules_config; \
-	 fi
-	@if egrep "^CONFIG_DEFAULTS_VENDOR=y" .config > /dev/null; then \
-		$(MAKE) config_config; \
-	 fi
-	@config/setconfig final
-
-.PHONY: menuconfig
-menuconfig: Kconfig conf mconf
-	$(SCRIPTSDIR)/mconf Kconfig
+SCRIPTS_BINARY_config     = conf
+SCRIPTS_BINARY_menuconfig = mconf
+SCRIPTS_BINARY_qconfig    = qconf
+SCRIPTS_BINARY_gconfig    = gconf
+SCRIPTS_BINARY_xconfig    = gconf
+.PHONY: config menuconfig qconfig gconfig xconfig
+menuconfig: mconf
+qconfig: qconf
+gconfig: gconf
+xconfig: $(SCRIPTS_BINARY_xconfig)
+config menuconfig qconfig gconfig xconfig: Kconfig conf
+	$(SCRIPTSDIR)/$(SCRIPTS_BINARY_$@) Kconfig
 	@if [ ! -f .config ]; then \
 		echo; \
-		echo "You have not saved your config, please re-run make config"; \
+		echo "You have not saved your config, please re-run 'make $@'"; \
 		echo; \
 		exit 1; \
 	 fi
 	@chmod u+x config/setconfig
 	@config/setconfig defaults
 	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
-		$(MAKE) linux_menuconfig; \
+		$(MAKE) linux_$@; \
 	 fi
 	@if egrep "^CONFIG_DEFAULTS_MODULES=y" .config > /dev/null; then \
-		$(MAKE) modules_menuconfig; \
+		$(MAKE) modules_$@; \
 	 fi
 	@if egrep "^CONFIG_DEFAULTS_VENDOR=y" .config > /dev/null; then \
-		$(MAKE) config_menuconfig; \
-	 fi
-	@config/setconfig final
-
-.PHONY: xconfig
-xconfig: gconfig
-
-.PHONY: qconfig
-qconfig: Kconfig conf qconf
-	$(SCRIPTSDIR)/qconf Kconfig
-	@if [ ! -f .config ]; then \
-		echo; \
-		echo "You have not saved your config, please re-run make config"; \
-		echo; \
-		exit 1; \
-	 fi
-	@chmod u+x config/setconfig
-	@config/setconfig defaults
-	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
-		$(MAKE) linux_qconfig; \
-	 fi
-	@if egrep "^CONFIG_DEFAULTS_MODULES=y" .config > /dev/null; then \
-		$(MAKE) modules_qconfig; \
-	 fi
-	@if egrep "^CONFIG_DEFAULTS_VENDOR=y" .config > /dev/null; then \
-		$(MAKE) config_qconfig; \
-	 fi
-	@config/setconfig final
-
-.PHONY: gconfig
-gconfig: Kconfig conf gconf
-	$(SCRIPTSDIR)/gconf Kconfig
-	@if [ ! -f .config ]; then \
-		echo; \
-		echo "You have not saved your config, please re-run make config"; \
-		echo; \
-		exit 1; \
-	 fi
-	@chmod u+x config/setconfig
-	@config/setconfig defaults
-	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
-		$(MAKE) linux_gconfig; \
-	 fi
-	@if egrep "^CONFIG_DEFAULTS_MODULES=y" .config > /dev/null; then \
-		$(MAKE) modules_gconfig; \
-	 fi
-	@if egrep "^CONFIG_DEFAULTS_VENDOR=y" .config > /dev/null; then \
-		$(MAKE) config_gconfig; \
+		$(MAKE) config_$@; \
 	 fi
 	@config/setconfig final
 
@@ -283,12 +229,9 @@ modules_%:
 	[ ! -d modules ] || $(MAKEARCH) -C modules $(patsubst modules_%,%,$@)
 config_%: vendors/Kconfig
 	$(MAKEARCH) -C config $(patsubst config_%,%,$@)
-oldconfig_config:
-	$(MAKEARCH) -C config oldconfig
-oldconfig_modules:
-	[ ! -d modules ] || $(MAKEARCH) -C modules oldconfig
-oldconfig_linux:
-	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) oldconfig
+oldconfig_config: config_oldconfig
+oldconfig_modules: modules_oldconfig
+oldconfig_linux: linux_oldconfig
 oldconfig_uClibc:
 	[ -z "$(findstring uClibc,$(LIBCDIR))" ] || $(MAKEARCH) -C $(LIBCDIR) oldconfig
 
