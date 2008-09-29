@@ -19,11 +19,13 @@
 
 /****************************************************************************/
 
+#define __USE_GNU 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
 #include <assert.h>
+#include <byteswap.h>
 #include <ctype.h>
 #include <getopt.h>
 #include <errno.h>
@@ -41,13 +43,16 @@
 #include <netinet/in.h>
 #include <stdarg.h>
 
-/* #include <linux/autoconf.h> */
+#include <linux/autoconf.h>
 #include <linux/version.h>
 #include <config/autoconf.h>
 #include <linux/major.h>
 #ifdef CONFIG_USER_NETFLASH_CRYPTO
 #include <openssl/bio.h>
 #include "crypto.h"
+#endif
+#if defined(CONFIG_USER_NETFLASH_SHA256) || defined(CONFIG_USER_NETFLASH_CRYPTO_V2)
+#include <openssl/sha.h>
 #endif
 #if defined(CONFIG_MTD) || defined(CONFIG_MTD_MODULES)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
@@ -104,12 +109,12 @@
 #endif
 
 #ifdef CONFIG_USER_NETFLASH_SHA256
-#define	SHA256_OPTIONS "B"
+#define	SHA256_OPTIONS "N"
 #else
 #define	SHA256_OPTIONS
 #endif
 
-#define CMD_LINE_OPTIONS "bc:Cd:efFhiHjkKlno:pr:sStuv?" DECOMPRESS_OPTIONS HMACMD5_OPTIONS SETSRC_OPTIONS SHA256_OPTIONS
+#define CMD_LINE_OPTIONS "abc:Cd:efFhiHjkKlno:pr:R:sStuv?" DECOMPRESS_OPTIONS HMACMD5_OPTIONS SETSRC_OPTIONS SHA256_OPTIONS
 
 #define PID_DIR "/var/run"
 #define DHCPCD_PID_FILE "dhcpcd-"
@@ -120,29 +125,21 @@
 #define CONFIG_USER_NETFLASH_WATCHDOG 1
 #endif
 
+#define NUM_BLOCKS_TO_KEEP	20
 /****************************************************************************/
 
 char *version = "2.2.0";
 
 int exitstatus = 0;
 
-struct fileblock *fileblocks = NULL;
-int fileblocks_num = 0;
-
-unsigned int file_offset = 0;
-unsigned int file_length = 0;
-unsigned int image_length = 0;
+unsigned long image_length = 0;
 unsigned int calc_checksum = 0;
-
-#define	BLOCK_OVERHEAD	16
-#define	block_len	(_block_len - BLOCK_OVERHEAD)
-int _block_len = 8192;
 
 int dothrow = 0;		/* Check version info of image; no program */
 int dolock, dounlock;		/* do we lock/unlock segments as we go */
 int checkimage;			/* Compare with current flash contents */
 int checkblank;			/* Do not erase if already blank */
-char *check_buf = NULL;
+unsigned char *check_buf = NULL;
 #if CONFIG_USER_NETFLASH_WATCHDOG
 int watchdog = 1;		/* tickle watchdog while writing to flash */
 int watchdog_fd = -1;   	/* ensure this is initalised to an invalid fd */
@@ -157,11 +154,15 @@ int dojffs2;			/* Write the jffs2 magic to unused segments */
 int doinflate;			/* Decompress the image */
 #endif
 int docgi = 0;			/* Read options and data from stdin in mime multipart format */
+int dofilesave = 0;		/* Save locally as file, not a flash device */
+int dofileautoname = 0;		/* Put file in right directory automatically */
+int dobootcfg = 0;		/* Update boot.cfg file to boot image */
+
 #if defined(CONFIG_USER_NETFLASH_WITH_CGI) && !defined(RECOVER_PROGRAM)
 char cgi_data[64];      /* CGI section name for the image part */
 char cgi_options[64];   /* CGI section name for the command line options part */
 char cgi_flash_region[20]; /* CGI section name for the flash region part */
-extern size_t cgi_load(const char *data_name, const char *options_name, char options[64], const char *flash_region_name, char flash_region[20]);
+extern size_t cgi_load(const char *data_name, const char *options_name, char options[64], const char *flash_region_name, char flash_region[20], int *error_code);
 #endif
 
 extern int tftpverbose;
@@ -171,8 +172,7 @@ FILE	*nfd;
 
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 z_stream z;
-struct fileblock *zfb;
-static int gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
+unsigned long zoffset;
 #endif
 
 struct stat stat_rdev;
@@ -181,7 +181,19 @@ struct stat stat_rdev;
 char	*srcaddr = NULL;
 #endif
 
-static void (* program_segment)(int rd, char *sgdata,
+#ifdef CONFIG_USER_NETFLASH_CRYPTO
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+SHA256_CTX sha_ctx;
+#else
+MD5_CTX md5_ctx;
+#endif
+
+/* Used if the -t option is in effect to calculate the hash as blocks are received */
+static unsigned long crypto_hash_total;
+static int crypto_hash_init;
+#endif
+
+static void (* program_segment)(int rd, unsigned char *sgdata,
 		int sgpos, int sglength, int sgsize);
 
 static void exit_failed(int rc);
@@ -202,7 +214,27 @@ void restartinit(void)
 #if !defined(CONFIG_USER_NETFLASH_WITH_CGI) || defined(RECOVER_PROGRAM)
 	error("restarting init process...");
 #endif
-	kill(1, SIGCONT);
+	if (!docgi) {
+		/* Only restart init if we're not being run from the CGI */
+		kill(1, SIGCONT);
+	} else {
+#ifdef CONFIG_PROP_ACLD_ACLD
+		/* After we read in all of the POST request from the browser,
+		 * the cgix/netflash wrapper program will send either a response 
+		 * indicating success or failure. This page will probably contain 
+		 * references to image/logo or stylesheet URLs, which means that 
+		 * the browser *could* send another GET request on a new TCP connection.
+		 * 
+		 * Because of all this, we need to have acld running so that the 
+		 * browser can authenticate.
+		 *
+		 * We are about to restart, so don't care about trying to read options 
+		 * etc from the inittab entry, we just need it to run for the next few 
+		 * seconds.
+		 */
+		system("/bin/acld &");
+#endif
+	}
 #ifdef CONFIG_USER_NETFLASH_WATCHDOG
 	close(watchdog_fd);
 	system("watchdog /dev/watchdog");
@@ -210,327 +242,106 @@ void restartinit(void)
 }
 
 
-#ifdef CONFIG_USER_NETFLASH_CRYPTO
-#define memcpy_withsum(d, s, l, sum)	memcpy(d, s, l)
-#else
-static void memcpy_withsum(void *dst, void *src, int len, unsigned int *sum)
+void update_chksum(unsigned char *data, int length)
 {
-	unsigned char *dp = (unsigned char *)dst;
-	unsigned char *sp = (unsigned char *)src;
-
-	while(len > 0){
-		*dp = *sp;
-		*sum += *dp++;
-		sp++;
-		len--;
+	while (length > 0) {
+		calc_checksum += *data++;
+		length--;
 	}
 }
-#endif
-
-/*
- *	Note: This routine is more general than it currently needs to
- *	be since it handles out of order writes.
- */
-void add_data(unsigned long address, unsigned char * data, unsigned long len)
-{
-	int l;
-	struct fileblock *fb;
-	struct fileblock *fbprev = NULL;
-	struct fileblock *fbnew;
-	static unsigned long total = 0;
-	static unsigned lastk = 0;
-
-	/* The fileblocks list is ordered, so initialise this outside
-	 * the while loop to save some search time. */
-	fb=fileblocks;
-	do {
-		/* Search for any blocks that overlap with the range we are adding */
-		for (; fb!=NULL; fbprev=fb, fb=fb->next) {
-			if (address < fb->pos)
-				break;
-			
-			if (address < (fb->pos + fb->maxlength)) {
-				l = fb->maxlength - (address - fb->pos);
-				if (l > len)
-					l = len;
-				memcpy_withsum(fb->data + (address - fb->pos),
-					data, l, &calc_checksum);
-				fb->length = l + (address - fb->pos);
-				
-				address += l;
-				data += l;
-				len -= l;
-				total += l;
-				if (len == 0)
-					return;
-			}
-		}
-	
-		if (!docgi) {
-			if (total / 1024 != lastk) {
-				lastk = total / 1024;
-				printf("\r%dK", lastk); fflush(stdout);
-			}
-		}
-#ifdef CONFIG_USER_NETFLASH_WATCHDOG
-		if (watchdog)
-			write(watchdog_fd, "\0", 1); 
-#endif
-
-		/* At this point:
-		 * fb = block following the range we are adding,
-		 *      or NULL if at end
-		 * fbprev = block preceding the range, or NULL if at start
-		 */
-#ifdef CONFIG_USER_NETFLASH_VERSION
-#ifndef CONFIG_USER_NETFLASH_CRYPTO
-		if (dothrow && fileblocks_num > 2) {
-			/* Steal the first block from the list. */
-			fbnew = fileblocks;
-			fileblocks = fbnew->next;
-			if (fbprev == fbnew)
-				fbprev = NULL;
-
-			fbnew->pos = address;
-
-			if (fb && ((fb->pos - address) < fbnew->maxlength))
-				fbnew->maxlength = fb->pos - address;
-
-		} else {
-#endif
-#endif /*CONFIG_USER_NETFLASH_VERSION*/
-
-			fbnew = malloc(sizeof(*fbnew));
-			if (!fbnew) {
-				error("Insufficient memory for image!");
-				exit_failed(NO_MEMORY);
-			}
-			
-			fbnew->pos = address;
-
-			for (;;) {
-				if (fb && ((fb->pos - address) < block_len))
-					fbnew->maxlength = fb->pos - address;
-				else
-					fbnew->maxlength = block_len;
-			
-				fbnew->data = malloc(fbnew->maxlength);
-				if (fbnew->data)
-					break;
-
-				/* Halve the block size and try again, down to 1 page */
-				if (_block_len < 4096) {
-					error("Insufficient memory for image!");
-					exit_failed(NO_MEMORY);
-				}
-				_block_len /= 2;
-			}
-
-			fileblocks_num++;
-
-#ifdef CONFIG_USER_NETFLASH_VERSION
-#ifndef CONFIG_USER_NETFLASH_CRYPTO
-		}
-#endif
-#endif
-
-		l = fbnew->maxlength;
-		if (l > len)
-			l = len;
-		memcpy_withsum(fbnew->data, data, l, &calc_checksum);
-		fbnew->length = l;
-		address += l;
-		data += l;
-		len -= l;
-		
-		fbnew->next = fb;
-		if (fbprev)
-			fbprev->next = fbnew;
-		else
-			fileblocks = fbnew;
-
-		/* Next search starts after the block we just added */
-		fbprev = fbnew;
-	} while (len > 0);
-}
-
-
-/*
- *	Remove bytes from the end of the data. This is used to remove
- *	checksum/versioning data before writing or decompressing.
- */
-void remove_data(int length)
-{
-	struct fileblock *fb;
-	struct fileblock *fbnext;
-
-	if (fileblocks != NULL && file_length >= length) {
-		file_length -= length;
-		for (fb = fileblocks; fb != NULL; fb = fb->next) {
-			if ((fb->pos + fb->length) >= file_length)
-				break;
-		}
-		fb->length = file_length - fb->pos;
-
-		while (fb->next != NULL) {
-			fbnext = fb->next;
-			fb->next = fbnext->next;
-			free(fbnext->data);
-			free(fbnext);
-		}
-	}
-}
-
 
 /*
  *	Generate a checksum over the data.
  */
 void chksum()
 {
-	struct fileblock *fb;
-	unsigned int file_checksum;
-	unsigned char *sp = 0, *ep;
-	int i;
+	uint32_t file_checksum;
+	void *p;
 
-	file_checksum = 0;
-
-	if (fileblocks != NULL && file_length >= CHECKSUM_LENGTH) {
-#ifdef CONFIG_USER_NETFLASH_CRYPTO
-		/* No on the fly check sum so we have to calculate it all here */
-		for (fb = fileblocks; fb != NULL; fb = fb->next)
-			for (i=0; i<fb->length; i++)
-				calc_checksum += fb->data[i];
-#endif
-		for (fb = fileblocks; fb != NULL; fb = fb->next) {
-			if ((fb->pos + fb->length) >= (file_length - CHECKSUM_LENGTH)) {
-				sp = fb->data + (file_length - CHECKSUM_LENGTH - fb->pos);
-				break;
-			}
-		}
-
-		if (!fb) {
-			error("could not find fileblock containing checksum");
-			exit_failed(IMAGE_SHORT);
-		}
-		
-		ep = fb->data + fb->length;
-		for (i = 0; i < CHECKSUM_LENGTH; i++) {
-			if (sp >= ep) {
-				fb = fb->next;
-				sp = fb->data;
-				ep = sp + fb->length;
-			}
-			file_checksum = (file_checksum << 8) | *sp;
-			calc_checksum -= *sp;
-			sp++;
-		}
-
-		remove_data(CHECKSUM_LENGTH);
-
-		calc_checksum = (calc_checksum & 0xffff) + (calc_checksum >> 16);
-		calc_checksum = (calc_checksum & 0xffff) + (calc_checksum >> 16);
-
-		if (calc_checksum != file_checksum) {
-			error("bad image checksum=0x%04x, expected checksum=0x%04x",
-				calc_checksum, file_checksum);
-			exit_failed(BAD_CHECKSUM);
-		}
-	} else {
+	if (fb_seek_end(sizeof(file_checksum)) != 0) {
 		error("image is too short to contain a checksum");
 		exit_failed(IMAGE_SHORT);
 	}
-}
 
+	fb_read(&file_checksum, sizeof(file_checksum));
+	fb_trim(sizeof(file_checksum));
+	file_checksum = ntohl(file_checksum);
+
+	for (p = &file_checksum; p < (void *)(&file_checksum + 1); p++)
+		calc_checksum -= *(unsigned char *)p;
+
+	calc_checksum = (calc_checksum & 0xffff) + (calc_checksum >> 16);
+	calc_checksum = (calc_checksum & 0xffff) + (calc_checksum >> 16);
+
+	if (calc_checksum != file_checksum) {
+		error("bad image checksum=0x%04x, expected checksum=0x%04x",
+			calc_checksum, file_checksum);
+		exit_failed(BAD_CHECKSUM);
+	}
+}
 
 #ifdef CONFIG_USER_NETFLASH_HMACMD5
 int check_hmac_md5(char *key)
 {
 	HMACMD5_CTX ctx;
-	struct fileblock *fb;
-	int length, total;
 	unsigned char hash[16];
-	int i;
+	unsigned char fb_hash[16];
 
-	if (fileblocks != NULL && file_length >= 16) {
+	if (fb_seek_end(16) == 0) {
+		fb_read(fb_hash, 16);
+		fb_trim(16);
+
 		HMACMD5Init(&ctx, key, strlen(key));
-
-		total = 0;
-		length = 0;
-		for (fb = fileblocks; fb != NULL; fb = fb->next) {
-			if (fb->length > (file_length - total - 16))
-				length = file_length - total - 16;
-			else
-				length = fb->length;
-
-			HMACMD5Update(&ctx, fb->data, length);
-
-			total += length;
-			if (length != fb->length)
-				break;
-		}
-
+		fb_seek_set(0);
+		while ((data = fb_read_block(&length)) != NULL)
+			HMACMD5Update(&ctx, data, length);
 		HMACMD5Final(hash, &ctx);
-		for (i=0; i<16; i++, length++) {
-			if (length>=fb->length) {
-				length = 0;
-				fb = fb->next;
-			}
-			if (hash[i] != fb->data[length]) {
-				error("bad HMAC MD5 signature");
-				exit_failed(BAD_HMAC_SIG);
-			}
-		}
-		notice("HMAC MD5 signature ok");
 
-		remove_data(16);
-    }
+		if (memcmp(hash, fb_hash, 16) != 0) {
+			error("bad HMAC MD5 signature");
+			exit_failed(BAD_HMAC_SIG);
+		}
+
+		notice("HMAC MD5 signature ok");
+	}
 }
 #endif
 
 #ifdef CONFIG_USER_NETFLASH_SHA256
 
-#include "sha256.h"
-
 int dosha256sum = 1;
 
 int check_sha256_sum(void)
 {
-	struct sha256_ctx ctx;
-	struct fileblock *fb;
+	SHA256_CTX ctx;
 	unsigned char hash[32];
-	int length, total;
-	int i;
+	unsigned char fb_hash[32];
+	unsigned long hash_length, fblength, length, total = 0;
 
-	if ((fileblocks != NULL) && (file_length >= 32)) {
-		total = 0;
-		length = 0;
+	if (fb_seek_end(32) == 0) {
+		hash_length = fb_tell();
+		fb_read(fb_hash, 32);
 
-		sha256_init_ctx(&ctx);
-		for (fb = fileblocks; (fb != NULL); fb = fb->next) {
-			length = fb->length;
-			if (length > (file_length - total - 32))
-				length = file_length - total - 32;
-			sha256_process_bytes(fb->data, length, &ctx);
-			total += length;
-			if (length != fb->length)
+		SHA256_Init(&ctx);
+		fb_seek_set(0);
+		while ((data = fb_read_block(&fblength)) != NULL) {
+			length = fblength;
+			if (length > (hash_length - total)) {
+				length = hash_length - total;
+			}
+			SHA256_Update(&ctx, data, length);
+			if (length != fblength)
 				break;
+			total += length;
 		}
-		sha256_finish_ctx(&ctx, hash);
+		SHA256_Final(hash, &ctx);
 
-		/* Check if calculated hash equals sent hash */
-		for (i = 0; (i < 32); i++, length++) {
-			if (length >= fb->length) {
-				length = 0;
-				fb = fb->next;
-			}
-			if (hash[i] != fb->data[length]) {
-				error("bad SHA256 digest");
-				exit_failed(BAD_HMAC_SIG);
-			}
+		if (memcmp(hash, fb_hash, 32) != 0) {
+			error("bad SHA256 digest");
+			exit_failed(BAD_HMAC_SIG);
 		}
 
 		notice("SHA256 digest ok");
-		remove_data(32);
 	}
 
 	return 0;
@@ -538,113 +349,60 @@ int check_sha256_sum(void)
 #endif
 
 #ifdef CONFIG_USER_NETFLASH_CRYPTO
-
-/* Extract bytes from end of the data.
- * These bytes are removed from the data.
- */
-static inline void extract_data(int length, char buf[]) {
-	unsigned long i, tpos;
-	struct fileblock *fb;
-	unsigned long target_length;
-
-	if (fileblocks != NULL && file_length >= length) {
-		target_length = file_length - length;
-		for (fb = fileblocks; fb != NULL; fb = fb->next) {
-			if ((fb->pos + fb->length) >= target_length)
-				break;
-		}
-		tpos = target_length - fb->pos;
-		for (i=0; i<length;) {
-			if (tpos >= fb->length) {
-				fb = fb->next;
-				tpos = 0;
-			}
-			buf[i++] = fb->data[tpos++];
-		}
-		remove_data(length);
-	} else {
-		error("insufficent data at end of image need %d only have %d",
-				length, (int)file_length);
-		exit_failed(IMAGE_SHORT);
+#if 0
+static void hexdump(unsigned char *p, unsigned int len)
+{
+	unsigned int i;
+	for (i = 0; (i < len); i++) {
+		if ((i % 16) == 0) printf("%08x:  ", p+i);
+		printf("%02x ", p[i]);
+		if (((i+1) % 16) == 0) printf("\n");
 	}
+	if ((i % 16) != 0) printf("\n");
 }
+#endif
 
-/* Grab a block at the specified position.  This could span fileblock boundaries etc so
- * we pull it out piecemeal.  This could be written significantly more efficiently
- * I expect.
- */
-static inline void get_block(struct fileblock *fb,
-		unsigned long posn, char buf[], int sz) {
-	int i = 0;
-	unsigned long offset = posn - fb->pos;
-
-	while (i<sz) {
-		while (offset >= fb->length)
-			offset = 0, fb = fb->next;
-		buf[i++] = fb->data[offset++];
-	}
-}
-
-/* Write a block of information back into the file at the specified
- * position.  Again this isn't written overly efficiently.
- */
-static inline struct fileblock *put_block(struct fileblock *fb,
-		unsigned long posn, const char buf[], int sz) {
-	int i = 0;
-	unsigned long offset = posn - fb->pos;
-
-	while (i<sz) {
-		while (offset >= fb->length)
-			offset = 0, fb = fb->next;
-		fb->data[offset++] = buf[i++];
-	}
-	return fb;
-}
-
-
-/* Check the crypto signature on the image...
- * This always includes a public key encrypted header and an MD5
- * checksum.  It optionally includes AES encryption of the image.
- */
-void check_crypto_signature(void) {
-	struct fileblock *fb;
-  	RSA *pkey;
-	struct header hdr;
-	struct little_header lhdr;
-	
+int load_public_key(RSA **pkey)
+{
 	/* Load public key */
-	{
-		BIO *in;
-		struct stat st;
+	BIO *in;
+	struct stat st;
 
-		if (stat(PUBLIC_KEY_FILE, &st) == -1 && errno == ENOENT) {
-			printf("WARNING: no public key file found, %s\n",
-				PUBLIC_KEY_FILE);
-			return;
-		}
-		in = BIO_new(BIO_s_file());
-		if (in == NULL) {
-			error("cannot allocate a bio structure");
-			exit_failed(BAD_DECRYPT);
-		}
-		if (BIO_read_filename(in, PUBLIC_KEY_FILE) <= 0) {
-			error("cannot open public key file");
-			exit_failed(BAD_PUB_KEY);
-		}
-		pkey = PEM_read_bio_RSA_PUBKEY(in, NULL, NULL, NULL);
-		if (pkey == NULL) {
-			error("cannot read public key");
-			exit_failed(BAD_PUB_KEY);
-		}
+	if (stat(PUBLIC_KEY_FILE, &st) == -1 && errno == ENOENT) {
+		printf("WARNING: no public key file found, %s\n",
+			PUBLIC_KEY_FILE);
+		return 0;
 	}
+	in = BIO_new(BIO_s_file());
+	if (in == NULL) {
+		error("cannot allocate a bio structure");
+		exit_failed(BAD_DECRYPT);
+	}
+	if (BIO_read_filename(in, PUBLIC_KEY_FILE) <= 0) {
+		error("cannot open public key file");
+		exit_failed(BAD_PUB_KEY);
+	}
+	*pkey = PEM_read_bio_RSA_PUBKEY(in, NULL, NULL, NULL);
+	if (*pkey == NULL) {
+		error("cannot read public key");
+		exit_failed(BAD_PUB_KEY);
+	}
+	return 1;
+}
+
+int decode_header_info(struct header *hdr, RSA *pkey, int *img_len)
+{
+	struct little_header lhdr;
+
 	/* Decode header information */
-	extract_data(sizeof(struct little_header), (char *)&lhdr);
+	if (fb_seek_end(sizeof(lhdr)) != 0) {
+		error("image not cryptographically enabled");
+		exit_failed(NO_CRYPT);
+	}
+	fb_read(&lhdr, sizeof(lhdr));
 	if (lhdr.magic != htons(LITTLE_CRYPTO_MAGIC)) {
 #ifdef CONFIG_USER_NETFLASH_CRYPTO_OPTIONAL
-		add_data(file_length, (char *)&lhdr,
-				sizeof(struct little_header));
-		file_length += sizeof(struct little_header);
-		return;
+		return 0;
 #else
 		error("size magic incorrect");
 		exit_failed(BAD_CRYPT_MAGIC);
@@ -652,11 +410,21 @@ void check_crypto_signature(void) {
 	}
 	{
 		unsigned short hlen = ntohs(lhdr.hlen);
-		char tmp[hlen];
-		char t2[hlen];
+		unsigned char tmp[hlen];
+		unsigned char t2[hlen];
 		int len;
 
-		extract_data(hlen, tmp);
+		if (fb_seek_end(sizeof(lhdr) + hlen) != 0) {
+			error("crypt header length invalid");
+			exit_failed(BAD_CRYPT_LEN);
+		}
+		fb_read(tmp, hlen);
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+		*img_len = fb_len() - sizeof(lhdr) - hlen;
+#else
+		fb_trim(sizeof(lhdr) + hlen);
+		*img_len = fb_len();
+#endif
 		len = RSA_public_decrypt(hlen, tmp, t2,
 				pkey, RSA_PKCS1_PADDING);
 		if (len == -1) {
@@ -664,175 +432,232 @@ void check_crypto_signature(void) {
 			exit_failed(BAD_DECRYPT);
 		}
 		if (len != sizeof(struct header)) {
-			error("Length mismatch %d %d\n", (int)sizeof(struct header), len);
+			error("length mismatch %d %d\n", (int)sizeof(struct header), len);
 		}
-		memcpy(&hdr, t2, sizeof(struct header));
+		memcpy(hdr, t2, sizeof(struct header));
 	}
-	RSA_free(pkey);
-	if (hdr.magic != htonl(CRYPTO_MAGIC)) {
+	if (hdr->magic != htonl(CRYPTO_MAGIC)) {
 		error("image not cryptographically enabled");
 		exit_failed(NO_CRYPT);
 	}
+	return 1;
+}
+
+void update_crypto_hash(unsigned char *data, unsigned long length)
+{
+	if (!crypto_hash_init) {
+		crypto_hash_init = 1;
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+		SHA256_Init(&sha_ctx);
+#else
+		MD5_Init(&md5_ctx);
+#endif
+	}
+
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+	SHA256_Update(&sha_ctx, data, length);
+#else
+	MD5_Update(&md5_ctx, data, length);
+#endif
+	crypto_hash_total += length;
+}
+
+/*
+ *	Check the crypto signature on the image...
+ *	This always includes a public key encrypted header and an MD5
+ *	(or SHA256) checksum. It optionally includes AES encryption of
+ *	the image.
+ */
+void check_crypto_signature(void)
+{
+	struct header hdr;
+	int hash_length;
+	unsigned long fblength, length;
+	unsigned char *data;
+  	RSA *pkey;
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+	unsigned char hash[SHA256_DIGEST_LENGTH];
+#else
+	unsigned char hash[MD5_DIGEST_LENGTH];
+#endif
+
+	if (!load_public_key(&pkey))
+		return;
+	if (!decode_header_info(&hdr, pkey, &hash_length))
+		return;
+	RSA_free(pkey);
+
 	/* Decrypt image if needed */
 	if (hdr.flags & FLAG_ENCRYPTED) {
-		aes_context ac;
-		char cin[AES_BLOCK_SIZE];
-		char cout[AES_BLOCK_SIZE];
+		unsigned char cin[AES_BLOCK_SIZE];
+		unsigned char cout[AES_BLOCK_SIZE];
 		unsigned long s;
+		AES_KEY key;
 
-		if ((file_length % AES_BLOCK_SIZE) != 0) {
+		if (dothrow) {
+			error("Can not decrypt encrypted image when -t option is used.");
+			exit_failed(BAD_CRYPT);
+			return;
+		}
+
+		if ((hash_length % AES_BLOCK_SIZE) != 0) {
 			error("image size not miscable with cryptography");
 			exit_failed(BAD_CRYPT);
 		}
-		aes_set_key(&ac, hdr.aeskey, AESKEYSIZE, 0);
+		AES_set_decrypt_key(hdr.aeskey, AESKEYSIZE * 8, &key);
 		/* Convert the body of the file */
-		for (fb = fileblocks, s = 0; s < file_length; s += AES_BLOCK_SIZE) {
-			get_block(fb, s, cin, AES_BLOCK_SIZE);
-			aes_decrypt(&ac, cin, cout);
-			fb = put_block(fb, s, cout, AES_BLOCK_SIZE);
+		fb_seek_set(0);
+		for (s = 0; s < hash_length; s += AES_BLOCK_SIZE) {
+			fb_peek(cin, AES_BLOCK_SIZE);
+			AES_decrypt(cin, cout, &key);
+			fb_write(cout, AES_BLOCK_SIZE);
 		}
 	}
+
+#ifndef CONFIG_USER_NETFLASH_CRYPTO_V2
 	/* Remove padding */
-	if (hdr.padsize) remove_data(hdr.padsize);
-	/* Check MD5 sum if required */
-	{
-		MD5_CTX ctx;
-		unsigned char hash[16];
+	if (hdr.padsize)
+		fb_trim(hdr.padsize);
+#endif
 
-		if (fileblocks != NULL && file_length >= 16) {
-			MD5_Init(&ctx);
-			for (fb = fileblocks; fb != NULL; fb = fb->next)
-				MD5_Update(&ctx, fb->data, fb->length);
-			MD5_Final(hash, &ctx);
-			if (memcmp(hdr.md5, hash, MD5_DIGEST_LENGTH) != 0) {
-				error("bad MD5 signature");
-				exit_failed(BAD_MD5_SIG);
-			}
+	if (dothrow && crypto_hash_init) {
+		if (crypto_hash_total > hash_length) {
+			error("hashed too much, try without -t");
+			exit_failed(BAD_MD5_SIG);
 		}
+		fb_seek_set(crypto_hash_total);
+	} else {
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+		SHA256_Init(&sha_ctx);
+#else
+		MD5_Init(&md5_ctx);
+#endif
+		fb_seek_set(0);
 	}
 
-	printf("netflash: signed image approved\n");
+	while ((data = fb_read_block(&fblength)) != NULL) {
+		length = fblength;
+		if (length > (hash_length - crypto_hash_total)) {
+			length = hash_length - crypto_hash_total;
+		}
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+		SHA256_Update(&sha_ctx, data, length);
+#else
+		MD5_Update(&md5_ctx, data, length);
+#endif
+		if (length != fblength)
+			break;
+		crypto_hash_total += length;
+	}
+
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+	SHA256_Final(hash, &sha_ctx);
+	if (memcmp(hdr.hash, hash, SHA256_DIGEST_LENGTH) != 0) {
+		error("bad SHA256 signature");
+		exit_failed(BAD_MD5_SIG);
+	}
+#else
+	MD5_Final(hash, &md5_ctx);
+	if (memcmp(hdr.md5, hash, MD5_DIGEST_LENGTH) != 0) {
+		error("bad MD5 signature");
+		exit_failed(BAD_MD5_SIG);
+	}
+#endif
+
+	notice("signed image approved");
 }
 #endif
 
 
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
-/* Read the decompressed size from the gzip format */
-int decompress_size()
+void decompress_skip_bytes(unsigned long len)
 {
-    unsigned char *sp = 0, *ep;
-    int	i, total, size;
-    struct fileblock *fb;
-
-    /* Get a pointer to the start of the inflated size */
-    total = 0;
-    size = 0;
-    if (fileblocks != NULL && file_length >= 4) {
-		for (fb = fileblocks; fb != NULL; fb = fb->next) {
-			if ((total + fb->length) >= (file_length - 4)) {
-				sp = fb->data + (file_length - total - 4);
-				break;
-			}
-			total += fb->length;
-		}
-
-		if (fb) {
-			ep = fb->data + fb->length;
-			for (i = 0; i < 4; i++) {
-				if (sp >= ep) {
-					fb = fb->next;
-					sp = fb->data;
-					ep = sp + fb->length;
-				}
-				size |= (*sp++) << (8*i);
-			}
-		}
-    }
-
-    return size;
-}
-
-
-/*
- *	Skip bytes, ensuring at least 1 byte remains to be read.
- *	Don't use this to skip past the last byte in the file.
- */
-int decompress_skip_bytes(int pos, int num)
-{
-	while (zfb) {
-		if (pos + num < zfb->length)
-			return pos + num;
-		
-		num -= zfb->length - pos;
-		pos = 0;
-		zfb = zfb->next;
+	if (fb_len() - fb_tell() < len) {
+		error("compressed image is too short");
+		exit_failed(IMAGE_SHORT);
 	}
-	error("compressed image is too short");
-	exit_failed(IMAGE_SHORT);
-	return 0;
+	fb_seek_inc(len);
 }
 
-
-int decompress_init()
+void decompress_read(void *p, int len)
 {
-    int pos, flg, xlen, size;
+	if (fb_len() - fb_tell() < len) {
+		error("compressed image is too short");
+		exit_failed(IMAGE_SHORT);
+	}
+	fb_read(p, len);
+}
 
-    zfb = fileblocks;
-    pos = 0;
-	
+unsigned long decompress_init(void)
+{
+	uint8_t method, flg, c;
+	uint16_t xlen;
+	uint32_t size;
+	unsigned long length;
+
+	fb_seek_set(0);
+
     /* Skip over gzip header */
-    pos = decompress_skip_bytes(pos, 2);
-	
-    if (zfb->data[pos] != 8) {
+	decompress_skip_bytes(2);
+
+	decompress_read(&method, 1);
+	if (method != 8) {
 		error("image is compressed, unknown compression method");
 		exit_failed(UNKNOWN_COMP);
     }
-    pos = decompress_skip_bytes(pos, 1);
-	
-    flg = zfb->data[pos];
-    pos = decompress_skip_bytes(pos, 1);
-	
+
+	decompress_read(&flg, 1);
+
     /* Skip mod time, extended flag, and os */
-    pos = decompress_skip_bytes(pos, 6);
-	
+	decompress_skip_bytes(6);
+
     /* Skip extra field */
     if (flg & 0x04) {
-		xlen = zfb->data[pos];
-		pos = decompress_skip_bytes(pos, 1);
-		xlen += zfb->data[pos]<<8;
-		pos = decompress_skip_bytes(pos, 1+xlen);
+		decompress_read(&xlen, 2);
+		xlen = ntohs(bswap_16(xlen));
     }
 	
     /* Skip file name */
     if (flg & 0x08) {
-		while (zfb->data[pos])
-			pos = decompress_skip_bytes(pos, 1);
-		pos = decompress_skip_bytes(pos, 1);
+		do {
+			decompress_read(&c, 1);
+		} while (c);
     }
 	
     /* Skip comment */
     if (flg & 0x10) {
-		while (zfb->data[pos])
-			pos = decompress_skip_bytes(pos, 1);
-		pos = decompress_skip_bytes(pos, 1);
+		do {
+			decompress_read(&c, 1);
+		} while (c);
     }
 	
     /* Skip CRC */
     if (flg & 0x02) {
-		pos = decompress_skip_bytes(pos, 2);
+		decompress_skip_bytes(2);
     }
 	
-    z.next_in = zfb->data + pos;
-    z.avail_in = zfb->length - pos;
+	z.next_in = fb_read_block(&length);
+	if (!z.next_in) {
+		error("unexpected end of file for decompression");
+		exit_failed(BAD_DECOMP);
+	}
+	z.avail_in = length;
     z.zalloc = Z_NULL;
     z.zfree = Z_NULL;
     z.opaque = Z_NULL;
+	zoffset = fb_tell();
     if (inflateInit2(&z, -MAX_WBITS) != Z_OK) {
 		error("image is compressed, decompression failed");
 		exit_failed(BAD_DECOMP);
     }
     
-    size = decompress_size();
+	if (fb_len() - fb_tell() >= 4) {
+		fb_seek_end(4);
+		fb_read(&size, 4);
+		size = ntohl(bswap_32(size));
+	} else {
+		size = 0;
+	}
     if (size <= 0) {
 		error("image is compressed, decompressed length is invalid");
 		exit_failed(BAD_DECOMP);
@@ -842,26 +667,25 @@ int decompress_init()
 }
 
 
-int decompress(char* data, int length)
+int decompress(void *data, int length)
 {
+	unsigned long fblength;
     int rc;
 
     z.next_out = data;
     z.avail_out = length;
 
+	fb_seek_set(zoffset);
     for (;;) {
-		while (z.avail_in == 0) {
-			zfb = zfb->next;
-			if (!zfb) {
-				error("unexpected end of file for decompression");
-				exit_failed(BAD_DECOMP);
-			}
-			z.next_in = zfb->data;
-			z.avail_in = zfb->length;
+		z.next_in = fb_read_block(&fblength);
+		if (!z.next_in) {
+			error("unexpected end of file for decompression");
+			exit_failed(BAD_DECOMP);
 		}
+		z.avail_in = fblength;
+		zoffset = fb_tell();
 
 		rc = inflate(&z, Z_SYNC_FLUSH);
-		
 		if (rc == Z_OK) {
 			if (z.avail_out == 0)
 				return length;
@@ -887,32 +711,36 @@ int decompress(char* data, int length)
 
 int check_decompression(int doinflate)
 {
-	if (doinflate) {
-		if (fileblocks->length >= 2
-				&& fileblocks->data[0] == gz_magic[0]
-				&& fileblocks->data[1] == gz_magic[1]) {
+	int checkinflate;
+	int gotinflate = 0;
+
+#ifdef CONFIG_USER_NETFLASH_AUTODECOMPRESS
+	checkinflate = 1;
+#else
+	checkinflate = doinflate;
+#endif
+
+	if (checkinflate && fb_len() > 2) {
+		uint8_t gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
+		uint8_t header[2];
+
+		fb_seek_set(0);
+		fb_read(header, 2);
+		if (memcmp(header, gz_magic, 2) == 0) {
+			gotinflate = 1;
 			image_length = decompress_init();
 			notice("image is compressed, decompressed length=%ld\n",
 					image_length);
 		} else {
+			image_length = fb_len();
 			notice("image is not compressed");
 		}
 	}
-#ifdef CONFIG_USER_NETFLASH_AUTODECOMPRESS
-	else if (fileblocks->length >= 2
-			&& fileblocks->data[0] == gz_magic[0]
-			&& fileblocks->data[1] == gz_magic[1]) {
-		doinflate = 1;
-		image_length = decompress_init();
-		notice("image is compressed, decompressed length=%ld\n",
-				image_length);
-	}
-#endif
 	else {
-		image_length = file_length;
+		image_length = fb_len();
 	}
 
-	return doinflate;
+	return gotinflate;
 }
 #endif
 
@@ -959,12 +787,38 @@ int local_putc(int ch, FILE *fp)
 	return(0);
 }
 
-int local_write(int fd, char *buf, int count)
+static void local_throw(void *buf, unsigned long count)
 {
-	add_data(file_offset, buf, count);
-	file_offset += count;
-	if (file_offset > file_length)
-		file_length = file_offset;
+#ifdef CONFIG_USER_NETFLASH_CRYPTO
+	update_crypto_hash(buf, count);
+#endif
+}
+
+int local_write(int fd, void *buf, int count)
+{
+#ifdef CONFIG_USER_NETFLASH_WATCHDOG
+	if (watchdog_fd >= 0)
+		write(watchdog_fd, "\0", 1); 
+#endif
+
+	if (!docgi) {
+		static unsigned long total = 0;
+		static unsigned lastk = 0;
+
+		total += count;
+		if (total / 1024 != lastk) {
+			lastk = total / 1024;
+			printf("\r%dK", lastk); fflush(stdout);
+		}
+	}
+
+	update_chksum(buf, count);
+	if (dothrow)
+		fb_throw(1024, local_throw);
+	if (fb_write(buf, count) != 0) {
+		error("Insufficient memory for image!");
+		exit_failed(NO_MEMORY);
+	}
 	return count;
 }
 
@@ -1085,9 +939,7 @@ int filefetch(char *filename)
 	if ((j = read(fd, &buf[i], 1)) > 0)
 		i += j;
     }
-	add_data(file_offset, buf, i);
-	file_offset += i;
-	file_length = file_offset;
+    local_write(-1, buf, i);
   }
 
   close(fd);
@@ -1277,6 +1129,35 @@ static const char *kill_partial[] = {
 #ifdef CONFIG_USER_CLAMAV_CLAMD
 	"clamd",
 #endif
+#ifdef CONFIG_USER_SSH_SSHKEYGEN
+	"ssh-keygen",
+	"gen-keys",
+#endif
+#if CONFIG_PROP_HTTPSCERTGEN_HTTPSCERTGEN
+	"https-certgen",
+#endif
+#ifdef CONFIG_PROP_STATSD_STATSD
+	"statsd",
+#endif
+#ifdef CONFIG_USER_CRON_CRON
+	"cron",
+#endif
+#ifdef CONFIG_PROP_NFLOGD_NFLOGD
+	"nflogd",
+#endif
+#if defined(CONFIG_USER_DNSMASQ_DNSMASQ) || defined(CONFIG_USER_DNSMASQ2_DNSMASQ2)
+	"dnsmasq",
+#endif
+#ifdef CONFIG_PROP_ACLD_ACLD
+	"acld",
+#endif
+#ifdef CONFIG_USER_FLATFSD_FLATFSD
+	"flatfsd",
+#endif
+#ifdef CONFIG_USER_BUSYBOX_BUSYBOX
+	"klogd",
+	"syslogd",
+#endif
 	NULL
 };
 
@@ -1295,6 +1176,8 @@ void kill_processes_partial(void)
 	kill(1, SIGTSTP);		/* Stop init from reforking tasks */
 	atexit(restartinit);		/* If exit prematurely, restart init */
 	sync();
+
+	killprocpid("/var/run/ifmond.pid", SIGKILL);
 
 	/* Ask them nicely. */
 	count = 0;
@@ -1381,8 +1264,9 @@ void kill_processes(char *console)
 	if (console)
 		freopen(console, "w", stdout);
 #if CONFIG_USER_NETFLASH_WATCHDOG
-	if (watchdog)
+	if (watchdog) {
 		watchdog_fd = open("/dev/watchdog", O_WRONLY);
+	}
 #endif
 }
 
@@ -1416,7 +1300,7 @@ void umount_all(void)
 
 /****************************************************************************/
 
-static int get_segment(int rd, char *sgdata, int sgpos, int sgsize)
+static int get_segment(int rd, unsigned char *sgdata, int sgpos, int sgsize)
 {
 	int sglength;
 	int sgoffset;
@@ -1445,38 +1329,11 @@ static int get_segment(int rd, char *sgdata, int sgpos, int sgsize)
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 	if (doinflate) {
 		sglength = decompress(sgdata, sgsize);
-	} else {
+	} else
 #endif
-		/* Copy the file blocks into the segment buffer */
-		sglength = 0;
-		while (fileblocks && (fileblocks->pos < sgpos + sgsize)) {
-
-			if (fileblocks->pos + fileblocks->length > sgpos + sgsize)
-				sglength = sgsize;
-			else
-				sglength = fileblocks->pos + fileblocks->length - sgpos;
-			  
-			if (fileblocks->pos < sgpos) {
-				memcpy(sgdata, fileblocks->data + (sgpos - fileblocks->pos),
-						sglength);
-			} else {
-				memcpy(sgdata + (fileblocks->pos - sgpos), fileblocks->data,
-						sglength - (fileblocks->pos - sgpos));
-			}
-
-			if (fileblocks->pos + fileblocks->length > sgpos + sgsize) {
-				/* Need to keep fileblocks pointing to this block
-				 * for the start of the next segment. */
-				break;
-			}
-
-			/* Modify the global: this is an optimization to save searching
-			 * through blocks that have been programmed already. */
-			fileblocks = fileblocks->next;
-		}
-#ifdef CONFIG_USER_NETFLASH_DECOMPRESS
+	{
+		sglength = fb_read(sgdata, sgsize);
 	}
-#endif
 
 	if (sglength !=0) {
 		if (preserve)
@@ -1487,7 +1344,7 @@ static int get_segment(int rd, char *sgdata, int sgpos, int sgsize)
 	return sglength;
 }
 
-static void check_segment(int rd, char *sgdata, int sgpos, int sglength)
+static void check_segment(int rd, unsigned char *sgdata, int sgpos, int sglength)
 {
 	if (lseek(rd, sgpos, SEEK_SET) != sgpos) {
 		error("lseek(%x) failed", sgpos);
@@ -1544,7 +1401,7 @@ static int erase_segment(int rd, erase_info_t *ei)
 	return 0;
 }
 
-static void program_mtd_segment(int rd, char *sgdata,
+static void program_mtd_segment(int rd, unsigned char *sgdata,
 		int sgpos, int sglength, int sgsize)
 {
 	erase_info_t erase_info;
@@ -1652,7 +1509,7 @@ static void program_mtd_segment(int rd, char *sgdata,
 	}
 }
 #elif defined(CONFIG_BLK_DEV_BLKMEM)
-static void program_blkmem_segment(int rd, char *sgdata, int sgpos,
+static void program_blkmem_segment(int rd, unsigned char *sgdata, int sgpos,
 	int sglength, int sgsize)
 {
 	char buf[128];
@@ -1673,8 +1530,7 @@ static void program_blkmem_segment(int rd, char *sgdata, int sgpos,
 }
 #endif
 
-#if defined(CONFIG_NFTL_RW) || defined(CONFIG_IDE)
-static void program_generic_segment(int rd, char *sgdata,
+static void program_generic_segment(int rd, unsigned char *sgdata,
 		int sgpos, int sglength, int sgsize)
 {
 	if (!stop_early && sglength < sgsize) {
@@ -1697,9 +1553,8 @@ static void program_generic_segment(int rd, char *sgdata,
 		}
 	}
 }
-#endif
 
-static void program_flash(int rd, int devsize, char *sgdata, int sgsize)
+static void program_flash(int rd, int devsize, unsigned char *sgdata, int sgsize)
 {
 	int sgpos, sglength;
 	unsigned long total;
@@ -1720,6 +1575,7 @@ static void program_flash(int rd, int devsize, char *sgdata, int sgsize)
 	}
 
 	/* Write the data one segment at a time */
+	fb_seek_set(0);
 	sgpos = offset - (offset % sgsize);
 	for (; sgpos < devsize; sgpos += sgsize) {
 		sglength = get_segment(rd, sgdata, sgpos, sgsize);
@@ -1745,14 +1601,14 @@ static void program_flash(int rd, int devsize, char *sgdata, int sgsize)
 			ledmancount = (ledmancount + 1) & 1;
 #endif
 #ifdef CONFIG_USER_NETFLASH_WATCHDOG
-			if (watchdog)
+			if (watchdog_fd >= 0)
 				write(watchdog_fd, "\0", 1); 
 #endif
 
 #if defined(CONFIG_MTD_NETtel)
 		} /* if (!preserveconfig || ...) */
 #endif
-		printf("\r%5dK %3d%%", (sgpos + sgsize) / 1024, (sgpos + sgsize) * 100L / total);
+		printf("\r%5dK %3ld%%", (sgpos + sgsize) / 1024, (sgpos + sgsize) * 100L / total);
 		fflush(stdout);
 	}
 
@@ -1769,9 +1625,42 @@ static void program_flash(int rd, int devsize, char *sgdata, int sgsize)
 
 /****************************************************************************/
 
+void update_bootcfg(char *filename)
+{
+	char *contents;
+	int size, fd, len;
+
+	if (memcmp(filename, "/sda1", 5) == 0)
+		filename += 5;
+	len = strlen(filename);
+
+	if ((fd = open("/sda1/boot.cfg", O_RDWR | O_CREAT, 0600)) > 0) {
+		size = lseek(fd, 0, SEEK_END);
+		if ((contents = malloc(size)) == NULL)
+			return;
+		lseek(fd, 0, SEEK_SET);
+		read(fd, contents, size);
+		lseek(fd, 0, SEEK_SET);
+		if (len < size) {
+			if (memcmp(contents, filename, len) == 0) {
+				/* Already entry for this in boot.cfg */
+				close(fd);
+				return;
+			}
+		}
+		write(fd, filename, len);
+		write(fd, "\n", 1);
+		write(fd, contents, size);
+		free(contents);
+		close(fd);
+	}
+}
+
+/****************************************************************************/
+
 int usage(int rc)
 {
-  printf("usage: netflash [-bCfFehijklntuv"
+  printf("usage: netflash [-abCfFehijklntuv"
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 	"z"
 #endif
@@ -1785,12 +1674,10 @@ int usage(int rc)
 #ifdef CONFIG_USER_NETFLASH_HMACMD5
 	"[-m hmac-md5-key] "
 #endif
-	"[-o offset] [-r flash-device] "
+	"[-o offset] [-r flash-device] [-R file-name] "
 	"[net-server] file-name\n\n"
+	"\t-a\tdon't add filename to bootcfg file (if using -R)\n"
 	"\t-b\tdon't reboot hardware when done\n"
-#if CONFIG_USER_NETFLASH_SHA256
-  	"\t-B\tuse old checksum (not SHA256 digest)\n"
-#endif
 	"\t-C\tcheck that image was written correctly\n"
 	"\t-f\tuse FTP as load protocol\n"
 	"\t-e\tdo not erase flash segments if they are already blank\n"
@@ -1807,6 +1694,9 @@ int usage(int rc)
 	"\t-K\tonly kill unnecessary processes (or delays kill until\n"
 	"\t\tafter downloading when root filesystem is inside flash)\n"
 	"\t-l\tlock flash segments when done\n"
+#if CONFIG_USER_NETFLASH_SHA256
+  	"\t-N\tfile with no SHA256 checksum\n"
+#endif
   	"\t-n\tfile with no checksum at end (implies no version information)\n"
 	"\t-p\tpreserve portions of flash segments not actually written.\n"
   	"\t-s\tstop erasing/programming at end of input data\n"
@@ -1842,13 +1732,11 @@ int netflashmain(int argc, char *argv[])
 {
 	char *srvname, *filename;
 	char *rdev, *console;
-	char *sgdata;
-	int rd, rc, tmpfd;
-	int delay;
+	unsigned char *sgdata;
+	int rd, rc, tmpfd, delay;
 	int dochecksum, dokill, dokillpartial, doreboot, doftp;
 	int dopreserve, doversion, doremoveversion, dohardwareversion;
 	int devsize = 0, sgsize = 0;
-	struct fileblock *fb;
 
 #ifdef CONFIG_USER_NETFLASH_HMACMD5
 	char *hmacmd5key = NULL;
@@ -1889,6 +1777,12 @@ int netflashmain(int argc, char *argv[])
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 	doinflate = 0;
 #endif
+#ifdef CONFIG_USER_NETFLASH_WITH_FILE
+	dofileautoname = 1;
+	dofilesave = 1;
+	dobootcfg = 1;
+	stop_early = 1;
+#endif
 
 #if defined(CONFIG_USER_NETFLASH_WITH_CGI) && !defined(RECOVER_PROGRAM)
 	if (argc == 2 && strncmp(argv[1], "cgi://", 6) == 0) {
@@ -1897,7 +1791,11 @@ int netflashmain(int argc, char *argv[])
 		int new_argc = 0;
 
 		docgi = 1;
-		dokillpartial = 1;
+
+		/* Do the partial kill here before we download the image */
+		kill_processes_partial();
+		/* Wait a little bit for processes to die and release memory */
+		sleep(5);
 
 		/* Our "command line" options come from stdin for cgi
 		 * Format of the command line is:
@@ -1928,9 +1826,9 @@ int netflashmain(int argc, char *argv[])
 			exit_failed(BAD_CGI_FORMAT);
 		}
 
-		if ((file_length = cgi_load(cgi_data, cgi_options, options,
-						cgi_flash_region, flash_region)) <= 0) {
-			exit_failed(BAD_CGI_DATA);
+		if (cgi_load(cgi_data, cgi_options, options,
+					cgi_flash_region, flash_region, &rc) <= 0) {
+			exit_failed(rc);
 		}
 
 		if (strcmp(flash_region, "bootloader") == 0) {
@@ -2020,7 +1918,7 @@ int netflashmain(int argc, char *argv[])
 			break;
 #endif
 #ifdef CONFIG_USER_NETFLASH_SHA256
-		case 'B':
+		case 'N':
 			dosha256sum = 0;
 			break;
 #endif
@@ -2031,7 +1929,21 @@ int netflashmain(int argc, char *argv[])
 		case 'o':
 			offset = strtol(optarg, NULL, 0);
 			break;
+		case 'a':
+			dobootcfg = 0;
+			break;
+		case 'R':
+			dofilesave = 1;
+			dofileautoname = 0;
+			dobootcfg = 1;
+			stop_early = 1;
+			rdev = optarg;
+			break;
 		case 'r':
+			dofilesave = 0;
+			dofileautoname = 0;
+			stop_early = 0;
+			dobootcfg = 0;
 			rdev = optarg;
 			break;
 		case 't':
@@ -2110,7 +2022,8 @@ int netflashmain(int argc, char *argv[])
 		}
 	}
 
-	if (dokill) {
+	/* CGI code has already called kill_processes_partial() */
+	if (dokill && !docgi) {
 		if (dokillpartial)
 			kill_processes_partial();
 		else
@@ -2125,99 +2038,121 @@ int netflashmain(int argc, char *argv[])
 	if (dopreserve && (strcmp(rdev, "/dev/flash/image") == 0))
 		preserveconfig = 1;
 
-	rd = open(rdev, O_RDWR);
-	if (rd < 0) {
-		error("open(%s) failed: %s", rdev, strerror(errno));
-		exit_failed(BAD_OPEN_FLASH);
-	}
-
-	if (stat(rdev, &stat_rdev) != 0) {
-		error("stat(%s) failed: %s", rdev, strerror(errno));
-		exit_failed(BAD_OPEN_FLASH);
-	} else if (S_ISBLK(stat_rdev.st_mode)) {
-#ifdef CONFIG_NFTL_RW
-		if (major(stat_rdev.st_rdev) == NFTL_MAJOR) {
-			unsigned long l;
-
-			program_segment = program_generic_segment;
-			preserveconfig = dolock = dounlock = 0;
-			if (ioctl(rd, BLKGETSIZE, &l) < 0) {
-				error("ioctl(BLKGETSIZE) failed, errno=%d",
-						errno);
-				exit_failed(BAD_OPEN_FLASH);
-			}
-			devsize = l*512; /* Sectors are always 512 bytes */
-			/* Use a larger sgsize for efficiency, but it
-			 * must divide evenly into devsize. */
-			for (sgsize = 512; sgsize < 64 * 1024; sgsize <<= 1)
-				if (devsize & sgsize)
-					break;
+	/*
+ 	 * If we are writing to a real flash device then we open it now,
+ 	 * and do the sizing checks. If writing to a regular file we hold
+ 	 * of until we have the image (so ww can do filename/directory name
+ 	 * completion if required.
+ 	 */
+	if (dofilesave) {
+		/* Should be checking space available on filesystem */
+		sgsize = 128000;
+		devsize = 0x0fffffff;
+		program_segment = program_generic_segment;
+	} else {
+		rd = open(rdev, O_RDWR);
+		if (rd < 0) {
+			error("open(%s) failed: %s", rdev, strerror(errno));
+			exit_failed(BAD_OPEN_FLASH);
 		}
+
+		if (stat(rdev, &stat_rdev) != 0) {
+			error("stat(%s) failed: %s", rdev, strerror(errno));
+			exit_failed(BAD_OPEN_FLASH);
+		} else if (S_ISBLK(stat_rdev.st_mode)) {
+#ifdef CONFIG_NFTL_RW
+			if (major(stat_rdev.st_rdev) == NFTL_MAJOR) {
+				unsigned long l;
+
+				program_segment = program_generic_segment;
+				preserveconfig = dolock = dounlock = 0;
+				if (ioctl(rd, BLKGETSIZE, &l) < 0) {
+					error("ioctl(BLKGETSIZE) failed, "
+						"errno=%d", errno);
+					exit_failed(BAD_OPEN_FLASH);
+				}
+				/* Sectors are always 512 bytes */
+				devsize = l * 512;
+				/*
+				 * Use a larger sgsize for efficiency, but it
+			 	 * must divide evenly into devsize.
+			 	 */
+				for (sgsize = 512; sgsize < 64*1024; sgsize <<= 1)
+					if (devsize & sgsize)
+						break;
+			}
 #endif
 #ifdef CONFIG_IDE
-		if ((major(stat_rdev.st_rdev) == IDE0_MAJOR) ||
-		    (major(stat_rdev.st_rdev) == IDE1_MAJOR) ||
-		    (major(stat_rdev.st_rdev) == IDE2_MAJOR) ||
-		    (major(stat_rdev.st_rdev) == IDE3_MAJOR)) {
-			struct hd_geometry geo;
+			if ((major(stat_rdev.st_rdev) == IDE0_MAJOR) ||
+			    (major(stat_rdev.st_rdev) == IDE1_MAJOR) ||
+			    (major(stat_rdev.st_rdev) == IDE2_MAJOR) ||
+			    (major(stat_rdev.st_rdev) == IDE3_MAJOR)) {
+				struct hd_geometry geo;
 
-			program_segment = program_generic_segment;
-			preserveconfig = dolock = dounlock = 0;
-			if (ioctl(rd, HDIO_GETGEO, &geo) < 0) {
-				error("ioctl(HDIO_GETGEO) failed, errno=%d",
-						errno);
+				program_segment = program_generic_segment;
+				preserveconfig = dolock = dounlock = 0;
+				if (ioctl(rd, HDIO_GETGEO, &geo) < 0) {
+					error("ioctl(HDIO_GETGEO) failed, "
+						"errno=%d", errno);
+					exit_failed(BAD_OPEN_FLASH);
+				}
+				devsize = geo.heads * geo.cylinders * geo.sectors * 512;
+				/*
+				 * Use a larger sgsize for efficiency, but it
+				 * must divide evenly into devsize.
+				 */
+				for (sgsize = 512; sgsize < 64*1024; sgsize <<= 1)
+					if (devsize & sgsize)
+						break;
+			}
+#endif
+		}
+		if (!program_segment) {
+#if defined(CONFIG_MTD) || defined(CONFIG_MTD_MODULES)
+			mtd_info_t mtd_info, rootfs_info;
+
+			program_segment = program_mtd_segment;
+
+			if (ioctl(rd, MEMGETINFO, &mtd_info) < 0) {
+				error("ioctl(MEMGETINFO) failed, errno=%d",
+					errno);
 				exit_failed(BAD_OPEN_FLASH);
 			}
-			devsize = geo.heads*geo.cylinders*geo.sectors*512;
-			/* Use a larger sgsize for efficiency, but it
-			 * must divide evenly into devsize. */
-			for (sgsize = 512; sgsize < 64 * 1024; sgsize <<= 1)
-				if (devsize & sgsize)
-					break;
-		}
-#endif
-	}
-	if (!program_segment) {
-#if defined(CONFIG_MTD) || defined(CONFIG_MTD_MODULES)
-		mtd_info_t mtd_info, rootfs_info;
+			devsize = mtd_info.size;
+			sgsize = mtd_info.erasesize;
 
-		program_segment = program_mtd_segment;
-
-		if (ioctl(rd, MEMGETINFO, &mtd_info) < 0) {
-			error("ioctl(MEMGETINFO) failed, errno=%d", errno);
-			exit_failed(BAD_OPEN_FLASH);
-		}
-		devsize = mtd_info.size;
-		sgsize = mtd_info.erasesize;
-
-		/*
-		 * NETtel/x86 boards that boot direct from INTEL FLASH also have a
-		 * boot sector at the top of the FLASH. When programming complete
-		 * images we need to not overwrite this.
-		 */
-		if (preserveconfig) {
-			if ((tmpfd = open("/dev/flash/rootfs", O_RDONLY)) > 0) {
-				if (ioctl(tmpfd, MEMGETINFO, &rootfs_info) >= 0) {
-					if (rootfs_info.size & 0x000fffff) {
-						devsize = devsize - (0x00100000 -
-								(rootfs_info.size & 0x000fffff));
+			/*
+			 * NETtel/x86 boards that boot direct from INTEL FLASH
+			 * also have a boot sector at the top of the FLASH.
+			 * When programming complete images we need to not
+			 * overwrite this.
+			 */
+			if (preserveconfig) {
+				if ((tmpfd = open("/dev/flash/rootfs", O_RDONLY)) > 0) {
+					if (ioctl(tmpfd, MEMGETINFO, &rootfs_info) >= 0) {
+						if (rootfs_info.size & 0x000fffff) {
+							devsize = devsize - (0x00100000 -
+									(rootfs_info.size & 0x000fffff));
+						}
 					}
+					close(tmpfd);
 				}
-				close(tmpfd);
 			}
-		}
 #elif defined(CONFIG_BLK_DEV_BLKMEM)
-		program_segment = program_blkmem_segment;
-
-		if (ioctl(rd, BMGETSIZEB, &devsize) != 0) {
-			error("ioctl(BMGETSIZEB) failed, errno=%d", errno);
-			exit_failed(BAD_OPEN_FLASH);
-		}
-		if (ioctl(rd, BMSGSIZE, &sgsize) != 0) {
-			error("ioctl(BMSGSIZE) failed, errno=%d", errno);
-			exit_failed(BAD_OPEN_FLASH);
-		}
+			program_segment = program_blkmem_segment;
+	
+			if (ioctl(rd, BMGETSIZEB, &devsize) != 0) {
+				error("ioctl(BMGETSIZEB) failed, errno=%d",
+					errno);
+				exit_failed(BAD_OPEN_FLASH);
+			}
+			if (ioctl(rd, BMSGSIZE, &sgsize) != 0) {
+				error("ioctl(BMSGSIZE) failed, errno=%d",
+					errno);
+				exit_failed(BAD_OPEN_FLASH);
+			}
 #endif
+		}
 	}
   
 	if (offset < 0) {
@@ -2248,10 +2183,6 @@ int netflashmain(int argc, char *argv[])
 	 * load method. Support for tftp, http and local file currently.
 	 */
 	if (!docgi) {
-		fileblocks = NULL;
-		file_offset = 0;
-		file_length = 0;
-
 		if (srvname) {
 			if (doftp)
 				ftpfetch(srvname, filename);
@@ -2263,42 +2194,24 @@ int netflashmain(int argc, char *argv[])
 		}
 	}
 
-	/*
-	 * Do some checks on the data received
-	 *    - starts at offset 0
-	 *    - length > 0
-	 *    - no holes
-	 *    - checksum
-	 */
-	if (fileblocks == NULL) {
+	if (dofilesave) {
+		/*
+		 * We fake out the file size here so that the percentage
+		 * display looks correct as output.
+		 */
+		devsize = fb_len();
+	}
+
+	if (fb_len() == 0) {
 		error("failed to load new image");
 		exit_failed(NO_IMAGE);
 	}
-
-#ifndef CONFIG_USER_NETFLASH_CRYPTO
-	if (!dothrow)
-#endif
-		if (fileblocks->pos != 0) {
-			error("failed to load new image");
-			exit_failed(NO_IMAGE);
-		}
-
-	if (file_length == 0) {
-		error("failed to load new image");
-		exit_failed(NO_IMAGE);
-	}
-
-	for (fb = fileblocks; fb->next != NULL; fb = fb->next)
-		if (fb->pos + fb->length != fb->next->pos) {
-			error("failed to load new image");
-			exit_failed(NO_IMAGE);
-		}
 
 	if (!docgi) {
-		notice("got \"%s\", length=%ld", filename, file_length);
+		notice("got \"%s\", length=%ld", filename, fb_len());
 	}
 
-#ifdef CONFIG_USER_NETFLASH_CRYPTO
+#if defined(CONFIG_USER_NETFLASH_CRYPTO) && !defined(CONFIG_USER_NETFLASH_CRYPTO_V2)
 	check_crypto_signature();
 #endif
 
@@ -2307,14 +2220,8 @@ int netflashmain(int argc, char *argv[])
 		check_hmac_md5(hmacmd5key);
 	else
 #endif
-	if (dochecksum) {
-#ifdef CONFIG_USER_NETFLASH_SHA256
-		if (dosha256sum)
-			check_sha256_sum();
-		else
-#endif
-			chksum();
-	}
+	if (dochecksum)
+		chksum();
 
 	/*
 	 * Check the version information.
@@ -2378,10 +2285,58 @@ int netflashmain(int argc, char *argv[])
 	}
 #endif /*CONFIG_USER_NETFLASH_VERSION*/
 
+	if (dofilesave) {
+		if (dofileautoname) {
+			rdev = malloc(MAX_VERSION_SIZE + strlen(filename) + 16);
+			if (rdev == NULL) {
+				rdev = filename;
+			} else {
+				char *p;
+				sprintf(rdev, "/sda1/%s", imageVersion);
+				mkdir(rdev, 0777);
+				/* already have the file, so any '/'s can't
+				 * be at the end, i.e. filename isn't a dir */
+				p = strrchr(filename, '/');
+				if (p) {
+					sprintf(rdev, "/sda1/%s/%s", imageVersion, p+1);
+				} else {
+					sprintf(rdev, "/sda1/%s/%s", imageVersion, filename);
+				}
+			}
+		}
+		if ((rd = open(rdev, O_RDWR|O_CREAT|O_TRUNC, 0400)) < 0) {
+			error("open(%s) failed: %s", rdev, strerror(errno));
+			exit_failed(BAD_OPEN_FLASH);
+		}
+	}
+
+#ifdef CONFIG_USER_NETFLASH_SHA256
+	/*
+	 * To be backword compatible with our images we leave the trailing
+	 * old style checksum and product ID "as is". They are stripped of
+	 * in the above code. Leaving now the SHA256 checksum. We want to
+	 * leave this in place, and have it written to the flash with the
+	 * actual image.
+	 */
+	if (dochecksum && dosha256sum)
+		check_sha256_sum();
+#endif
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+	/*
+	 * Modern signed image support is backward compatible, so we don't
+	 * do the crypto check until this point. (That is we have stripped
+	 * of old style 16bit checksum and the product/version information).
+	 * We also leave the sign structures on the image data, so they get
+	 * written to flash as well.
+	 */
+	if (doversion)
+		check_crypto_signature();
+#endif
+
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 	doinflate = check_decompression(doinflate);
 #else
-	image_length = file_length;
+	image_length = fb_len();
 #endif
 
 	/*
@@ -2413,6 +2368,13 @@ int netflashmain(int argc, char *argv[])
 	if (docgi) {
 		/* let's let our parent know it's ok. */
 		kill(getppid(),SIGUSR1);
+
+		/* 
+		 * Ensure that from this point onwards, we will 
+		 * definitely reboot, even if there is an error during
+		 * programming the flash.
+		 */
+		doreboot = 1;
 	}
 #endif
 	if (flashing_rootfs(rdev)) {
@@ -2450,14 +2412,20 @@ int netflashmain(int argc, char *argv[])
 	 */
 	fflush(stdout);
 	sleep(1);
-	notice("programming FLASH device %s", rdev);
+	notice("programming FLASH device %s",
+		(dofilesave ? "FLASH device" : "file image"), rdev);
 
 	program_flash(rd, devsize, sgdata, sgsize);
 
+	if (dobootcfg)
+		update_bootcfg(rdev);
+	if (dofilesave) {
+		sync();
+		sleep(2);
+		sync();
+	}
 	if (doreboot) {
-		/* Wait half a second */
 		usleep(500000);
-
 		raw_reboot(0xfee1dead, 672274793, 0x01234567);
 	}
 

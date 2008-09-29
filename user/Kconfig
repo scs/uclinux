@@ -277,6 +277,16 @@ config USER_NETFLASH_WITH_CGI
 	  This allows netflash to be invoked directly as part of a POST request
 	  to upgrade the firmware with minimal overhead.
 
+config USER_NETFLASH_WITH_FILE
+	bool "netflash defaults to writing out ordinary file"
+	depends on USER_NETFLASH_NETFLASH
+	help
+	  Some systems will not be using a traditional flash storage device
+	  for storing images. Some newer platforms use USB flash sticks, or
+	  Compact Flash devices as their promary storage. On these types of
+	  devices netflash should write out ordinay files. The usual checksum
+	  and decryption/decompression steps are carried out.
+
 config USER_NETFLASH_VERSION
 	bool "netflash recognises version"
 	depends on USER_NETFLASH_NETFLASH || USER_RECOVER_RECOVER
@@ -322,9 +332,12 @@ config USER_NETFLASH_HMACMD5_KEY
 config USER_NETFLASH_SHA256
 	bool "netflash uses SHA256 as checksum"
 	depends on USER_NETFLASH_NETFLASH
+	depends on !USER_NETFLASH_CRYPTO_V2
 	help
-	  Instead of expecting the simple old checksum on flash images
-	  default to using a SHA256 hash.
+	  Image files must also contain a SHA256 hash of the image contents.
+	  By default this is in addition to the old style 32bit checksum (for
+	  backword compatabilty). The check of this hash can be disabled
+	  using the netflash "-i" option.
 
 config USER_RECOVER_BIOS
 	bool "recover bios only"
@@ -333,12 +346,22 @@ config USER_RECOVER_BIOS
 config USER_NETFLASH_CRYPTO
 	bool "netflash needs public key encryption"
 	depends on USER_NETFLASH_NETFLASH || USER_RECOVER_RECOVER
-	select LIB_LIBAES
 	select LIB_LIBSSL
 	help
 	  Netflash requires a public key authentication to be attached to an
 	  image and won't commit an image without this or with an invalid
 	  authentication.
+
+config USER_NETFLASH_CRYPTO_V2
+	bool "netflash supports public key encryption using SHA256 checksum"
+	depends on USER_NETFLASH_NETFLASH || USER_RECOVER_RECOVER
+	select LIB_LIBSSL
+	select USER_NETFLASH_CRYPTO
+	help
+	  Netflash requires a public key authentication to be attached to an
+	  image and won't commit an image without this or with an invalid
+	  authentication. A SHA256 hash of the firmware image is used as
+	  the signed block data.
 
 config USER_NETFLASH_CRYPTO_OPTIONAL
 	bool "netflash optional public key encryption"

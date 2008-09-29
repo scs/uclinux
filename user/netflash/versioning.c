@@ -33,16 +33,12 @@
 #include <sys/mount.h>
 #include <string.h>
 #ifndef VERSIONTEST
+#include <linux/autoconf.h>
 #include <config/autoconf.h>
 #endif
 #include <ctype.h>
 #include "fileblock.h"
 #include "versioning.h"
-
-#define MAX_VENDOR_SIZE			256
-#define MAX_PRODUCT_SIZE		256
-#define MAX_VERSION_SIZE		12
-#define MAX_LANG_SIZE			8
 
 #ifndef VENDOR
 #define VENDOR "Vendor"
@@ -55,20 +51,23 @@
 #endif
 
 /****************************************************************************/
+
+char imageVendorName[MAX_VENDOR_SIZE];
+char imageProductName[MAX_PRODUCT_SIZE];
+char imageVersion[MAX_VERSION_SIZE];
+
+/****************************************************************************/
+
 extern struct blkmem_program_t * prog;
 
 static const char our_vendor_name[] = VENDOR;
 static const char our_product_name[] = PRODUCT;
 static char our_image_version[] = VERSION;
-#ifdef CONFIG_PROP_LOGD_LOGD
-static char new_image_version[MAX_VERSION_SIZE+1];
-#endif
-
 
 /****************************************************************************/
-static char *get_string(struct fileblock **block, char *cp, char *str, int len);
+
+static int get_string(char *str, int len);
 static int check_version_info(char *version, char *new_version);
-static char *decrement_blk(char *cp, struct fileblock **block);
 static int get_version_bits(char *version, char *ver_long, char *letter,
 		int *num, char *lang);
 static int minor_to_int(char letter, int num);
@@ -130,44 +129,30 @@ static int check_match(const char *name, const char *namelist)
  */
 int check_vendor(void)
 {
-	struct fileblock *currBlock;
 	int versionInfo;
-	char *cp;
-	char imageVendorName[MAX_VENDOR_SIZE];
-	char imageProductName[MAX_PRODUCT_SIZE];
-	char imageVersion[MAX_VERSION_SIZE];
 
 	/*
 	 * Point to what should be the last byte in the product name string.
 	 */
-	if (fileblocks == NULL)
+	if (fb_seek_end(1) != 0)
 		return 5;
-	for (currBlock = fileblocks; currBlock->next; currBlock = currBlock->next);
-	cp = currBlock->data + currBlock->length - 1;
 
 	/*
 	 * Now try to get the vendor/product/version strings, from the end
 	 * of the image
 	 */
-	cp = get_string(&currBlock, cp, imageProductName, MAX_PRODUCT_SIZE);
-	if (cp == NULL)
+	if (get_string(imageProductName, MAX_PRODUCT_SIZE) != 0)
 		return 5;
 
-	cp = get_string(&currBlock, cp, imageVendorName, MAX_VENDOR_SIZE);
-	if (cp == NULL)
+	if (get_string(imageVendorName, MAX_VENDOR_SIZE) != 0)
 		return 5;
 
-	cp = get_string(&currBlock, cp, imageVersion, MAX_VERSION_SIZE);
-	if (cp == NULL)
+	if (get_string(imageVersion, MAX_VERSION_SIZE) != 0)
 		return 5;
-#ifdef CONFIG_PROP_LOGD_LOGD
-	memcpy(new_image_version, imageVersion, MAX_VERSION_SIZE);
-	new_image_version[MAX_VERSION_SIZE] = '\0';
-#endif
 
 	/* Looks like there was versioning information there, strip it off
 	 * now so that we don't write it to flash, or try to decompress it, etc */
-	remove_data(strlen(imageProductName) + strlen(imageVendorName) + strlen(imageVersion) + 3);
+	fb_trim(strlen(imageProductName) + strlen(imageVendorName) + strlen(imageVersion) + 3);
 
 	/*
 	 * Check the product name. Our product name may be a comma separated list of names.
@@ -196,41 +181,32 @@ int check_vendor(void)
  *
  * This gets a printable string from the memory buffer.
  * It searchs backwards for a non-printable character or a NULL terminator.
- * Success is defined as the two strings
- * being excactly the same.
  *
  * inputs:
  *
- * block - the block in which we should begin comparing.
- * cp - a pointer to the char from which we should begin comparing. it
- *		must point into the specified block.
  * str/len - the buffer to store the string in.
  *
  * ret:
  *
- * NULL - we couldn't find the string.
- * anything else - a pointer to the char before the NULL terminator.
+ * -1 - we couldn't find the string.
+ * 0 - success
  */
-char *get_string(struct fileblock **block, char *cp, char *str, int len)
+int get_string(char *str, int len)
 {
 	int i, j;
 	char c;
 
-	i = 0;
-	while (cp && *cp && (i < len)) {
-		if (!isprint(*cp))
-			return NULL;
-		str[i++] = *cp;
-		cp = decrement_blk(cp, block);
+	for (i = 0; i < len; i++) {
+		fb_peek(str + i, 1);
+		if (fb_seek_dec(1) != 0)
+			return -1;
+		if (!str[i])
+			break;
+		if (!isprint(str[i]))
+			return -1;
 	}
-	if (cp == NULL || i == 0 || i >= len)
-		return NULL;
-
-	/* Store the null terminator */
-	str[i] = 0;
-	cp = decrement_blk(cp, block);
-	if (cp == NULL)
-		return NULL;
+	if (i == 0 || i >= len)
+		return -1;
 
 	/* We read string in reverse order, so reverse it again */
 	for (j=0; j<i/2; j++) {
@@ -239,7 +215,7 @@ char *get_string(struct fileblock **block, char *cp, char *str, int len)
 		str[i-j-1] = c;
 	}
 
-	return cp;
+	return 0;
 }
 
 
@@ -255,8 +231,8 @@ char *get_string(struct fileblock **block, char *cp, char *str, int len)
  *
  * inputs:
  *
- * version - the version of the current flash image.
- * new_version - the version of the new flash image.
+ * curr_version - the version of the current flash image.
+ * recv_version - the version of the new flash image we just received.
  *
  * ret:
  * 		0 - it all worked perfectly and the version looks okay.
@@ -265,11 +241,12 @@ char *get_string(struct fileblock **block, char *cp, char *str, int len)
  *		5 - the new version is invalid.
  *		6 - the version language is different.
  */
-int check_version_info(char *version, char *new_version)
+int check_version_info(char *curr_version, char *recv_version)
 {
 	char new_ver[NUM_VERSION_ELEMS];
 	char old_ver[NUM_VERSION_ELEMS];
 	char old_version[MAX_VERSION_SIZE];
+	char new_version[MAX_VERSION_SIZE];
 	char new_lang[MAX_LANG_SIZE];
 	char old_lang[MAX_LANG_SIZE];
 	char new_letter, old_letter;
@@ -277,8 +254,10 @@ int check_version_info(char *version, char *new_version)
 	int res;
 	int old, new;
 	
-	strncpy(old_version, version, sizeof(old_version));
+	strncpy(old_version, curr_version, sizeof(old_version));
 	old_version[sizeof(old_version)-1] = '\0';
+	strncpy(new_version, recv_version, sizeof(new_version));
+	new_version[sizeof(new_version)-1] = '\0';
 	
 	if(!get_version_bits(new_version, new_ver, &new_letter, &new_minor,
 			new_lang))
@@ -308,55 +287,6 @@ int check_version_info(char *version, char *new_version)
 #undef NUM_VERSION_ELEMS
 #undef MAX_VERSION_SIZE
 
-/*
- * Decrement the pointer and block number appropriately.
- * we return NULL when asked to decrement before the beginning.
- */
-char *decrement_blk(char *cp, struct fileblock **block)
-{
-	struct fileblock *p;
-	if(cp==NULL || (*block)==NULL)
-		return NULL;
-
-	if(cp == (char *)(*block)->data){ /*move to previous block*/
-		if (fileblocks == *block)
-			return NULL;
-		for (p=fileblocks; p && p->next!=(*block); p=p->next);
-		if (p==NULL)
-			return NULL;
-		*block = p;
-		cp = (*block)->data + (*block)->length - 1;
-	}else{
-		cp--;
-	}
-	return cp;
-}
-
-
-/*
- * This is not currently used.
- */
-#if 0
-char *increment_blk(char *cp, struct fileblock **block)
-{
-	if(cp == NULL || (*block) == NULL){
-		return NULL;
-	}
-
-	if(cp == ((char *)(*block)->data) + (*block)->length - 1){
-		if (*block->next == NULL) {
-			*block = fileblocks;
-			cp = NULL;
-		}else{
-			*block = (*block)->next;
-			cp = (*block)->data;
-		}
-	}else{
-		cp++;
-	}
-	return cp;
-}
-#endif /*0*/
 
 
 static int get_version_bits(char *version, char *ver_long, char *letter,
@@ -475,11 +405,6 @@ int minor_to_int(char letter, int num)
 /****************************************************************************/
 
 #ifdef VERSIONTEST
-struct fileblock *fileblocks = NULL;
-
-void remove_data(int length)
-{
-}
 int main(int argc, char *argv[])
 {
 	char ver[9];
@@ -513,7 +438,7 @@ void log_upgrade(void) {
 	av[ac++] = "logd";
 	av[ac++] = "firmware";
 	av[ac++] = our_image_version;
-	av[ac++] = new_image_version;
+	av[ac++] = imageVersion;
 	av[ac++] = NULL;
 
 	pid = vfork();

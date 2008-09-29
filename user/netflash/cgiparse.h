@@ -3,6 +3,11 @@
 
 #include <stdlib.h>
 
+#define CGIPARSE_ERR_NONE       0
+#define CGIPARSE_ERR_FORMAT     1
+#define CGIPARSE_ERR_DATA       2
+#define CGIPARSE_ERR_TIMEDOUT   3
+
 typedef void output_buffer_function(const char *name, const char *content_type, const char *buf, size_t len, off_t pos);
 
 /**

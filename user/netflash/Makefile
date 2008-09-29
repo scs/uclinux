@@ -1,11 +1,19 @@
-CFLAGS += -Wall `./kernel-defs.sh`
+ifndef CONFIG_USER_NETFLASH_NETFLASH
+# Not running under the uClinux build environment,
+# so build a host version for debugging.
+CFLAGS += -g -I../../include -DHOSTBUILD -DEMBED
+LIBCRYPTO = -lcrypto
+-include ../../config/.config
+endif
+
+CFLAGS += -Wall
 
 EXEC = netflash
-OBJS = tftpmain.o tftp.o tftpsubs.o http.o
+OBJS = tftpmain.o tftp.o tftpsubs.o http.o fileblock_ram.o
 COBJS = netflash.o
 
 ifdef CONFIG_USER_NETFLASH_WITH_FTP
-CFLAGS += -DFTP
+CPPLAGS += -DFTP
 OBJS += cmds.o cmdtab.o domacro.o ftp.o glob.o ftpmain.o ruserpass.o
 endif
 
@@ -19,26 +27,26 @@ OBJS += md5.o hmacmd5.o
 endif
 
 ifdef HW_COMPAT_VENDOR
-CFLAGS += -DVENDOR=\"$(HW_COMPAT_VENDOR)\"
+CPPFLAGS += -DVENDOR=\"$(HW_COMPAT_VENDOR)\"
 else
 ifdef HW_VENDOR
-CFLAGS += -DVENDOR=\"$(HW_VENDOR)\"
+CPPFLAGS += -DVENDOR=\"$(HW_VENDOR)\"
 else
-CFLAGS += -DVENDOR=\"$(CONFIG_VENDOR)\"
+CPPFLAGS += -DVENDOR=\"$(CONFIG_VENDOR)\"
 endif
 endif
 
 ifdef HW_COMPAT_PRODUCT
-CFLAGS += -DPRODUCT=\"$(HW_COMPAT_PRODUCT)\"
+CPPFLAGS += -DPRODUCT=\"$(HW_COMPAT_PRODUCT)\"
 else
 ifdef HW_PRODUCT
-CFLAGS += -DPRODUCT=\"$(HW_PRODUCT)\"
+CPPFLAGS += -DPRODUCT=\"$(HW_PRODUCT)\"
 else
-CFLAGS += -DPRODUCT=\"$(CONFIG_PRODUCT)\"
+CPPFLAGS += -DPRODUCT=\"$(CONFIG_PRODUCT)\"
 endif
 endif
 
-CFLAGS += -DVERSION=\"$(VERSIONPKG)\"
+CPPFLAGS += -DVERSION=\"$(VERSIONPKG)\"
 COBJS += versioning.o
 
 ifdef CONFIG_USER_NETFLASH_DECOMPRESS
@@ -46,7 +54,7 @@ ADD_LIBZ  = -lz
 endif
 
 ifdef CONFIG_USER_NETFLASH_SETSRC
-CFLAGS += -DSETSRC
+CPPFLAGS += -DSETSRC
 endif
 
 ifdef CONFIG_USER_NETFLASH_CRYPTO
@@ -55,10 +63,11 @@ ADD_LIBZ += $(LIBAES) $(LIBCRYPTO)
 endif
 ifdef CONFIG_USER_NETFLASH_SHA256
 ADD_LIBZ += $(LIBCRYPTO)
+EXEC += sha256sum
 endif
 
-CFLAGS += -Dnetflashmain=main
-# CFLAGS += -DDEBUG_CGI
+CPPFLAGS += -Dnetflashmain=main
+# CPPFLAGS += -DDEBUG_CGI
 
 
 all: $(EXEC)

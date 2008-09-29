@@ -5,6 +5,8 @@
 #include <assert.h>
 
 #include "cgiparse.h"
+#include "netflash.h"
+#include "exit_codes.h"
 
 /*#define DEBUG_CGI*/
 
@@ -27,9 +29,9 @@ static void data_writer(const char *name, const char *content_type, const char *
 		if (strcmp(name, s_data_name) == 0) {
 #ifdef DEBUG_CGI
 			/*printf("add_data(pos=%d, len=%d)\n", pos, len);*/
-			syslog(LOG_INFO, "add_data(pos=%d, len=%d)\n", pos, len);
+			syslog(LOG_INFO, "add_data(pos=%ld, len=%d)\n", pos, len);
 #endif
-			add_data(pos, buf, len);
+			local_write(-1, buf, len);
 			s_len = pos + len;
 		}
 		else if (strcmp(name, s_options_name) == 0) {
@@ -60,9 +62,10 @@ static void data_writer(const char *name, const char *content_type, const char *
 
 /**
  * Returns length of data if OK, or 0 if error.
+ * Netflash error code is returned in error_code if applicable.
  * 
  */
-size_t cgi_load(const char *data_name, const char *options_name, char options[64], const char *flash_region_name, char flash_region[20])
+size_t cgi_load(const char *data_name, const char *options_name, char options[64], const char *flash_region_name, char flash_region[20], int *error_code)
 {
 	int ret;
 
@@ -71,13 +74,32 @@ size_t cgi_load(const char *data_name, const char *options_name, char options[64
 	s_flash_region_name = flash_region_name;
 
 	ret = cgi_extract_sections(data_writer);
-	if (ret == 0) {
+	switch (ret) {
+	case CGIPARSE_ERR_NONE:
 		strcpy(options, s_options);
 		strcpy(flash_region, s_flash_region);
 #ifdef DEBUG_CGI
 		syslog(LOG_INFO, "Returning s_len=%d, options=%s, flash_region=%s", s_len, options, flash_region);
 #endif
+		*error_code = IMAGE_GOOD;
 		return(s_len);
+		break;
+
+	case CGIPARSE_ERR_FORMAT:
+		*error_code = BAD_CGI_FORMAT;
+		break;
+
+	case CGIPARSE_ERR_DATA:
+		*error_code = BAD_CGI_DATA;
+		break;
+
+	case CGIPARSE_ERR_TIMEDOUT:
+		*error_code = HTTP_TIMEOUT;
+		break;
+
+	default:
+		*error_code = BAD_CGI_DATA;
+		break;
 	}
 	return(0);
 }

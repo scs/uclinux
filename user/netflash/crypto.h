@@ -4,9 +4,13 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/md5.h>
-#include <aes.h>
+#include <openssl/aes.h>
 
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+#define PUBLIC_KEY_FILE 	"/etc/publickey.pem"
+#else
 #define PUBLIC_KEY_FILE 	"/etc/config/netflash.pem"
+#endif
 
 #define CRYPTO_MAGIC		0xb9b1e546
 #define LITTLE_CRYPTO_MAGIC	0x2ad6
@@ -15,12 +19,17 @@
 
 #define FLAG_ENCRYPTED		0x01
 
-/* Have to pack this structure.  It has been known to change size from
+/*
+ * Have to pack this structure. It has been known to change size from
  * host to target system which causes a few problems!
  */
 struct header {
 	unsigned int magic;
+#ifdef CONFIG_USER_NETFLASH_CRYPTO_V2
+	unsigned char hash[SHA256_DIGEST_LENGTH];
+#else
 	unsigned char md5[MD5_DIGEST_LENGTH];
+#endif
 	unsigned char aeskey[AESKEYSIZE];
 	unsigned char flags;
 	unsigned char padsize;

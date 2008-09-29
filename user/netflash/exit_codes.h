@@ -35,4 +35,5 @@
 #define BAD_CRYPT            43
 #define NOT_BOOTLOADER_IMAGE 44
 #define NOT_FIRMWARE_IMAGE   45
-
+#define BAD_CRYPT_LEN        46
+#define HTTP_TIMEOUT         47

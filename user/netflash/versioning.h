@@ -23,5 +23,15 @@
  * (decimal) numbers.
  *
  ******************************************************************************/
+
+#define MAX_VENDOR_SIZE		256
+#define MAX_PRODUCT_SIZE	256
+#define MAX_VERSION_SIZE	12
+#define MAX_LANG_SIZE		8
+
+extern char imageVendorName[MAX_VENDOR_SIZE];
+extern char imageProductName[MAX_PRODUCT_SIZE];
+extern char imageVersion[MAX_VERSION_SIZE];
+
 extern int check_vendor(void);
 extern void log_upgrade(void);

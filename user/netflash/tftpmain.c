@@ -128,8 +128,6 @@ struct cmd tftpcmdtab[] = {
 };
 struct	cmd *tftpgetcmd();
 char	*tftptail();
-char	*strchr();
-char	*strrchr();
 
 void
 tftpmain(argc, argv)

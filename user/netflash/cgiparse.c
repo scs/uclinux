@@ -3,6 +3,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <assert.h>
+#include <signal.h>
 
 #include "kmp.h"
 #include "cgiparse.h"
@@ -22,6 +23,8 @@
 
 #define OS_BUF_SIZE (4096 + MAX_HEADER_SIZE)
 
+static int http_timedout = 0;
+
 typedef struct {
 	int in_section;
 	char buf[OS_BUF_SIZE];
@@ -33,6 +36,12 @@ typedef struct {
 } output_section_t;
 
 static int process_section(output_section_t *os);
+
+/* Called if we don't get any HTTP data after waiting a certain period */
+static void http_timeout(int sig)
+{
+	http_timedout = 1;
+}
 
 static void flush_buffer(output_section_t *os, int all)
 {
@@ -60,7 +69,14 @@ static int getter_section(void *cookie)
 {
 	output_section_t *os = (output_section_t *)cookie;
 
+	/* Ensure we don't wait here forever */
+	alarm(30);
 	int ch = getchar();
+	alarm(0);
+
+	if (http_timedout) {
+		return(EOF);
+	}
 
 	if (ch == EOF) {
 		return(ch);
@@ -90,31 +106,32 @@ int cgi_extract_sections(output_buffer_function *writer)
 	int boundary_length;
 	int match;
 	output_section_t os;
+	struct sigaction sa;
 
 	p = getenv("REQUEST_METHOD");
 	if (!p || strcmp(p, "POST") != 0) {
 		syslog(LOG_WARNING, "cgi_filefetch not POST");
-		return(-1);
+		return(CGIPARSE_ERR_FORMAT);
 	}
 
 	p = getenv("CONTENT_LENGTH");
 	if (!p || ((content_length = atoi(p)) == 0)) {
 		syslog(LOG_WARNING, "cgi_filefetch bad content length");
-		return(-1);
+		return(CGIPARSE_ERR_DATA);
 	}
 
 	p = getenv("CONTENT_TYPE");
 
 	if (strncmp(p, MULTIPART_FORM_DATA, sizeof(MULTIPART_FORM_DATA) - 1) != 0) {
 		syslog(LOG_WARNING, "cgi_filefetch not type: %s", MULTIPART_FORM_DATA);
-		return(-1);
+		return(CGIPARSE_ERR_DATA);
 	}
 
 	/* Now search for boundary=XXX */
 	p = strstr(p, "boundary=");
 	if (!p) {
 		syslog(LOG_WARNING, "cgi_filefetch bad or missing boundary specification");
-		return(-1);
+		return(CGIPARSE_ERR_DATA);
 	}
 	p = strchr(p, '=') + 1;
 
@@ -135,6 +152,10 @@ int cgi_extract_sections(output_buffer_function *writer)
 	os.len = 0;
 	os.pos = 0;
 	os.writer = writer;
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = http_timeout;
+	sigaction(SIGALRM, &sa, NULL);
 
 	/* Now iterate through each item separated by the boundary */
 	while ((match = KMP(boundary, boundary_length, getter_section, &os)) >= 0) {
@@ -175,7 +196,11 @@ int cgi_extract_sections(output_buffer_function *writer)
 #endif
 	}
 
-	return(0);
+	if (http_timedout) {
+		return(CGIPARSE_ERR_TIMEDOUT);
+	} else {
+		return(CGIPARSE_ERR_NONE);
+	}
 }
 
 /**

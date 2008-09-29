@@ -380,7 +380,6 @@ tftptpacket(s, tp, n)
 	   { "#0", "RRQ", "WRQ", "DATA", "ACK", "ERROR" };
 	register char *cp, *file;
 	u_short op = ntohs(tp->th_opcode);
-	char *strchr();
 
 	if (op < RRQ || op > ERROR)
 		printf("%s opcode=%x ", s, op);
