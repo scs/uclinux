@@ -15,7 +15,6 @@ dir_$(CONFIG_USER_POUND)                         += pound
 dir_$(CONFIG_USER_IRDA_TOOLS)                    += irda-tools
 dir_$(CONFIG_USER_IRCP)                          += ircp
 dir_$(CONFIG_USER_PNGVIEW)                       += pngview
-dir_$(CONFIG_USER_BLACKFIN_WATCHDOGD)            += watchdogd
 dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa-utils
 dir_$(CONFIG_USER_USBUTILS)                      += usbutils
 dir_$(CONFIG_USER_BTSCO)                         += btsco
