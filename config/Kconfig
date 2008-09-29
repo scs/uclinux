@@ -8,7 +8,7 @@
 
 mainmenu "Linux Application Configuration"
 
-config KERNELVERSION
+config DISTVERSION
 	string
 	default "4.0"
 

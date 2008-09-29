@@ -18,8 +18,9 @@ gconfig: gconf
 qconfig: qconf
 	$(SCRIPTSDIR)/qconf Kconfig
 
-xconfig: qconfig
+xconfig: gconfig
 
 clean: confclean
 	rm -f autoconf.h auto.conf .config .config.old
 
+.PHONY: all oldconfig config menuconfig gconfig qconfig xconfig clean

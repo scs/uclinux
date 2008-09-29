@@ -44,4 +44,3 @@ zconf.tab.o: zconf.tab.c zconf.hash.c lex.zconf.c
 
 clean:
 	rm -f conf mconf gconf qconf *.moc *.o .*.o.cmd lxdialog/*.o
-

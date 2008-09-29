@@ -1,0 +1,72 @@
+#!/bin/bash
+#############################################################################
+#
+# This script checks that a product's config files (/vendor/SecureComputing/*)
+# creates a clean config when the product is attempted to be built.
+#
+#############################################################################
+
+ROOTDIR=`pwd`
+# If you wish to check a specific product or set or products, list them here,
+# e.g. CHECK_PRODUCTS="SG560 SG565 SG580 SG720"  Otherwise the script will 
+# check all products in the configdb.
+CHECK_PRODUCTS=""
+
+
+echo "WARNING - this script will delete your current configuration!! (i.e. the .config and .oldconfig files)"
+echo "Press enter to continue, or Ctrl-C to abort"
+read
+
+
+# If no products are listed, run this tcl script which uses configdb to get all the known products
+if [ -z "$CHECK_PRODUCTS" ]; then
+	tcl -c "
+		set products {}
+		set product_dirs {}
+		proc group {name args} {
+		}
+		proc product {name device requires {flags {}}} {
+			global products product_dirs
+			if {[lsearch -exact \$products \$name] != -1} {
+				error 'product name \$name already exists'
+			}
+			foreach dev \$device {
+				if {[string match \"CONFIG_PRODUCT=*\" \$dev]} {
+					lappend product_dirs [lindex [split \$dev =] 1]
+				}
+			}
+			lappend products \$name
+		}
+		source prop/configdb/configdb
+		puts \$product_dirs
+		" > /tmp/products.$$
+	CHECK_PRODUCTS=`cat /tmp/products.$$`
+	# To debug the product list - uncomment the following lines
+	#echo "Product list from configdb:"
+	#cat /tmp/products.$$
+	#echo
+	rm /tmp/products.$$
+fi
+
+for p in $CHECK_PRODUCTS; do
+	rm -rf .oldconfig .config
+	echo ""
+	echo "Product: $p"
+	if [ -e $ROOTDIR/vendors/SecureComputing/$p/config.device ] ; then
+		cat $ROOTDIR/vendors/SecureComputing/$p/config.device >$ROOTDIR/.config
+	else
+		echo \*\*\*;echo;echo
+		echo "$p must exist in vendors/SecureComputing to use this target"
+		exit 1
+	fi
+	cd $ROOTDIR
+	rm -f build.warnings
+	new_values=`yes "" | config/setconfig defaults | grep '(NEW)' | sed -e 's/(NEW) /(NEW)\n/g'`
+	if [ "$new_values" ] ; then
+		echo "***WARNING: Config is incomplete:"
+		echo "$new_values"
+		if [ -z "$INCOMPLETE_CONFIG_OK" ]; then
+			( echo "Warning: Config is incomplete"; echo "$new_values" ) >>build.warnings
+		fi
+	fi
+done
