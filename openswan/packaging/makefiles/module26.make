@@ -35,6 +35,18 @@ ${BUILDDIR}/%.c : ${KLIPSSRC}/%.c
 ${BUILDDIR}/%.h : ${KLIPSSRC}/%.h
 	ln -s -f $< $@
 
+${BUILDDIR}/%.c : ${KLIPSSRC}/des/%.c
+	ln -s -f $< $@
+
+${BUILDDIR}/%.S : ${KLIPSSRC}/des/%.S
+	ln -s -f $< $@
+
+${BUILDDIR}/%.c : ${KLIPSSRC}/aes/%.c
+	ln -s -f $< $@
+
+${BUILDDIR}/%.c : ${KLIPSSRC}/alg/%.c
+	ln -s -f $< $@
+
 .PRECIOUS: ${BUILDDIR}/%.c ${BUILDDIR}/%.h
 
 # I'm not fixing this in a better way, because we should use the
@@ -52,6 +64,7 @@ ifneq ($(strip $(MODULE_DEFCONFIG)),)
 include ${MODULE_DEFCONFIG}
 endif
 include ${KLIPSSRC}/Makefile.fs2_6
+
 
 
 

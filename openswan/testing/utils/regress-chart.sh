@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: regress-chart.sh,v 1.2 2002-06-09 21:14:45 mcr Exp $
+# $Id: regress-chart.sh,v 1.2 2002/06/09 21:14:45 mcr Exp $
 #
 # this script produces a graph of FreeSWAN regression testing status
 #
@@ -12,7 +12,7 @@ tree=$1
 
 cd $tree || exit 1
 
-cat */stats.txt | sort -n >regressstats.txt
+cat */*/stats.txt | sort -n >regressstats.txt
 gnuplot <<EOF
 set terminal png
 set output 'regressgraph.png'

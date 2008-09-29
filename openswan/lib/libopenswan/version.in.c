@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id: version.in.c,v 1.5 2004-04-09 18:00:37 mcr Exp $
+ * RCSID $Id: version.in.c,v 1.5 2004/04/09 18:00:37 mcr Exp $
  */
 
 #ifdef __KERNEL__
@@ -23,7 +23,7 @@
 
 #define	V	"xxx"		/* substituted in by Makefile */
 static const char openswan_number[] = V;
-static const char openswan_string[] = "Linux FreeS/WAN " V;
+static const char openswan_string[] = "Linux Openswan " V;
 
 /*
  - ipsec_version_code - return IPsec version number/code, as string

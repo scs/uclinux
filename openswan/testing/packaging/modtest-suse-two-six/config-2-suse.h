@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
  * License for more details.
  *
- * RCSID $Id: config-2-suse.h,v 1.1 2005-04-22 13:28:20 mcr Exp $
+ * RCSID $Id: config-2-suse.h,v 1.1 2005/04/22 13:28:20 mcr Exp $
  */
 #define	_CONFIG_ALL_H_	/* seen it, no need to see it again */
 

@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.6 2005-04-28 21:01:13 mcr Exp $
+# RCSID $Id: Makefile,v 1.7 2005/08/04 18:54:57 mcr Exp $
 
 
 OPENSWANSRCDIR?=$(shell cd ../../..; pwd)
@@ -22,12 +22,15 @@ include ${OPENSWANSRCDIR}/Makefile.ver
 MANDIR=$(MANTREE)/man3
 
 SRCS=printk.c jiffies.c sysctl.c panic.c skb.c netif.c stack.c
-SRCS+=vmalloc.c  module.c
-SRCS+=bh.c checksum.S ipv4.c talloc.c skbcreate.c
+SRCS+=vmalloc.c  module.c debugflags.c
+SRCS+=bh.c ipv4.c talloc.c skbcreate.c
+# XXX need to have checksum.c for non-x86
+
+ASSRCS+=checksum.S
 
 KSRCS=kernelenv.c core.c
 
-OBJS=${SRCS:.c=.o} ${SRCS:.S=.o} ${KSRCS:.c=.o} version.o
+OBJS=${SRCS:.c=.o} ${ASSRCS:.S=.o} ${KSRCS:.c=.o} version.o
 
 LIBA=libkern.a
 KLIPSSRCDIR=${OPENSWANSRCDIR}/linux
@@ -41,10 +44,10 @@ CFLAGS+= -I${OPENSWANSRCDIR}/testing/kunit/include
 CFLAGS+= -I${OPENSWANSRCDIR}/include -g -O2
 #KLIPS_FLAGS+=-D__KERNEL__ 
 #KLIPS_FLAGS+=-O2 -U__i386__ -Ui386  -D__arch_um__ -DSUBARCH=\"i386\" 
-KLIPS_FLAGS+=-I${UMLPLAIN}/include
-KLIPS_FLAGS+=-I${UMLPLAIN}/arch/um/include
-KLIPS_FLAGS+=-I${UMLPLAIN}/arch/um/kernel/tt/include
-KLIPS_FLAGS+=-I${UMLPLAIN}/arch/um/kernel/skas/include
+#KLIPS_FLAGS+=-I${UMLPLAIN}/include
+#KLIPS_FLAGS+=-I${UMLPLAIN}/arch/um/include
+#KLIPS_FLAGS+=-I${UMLPLAIN}/arch/um/kernel/tt/include
+#KLIPS_FLAGS+=-I${UMLPLAIN}/arch/um/kernel/skas/include
 CFLAGS+=${KLIPS_FLAGS}
 CFLAGS+= -Wall
 #CFLAGS+= -Wconversion
@@ -81,8 +84,8 @@ $(OBJS):	$(HDRS)
 $(LOGOBJS):	$(HDRS)
 
 # build version.c using version number from Makefile.ver
-version.c:	version.in.c ${OPENSWANSRCDIR}/Makefile.ver
-	sed '/"/s/xxx/$(IPSECVERSION)/' version.in.c >$@
+version.c:	${srcdir}version.in.c ${OPENSWANSRCDIR}/Makefile.ver
+	sed '/"/s/xxx/$(IPSECVERSION)/' ${srcdir}version.in.c >$@
 
 clean:
 	rm -f $(LIB) *.o try* core *.core $(EXTHDRS) $(EXTLIBS) version.c

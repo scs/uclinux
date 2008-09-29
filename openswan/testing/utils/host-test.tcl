@@ -1,7 +1,7 @@
 #!/usr/bin/expect --
 
 #
-# $Id: host-test.tcl,v 1.38 2004-09-15 21:50:32 mcr Exp $
+# $Id: host-test.tcl,v 1.39 2005/10/20 21:11:45 mcr Exp $
 #
 
 source $env(OPENSWANSRCDIR)/testing/utils/GetOpts.tcl
@@ -37,7 +37,6 @@ set do_recordpublic  0
 set do_consoleoutput 0
 set do_dns           0
 set timeout 300
-set netjig_wait_user 0
 log_user 0
 if {[info exists env(HOSTTESTDEBUG)]} {
     if {$env(HOSTTESTDEBUG) == "hosttest"} {
@@ -48,12 +47,6 @@ set netjig_debug_opt ""
 if {[info exists env(NETJIGTESTDEBUG)]} {
     if {$env(NETJIGTESTDEBUG) == "netjig"} {
 	set netjig_debug_opt "--debug"
-    }
-}
-
-if {[info exists env(NETJIGWAITUSER)]} {
-    if {$env(NETJIGWAITUSER) == "waituser"} {
-	set netjig_wait_user 1
     }
 }
 
@@ -97,9 +90,6 @@ while { [ set err [ getopt $argv "c:D:H:i:I:n:ap:P:r:R:s:u:U:" opt optarg]] } {
 	    n {
 		set netjig_prog $optarg
 	    }
-	    a {
-		set arpreply "--arpreply"
-	    }
 	    p {
 		set playprivate $optarg
 		set do_playprivate 1
@@ -123,10 +113,19 @@ while { [ set err [ getopt $argv "c:D:H:i:I:n:ap:P:r:R:s:u:U:" opt optarg]] } {
 set argv [ lrange $argv $optind end ]
 
 set managed_hosts {}
+set managednets {public private admin}
 lappend managed_hosts $umlid(uml,host) 
 
+foreach net $managednets {
+    process_net $net
+}
+
+foreach host $managed_hosts {
+    process_host $host
+}
+
 if {! [file executable $netjig_prog]} {
-    puts "The NETJIG management program is not present. Did you run \"make check\"?"
+    puts "The NETJIG management program is not present. Did you run \"make checkprograms\"?"
     exit
 }
 
@@ -136,16 +135,19 @@ netjigdebug "Will start additional hosts: $umlid(extra_hosts)"
 
 # we start up netjig_prog with a plain pipe, so that
 # stderr from it will go to our stderr.
-spawn -noecho -open [open "|$netjig_prog --cmdproto -t $netjig_debug_opt 2>@stderr" w+]
+spawn -noecho -open [open "|$netjig_prog --cmdproto $netjig_debug_opt 2>@stderr" w+]
 set netjig1 $spawn_id
 
 netjigsetup $netjig1
 
-newswitch $netjig1 "$arpreply public"
-newswitch $netjig1 "$arpreply private"
+process_net public
+process_net private
+
+newswitch $netjig1 public
+newswitch $netjig1 private
 
 # this just gets rid of issues with running without a mcast address
-newswitch $netjig1 "$arpreply admin"
+newswitch $netjig1 admin
 
 trace variable expect_out(buffer) w log_by_tracing
 
@@ -169,11 +171,11 @@ if { $do_recordprivate == 1 } {
 }
 
 if { $do_playpublic == 1 } {
-    setupplay $netjig1 public $playpublic
+    setupplay $netjig1 public $playpublic ""
 }
 
 if { $do_playprivate == 1 } {
-    setupplay $netjig1 private $playprivate
+    setupplay $netjig1 private $playprivate ""
 }
 
 runuml uml
@@ -185,15 +187,10 @@ if { $do_playpublic == 1 || $do_playprivate == 1 } {
     waitplay $netjig1
 }
 
-if { $netjig_wait_user == 1 } {
-    set old_timeout $timeout
-    puts -nonewline stderr "PLEASE PRESS ENTER TO TERMINATE TEST"
-    set timeout -1
-    expect_user -gl "\n"
-    set timeout $old_timeout
-}
-
 netjigdebug "Finished tests, shutting down"
+
+# see if we should wait
+wait_user
 
 after 500
 
@@ -218,7 +215,10 @@ system "sleep 4"
 
 # 
 # $Log: host-test.tcl,v $
-# Revision 1.38  2004-09-15 21:50:32  mcr
+# Revision 1.39  2005/10/20 21:11:45  mcr
+# 	refactored to put wait-user function in netjig.tcl.
+#
+# Revision 1.38  2004/09/15 21:50:32  mcr
 # 	sleep after the test case finishes to give the UML time
 # 	to exit cleanly.
 #

@@ -1,7 +1,7 @@
 #!/usr/bin/expect --
 
 #
-# $Id: 2host-test.tcl,v 1.22 2004-04-03 19:44:52 ken Exp $
+# $Id: 2host-test.tcl,v 1.22 2004/04/03 19:44:52 ken Exp $
 #
 
 if {! [info exists env(OPENSWANSRCDIR)]} {
@@ -161,9 +161,9 @@ if {[info exists env(NETJIGTESTDEBUG)]} {
 spawn -noecho -open [open "|$netjig_prog --cmdproto $debugjig 2>@stderr" w+]
 set netjig1 $spawn_id
 
-newswitch $netjig1 "$arpreply east"
-newswitch $netjig1 "public"
-newswitch $netjig1 "$arpreply west"
+newswitch $netjig1 east
+newswitch $netjig1 public
+newswitch $netjig1 west
 
 if {[info exists netjig_extra]} {
     playnjscript $netjig1 $netjig_extra
@@ -280,7 +280,7 @@ expect {
 
 # 
 # $Log: 2host-test.tcl,v $
-# Revision 1.22  2004-04-03 19:44:52  ken
+# Revision 1.22  2004/04/03 19:44:52  ken
 # FREESWANSRCDIR -> OPENSWANSRCDIR (patch by folken)
 #
 # Revision 1.21  2003/10/28 03:03:33  dhr

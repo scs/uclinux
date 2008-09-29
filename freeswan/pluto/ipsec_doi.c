@@ -245,7 +245,6 @@ accept_KE(chunk_t *dest, const char *val_name
     {
 	loglog(RC_LOG_SERIOUS, "KE has %u byte DH public value; %u required"
 	    , (unsigned) pbs_left(pbs), (unsigned) gr->bytes);
-	/* XXX Could send notification back */
 #ifdef DODGE_DH_MISSING_ZERO_BUG
 	if (pbs_left(pbs) > gr->bytes)
 #endif
@@ -307,77 +306,198 @@ build_and_ship_nonce(chunk_t *n, pb_stream *outs, u_int8_t np
  * Send a notification to the peer. We could make a decision on
  * whether to send the notification, based on the type and the
  * destination, if we care to.
- * XXX It doesn't handle DELETE notifications (which are also
- * XXX informational exchanges).
- * XXX Not modified to support ip_address and related (IPv4+IPv6) functions.
+ * It doesn't handle DELETE notifications (see send_ipsec_delete)
  */
-#if 0 /* not currently used */
-//static void
-//send_notification(int sock,
-//    u_int16_t type,
-//    u_char *spi,
-//    u_char spilen,
-//    u_char protoid,
-//    u_char *icookie,
-//    u_char *rcookie,
-//    msgid_t /*network order*/ msgid,
-//    struct sockaddr sa)
-//{
-//    u_char buffer[sizeof(struct isakmp_hdr) +
-//		 sizeof(struct isakmp_notification)];
-//    struct isakmp_hdr *isa = (struct isakmp_hdr *) buffer;
-//    struct isakmp_notification *isan = (struct isakmp_notification *)
-//				       (buffer + sizeof(struct isakmp_hdr));
-//
-//    memset(buffer, '\0', sizeof(struct isakmp_hdr) +
-//	  sizeof(struct isakmp_notification));
-//
-//    if (icookie != (u_char *) NULL)
-//	memcpy(isa->isa_icookie, icookie, COOKIE_SIZE);
-//
-//    if (rcookie != (u_char *) NULL)
-//	memcpy(isa->isa_rcookie, rcookie, COOKIE_SIZE);
-//
-//    /* Standard header */
-//    isa->isa_np = ISAKMP_NEXT_N;
-//    isa->isa_version = ISAKMP_MAJOR_VERSION << ISA_MAJ_SHIFT | ISAKMP_MINOR_VERSION;
-//    isa->isa_xchg = ISAKMP_XCHG_INFO;
-//    isa->isa_msgid = msgid;
-//    isa->isa_length = htonl(sizeof(struct isakmp_hdr) +
-//			    sizeof(struct isakmp_notification) +
-//			    spilen);
-//
-//    /* Notification header */
-//    isan->isan_type = htons(type);
-//    isan->isan_doi = htonl(ISAKMP_DOI_IPSEC);
-//    isan->isan_length = htons(sizeof(struct isakmp_notification) + spilen);
-//    isan->isan_spisize = spilen;
-//    memcpy((u_char *)isan + sizeof(struct isakmp_notification), spi, spilen);
-//    isan->isan_protoid = protoid;
-//
-//    DBG(DBG_CONTROL, DBG_log("sending INFO type %s to %s",
-//	enum_show(&notification_names, type),
-//	show_sa(&sa)));
-//
-//    if (sendto(sock, buffer, ntohl(isa->isa_length), 0, &sa,
-//	       sizeof(sa)) != ntohl(isa->isa_length))
-//	log_errno((e, "sendto() failed in send_notification() to %s",
-//	    show_sa(&sa)));
-//    else
-//    {
-//	DBG(DBG_CONTROL, DBG_log("transmitted %d bytes", ntohl(isa->isa_length)));
-//    }
-//}
-#endif /* not currently used */
+static void
+send_notification(struct state *sndst, u_int16_t type, struct state *encst,
+    msgid_t msgid, u_char *icookie, u_char *rcookie,
+    u_char *spi, size_t spisize, u_char protoid)
+{
+    u_char buffer[1024];
+    pb_stream pbs, r_hdr_pbs;
+    u_char *r_hashval, *r_hash_start;
 
+    passert((sndst) && (sndst->st_connection));
 
-/* Send a Delete Notification to announce deletion of inbound IPSEC SAs.
+    log("sending %snotification %s to %s:%u",
+	encst ? "encrypted " : "",
+	enum_name(&ipsec_notification_names, type),
+	ip_str(&sndst->st_connection->that.host_addr),
+	(unsigned)sndst->st_connection->that.host_port);
+	
+    memset(buffer, 0, sizeof(buffer));
+    init_pbs(&pbs, buffer, sizeof(buffer), "notification msg");
+
+    /* HDR* */
+    {
+	struct isakmp_hdr hdr;
+
+	hdr.isa_version = ISAKMP_MAJOR_VERSION << ISA_MAJ_SHIFT | ISAKMP_MINOR_VERSION;
+	hdr.isa_np = encst ? ISAKMP_NEXT_HASH : ISAKMP_NEXT_N;
+	hdr.isa_xchg = ISAKMP_XCHG_INFO;
+	hdr.isa_msgid = msgid;
+	hdr.isa_flags = encst ? ISAKMP_FLAG_ENCRYPTION : 0;
+	if (icookie)
+	    memcpy(hdr.isa_icookie, icookie, COOKIE_SIZE);
+	if (rcookie)
+	    memcpy(hdr.isa_rcookie, rcookie, COOKIE_SIZE);
+	if (!out_struct(&hdr, &isakmp_hdr_desc, &pbs, &r_hdr_pbs))
+	    impossible();
+    }
+
+    /* HASH -- value to be filled later */
+    if (encst)
+    {
+	pb_stream hash_pbs;
+	if (!out_generic(ISAKMP_NEXT_N, &isakmp_hash_desc, &r_hdr_pbs,
+	    &hash_pbs))
+	    impossible();
+	r_hashval = hash_pbs.cur;  /* remember where to plant value */
+	if (!out_zero(
+#ifdef _IKE_ALG_H
+	    encst->st_oakley.hasher->hash_digest_size,
+#else
+	    encst->st_oakley.hasher->hash_digest_len,
+#endif
+	    &hash_pbs, "HASH(1)"))
+	    impossible();
+	close_output_pbs(&hash_pbs);
+	r_hash_start = r_hdr_pbs.cur; /* hash from after HASH(1) */
+    }
+
+    /* Notification Payload */
+    {
+	pb_stream not_pbs;
+	struct isakmp_notification isan;
+
+	isan.isan_doi = ISAKMP_DOI_IPSEC;
+	isan.isan_np = ISAKMP_NEXT_NONE;
+	isan.isan_type = type;
+	isan.isan_spisize = spisize;
+	isan.isan_protoid = protoid;
+
+	if (!out_struct(&isan, &isakmp_notification_desc, &r_hdr_pbs, &not_pbs)
+	    || !out_raw(spi, spisize, &not_pbs, "spi"))
+	    impossible();
+	close_output_pbs(&not_pbs);
+    }
+
+    /* calculate hash value and patch into Hash Payload */
+    if (encst)
+    {
+	struct hmac_ctx ctx;
+	hmac_init_chunk(&ctx, encst->st_oakley.hasher, encst->st_skeyid_a);
+	hmac_update(&ctx, (u_char *) &msgid, sizeof(msgid_t));
+	hmac_update(&ctx, r_hash_start, r_hdr_pbs.cur-r_hash_start);
+	hmac_final(r_hashval, &ctx);
+
+#ifdef _IKE_ALG_H
+	DBG(DBG_CRYPT,
+	    DBG_log("HASH(1) computed:");
+	    DBG_dump("", r_hashval, ctx.hmac_digest_size);
+	)
+    }
+#else
+	DBG(DBG_CRYPT,
+	    DBG_log("HASH(1) computed:");
+	    DBG_dump("", r_hashval, ctx.hmac_digest_len);
+	)
+    }
+#endif
+
+    /* Encrypt message (preserve st_iv) */
+    if (encst)
+    {
+	u_char old_iv[MAX_DIGEST_LEN];
+	if (encst->st_iv_len > MAX_DIGEST_LEN)
+	    impossible();
+	memcpy(old_iv, encst->st_iv, encst->st_iv_len);
+	init_phase2_iv(encst, &msgid);
+	if (!encrypt_message(&r_hdr_pbs, encst))
+	    impossible();
+	memcpy(encst->st_iv, old_iv, encst->st_iv_len);
+    }
+    else
+    {
+	close_output_pbs(&r_hdr_pbs);
+    }
+
+    /* Send packet (preserve st_tpacket) */
+    {
+	chunk_t saved_tpacket = sndst->st_tpacket;
+
+	setchunk(sndst->st_tpacket, pbs.start, pbs_offset(&pbs));
+	send_packet(sndst, "notification packet");
+	sndst->st_tpacket = saved_tpacket;
+    }
+}
+
+void
+send_notification_from_state(struct state *st, enum state_kind state,
+    u_int16_t type)
+{
+    struct state *p1st;
+
+    passert(st);
+
+    if (state == STATE_UNDEFINED)
+	state = st->st_state;
+
+    if (IS_QUICK(state)) {
+	p1st = find_phase1_state(st->st_connection, TRUE);
+	if ((p1st == NULL) || (!IS_ISAKMP_SA_ESTABLISHED(p1st->st_state))) {
+	    loglog(RC_LOG_SERIOUS,
+		"no Phase1 state for Quick mode notification");
+	    return;
+	}
+	send_notification(st, type, p1st, generate_msgid(p1st),
+	    st->st_icookie, st->st_rcookie, NULL, 0, PROTO_ISAKMP);
+    }
+    else if (IS_ISAKMP_SA_ESTABLISHED(state)) {
+	send_notification(st, type, st, generate_msgid(st),
+	    st->st_icookie, st->st_rcookie, NULL, 0, PROTO_ISAKMP);
+    }
+    else {
+	/* no ISAKMP SA established - don't encrypt notification */
+	send_notification(st, type, NULL, 0,
+	    st->st_icookie, st->st_rcookie, NULL, 0, PROTO_ISAKMP);
+    }
+}
+
+void
+send_notification_from_md(struct msg_digest *md, u_int16_t type)
+{
+    /**
+     * Create a dummy state to be able to use send_packet in
+     * send_notification
+     *
+     * we need to set:
+     *   st_connection->that.host_addr
+     *   st_connection->that.host_port
+     *   st_connection->interface
+     */
+    struct state st;
+    struct connection cnx;
+
+    passert(md);
+
+    memset(&st, 0, sizeof(st));
+    memset(&cnx, 0, sizeof(cnx));
+    st.st_connection = &cnx;
+    cnx.that.host_addr = md->sender;
+    cnx.that.host_port = md->sender_port;
+    cnx.interface = md->iface;
+
+    send_notification(&st, type, NULL, 0,
+	md->hdr.isa_icookie, md->hdr.isa_rcookie, NULL, 0, PROTO_ISAKMP);
+}
+
+/* Send a Delete Notification to announce deletion of inbound IPSEC/ISAKMP SAs.
  * Ignores states that don't have any.
- * Delete Notifications cannot announce deletion of outbound IPSEC SAs.
- * We don't bother announcing deletion of ISAKMP SAs at this point.
+ * Delete Notifications cannot announce deletion of outbound IPSEC/ISAKMP SAs.
  */
 void
-send_ipsec_delete(struct state *p2st)
+send_delete(struct state *st)
 {
     pb_stream reply_pbs;
     pb_stream r_hdr_pbs;
@@ -389,48 +509,42 @@ send_ipsec_delete(struct state *p2st)
     u_char
 	*r_hashval,	/* where in reply to jam hash value */
 	*r_hash_start;	/* start of what is to be hashed */
+    bool isakmp_sa = FALSE;
 
-    if (!IS_IPSEC_SA_ESTABLISHED(p2st->st_state))
-	return;	/* nothing to do */
+    if (IS_IPSEC_SA_ESTABLISHED(st->st_state)) {
+	p1st = find_phase1_state(st->st_connection, TRUE);
+	if (p1st == NULL)
+	{
+	    DBG(DBG_CONTROL, DBG_log("no Phase 1 state for Delete"));
+	    return;
+	}
 
-    p1st = find_phase1_state(p2st->st_connection, TRUE);
-    if (p1st == NULL)
-    {
-	DBG_log("no Phase 1 state for Delete");
-	return;
+	if (st->st_ah.present)
+	{
+	    ns->spi = st->st_ah.our_spi;
+	    ns->dst = st->st_connection->this.host_addr;
+	    ns->proto = PROTO_IPSEC_AH;
+	    ns++;
+	}
+	if (st->st_esp.present)
+	{
+	    ns->spi = st->st_esp.our_spi;
+	    ns->dst = st->st_connection->this.host_addr;
+	    ns->proto = PROTO_IPSEC_ESP;
+	    ns++;
+	}
+	
+	passert(ns != said);	/* there must be some SAs to delete */
+    }
+    else if (IS_ISAKMP_SA_ESTABLISHED(st->st_state)) {
+	p1st = st;
+	isakmp_sa = TRUE;
+    }
+    else {
+	return; /* nothing to do */
     }
 
     msgid = generate_msgid(p1st);
-
-    if (p2st->st_ah.present)
-    {
-	ns->spi = p2st->st_ah.attrs.spi;
-	ns->dst = p2st->st_connection->this.host_addr;
-	ns->proto = PROTO_IPSEC_AH;
-	ns++;
-    }
-    if (p2st->st_esp.present)
-    {
-	ns->spi = p2st->st_esp.attrs.spi;
-	ns->dst = p2st->st_connection->this.host_addr;
-	ns->proto = PROTO_IPSEC_ESP;
-	ns++;
-    }
-    /* I doubt that it makes sense to delete an IPCOMP with a well-known CPI.
-     * Maybe it never makes sense to delete a CPI.
-     */
-#if 0
-    if (p2st->st_ipcomp.present)
-    {
-	ns->spi = p2st->st_ipcomp.attrs.spi;
-	ns->dst = p2st->st_connection->this.host_addr;
-	ns->proto = PROTO_IPCOMP;
-	ns++;
-    }
-#endif
-    /* IPIP isn't a real SA, so we don't mention it */
-
-    passert(ns != said);	/* there must be some SAs to delete */
 
     memset(buffer, '\0', sizeof(buffer));
     init_pbs(&reply_pbs, buffer, sizeof(buffer), "delete msg");
@@ -464,7 +578,26 @@ send_ipsec_delete(struct state *p2st)
     }
 
     /* Delete Payloads */
-    while (ns != said) {
+    if (isakmp_sa) {
+	pb_stream del_pbs;
+	struct isakmp_delete isad;
+	u_char isakmp_spi[2*COOKIE_SIZE];
+
+	isad.isad_doi = ISAKMP_DOI_IPSEC;
+	isad.isad_np = ISAKMP_NEXT_NONE;
+	isad.isad_spisize = (2 * COOKIE_SIZE);
+	isad.isad_protoid = PROTO_ISAKMP;
+	isad.isad_nospi = 1;
+
+	memcpy(isakmp_spi, st->st_icookie, COOKIE_SIZE);
+	memcpy(isakmp_spi+COOKIE_SIZE, st->st_rcookie, COOKIE_SIZE);
+
+	if (!out_struct(&isad, &isakmp_delete_desc, &r_hdr_pbs, &del_pbs)
+	|| !out_raw(&isakmp_spi, (2*COOKIE_SIZE), &del_pbs, "delete payload"))
+	    impossible();
+	close_output_pbs(&del_pbs);
+    }
+    else while (ns != said) {
 	pb_stream del_pbs;
 	struct isakmp_delete isad;
 
@@ -473,8 +606,8 @@ send_ipsec_delete(struct state *p2st)
 	isad.isad_np = ns == said? ISAKMP_NEXT_NONE : ISAKMP_NEXT_D;
 	isad.isad_spisize = sizeof(ipsec_spi_t);
 	isad.isad_protoid = ns->proto;
-
 	isad.isad_nospi = 1;
+
 	if (!out_struct(&isad, &isakmp_delete_desc, &r_hdr_pbs, &del_pbs)
 	|| !out_raw(&ns->spi, sizeof(ipsec_spi_t), &del_pbs, "delete payload"))
 	    impossible();
@@ -518,6 +651,132 @@ send_ipsec_delete(struct state *p2st)
 
 	/* get back old IV for this state */
 	memcpy(p1st->st_iv, old_iv, p1st->st_iv_len);
+    }
+}
+
+void
+accept_delete(struct state *st, struct msg_digest *md, struct payload_digest *p)
+{
+    struct isakmp_delete *d = &(p->payload.delete);
+    size_t sizespi = 0;
+    u_char *spi;
+    struct state *dst = NULL;
+    int i;
+
+    if ((!st) && (!(md->hdr.isa_flags & ISAKMP_FLAG_ENCRYPTION))) {
+	loglog(RC_LOG_SERIOUS, "ignoring Delete SA payload: not encrypted");
+	return;
+    }
+
+    if (!IS_ISAKMP_SA_ESTABLISHED(st->st_state)) {
+	/* can't happen (if msg is encrypt), but just to be sure */
+	loglog(RC_LOG_SERIOUS, "ignoring Delete SA payload: "
+	"ISAKMP SA not established");
+	return;
+    }
+
+    if (d->isad_nospi == 0) {
+	loglog(RC_LOG_SERIOUS, "ignoring Delete SA payload: no SPI");
+	return;
+    }
+
+    if (pbs_left(&p->pbs) != ((unsigned)d->isad_spisize * d->isad_nospi)) {
+	loglog(RC_LOG_SERIOUS, "ignoring Delete SA payload: invalid size");
+	return;
+    }
+
+    switch (d->isad_protoid) {
+	case PROTO_ISAKMP:
+	    sizespi = (2*COOKIE_SIZE);
+	    break;
+	case PROTO_IPSEC_AH:
+	case PROTO_IPSEC_ESP:
+	    sizespi = sizeof(ipsec_spi_t);
+	    break;
+	default:
+	    loglog(RC_LOG_SERIOUS, "ignoring Delete SA payload: "
+		"unknown Protocol ID (%s)",
+		enum_show(&protocol_names, d->isad_protoid));
+	    return;
+	    break;
+    }
+
+    if (d->isad_spisize != sizespi) {
+	loglog(RC_LOG_SERIOUS, "ignoring Delete SA payload: "
+	    "bad size (%d) for Protocol (%s)",
+	    d->isad_spisize,
+	    enum_show(&protocol_names, d->isad_protoid));
+	return;
+    }
+
+    for (i=0; i<d->isad_nospi; i++) {
+	spi = p->pbs.cur + (i * sizespi);
+	if (d->isad_protoid == PROTO_ISAKMP) {
+	    /**
+	     * ISAKMP
+	     */
+	    dst = find_phase1_state_to_delete(st, spi /*iCookie*/,
+		spi+COOKIE_SIZE /*rCookie*/);
+	    if (dst) {
+		loglog(RC_LOG_SERIOUS, "received Delete SA payload: "
+		    "deleting ISAKMP State #%lu", dst->st_serialno);
+		delete_state(dst);
+	    }
+	    else {
+		loglog(RC_LOG_SERIOUS, "ignoring Delete SA payload: "
+		    "ISAKMP SA not found (maybe expired)");
+	    }
+	}
+	else {
+	    /**
+	     * IPSEC (ESP/AH)
+	     */
+	    bool bogus;
+	    ipsec_spi_t ipsec_spi = *((ipsec_spi_t *)spi);
+
+	    dst = find_phase2_state_to_delete(st, d->isad_protoid, ipsec_spi, &bogus);
+	    if (dst) {
+		struct connection *rc = dst->st_connection;
+		if ((rc) && (rc->newest_ipsec_sa == dst->st_serialno) &&
+		    (rc->initiated)) {
+		    /*
+		     * Last IPSec SA for a permanent connection that we
+		     * have initiated. Replace it in a few seconds.
+		     *
+		     * Usefull if the other peer is rebooting
+		     */
+#define DELETE_SA_DELAY  EVENT_RETRANSMIT_DELAY_0
+		    if ((dst->st_event) &&
+			(dst->st_event->ev_type == EVENT_SA_REPLACE) &&
+			(dst->st_event->ev_time <= DELETE_SA_DELAY + now())) {
+			/*
+			 * Patch from Angus Lees to ignore retransmited Delete SA.
+			 */
+			loglog(RC_LOG_SERIOUS, "received Delete SA payload: "
+			    "already replacing IPSEC State #%lu in %d seconds",
+			    dst->st_serialno, (int)(dst->st_event->ev_time - now()));
+		    }
+		    else {
+			loglog(RC_LOG_SERIOUS, "received Delete SA payload: "
+			    "replace IPSEC State #%lu in %d seconds",
+			    dst->st_serialno, DELETE_SA_DELAY);
+			dst->st_margin = DELETE_SA_DELAY;
+			delete_event(dst);
+			event_schedule(EVENT_SA_REPLACE, DELETE_SA_DELAY, dst);
+		    }
+		}
+		else {
+		    loglog(RC_LOG_SERIOUS, "received Delete SA payload: "
+			"deleting IPSEC State #%lu", dst->st_serialno);
+		    delete_state(dst);
+		}
+	    }
+	    else {
+		loglog(RC_LOG_SERIOUS, "ignoring Delete SA payload: "
+		    "IPSEC SA not found (%s)",
+		    bogus ? "our spi - bogus implementation" : "maybe expired");
+	    }
+	}
     }
 }
 
@@ -1732,7 +1991,6 @@ RSA_check_signature(struct state *st
 	if (s.best_ugh[0] == '9')
 	{
 	    loglog(RC_LOG_SERIOUS, "%s", s.best_ugh + 1);
-	    /* XXX Could send notification back */
 	    return STF_FAIL + INVALID_HASH_INFORMATION;
 	}
 	else
@@ -1779,7 +2037,6 @@ RSA_check_signature(struct state *st
 	{ \
 	    DBG_cond_dump(DBG_CRYPT, "received " hash_name ":", hash_pbs->cur, pbs_left(hash_pbs)); \
 	    loglog(RC_LOG_SERIOUS, "received " hash_name " does not match computed value in " msg_name); \
-	    /* XXX Could send notification back */ \
 	    return STF_FAIL + INVALID_HASH_INFORMATION; \
 	} \
     }
@@ -2295,7 +2552,6 @@ decode_peer_id(struct msg_digest *md, bool initiator, bool aggrmode)
 	    {
 		loglog(RC_LOG_SERIOUS, "improper %s identification payload: %s"
 		    , enum_show(&ident_names, peer.kind), ugh);
-		/* XXX Could send notification back */
 		return FALSE;
 	    }
 	}
@@ -2336,7 +2592,6 @@ decode_peer_id(struct msg_digest *md, bool initiator, bool aggrmode)
 	break;	
 	    	
     default:
-	/* XXX Could send notification back */
 	loglog(RC_LOG_SERIOUS, "Unacceptable identity type (%s) in Phase 1 ID Payload"
 	    " from %s"
 	    , enum_show(&ident_names, peer.kind)
@@ -2472,7 +2727,6 @@ decode_net_id(struct isakmp_ipsec_id *id
 	    /* XXX support more */
 	    loglog(RC_LOG_SERIOUS, "unsupported ID type %s"
 		, idtypename);
-	    /* XXX Could send notification back */
 	    return FALSE;
     }
 
@@ -2490,7 +2744,6 @@ decode_net_id(struct isakmp_ipsec_id *id
 	    {
 		loglog(RC_LOG_SERIOUS, "%s ID payload %s has wrong length in Quick I1 (%s)"
 		    , which, idtypename, ugh);
-		/* XXX Could send notification back */
 		return FALSE;
 	    }
 	    happy(initsubnet(&temp_address, afi->mask_cnt, '0', net));
@@ -2514,7 +2767,6 @@ decode_net_id(struct isakmp_ipsec_id *id
 	    {
 		loglog(RC_LOG_SERIOUS, "%s ID payload %s wrong length in Quick I1"
 		    , which, idtypename);
-		/* XXX Could send notification back */
 		return FALSE;
 	    }
 	    ugh = initaddr(id_pbs->cur
@@ -2529,7 +2781,6 @@ decode_net_id(struct isakmp_ipsec_id *id
 	    {
 		loglog(RC_LOG_SERIOUS, "%s ID payload %s bad subnet in Quick I1 (%s)"
 		    , which, idtypename, ugh);
-		/* XXX Could send notification back */
 		return FALSE;
 	    }
 	    DBG(DBG_PARSING | DBG_CONTROL,
@@ -2552,7 +2803,6 @@ decode_net_id(struct isakmp_ipsec_id *id
 	    {
 		loglog(RC_LOG_SERIOUS, "%s ID payload %s wrong length in Quick I1"
 		    , which, idtypename);
-		/* XXX Could send notification back */
 		return FALSE;
 	    }
 	    ugh = initaddr(id_pbs->cur, afi->ia_sz, afi->af, &temp_address_from);
@@ -2563,7 +2813,6 @@ decode_net_id(struct isakmp_ipsec_id *id
 	    {
 		loglog(RC_LOG_SERIOUS, "%s ID payload %s malformed (%s) in Quick I1"
 		    , which, idtypename, ugh);
-		/* XXX Could send notification back */
 		return FALSE;
 	    }
 
@@ -3394,7 +3643,6 @@ main_id_and_auth(struct msg_digest *md
 		DBG_cond_dump(DBG_CRYPT, "received HASH:"
 		    , hash_pbs->cur, pbs_left(hash_pbs));
 		loglog(RC_LOG_SERIOUS, "received Hash Payload does not match computed value");
-		/* XXX Could send notification back */
 		r = STF_FAIL + INVALID_HASH_INFORMATION;
 	    }
 	}

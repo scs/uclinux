@@ -2,7 +2,7 @@
  * Algorithm info parsing and creation functions
  * Author: JuanJo Ciarlante <jjo-ipsec@mendoza.gov.ar>
  *
- * $Id: alg_info.h,v 1.1 2002/07/15 05:55:21 danield Exp $
+ * $Id: alg_info.h,v 1.1 2002-07-15 05:55:21 danield Exp $
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

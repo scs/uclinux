@@ -246,6 +246,10 @@ extern struct state
 	const ip_address *peer,
 	msgid_t msgid),
     *state_with_serialno(so_serial_t sn),
+    *find_phase2_state_to_delete(const struct state *p1st, u_int8_t protoid,
+	ipsec_spi_t spi, bool *bogus),
+    *find_phase1_state_to_delete(const struct state *p1st,
+	const u_char *icookie, const u_char *rcookie),
     *find_phase1_state(const struct connection *c, bool established),
     *find_sender(size_t packet_len, u_char *packet);
 

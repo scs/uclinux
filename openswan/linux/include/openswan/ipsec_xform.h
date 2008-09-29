@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_xform.h,v 1.41 2004-07-10 19:08:41 mcr Exp $
+ * RCSID $Id: ipsec_xform.h,v 1.42 2005/08/05 08:50:45 mcr Exp $
  */
 
 #ifndef _IPSEC_XFORM_H_
@@ -44,6 +44,8 @@
  * draft-ietf-ipsec-doi-tc-mib-02.txt
  */
 
+/* why are these hardcoded here? See ipsec_policy.h for their enums -- Paul*/
+/* ---------- These really need to go from here ------------------ */
 #define AH_NONE			0
 #define AH_MD5			2
 #define AH_SHA			3
@@ -52,7 +54,9 @@
 #define AH_SHA2_384		6
 #define AH_SHA2_512		7
 #define AH_RIPEMD		8
-#define AH_MAX			15
+#define AH_AES			9
+#define AH_NULL			251
+#define AH_MAX			251
 
 /* IPsec ESP transform values */
 
@@ -67,6 +71,16 @@
 #define ESP_RC4			10
 #define ESP_NULL		11
 #define ESP_AES			12
+#define ESP_AES_CTR		13
+#define ESP_AES_CCM_A		14
+#define ESP_AES_CCM_B		15
+#define ESP_AES_CCM_C		16
+#define ESP_ID17		17
+#define ESP_AES_GCM_A		18
+#define ESP_AES_GCM_B		19
+#define ESP_AES_GCM_C		20
+#define ESP_SEED_CBC		21
+#define ESP_CAMELLIA		22
 
 /* as draft-ietf-ipsec-ciph-aes-cbc-02.txt */
 #define ESP_MARS		249
@@ -124,10 +138,13 @@ static inline const char *auth_name_id (unsigned id) {
 	auth_name_id(x->ips_authalg) /* "_UNKNOWN_auth" */ \
 
 #ifdef __KERNEL__
+#include <linux/skbuff.h>
+
 struct ipsec_rcv_state;
 struct ipsec_xmit_state;
 
 struct xform_functions {
+	u8   protocol;
 	enum ipsec_rcv_value (*rcv_checks)(struct ipsec_rcv_state *irs,
 				       struct sk_buff *skb);
         enum ipsec_rcv_value (*rcv_decrypt)(struct ipsec_rcv_state *irs);
@@ -166,7 +183,11 @@ extern void ipsec_dmp(char *s, caddr_t bb, int len);
 
 /*
  * $Log: ipsec_xform.h,v $
- * Revision 1.41  2004-07-10 19:08:41  mcr
+ * Revision 1.42  2005/08/05 08:50:45  mcr
+ * 	move #include of skbuff.h to a place where
+ * 	we know it will be kernel only code.
+ *
+ * Revision 1.41  2004/07/10 19:08:41  mcr
  * 	CONFIG_IPSEC -> CONFIG_KLIPS.
  *
  * Revision 1.40  2004/04/06 02:49:08  mcr

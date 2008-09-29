@@ -1,5 +1,6 @@
 /* Openswan NAT-Traversal
  * Copyright (C) 2002-2003 Mathieu Lafon - Arkoon Network Security
+ * Copyright (C) 2005 Michael Richardson <mcr@xelerance.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -11,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: nat_traversal.h,v 1.4.8.2 2006-11-13 17:05:54 paul Exp $
+ * RCSID $Id: nat_traversal.h,v 1.5 2005/09/26 23:35:28 mcr Exp $
  */
 
 #ifndef _NAT_TRAVERSAL_H_
@@ -21,8 +22,9 @@
 
 #define NAT_TRAVERSAL_IETF_00_01     1
 #define NAT_TRAVERSAL_IETF_02_03     2
-#define NAT_TRAVERSAL_OSX            3
-#define NAT_TRAVERSAL_RFC            4
+#define NAT_TRAVERSAL_IETF_05        3
+#define NAT_TRAVERSAL_OSX            4
+#define NAT_TRAVERSAL_RFC            5
 
 #define NAT_TRAVERSAL_NAT_BHND_ME    30
 #define NAT_TRAVERSAL_NAT_BHND_PEER  31
@@ -34,25 +36,25 @@
  */
 #define NAT_T_WITH_NATD \
 	( LELEM(NAT_TRAVERSAL_IETF_00_01) | LELEM(NAT_TRAVERSAL_IETF_02_03) | \
-	LELEM(NAT_TRAVERSAL_OSX) | LELEM(NAT_TRAVERSAL_RFC) )
+	LELEM(NAT_TRAVERSAL_IETF_05) | LELEM(NAT_TRAVERSAL_OSX) | LELEM(NAT_TRAVERSAL_RFC) )
 /**
  * NAT-Traversal methods which need NAT-OA
  */
 #define NAT_T_WITH_NATOA \
 	( LELEM(NAT_TRAVERSAL_IETF_00_01) | LELEM(NAT_TRAVERSAL_IETF_02_03) | \
-	LELEM(NAT_TRAVERSAL_RFC) )
+	LELEM(NAT_TRAVERSAL_IETF_05) | LELEM(NAT_TRAVERSAL_RFC) )
 /**
  * NAT-Traversal methods which use NAT-KeepAlive
  */
 #define NAT_T_WITH_KA \
 	( LELEM(NAT_TRAVERSAL_IETF_00_01) | LELEM(NAT_TRAVERSAL_IETF_02_03) | \
-	LELEM(NAT_TRAVERSAL_OSX) | LELEM(NAT_TRAVERSAL_RFC) )
+	LELEM(NAT_TRAVERSAL_IETF_05) | LELEM(NAT_TRAVERSAL_OSX) | LELEM(NAT_TRAVERSAL_RFC) )
 /**
  * NAT-Traversal methods which use floating port
  */
 #define NAT_T_WITH_PORT_FLOATING \
 	( LELEM(NAT_TRAVERSAL_IETF_02_03) | LELEM(NAT_TRAVERSAL_OSX) | \
-	LELEM(NAT_TRAVERSAL_RFC) )
+	LELEM(NAT_TRAVERSAL_IETF_05) | LELEM(NAT_TRAVERSAL_RFC) )
 
 /**
  * NAT-Traversal methods which use a value for NAT-D from draft versions of the
@@ -103,10 +105,11 @@ bool nat_traversal_add_natd(u_int8_t np, pb_stream *outs,
 /**
  * NAT-OA
  */
-void nat_traversal_natoa_lookup(struct msg_digest *md);
+struct hidden_variables;
+void nat_traversal_natoa_lookup(struct msg_digest *md, struct hidden_variables *hv);
 #ifndef PB_STREAM_UNDEFINED
 bool nat_traversal_add_natoa(u_int8_t np, pb_stream *outs,
-	struct state *st);
+			     struct state *st, bool initiator);
 #endif
 
 /**
@@ -126,6 +129,7 @@ extern int nat_traversal_espinudp_socket (int sk
  */
 #ifndef PB_STREAM_UNDEFINED
 bool nat_traversal_add_vid(u_int8_t np, pb_stream *outs);
+bool nat_traversal_insert_vid(u_int8_t np, pb_stream *outs);
 #endif
 u_int32_t nat_traversal_vid_to_method(unsigned short nat_t_vid);
 

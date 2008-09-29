@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pending.c,v 1.5.4.1 2007-01-23 15:37:06 paul Exp $
+ * RCSID $Id: pending.c,v 1.6 2005/08/05 19:13:47 mcr Exp $
  */
 
 #include <string.h>
@@ -24,14 +24,13 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <resolv.h>
 #include <arpa/nameser.h>	/* missing from <resolv.h> on old systems */
-#include <sys/queue.h>
 
 #include <openswan.h>
 #include <openswan/ipsec_policy.h>
 #include "kameipsec.h"
 
+#include "sysdep.h"
 #include "constants.h"
 #include "defs.h"
 #include "id.h"
@@ -69,37 +68,6 @@ struct pending {
     struct pending *next;
 };
 
-static void
-delete_pending(struct pending **pp);
-
-static void delete_old_pending(const struct connection *c,
-			       const struct pending *match)
-{
-    struct pending *p, **pp;
-
-    pp = host_pair_first_pending(c);
-    if(pp == NULL) return;
-
-    while ((p = *pp) != NULL)
-    {
-    	if (p->isakmp_sa == match->isakmp_sa
-	    && p->connection == match->connection
-	    && p->policy == match->policy)
-	{
-	    DBG(DBG_CONTROL, DBG_log("NETKEY workaround for missing hold state or proper rate limiting: deleting existing pending state from %d.  "
-	        , (int)p->pend_time));
-
-	    p->connection = NULL;
-	    delete_pending(pp);
-	}
-    	else
-	{
-    	    pp = &p->next;
-	}
-    }
-}
-
-
 /* queue a Quick Mode negotiation pending completion of a suitable Main Mode */
 void
 add_pending(int whack_sock
@@ -121,8 +89,6 @@ add_pending(int whack_sock
     p->try = try;
     p->replacing = replacing;
     p->pend_time = time(NULL);
-
-    delete_old_pending(c, p);
 
     host_pair_enqueue_pending(c, p, &p->next);
 }
@@ -209,13 +175,14 @@ unpend(struct state *st)
 	if (p->isakmp_sa == st)
 	{
 	    DBG(DBG_CONTROL
-		, DBG_log("unqueuing pending Quick Mode with %s \"%s\""
+		, DBG_log("unqueuing pending Quick Mode with %s \"%s\" %s"
 			  , ip_str(&p->connection->spd.that.host_addr)
-			  , p->connection->name));
+			  , p->connection->name
+			  , enum_name(&pluto_cryptoimportance_names,st->st_import)));
 
 	    p->pend_time = time(NULL);
 	    (void) quick_outI1(p->whack_sock, st, p->connection, p->policy
-		, p->try, p->replacing);
+			       , p->try, p->replacing);
 	    p->whack_sock = NULL_FD;	/* ownership transferred */
 	    p->connection = NULL;	/* ownership transferred */
 	    delete_pending(pp);
@@ -225,6 +192,32 @@ unpend(struct state *st)
 	    pp = &p->next;
 	}
     }
+}
+
+struct connection *first_pending(struct state *st
+				 , lset_t *policy
+				 , int *p_whack_sock)
+{
+    struct pending **pp
+	, *p;
+
+    DBG(DBG_DPD,
+	DBG_log("getting first pending from state #%lu", st->st_serialno));
+
+    for (pp = host_pair_first_pending(st->st_connection); (p = *pp) != NULL; )
+    {
+	if (p->isakmp_sa == st)
+	{
+	    *p_whack_sock = p->whack_sock;
+	    *policy = p->policy;
+	    return p->connection;
+	}
+	else
+	{
+	    pp = &p->next;
+	}
+    }
+    return NULL;
 }
 
 /*

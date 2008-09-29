@@ -1,7 +1,9 @@
 /*
  * A program to dump the IPsec status of the socket found on stdin.
+ *
  * Run me from inetd, for instance.
- * Copyright (C) 2003                Michael Richardson <mcr@freeswan.org>
+ *
+ * Copyright (C) 2003-2006            Michael Richardson <mcr@xelerance.com>
  * 
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -14,7 +16,7 @@
  * for more details.
  */
 
-char showpolicy_version[] = "RCSID $Id: showpolicy.c,v 1.5 2004-04-04 01:50:56 ken Exp $";
+char showpolicy_version[] = "RCSID $Id: showpolicy.c,v 1.5 2004/04/04 01:50:56 ken Exp $";
 
 #include <stdio.h>
 #include <unistd.h>
@@ -23,6 +25,9 @@ char showpolicy_version[] = "RCSID $Id: showpolicy.c,v 1.5 2004-04-04 01:50:56 k
 #include <getopt.h>
 #include "openswan.h"
 #include "openswan/ipsec_policy.h"
+#include "sysdep.h"
+#include "socketwrapper.h"
+#include "rcvinfo.h"
 
 char *program_name;
 
@@ -34,13 +39,16 @@ help(void)
 	"showpolicy"
 	    " [--cgi]        lookup the particulars from CGI variables.\n"
 	    " [--socket]     lookup the particulars from the socket on stdin.\n"
+	    " [--udp X]      open a UDP socket on port X\n"
+	    " [--tcp X]      open a TCP socket on port X\n"
+	    " [--sockpolicy] dump based upon IP_IPSEC_RECVREF.\n"
 	    " [--textual]    dump output in human friendly form\n"
 	    " [--plaintext X]    string to dump if no security\n"
 	    " [--vpntext X]      string to dump if VPN configured tunnel\n"
 	    " [--privacytext X]  string to dump if just plain DNS OE\n"
 	    " [--dnssectext X]   string to dump if just DNSSEC OE\n"
             "\n\n"
-	"FreeS/WAN %s\n",
+	"Openswan %s\n",
 	ipsec_version_code());
 }
 
@@ -48,15 +56,175 @@ static const struct option long_opts[] = {
     /* name, has_arg, flag, val */
     { "help",        no_argument, NULL, 'h' },
     { "version",     no_argument, NULL, 'V' },
+    { "udp",         required_argument, NULL, 'U' },
+    { "tcp",         required_argument, NULL, 'T' },
+    { "sockpolicy",  no_argument, NULL, 'P' },
     { "socket",      no_argument, NULL, 'i' },
     { "cgi",         no_argument, NULL, 'g' },
     { "textual",     no_argument, NULL, 't' },
     { "plaintext",   required_argument, NULL, 'c' },
+    { "maxpacket",   required_argument, NULL, 'N' },
     { "vpntext",     required_argument, NULL, 'v' },
     { "privacytext", required_argument, NULL, 'p' },
     { "dnssectext",  required_argument, NULL, 's' },
     { 0,0,0,0 }
 };
+
+int maxpacketcount=0;
+
+int open_udp_sock(unsigned short port)
+{
+	struct sockaddr_in s;
+	int one;
+	int fd;
+
+	fd = safe_socket(PF_INET, SOCK_DGRAM, 0);
+	if(fd == -1) {
+		perror("socket");
+		exit(10);
+	}
+
+	memset(&s, 0, sizeof(struct sockaddr_in));
+	s.sin_family = AF_INET;
+	s.sin_port   = htons(port);
+	s.sin_addr.s_addr = INADDR_ANY;
+
+	if(bind(fd, (struct sockaddr *)&s, sizeof(struct sockaddr_in))==-1) {
+		perror("bind");
+		exit(11);
+	}
+
+	one = 1;
+
+#if !(defined(macintosh) || (defined(__MACH__) && defined(__APPLE__)))
+	if(setsockopt(fd, SOL_IP, IP_IPSEC_REFINFO, &one, sizeof(one)) != 0) {
+		perror("setsockopt recvref");
+		exit(12);
+	}
+#endif
+	return fd;
+}
+
+int open_tcp_sock(unsigned short port)
+{
+	return -1;
+}
+
+int udp_recv_loop(int udpsock)
+{
+	struct sockaddr_in from, to;
+	int fromlen, tolen;
+	struct msghdr msgh;
+	struct iovec iov;
+	char cbuf[256];
+	int  readlen, err;
+	char buf[512];
+	int packetcount =0;
+	
+	do {
+		unsigned int pktref[1];
+
+		memset(&from, 0, sizeof(from));
+		memset(&to,   0, sizeof(to));
+
+		fromlen = sizeof(struct sockaddr_in);
+		tolen   = sizeof(struct sockaddr_in);
+
+		memset(&msgh, 0, sizeof(struct msghdr));
+		iov.iov_base = buf;
+		iov.iov_len  = sizeof(buf);
+		msgh.msg_control = cbuf;
+		msgh.msg_controllen = sizeof(cbuf);
+		msgh.msg_name = &from;
+		msgh.msg_namelen = fromlen;
+		msgh.msg_iov  = &iov;
+		msgh.msg_iovlen = 1;
+		msgh.msg_flags = 0;
+
+		/* Receive one packet. */
+		if ((readlen = recvmsg(udpsock, &msgh, 0)) < 0) {
+			return readlen;
+		}
+		
+		printf("got message of length: %d\n", readlen);
+		
+		{
+			struct cmsghdr *cmsg;
+			/* Process auxiliary received data in msgh */
+			for (cmsg = CMSG_FIRSTHDR(&msgh);
+			     cmsg != NULL;
+			     cmsg = CMSG_NXTHDR(&msgh,cmsg)) {
+				printf("cmsg_level: %d type: %d\n",
+				       cmsg->cmsg_level, cmsg->cmsg_type);
+				
+				if (cmsg->cmsg_level == IPPROTO_IP
+				    && cmsg->cmsg_type == IP_IPSEC_REFINFO) {
+					unsigned int *refp;
+					
+					refp = (unsigned int *)CMSG_DATA(cmsg);
+					pktref[0]=refp[0];
+					pktref[1]=refp[1];
+
+					printf("     ref=%08x (%u) him=%08x (%u)\n",
+					       pktref[0], pktref[0],
+					       pktref[1], pktref[1]);
+				}
+			}
+		}
+
+		/*
+		 * OKAY, now send the packet back again.
+		 */
+		memset(&msgh, 0, sizeof(struct msghdr));
+
+		{
+			struct cmsghdr *cmsg;
+			char cbuf[CMSG_SPACE(sizeof (unsigned int))];
+			unsigned int *refp;
+		
+			msgh.msg_control = cbuf;
+			msgh.msg_controllen = sizeof(cbuf);
+
+			cmsg = CMSG_FIRSTHDR(&msgh);
+#if !(defined(macintosh) || (defined(__MACH__) && defined(__APPLE__)))
+			cmsg->cmsg_level = SOL_IP;
+#endif
+			cmsg->cmsg_type  = IP_IPSEC_REFINFO;
+			cmsg->cmsg_len   = CMSG_LEN(sizeof(unsigned int));
+			
+			if(pktref[1]) {
+				/* why are we setting refp, we don't use it? */
+				printf("     sending with saref=%d\n", pktref[1]);
+				refp = (unsigned int *)CMSG_DATA(cmsg);
+				*refp = pktref[1];
+			}
+			
+			iov.iov_base = buf;
+			iov.iov_len  = readlen;
+
+			/* return packet from whence it came */
+			msgh.msg_name = &from;
+			msgh.msg_namelen = fromlen;
+
+			msgh.msg_iov  = &iov;
+			msgh.msg_iovlen = 1;
+			msgh.msg_flags = 0;
+		}
+
+		/* Receive one packet. */
+		if ((err = sendmsg(udpsock, &msgh, 0)) < 0) {
+			perror("sendmsg");
+			err = 0;
+		}
+		
+		printf("sent message of length: %d\n", err);
+		packetcount++;
+
+	} while(err != -1 && (maxpacketcount==0 || packetcount<maxpacketcount));
+
+	return 0;
+}
+	
 
 void dump_policyreply(struct ipsec_policy_cmd_query *q)
 {
@@ -111,7 +279,9 @@ int main(int argc, char *argv[])
 {
   struct ipsec_policy_cmd_query q;
   err_t ret;
-  int   c;
+  int   c, fd = -1;
+  unsigned short port;
+  char  *foo;
 
   /* set the defaults */
   char lookup_style = 'i';
@@ -130,18 +300,48 @@ int main(int argc, char *argv[])
       return 0;	/* GNU coding standards say to stop here */
       
     case 'V':               /* --version */
-      fprintf(stderr, "FreeS/WAN %s\n", ipsec_version_code());
+      fprintf(stderr, "Openswan %s\n", ipsec_version_code());
       return 0;	/* GNU coding standards say to stop here */
       
     case 'i':
-      if(isatty(0)) {
-	printf("please run this connected to a socket\n");
-	exit(1);
-      }
-      
-      lookup_style = 'i';
-      break;
+	    fd = 0;
+	    if(isatty(0)) {
+		    printf("please run this connected to a socket\n");
+		    exit(1);
+	    }
+	    lookup_style = 'i';	    
+	    break;
 
+    case 'U':
+	    port = strtol(optarg, &foo, 0);
+	    if(*foo != '\0') {
+		    fprintf(stderr, "invalid port number: %s\n", optarg);
+		    help();
+	    }
+	    fd = open_udp_sock(port);
+	    break;
+      
+    case 'T':
+	    port = strtol(optarg, &foo, 0);
+	    if(*foo != '\0') {
+		    fprintf(stderr, "invalid port number: %s\n", optarg);
+		    help();
+	    }
+	    fd = open_tcp_sock(port);
+	    break;
+      
+    case 'N':
+	    maxpacketcount = strtol(optarg, &foo, 0);
+	    if(*foo != '\0') {
+		    fprintf(stderr, "invalid packetcount number: %s\n", optarg);
+		    help();
+	    }
+	    break;
+      
+    case 'P':
+      lookup_style = 'P';
+      break;
+      
     case 'g':
       lookup_style = 'g';
       break;
@@ -168,29 +368,35 @@ int main(int argc, char *argv[])
     }
   }
 	
-  if((ret = ipsec_policy_init()) != NULL) {
-    perror(ret);
-    exit(2);
+  if(lookup_style != 'P') {
+	  if((ret = ipsec_policy_init()) != NULL) {
+		  perror(ret);
+		  exit(2);
+	  }
   }
 
   switch(lookup_style) {
   case 'i':
-    if((ret = ipsec_policy_lookup(0, &q)) != NULL) {
-      perror(ret);
-      exit(3);
-    }
-    break;
+	  if((ret = ipsec_policy_lookup(fd, &q)) != NULL) {
+		  perror(ret);
+		  exit(3);
+	  }
+	  break;
     
   case 'g':
-    if((ret = ipsec_policy_cgilookup(&q)) != NULL) {
-      perror(ret);
-      exit(3);
-    }
-    break;
+	  if((ret = ipsec_policy_cgilookup(&q)) != NULL) {
+		  perror(ret);
+		  exit(3);
+	  }
+	  break;
+	  
+  case 'P':
+	  udp_recv_loop(fd);
+	  break;
     
   default:
-    abort();
-    break;
+	  abort();
+	  break;
   }
 
 
@@ -230,7 +436,7 @@ int main(int argc, char *argv[])
 
 /*
  * $Log: showpolicy.c,v $
- * Revision 1.5  2004-04-04 01:50:56  ken
+ * Revision 1.5  2004/04/04 01:50:56  ken
  * Use openswan includes
  *
  * Revision 1.4  2003/05/14 15:46:44  mcr

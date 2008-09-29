@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id: satot.c,v 1.13 2004-07-10 07:48:37 mcr Exp $
+ * RCSID $Id: satot.c,v 1.13 2004/07/10 07:48:37 mcr Exp $
  */
 #include "openswan.h"
 
@@ -94,6 +94,7 @@ size_t dstlen;
 	}
 
 	if (sa->proto == SA_INT) {
+		char intunk[10];
 		switch (ntohl(sa->spi)) {
 		case SPI_PASS:	p = "%pass";	break;
 		case SPI_DROP:	p = "%drop";	break;
@@ -101,7 +102,7 @@ size_t dstlen;
 		case SPI_HOLD:	p = "%hold";	break;
 		case SPI_TRAP:	p = "%trap";	break;
 		case SPI_TRAPSUBNET:	p = "%trapsubnet";	break;
-		default:	p = NULL;	break;
+		default:	snprintf(intunk, 10, "%%unk-%d", ntohl(sa->spi)); p = intunk;	break;
 		}
 		if (p != NULL) {
 			strcpy(buf, p);

@@ -1,12 +1,21 @@
-TESTNAME=fail-x509-07
+#!/bin/sh
+
+: ==== start ====
+
+TESTNAME=x509-fail-07
 source /testing/pluto/bin/eastlocal.sh
 
 rm /tmp/$TESTNAME/ipsec.d/certs/west*
-rm /tmp/$TESTNAME/ipsec.d/crls/nic.crl
+rm /tmp/$TESTNAME/ipsec.d/crls/ca.crl
 
 iptables -A INPUT -i eth1 -s 192.0.3.0/24 -d 0.0.0.0/0 -j DROP
 
-ipsec setup start
-ipsec auto --add westnet-eastnet-x509-cr
+arp -s 192.0.2.1 10:00:00:dc:bc:01
 
-/testing/pluto/basic-pluto-01/eroutewait.sh trap
+ipsec setup start
+/testing/pluto/bin/wait-until-pluto-started
+ipsec auto --add north-east-x509-fail-07
+
+echo done
+
+

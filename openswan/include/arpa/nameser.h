@@ -49,20 +49,16 @@
  */
 
 /*
- *	$Id: nameser.h,v 1.1 2005-07-19 15:26:48 mcr Exp $
+ *	$Id: nameser.h,v 1.2 2005/08/05 08:33:35 mcr Exp $
  */
 
 #ifndef _ARPA_NAMESER_H_
 #define _ARPA_NAMESER_H_
 
-#define BIND_4_COMPAT
+/* #define BIND_4_COMPAT */
 
 #include <sys/param.h>
-#if (!defined(BSD)) || (BSD < 199306)
-# include <sys/bitypes.h>
-#else
-# include <sys/types.h>
-#endif
+#include <sys/types.h>
 #include <sys/cdefs.h>
 
 /*
@@ -296,6 +292,7 @@ typedef enum __ns_type {
 	ns_t_sink = 40,		/* Kitchen sink (experimentatl) */
 	ns_t_opt = 41,		/* EDNS0 option (meta-RR) */
 	ns_t_apl = 42,		/* Address prefix list (RFC 3123) */
+	ns_t_ipseckey = 45,     /* IPSECKEY RR (RFC 4025) */
 	ns_t_tkey = 249,	/* Transaction key */
 	ns_t_tsig = 250,	/* Transaction signature. */
 	ns_t_ixfr = 251,	/* Incremental zone transfer. */

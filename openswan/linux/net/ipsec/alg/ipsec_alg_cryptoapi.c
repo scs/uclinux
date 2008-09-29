@@ -103,7 +103,23 @@ MODULE_AUTHOR("Juanjo Ciarlante, Harpo MAxx, Luciano Ruete");
 static int debug=0;
 static int test=0;
 static int excl=0;
+#ifdef module_param
+module_param(debug, int, 0664);
+module_param(test, int, 0664);
+module_param(excl, int, 0664);
+#else
+MODULE_PARM(debug, "i");
+MODULE_PARM(test, "i");
+MODULE_PARM(excl, "i");
+#endif
+
 static int noauto = 0;
+#ifdef module_param
+module_param(noauto,int, 0664);
+#else
+MODULE_PARM(noauto,"i");
+#endif
+MODULE_PARM_DESC(noauto, "Dont try all known algos, just setup enabled ones");
 
 static int des_ede3[] = {-1, -1};
 static int aes[] = {-1, -1};
@@ -112,27 +128,14 @@ static int cast[] = {-1, -1};
 static int serpent[] = {-1, -1};
 static int twofish[] = {-1, -1};
 
-#ifdef module_param
-module_param(debug,int,0600);
-module_param(test,int,0600);
-module_param(ebug,int,0600);
-
-module_param(noauto,int,0600);
-module_param(ebug,int,0600);
-
+#ifdef module_param_array
 module_param_array(des_ede3,int,NULL,0);
-module_param(aes,int,NULL,0);
-module_param(blowfish,int,NULL,0);
-module_param(cast,int,NULL,0);
-module_param(serpent,int,NULL,0);
-module_param(twofish,int,NULL,0);
+module_param_array(aes,int,NULL,0);
+module_param_array(blowfish,int,NULL,0);
+module_param_array(cast,int,NULL,0);
+module_param_array(serpent,int,NULL,0);
+module_param_array(twofish,int,NULL,0);
 #else
-MODULE_PARM(debug, "i");
-MODULE_PARM(test, "i");
-MODULE_PARM(excl, "i");
-
-MODULE_PARM(noauto,"i");
-
 MODULE_PARM(des_ede3,"1-2i");
 MODULE_PARM(aes,"1-2i");
 MODULE_PARM(blowfish,"1-2i");
@@ -140,9 +143,6 @@ MODULE_PARM(cast,"1-2i");
 MODULE_PARM(serpent,"1-2i");
 MODULE_PARM(twofish,"1-2i");
 #endif
-
-MODULE_PARM_DESC(noauto, "Dont try all known algos, just setup enabled ones");
-
 MODULE_PARM_DESC(des_ede3, "0: disable | 1: force_enable | min,max: dontuse");
 MODULE_PARM_DESC(aes, "0: disable | 1: force_enable | min,max: keybitlens");
 MODULE_PARM_DESC(blowfish, "0: disable | 1: force_enable | min,max: keybitlens");

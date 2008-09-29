@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pluto_crypt.h,v 1.8.4.1 2005-08-08 17:18:58 ken Exp $
+ * RCSID $Id: pluto_crypt.h,v 1.9 2005/08/08 17:24:26 ken Exp $
  */
 
 /*
@@ -26,6 +26,12 @@
  * and checking.
  *
  */
+
+#ifndef _PLUTO_CRYPT_H
+#define _PLUTO_CRYPT_H
+
+#include "osw_select.h"
+#include "crypto.h"
 
 typedef unsigned int pcr_req_id;
 
@@ -51,9 +57,10 @@ struct pcr_kenonce {
 #define DHCALC_SIZE 2560
 struct pcr_skeyid_q {
   /* inputs */
-  u_int16_t     oakley_group;
-  oakley_auth_t auth;	            
-  oakley_hash_t hash;               
+    u_int16_t     oakley_group;
+    oakley_auth_t auth;	            
+    oakley_hash_t integ_hash;
+    oakley_hash_t prf_hash;               
   enum phase1_role init;
   size_t        keysize;     /* of encryptor */
   wire_chunk_t gi;
@@ -83,6 +90,22 @@ struct pcr_skeyid_r {
   unsigned char space[DHCALC_SIZE];
 };
 
+struct pcr_skeycalc_v2 {
+    /* outputs */
+    wire_chunk_t shared;
+    wire_chunk_t skeyseed;        /* output */
+    wire_chunk_t skeyid_d;        /* output */
+    wire_chunk_t skeyid_ai;       /* output */
+    wire_chunk_t skeyid_ar;       /* output */
+    wire_chunk_t skeyid_ei;       /* output */
+    wire_chunk_t skeyid_er;       /* output */
+    wire_chunk_t skeyid_pi;       /* output */
+    wire_chunk_t skeyid_pr;       /* output */
+
+    wire_chunk_t thespace;
+    unsigned char space[DHCALC_SIZE];
+};
+
 
 #define space_chunk_ptr(SPACE, wire) ((void *)&((SPACE)[(wire)->start]))
 #define wire_chunk_ptr(k, wire) space_chunk_ptr((k)->space, wire)
@@ -96,18 +119,18 @@ struct pcr_skeyid_r {
     memcpy(wire_chunk_ptr(ctner, w), c->ptr, c->len);	\
   } while(0)
 
-
-
 struct pluto_crypto_req {
   size_t                     pcr_len;
+
   enum pluto_crypto_requests pcr_type;
   pcr_req_id                 pcr_id;
   enum crypto_importance     pcr_pcim;
   int                        pcr_slot;
   union {
-    struct pcr_kenonce kn;
-    struct pcr_skeyid_q  dhq;
-    struct pcr_skeyid_r  dhr;
+      struct pcr_kenonce      kn;
+      struct pcr_skeyid_q     dhq;
+      struct pcr_skeyid_r     dhr;
+      struct pcr_skeycalc_v2  dhv2;
   } pcr_d;
 };
 
@@ -118,7 +141,7 @@ typedef void (*crypto_req_func)(struct pluto_crypto_req_cont *
 				, err_t ugh);
 
 struct pluto_crypto_req_cont {
-  struct pluto_crypto_req_cont *pcrc_next;
+	TAILQ_ENTRY(pluto_crypto_req_cont) pcrc_list;
   struct pluto_crypto_req      *pcrc_pcr;
   so_serial_t                   pcrc_serialno;
   pcr_req_id                    pcrc_id;
@@ -134,8 +157,8 @@ extern void init_crypto_helpers(int nhelpers);
 extern err_t send_crypto_helper_request(struct pluto_crypto_req *r
 					, struct pluto_crypto_req_cont *cn
 					, bool *toomuch);
-extern void pluto_crypto_helper_sockets(fd_set *readfds);
-extern int  pluto_crypto_helper_ready(fd_set *readfds);
+extern void pluto_crypto_helper_sockets(osw_fd_set *readfds);
+extern int  pluto_crypto_helper_ready(osw_fd_set *readfds);
 
 extern void pluto_do_crypto_op(struct pluto_crypto_req *r);
 extern void pluto_crypto_helper(int fd, int helpernum);
@@ -165,13 +188,69 @@ extern void compute_dh_shared(struct state *st, const chunk_t g
 extern stf_status perform_dh(struct pluto_crypto_req_cont *cn, struct state *st);
 extern bool generate_skeyids_iv(struct state *st);
 
-extern stf_status perform_dh_secretiv(struct state *st
-				      , enum phase1_role  init  
-				      , u_int16_t oakley_group);
+extern stf_status start_dh_secretiv(struct pluto_crypto_req_cont *cn
+				    , struct state *st
+				    , enum crypto_importance importance
+				    , enum phase1_role init /* TRUE=g_init,FALSE=g_r */
+				    , u_int16_t oakley_group_p);
 
-extern stf_status perform_dh_secret(struct state *st
-				    , enum phase1_role init
-				    , u_int16_t group);
+extern void finish_dh_secretiv(struct state *st,
+			       struct pluto_crypto_req *r);
+
+extern stf_status start_dh_secret(struct pluto_crypto_req_cont *cn
+				  , struct state *st
+				  , enum crypto_importance importance
+				  , enum phase1_role init      
+				  , u_int16_t oakley_group_p);
+
+extern void finish_dh_secret(struct state *st,
+			     struct pluto_crypto_req *r);
+
+extern stf_status start_dh_v2(struct pluto_crypto_req_cont *cn
+			      , struct state *st
+			      , enum crypto_importance importance
+			      , enum phase1_role init       /* TRUE=g_init,FALSE=g_r */
+			      , u_int16_t oakley_group2);
+
+extern void finish_dh_v2(struct state *st,
+			 struct pluto_crypto_req *r);
 
 extern void calc_dh_iv(struct pluto_crypto_req *r);
 extern void calc_dh(struct pluto_crypto_req *r);
+extern void calc_dh_v2(struct pluto_crypto_req *r);
+
+extern void unpack_KE(struct state *st
+		      , struct pluto_crypto_req *r
+		      , chunk_t *g);
+extern void unpack_nonce(chunk_t *n, struct pluto_crypto_req *r);
+
+
+static inline void clonetowirechunk(wire_chunk_t  *thespace,
+			     unsigned char *space,
+			     wire_chunk_t *wiretarget,
+			     const void   *origdat,
+			     const size_t  origlen)
+{
+    char *gip;
+    pluto_crypto_allocchunk(thespace, wiretarget, origlen);
+
+    gip = space_chunk_ptr(space, wiretarget);
+    memcpy(gip, origdat, origlen);
+}
+
+static inline void pcr_init(struct pluto_crypto_req *r)
+{
+    r->pcr_d.kn.thespace.start = 0;
+    r->pcr_d.kn.thespace.len   = sizeof(r->pcr_d.kn.space);
+}
+
+#endif /* _PLUTO_CRYPT_H */
+
+
+/*
+ * Local Variables:
+ * c-basic-offset:4
+ * c-style: pluto
+ * End:
+ */
+ 

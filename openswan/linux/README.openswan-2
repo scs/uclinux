@@ -1,5 +1,5 @@
 *
-* RCSID $Id: README.openswan-2,v 1.1 2003-12-10 01:07:49 mcr Exp $
+* RCSID $Id: README.openswan-2,v 1.1 2003/12/10 01:07:49 mcr Exp $
 *
 
                ****************************************
@@ -106,7 +106,7 @@ provided that the User-Mode-Linux patches are available.
 
 *
 * $Log: README.openswan-2,v $
-* Revision 1.1  2003-12-10 01:07:49  mcr
+* Revision 1.1  2003/12/10 01:07:49  mcr
 * 	documentation for additions.
 *
 *

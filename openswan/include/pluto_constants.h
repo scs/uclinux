@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pluto_constants.h,v 1.33.2.3 2005-11-16 22:41:30 ken Exp $
+ * RCSID $Id: pluto_constants.h,v 1.39 2005/10/03 19:58:12 mcr Exp $
  */
 
 /* Control and lock pathnames */
@@ -29,13 +29,12 @@ enum kernel_interface {
   NO_KERNEL = 1,
   AUTO_PICK = 2,
   USE_KLIPS = 3,
-  USE_NETKEY= 4
+  USE_NETKEY= 4,
+  USE_WIN2K = 5,
+  USE_FUNK  = 6,
+  USE_MASTKLIPS = 7,
+  USE_BSDKAME = 8,
 };
-extern enum kernel_interface kern_interface;
-extern enum_names kern_interface_names;
-
-
-extern enum_names dpd_action_names;
 
 /* RFC 3706 Dead Peer Detection */
 enum dpd_action {
@@ -47,8 +46,6 @@ enum dpd_action {
 
 
 /* Timer events */
-
-extern enum_names timer_event_names;
 
 enum event_type {
     EVENT_NULL,	/* non-event */
@@ -66,11 +63,13 @@ enum event_type {
     EVENT_LOG_DAILY,    /* reset certain log events/stats */
     EVENT_CRYPTO_FAILED,/* after some time, give up on crypto helper */
     EVENT_PENDING_PHASE2,  /* do not make pending phase2 wait forever */
+    EVENT_v2_RETRANSMIT,   /* Retransmit v2 packet */
 };
 
 #define EVENT_REINIT_SECRET_DELAY		3600 /* 1 hour */
 #define EVENT_CRYPTO_FAILED_DELAY               300
 #define EVENT_RETRANSMIT_DELAY_0		10   /* 10 seconds */
+#define EVENT_GIVEUP_ON_DNS_DELAY               300  /* 5 minutes for DNS */
 
 /*
  * cryptographic helper operations.
@@ -84,9 +83,8 @@ enum pluto_crypto_requests {
   pcr_build_nonce    = 6,
   pcr_compute_dh_iv  = 7,  /* perform phase 1 calculation: DH + prf */
   pcr_compute_dh     = 8,  /* perform phase 2 PFS DH */
+  pcr_compute_dh_v2  = 9,  /* perform IKEv2 PARENT SA calculation, create SKEYSEED */
 };
-
-extern enum_names pluto_cryptoop_names;
 
 /*
  * operational importance of this cryptographic operation.
@@ -96,11 +94,12 @@ extern enum_names pluto_cryptoop_names;
  * we should do it all costs.
  */
 enum crypto_importance {
-  pcim_stranger_crypto = 1,
-  pcim_known_crypto    = 2,
-  pcim_ongoing_crypto  = 3,
-  pcim_local_crypto    = 4,
-  pcim_demand_crypto   = 5
+	pcim_notset_crypto=0,
+	pcim_stranger_crypto = 1,
+	pcim_known_crypto    = 2,
+	pcim_ongoing_crypto  = 3,
+	pcim_local_crypto    = 4,
+	pcim_demand_crypto   = 5
 };
 
 /* status for state-transition-function
@@ -109,7 +108,7 @@ enum crypto_importance {
 
 typedef enum {
     STF_IGNORE,	/* don't respond */
-    STF_INLINE,        /* set to this on second time through complete_state_trans */
+    STF_INLINE,	/* set to this on second time through complete_state_trans */
     STF_SUSPEND,    /* unfinished -- don't release resources */
     STF_OK,	/* success */
     STF_INTERNAL_ERROR,	/* discard everything, we failed */
@@ -117,11 +116,11 @@ typedef enum {
 			 * so just ignore the message, and let them retransmit.
 			 */
     STF_FATAL,          /* just stop. we can't continue. */
+    STF_STOLEN,         /* only used by TaProoM */
     STF_FAIL,	        /* discard everything, something failed.  notification_t added.
 			 * values STF_FAIL + x are notifications.
 			 */
 } stf_status;
-extern enum_names stfstatus_name;
 
 /* Misc. stuff */
 
@@ -144,7 +143,6 @@ extern enum_names stfstatus_name;
  * in whack.c.  A change to WHACK_MAGIC in whack.h will be required too.
  */
 #if !defined(NO_DEBUG)
-extern const char *const debug_bit_names[];
 
 #define DBG_RAW		LELEM(0)	/* raw packet I/O */
 #define DBG_CRYPT	LELEM(1)	/* encryption/decryption of messages */
@@ -153,6 +151,7 @@ extern const char *const debug_bit_names[];
 #define DBG_CONTROL	LELEM(4)	/* control flow within Pluto */
 #define DBG_LIFECYCLE	LELEM(5)	/* SA lifecycle */
 #define DBG_KLIPS	LELEM(6)	/* messages to KLIPS */
+#define DBG_NETKEY	LELEM(6)	/* messages to NETKEY/XFRM */
 #define DBG_DNS		LELEM(7)	/* DNS activity */
 #define DBG_OPPO	LELEM(8)	/* opportunism */
 #define DBG_CONTROLMORE LELEM(9)	/* more detailed debugging */
@@ -161,6 +160,8 @@ extern const char *const debug_bit_names[];
 #define DBG_NATT        LELEM(11)       /* debugging of NAT-traversal */
 #define DBG_X509        LELEM(12)       /* X.509/pkix verify, cert retrival */
 #define DBG_DPD         LELEM(13)       /* DPD items */
+#define DBG_OPPOINFO    LELEM(14)       /* log various informational things about oppo/%trap-keying */
+#define DBG_WHACKWATCH  LELEM(15)       /* never let WHACK go */
 #define DBG_PRIVATE	LELEM(20)	/* private information: DANGER! */
 
 #define IMPAIR0	21	/* first bit for IMPAIR_* */
@@ -204,9 +205,6 @@ extern const char *const debug_bit_names[];
  * state_microcode state_microcode_table in demux.c describes
  * other important details.
  */
-
-extern enum_names state_names;
-extern const char *const state_story[];
 
 enum state_kind {
     STATE_UNDEFINED=0,	/* 0 -- most likely accident */
@@ -253,12 +251,25 @@ enum state_kind {
 
     STATE_XAUTH_I0,              /* client state is awaiting request */
     STATE_XAUTH_I1,              /* client state is awaiting result code */
+    STATE_IKE_ROOF,
 
-    STATE_IKE_ROOF
+    /* IKEv2 states.
+     * Note that message reliably sending is done by initiator only,
+     * unlike with IKEv1.
+     */
+    STATE_IKEv2_BASE,
+    /* INITIATOR states */
+    STATE_PARENT_I1,           /* sent initial message, waiting for reply */
+    STATE_PARENT_I2,           /* sent auth message, waiting for reply */
+    STATE_PARENT_I3,           /* received auth message, done. */
 
+    /* RESPONDER states  --- no real actions, initiator is responsible
+     * for all work states. */
+    STATE_PARENT_R1,
+    STATE_PARENT_R2,
+    
+    STATE_IKEv2_ROOF,
 };
-extern enum_names state_names;
-extern enum_names state_stories;
 
 enum phase1_role {
   INITIATOR=1,
@@ -299,11 +310,17 @@ enum phase1_role {
 #define IS_MODE_CFG_ESTABLISHED(s) ((s) == STATE_MODE_CFG_R2)
 #endif
 
+#define IS_PARENT_SA_ESTABLISHED(s) ((s) == STATE_PARENT_I2 || (s) == STATE_PARENT_R1)
+#define IS_CHILD_SA_ESTABLISHED(st) (((st->st_state) == STATE_PARENT_I3 || (st->st_state) == STATE_PARENT_R2) && (st->st_childsa != NULL))
+
+
+#define IS_CHILD_SA(st)  ((st)->st_clonedfrom != SOS_NOBODY)
+#define IS_PARENT_SA(st) (!IS_CHILD_SA(st))
+
+
 /* kind of struct connection
  * Ordered (mostly) by concreteness.  Order is exploited.
  */
-
-extern enum_names connection_kind_names;
 
 enum connection_kind {
     CK_GROUP,		/* policy group: instantiates to template */
@@ -319,8 +336,6 @@ enum connection_kind {
  * Note: a connection can only be routed if it is NEVER_NEGOTIATE
  * or HAS_IPSEC_POLICY.
  */
-
-extern enum_names routing_story;
 
 /* note that this is assumed to be ordered! */
 enum routing_t {
@@ -338,8 +353,6 @@ enum routing_t {
 #define erouted(rs) ((rs) != RT_UNROUTED)
 #define shunt_erouted(rs) (erouted(rs) && (rs) != RT_ROUTED_TUNNEL)
 
-extern enum_names certpolicy_type_names;
-
 enum certpolicy {
   cert_neversend   = 1,
   cert_sendifasked = 2,    /* the default */
@@ -348,8 +361,15 @@ enum certpolicy {
 };
 
 /* this is the default setting. */
-#define cert_defaultcertpolicy cert_alwayssend
+#define cert_defaultcertpolicy cert_sendifasked
 
+
+enum four_options {
+	fo_never   = 0,  /* do not propose, do not permit */
+	fo_permit  = 1,  /* do not propose, but permit peer to propose */
+	fo_propose = 2,  /* propose, and permit, but do not insist  */
+	fo_insist  = 3   /* propose, and only accept if peer agrees */
+};
 
 /* Policies for establishing an SA
  *
@@ -359,64 +379,80 @@ enum certpolicy {
  * in sync!
  */
 
-extern const char *const sa_policy_bit_names[];
 extern const char *prettypolicy(lset_t policy);
 
 /* ISAKMP auth techniques (none means never negotiate) */
-#define POLICY_PSK           LELEM(0)
-#define POLICY_RSASIG        LELEM(1)
-
+enum pluto_policy {
+	POLICY_PSK     = LELEM(0), 
+	POLICY_RSASIG  = LELEM(1),
 #define POLICY_ISAKMP_SHIFT	0	/* log2(POLICY_PSK) */
 
 /* policies that affect ID types that are acceptable - RSA, PSK, XAUTH */
-#define POLICY_ID_AUTH_MASK	LRANGES(POLICY_PSK, POLICY_RSASIG)
+        POLICY_ID_AUTH_MASK=LRANGES(POLICY_PSK, POLICY_RSASIG), 
 
 /* policies that affect choices of proposal, note, does not include XAUTH */
 #define POLICY_ISAKMP(x,xs,xc)	(((x) & LRANGES(POLICY_PSK, POLICY_RSASIG)) + \
                                  ((xs)*4) + ((xc)*8))
 
 /* Quick Mode (IPSEC) attributes */
-#define POLICY_ENCRYPT       LELEM(2)	/* must be first of IPSEC policies */
-#define POLICY_AUTHENTICATE  LELEM(3)	/* must be second */
-#define POLICY_COMPRESS      LELEM(4)	/* must be third */
-#define POLICY_TUNNEL        LELEM(5)
-#define POLICY_PFS           LELEM(6)
-#define POLICY_DISABLEARRIVALCHECK  LELEM(7)	/* supress tunnel egress address checking */
+	POLICY_ENCRYPT = LELEM(2),	/* must be first of IPSEC policies */
+	POLICY_AUTHENTICATE=LELEM(3),	/* must be second */
+	POLICY_COMPRESS=LELEM(4),	/* must be third */
+	POLICY_TUNNEL  = LELEM(5),
+	POLICY_PFS     = LELEM(6),
+	POLICY_DISABLEARRIVALCHECK = LELEM(7),	/* supress tunnel egress address checking */
 
 #define POLICY_IPSEC_SHIFT	2	/* log2(POLICY_ENCRYPT) */
-#define POLICY_IPSEC_MASK	LRANGES(POLICY_ENCRYPT, POLICY_DISABLEARRIVALCHECK)
+	POLICY_IPSEC_MASK = LRANGES(POLICY_ENCRYPT, POLICY_DISABLEARRIVALCHECK),
 
 /* shunt attributes: what to do when routed without tunnel (2 bits) */
-#define POLICY_SHUNT_SHIFT	8	/* log2(POLICY_SHUNT_PASS) */
-#define POLICY_SHUNT_MASK	(03ul << POLICY_SHUNT_SHIFT)
-
-#define POLICY_SHUNT_TRAP	(0ul << POLICY_SHUNT_SHIFT) /* default: negotiate */
-#define POLICY_SHUNT_PASS	(1ul << POLICY_SHUNT_SHIFT)
-#define POLICY_SHUNT_DROP	(2ul << POLICY_SHUNT_SHIFT)
-#define POLICY_SHUNT_REJECT	(3ul << POLICY_SHUNT_SHIFT)
+	POLICY_SHUNT_SHIFT = 8,	/* log2(POLICY_SHUNT_PASS) */
+	POLICY_SHUNT_MASK  = (03ul << POLICY_SHUNT_SHIFT),
+	POLICY_SHUNT_TRAP  = (0ul << POLICY_SHUNT_SHIFT), /* default: negotiate */
+	POLICY_SHUNT_PASS  = (1ul << POLICY_SHUNT_SHIFT), 
+	POLICY_SHUNT_DROP  = (2ul << POLICY_SHUNT_SHIFT),
+	POLICY_SHUNT_REJECT=(3ul << POLICY_SHUNT_SHIFT),
 
 /* fail attributes: what to do with failed negotiation (2 bits) */
 
-#define POLICY_FAIL_SHIFT	10	/* log2(POLICY_FAIL_PASS) */
-#define POLICY_FAIL_MASK	(03ul << POLICY_FAIL_SHIFT)
+	POLICY_FAIL_SHIFT  = 10,	/* log2(POLICY_FAIL_PASS) */
+	POLICY_FAIL_MASK   = (03ul << POLICY_FAIL_SHIFT),
 
-#define POLICY_FAIL_NONE     (0ul << POLICY_FAIL_SHIFT) /* default */
-#define POLICY_FAIL_PASS     (1ul << POLICY_FAIL_SHIFT)
-#define POLICY_FAIL_DROP     (2ul << POLICY_FAIL_SHIFT)
-#define POLICY_FAIL_REJECT   (3ul << POLICY_FAIL_SHIFT)
+	POLICY_FAIL_NONE   = (0ul << POLICY_FAIL_SHIFT), /* default */
+	POLICY_FAIL_PASS   = (1ul << POLICY_FAIL_SHIFT),
+	POLICY_FAIL_DROP   = (2ul << POLICY_FAIL_SHIFT),
+	POLICY_FAIL_REJECT = (3ul << POLICY_FAIL_SHIFT),
 
 /* connection policy
  * Other policies could vary per state object.  These live in connection.
  */
-#define POLICY_DONT_REKEY   LELEM(12)   /* don't rekey state either Phase */
-#define POLICY_OPPO         LELEM(13)   /* is this opportunistic? */
-#define POLICY_GROUP        LELEM(14)   /* is this a group template? */
-#define POLICY_GROUTED      LELEM(15)   /* do we want this group routed? */
-#define POLICY_UP           LELEM(16)   /* do we want this up? */
-#define POLICY_XAUTH        LELEM(17)   /* do we offer XAUTH? */
-#define POLICY_MODECFG_PULL LELEM(18)   /* is modecfg pulled by client? */
-#define POLICY_AGGRESSIVE   LELEM(19)   /* do we do aggressive mode? */
+	POLICY_DONT_REKEY   = LELEM(12),   /* don't rekey state either Phase */
+	POLICY_OPPO         = LELEM(13),   /* is this opportunistic? */
+	POLICY_GROUP        = LELEM(14),   /* is this a group template? */
+	POLICY_GROUTED      = LELEM(15),   /* do we want this group routed? */
+	POLICY_UP           = LELEM(16),   /* do we want this up? */
+	POLICY_XAUTH        = LELEM(17),   /* do we offer XAUTH? */
+	POLICY_MODECFG_PULL = LELEM(18),   /* is modecfg pulled by client? */
+	POLICY_AGGRESSIVE   = LELEM(19),   /* do we do aggressive mode? */
+	POLICY_PERHOST      = LELEM(20),   /* should we specialize the policy to the host? */
+	POLICY_SUBHOST      = LELEM(21),   /* if the policy applies below the host level (TCP/UDP/SCTP ports), */
+	POLICY_PERPROTO     = LELEM(22),   /* should we specialize the policy to the protocol? */
+	POLICY_OVERLAPIP    = LELEM(23),   /* can two conns that have subnet=vhost: declare the same IP? */
 
+	/*
+	 * this is mapped by parser's ikev2={four_state}. It is a bit richer
+	 * in that we can actually turn off everything, but it expands more
+	 * sensibly to an IKEv3 and other methods.
+	 */
+	POLICY_IKEV1_DISABLE = LELEM(24), /* !accept IKEv1?  0x0100 0000 */
+	POLICY_IKEV2_ALLOW   = LELEM(25), /* accept IKEv2?   0x0200 0000 */
+	POLICY_IKEV2_PROPOSE = LELEM(26), /* propose IKEv2?  0x0400 0000 */
+	POLICY_IKEV2_MASK = POLICY_IKEV1_DISABLE|POLICY_IKEV2_ALLOW|POLICY_IKEV2_PROPOSE,
+	POLICY_MODECFGDNS1  = LELEM(27),   /* should we offer a DNS server IP */
+	POLICY_MODECFGDNS2  = LELEM(28),   /* should we offer another DNS server IP */
+	POLICY_MODECFGWINS1 = LELEM(29),   /* should we offer a WINS server IP */
+	POLICY_MODECFGWINS2 = LELEM(30),   /* should we offer another WINS server IP */
+};
 
 /* Any IPsec policy?  If not, a connection description
  * is only for ISAKMP SA, not IPSEC SA.  (A pun, I admit.)
@@ -432,9 +468,6 @@ extern const char *prettypolicy(lset_t policy);
 /* Oakley transform attributes
  * draft-ietf-ipsec-ike-01.txt appendix A
  */
-
-extern enum_names oakley_attr_names;
-extern const char *const oakley_attr_bit_names[];
 
 #define OAKLEY_ENCRYPTION_ALGORITHM    1
 #define OAKLEY_HASH_ALGORITHM          2
@@ -454,14 +487,9 @@ extern const char *const oakley_attr_bit_names[];
 #define OAKLEY_GROUP_ORDER            16	/* B/V */
 #define OAKLEY_BLOCK_SIZE             17
 
-/* for each Oakley attribute, which enum_names describes its values? */
-extern enum_names *oakley_attr_val_descs[];
-
 /* IPsec DOI attributes
  * RFC2407 The Internet IP security Domain of Interpretation for ISAKMP 4.5
  */
-
-extern enum_names ipsec_attr_names;
 
 #define SA_LIFE_TYPE             1
 #define SA_LIFE_DURATION         2	/* B/V */
@@ -474,7 +502,6 @@ extern enum_names ipsec_attr_names;
 #define COMPRESS_PRIVATE_ALG     9	/* B/V */
 
 /* for each IPsec attribute, which enum_names describes its values? */
-extern enum_names *ipsec_attr_val_descs[];
 
 /* SA Lifetime Type attribute
  * RFC2407 The Internet IP security Domain of Interpretation for ISAKMP 4.5
@@ -490,8 +517,6 @@ extern enum_names *ipsec_attr_val_descs[];
  * The value of SA_LIFE_DURATION_MAXIMUM is our local policy.
  */
 
-extern enum_names sa_lifetime_names;
-
 #define SA_LIFE_TYPE_SECONDS   1
 #define SA_LIFE_TYPE_KBYTES    2
 
@@ -506,8 +531,6 @@ extern enum_names sa_lifetime_names;
 #define SA_LIFE_DURATION_K_DEFAULT  0xFFFFFFFFlu
 
 /* Encapsulation Mode attribute */
-
-extern enum_names enc_mode_names;
 
 #define ENCAPSULATION_MODE_UNSPECIFIED 0	/* not legal -- used internally */
 #define ENCAPSULATION_MODE_TUNNEL      1
@@ -525,21 +548,6 @@ extern enum_names enc_mode_names;
 #define ENCAPSULATION_MODE_UDP_TRANSPORT_RFC       4
 #endif
 
-/* Auth Algorithm attribute */
-
-extern enum_names auth_alg_names, extended_auth_alg_names;
-
-#define AUTH_ALGORITHM_NONE        0	/* our private designation */
-#define AUTH_ALGORITHM_HMAC_MD5    1
-#define AUTH_ALGORITHM_HMAC_SHA1   2
-#define AUTH_ALGORITHM_DES_MAC     3
-#define AUTH_ALGORITHM_KPDK        4
-#define AUTH_ALGORITHM_HMAC_SHA2_256   5
-#define AUTH_ALGORITHM_HMAC_SHA2_384   6
-#define AUTH_ALGORITHM_HMAC_SHA2_512   7
-#define AUTH_ALGORITHM_HMAC_RIPEMD     8
-
-
 /* Oakley Lifetime Type attribute
  * draft-ietf-ipsec-ike-01.txt appendix A
  * As far as I can see, there is not specification for
@@ -547,7 +555,6 @@ extern enum_names auth_alg_names, extended_auth_alg_names;
  * For no particular reason, we chose one hour.
  * The value of OAKLEY_ISAKMP_SA_LIFETIME_MAXIMUM is our local policy.
  */
-extern enum_names oakley_lifetime_names;
 
 #define OAKLEY_LIFE_SECONDS   1
 #define OAKLEY_LIFE_KILOBYTES 2
@@ -560,6 +567,7 @@ enum pubkey_source
     PUBKEY_NOTSET       = 0,
     PUBKEY_DNS          = 1,
     PUBKEY_DNSONDEMAND  = 2,
+    PUBKEY_CERTIFICATE  = 3,
     PUBKEY_PREEXCHANGED = LOOSE_ENUM_OTHER,
 };
 
@@ -572,42 +580,11 @@ enum keyword_host {
     KH_OPPO         = 4,
     KH_OPPOGROUP    = 5,
     KH_GROUP        = 6,
+    KH_IPHOSTNAME   = 7,                /* host_addr invalid, only string */
     KH_IPADDR       = LOOSE_ENUM_OTHER,
 };
 
-
-/* socket address family info */
-
-struct af_info
-{
-    int af;
-    const char *name;
-    size_t ia_sz;
-    size_t sa_sz;
-    int mask_cnt;
-    u_int8_t id_addr, id_subnet, id_range;
-    const ip_address *any;
-    const ip_subnet *none;	/* 0.0.0.0/32 or IPv6 equivalent */
-    const ip_subnet *all;	/* 0.0.0.0/0 or IPv6 equivalent */
-};
-
-extern const struct af_info
-    af_inet4_info,
-    af_inet6_info;
-
-extern const struct af_info *aftoinfo(int af);
-
-extern enum_names af_names;
-
-#define subnetisaddr(sn, a) (subnetishost(sn) && addrinsubnet((a), (sn)))
-extern bool subnetisnone(const ip_subnet *sn);
-
 /* BIND enumerated types */
-
-extern enum_names
-    rr_qtype_names,
-    rr_type_names,
-    rr_class_names;
 
 /* How authenticated is info that might have come from DNS?
  * In order of increasing confidence.
@@ -636,12 +613,9 @@ enum PrivateKeyKind {
     PPK_PSK = 1,
     /* PPK_DSS, */	/* not implemented */
     PPK_RSA = 3,
-    PPK_PIN = 4
+    PPK_PIN = 4,
+    PPK_XAUTH=5,
 };
-extern enum_names ppk_names;
-
-/* natt traversal types */
-extern const char *const natt_type_bitnames[];
 
 
 

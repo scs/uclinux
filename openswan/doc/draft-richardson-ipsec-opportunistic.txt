@@ -1090,7 +1090,7 @@ Internet-Draft                opportunistic                 January 2005
    	machine
 
 
-   $Id: draft-richardson-ipsec-opportunistic.txt,v 1.25 2005-02-15 20:18:46 mcr Exp $
+   $Id: draft-richardson-ipsec-opportunistic.txt,v 1.25 2005/02/15 20:18:46 mcr Exp $
 
 
 3.3.1  Unauthenticated OE peer

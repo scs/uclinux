@@ -48,8 +48,9 @@
 #endif
 
 /*	Low freeswan header coupling	*/
+#include <openswan.h>
 #include "openswan/ipsec_alg.h"
-#include "crypto/aes_cbc.h"
+#include "klips-crypto/aes_cbc.h"
 
 #define CONFIG_KLIPS_ENC_AES_MAC 1
 
@@ -62,11 +63,11 @@ static int keymaxbits=0;
 #if defined(CONFIG_KLIPS_ENC_AES_MODULE)
 MODULE_AUTHOR("JuanJo Ciarlante <jjo-ipsec@mendoza.gov.ar>");
 #ifdef module_param
-module_param(debug_aes,int,0600)
-module_param(test_aes,int,0600)
-module_param(excl_aes,int,0600)
-module_param(keyminbits,int,0600)
-module_param(keymaxbits,int,0600)
+module_param(debug_aes,int,0664);
+module_param(test_aes,int,0664);
+module_param(excl_aes,int,0664);
+module_param(keyminbits,int,0664);
+module_param(keymaxbits,int,0664);
 #else
 MODULE_PARM(debug_aes, "i");
 MODULE_PARM(test_aes, "i");
@@ -77,7 +78,7 @@ MODULE_PARM(keymaxbits, "i");
 #endif
 
 #if CONFIG_KLIPS_ENC_AES_MAC
-#include "crypto/aes_xcbc_mac.h"
+#include "klips-crypto/aes_xcbc_mac.h"
 
 /*	
  *	Not IANA number yet (draft-ietf-ipsec-ciph-aes-xcbc-mac-00.txt).
@@ -89,10 +90,12 @@ static int auth_id=0;
 #else
 static int auth_id=9;
 #endif
-#ifdef module_param
-module_param(auth_id, int, 0600);
-#else
+#if 0
+#ifdef MODULE_PARM
 MODULE_PARM(auth_id, "i");
+#else
+module_param(auth_id,int,0664);
+#endif
 #endif
 #endif
 
@@ -124,7 +127,7 @@ static int _aes_set_key(struct ipsec_alg_enc *alg,
 }
 
 static int _aes_cbc_encrypt(struct ipsec_alg_enc *alg, __u8 * key_e,
-			    __u8 * in, int ilen, const __u8 * iv,
+			    const __u8 * in, int ilen, const __u8 * iv,
 			    int encrypt)
 {
 	AES_CONTEXT_T *ctx=(AES_CONTEXT_T*)key_e;
@@ -175,6 +178,7 @@ static struct ipsec_alg_enc ipsec_alg_AES = {
 		      ixt_blocksize:	ESP_AES_CBC_BLK_LEN, 
 		      ixt_support: {
 			ias_exttype:	IPSEC_ALG_TYPE_ENCRYPT,
+			//ias_ivlen:      128,
 			ias_id: 	ESP_AES,
 			ias_keyminbits:	ESP_AES_KEY_SZ_MIN*8,
 			ias_keymaxbits:	ESP_AES_KEY_SZ_MAX*8,

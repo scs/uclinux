@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_ah.h,v 1.26 2004-09-13 02:22:10 mcr Exp $
+ * RCSID $Id: ipsec_ah.h,v 1.26 2004/09/13 02:22:10 mcr Exp $
  */
 
 #include "ipsec_md5h.h"
@@ -27,7 +27,9 @@
 
 #ifdef __KERNEL__
 
+#ifndef CONFIG_XFRM_ALTERNATE_STACK
 extern struct inet_protocol ah_protocol;
+#endif /* CONFIG_XFRM_ALTERNATE_STACK */
 
 struct options;
 
@@ -46,14 +48,13 @@ struct ahhdr				/* Generic AH header */
 
 extern struct xform_functions ah_xform_funcs[];
 
-#ifdef CONFIG_KLIPS_DEBUG
-extern int debug_ah;
-#endif /* CONFIG_KLIPS_DEBUG */
+#include "openswan/ipsec_sysctl.h"
+
 #endif /* __KERNEL__ */
 
 /*
  * $Log: ipsec_ah.h,v $
- * Revision 1.26  2004-09-13 02:22:10  mcr
+ * Revision 1.26  2004/09/13 02:22:10  mcr
  * 	#define inet_protocol if necessary.
  *
  * Revision 1.25  2004/09/06 18:35:41  mcr

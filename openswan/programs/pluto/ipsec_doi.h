@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_doi.h,v 1.41 2005-03-20 02:27:50 mcr Exp $
+ * RCSID $Id: ipsec_doi.h,v 1.41 2005/03/20 02:27:50 mcr Exp $
  */
 
 extern void echo_hdr(struct msg_digest *md, bool enc, u_int8_t np);
@@ -21,7 +21,9 @@ extern void ipsecdoi_initiate(int whack_sock, struct connection *c
 			      , so_serial_t replacing
 			      , enum crypto_importance importance);
 
-extern void ipsecdoi_replace(struct state *st, unsigned long try);
+extern void ipsecdoi_replace(struct state *st
+			     , lset_t policy_add, lset_t policy_del
+			     , unsigned long try);
 
 extern void init_phase2_iv(struct state *st, const msgid_t *msgid);
 
@@ -46,6 +48,14 @@ extern void accept_delete(struct state *st, struct msg_digest *md
 extern void send_notification_from_state(struct state *st,
     enum state_kind state, u_int16_t type);
 extern void send_notification_from_md(struct msg_digest *md, u_int16_t type);
+
+extern notification_t accept_nonce(struct msg_digest *md, chunk_t *dest
+				   , const char *name
+				   , enum next_payload_types paynum);
+
+extern notification_t accept_KE(chunk_t *dest, const char *val_name
+				, const struct oakley_group_desc *gr
+				, pb_stream *pbs);
 
 /*
  * some additional functions are exported for xauth.c
@@ -72,7 +82,7 @@ extern void dpd_timeout(struct state *st);
     if (!out_generic(np, &isakmp_hash_desc, &(rbody), &hash_pbs)) \
 	return STF_INTERNAL_ERROR; \
     r_hashval = hash_pbs.cur;	/* remember where to plant value */ \
-    if (!out_zero(st->st_oakley.hasher->hash_digest_len, &hash_pbs, "HASH")) \
+    if (!out_zero(st->st_oakley.prf_hasher->hash_digest_len, &hash_pbs, "HASH")) \
 	return STF_INTERNAL_ERROR; \
     close_output_pbs(&hash_pbs); \
     r_hash_start = (rbody).cur;	/* hash from after HASH payload */ \
@@ -102,4 +112,22 @@ extern void dpd_timeout(struct state *st);
 extern stf_status
 send_isakmp_notification(struct state *st
 			 , u_int16_t type, const void *data, size_t len);
+
+extern bool has_preloaded_public_key(struct state *st);
+
+extern bool extract_peer_id(struct id *peer, const pb_stream const* id_pbs);
+
+
+/*
+ * tools for sending Pluto Vendor ID.
+ */
+#ifdef PLUTO_SENDS_VENDORID
+#define SEND_PLUTO_VID	1
+#else /* !PLUTO_SENDS_VENDORID */
+#define SEND_PLUTO_VID	0
+#endif /* !PLUTO_SENDS_VENDORID */
+
+extern char pluto_vendorid[];
+
+
 

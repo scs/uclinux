@@ -15,7 +15,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_eroute.h,v 1.5 2004-04-05 19:55:05 mcr Exp $
+ * RCSID $Id: ipsec_eroute.h,v 1.5 2004/04/05 19:55:05 mcr Exp $
  *
  * derived from ipsec_encap.h 1.15 on 2001/9/18 by mcr.
  *
@@ -83,7 +83,7 @@ struct eroute
 
 /*
  * $Log: ipsec_eroute.h,v $
- * Revision 1.5  2004-04-05 19:55:05  mcr
+ * Revision 1.5  2004/04/05 19:55:05  mcr
  * Moved from linux/include/freeswan/ipsec_eroute.h,v
  *
  * Revision 1.4  2003/10/31 02:27:05  mcr

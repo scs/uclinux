@@ -11,10 +11,12 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: timer.h,v 1.19 2005-07-07 04:45:39 mcr Exp $
+ * RCSID $Id: timer.h,v 1.19 2005/07/07 04:45:39 mcr Exp $
  */
 
-extern time_t now(void);	/* careful version of time(2) */
+#ifndef _TIMER_H
+#define _TIMER_H
+#include "oswtime.h"
 
 struct state;	/* forward declaration */
 
@@ -31,6 +33,8 @@ extern void handle_timer_event(void);
 extern long next_event(void);
 extern void delete_event(struct state *st);
 extern void daily_log_event(void);
+extern void handle_next_timer_event(void);
+extern void init_timer(void);
 
 /* extra debugging of dpd event removal */
 extern void _delete_dpd_event(struct state *st, const char *file, int lineno);
@@ -38,3 +42,4 @@ extern void _delete_dpd_event(struct state *st, const char *file, int lineno);
 
 extern void timer_list(void);
 
+#endif /* _TIMER_H */

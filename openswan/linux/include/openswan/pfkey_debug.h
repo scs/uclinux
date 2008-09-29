@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id: pfkey_debug.h,v 1.3 2004-04-05 19:55:07 mcr Exp $
+ * RCSID $Id: pfkey_debug.h,v 1.3 2004/04/05 19:55:07 mcr Exp $
  */
 
 #ifndef _FREESWAN_PFKEY_DEBUG_H
@@ -32,8 +32,8 @@
 
 extern unsigned int pfkey_lib_debug;
 
-extern void (*pfkey_debug_func)(const char *message, ...) PRINTF_LIKE(1);
-extern void (*pfkey_error_func)(const char *message, ...) PRINTF_LIKE(1);
+extern int (*pfkey_debug_func)(const char *message, ...) PRINTF_LIKE(1);
+extern int (*pfkey_error_func)(const char *message, ...) PRINTF_LIKE(1);
 
 #define DEBUGGING(level,args...)  if(pfkey_lib_debug & level) { \
                               if(pfkey_debug_func != NULL) { \

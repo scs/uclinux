@@ -1,10 +1,10 @@
 #!/usr/bin/perl
 
 #
-# $Id: disttools.pl,v 1.13 2003-06-17 22:30:06 build Exp $
+# $Id: disttools.pl,v 1.13 2003/06/17 22:30:06 build Exp $
 #
 # $Log: disttools.pl,v $
-# Revision 1.13  2003-06-17 22:30:06  build
+# Revision 1.13  2003/06/17 22:30:06  build
 # 	adjusted userid to pick
 # 	use key that is offline.
 #

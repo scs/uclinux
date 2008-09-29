@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print_p.h,v 1.1 2004-09-20 18:00:36 mcr Exp $ */
+/* $Id: print_p.h,v 1.1 2004/09/20 18:00:36 mcr Exp $ */
 
 #ifndef LWRES_PRINT_P_H
 #define LWRES_PRINT_P_H 1

@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: policyquery.c,v 1.2.24.1 2005-07-26 01:51:36 ken Exp $
+ * RCSID $Id: policyquery.c,v 1.3 2005/07/26 01:12:23 mcr Exp $
  */
 
 #include <stddef.h>
@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <wait.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -30,6 +29,8 @@
 
 #include <openswan.h>
 #include <openswan/ipsec_policy.h>
+
+#include "socketwrapper.h"
 
 #include "libipsecpolicy.h"
 
@@ -49,7 +50,7 @@ err_t ipsec_policy_init(void)
     return NULL;
   }
 
-  policy_query_socket = socket(PF_UNIX, SOCK_STREAM, 0);
+  policy_query_socket = safe_socket(PF_UNIX, SOCK_STREAM, 0);
   if(policy_query_socket == -1) {
     return "failed to open policy socket";
   }
@@ -140,7 +141,7 @@ err_t ipsec_policy_sendrecv(unsigned char *buf,
 
 err_t ipsec_policy_lookup(int fd, struct ipsec_policy_cmd_query *result)
 {
-  int len;
+  unsigned int len;
 
   /* clear it out */
   memset(result, 0, sizeof(*result));

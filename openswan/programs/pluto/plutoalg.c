@@ -20,10 +20,11 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <openswan.h>
-#include <pfkeyv2.h>
-#include <sys/queue.h>
+#include <openswan/pfkeyv2.h>
 #include <openswan/passert.h>
 #include <openswan/ipsec_policy.h>
+
+#include "sysdep.h"
 #include "constants.h"
 #include "oswlog.h"
 #include "oswalloc.h"
@@ -104,7 +105,7 @@ out:
 }
 
 static void
-__alg_info_ike_add (struct alg_info_ike *alg_info, int ealg_id, unsigned ek_bits, int aalg_id, unsigned ak_bits, int modp_id)
+__alg_info_ike_add (struct alg_info_ike *alg_info, int ealg_id, unsigned ek_bits, int aalg_id, unsigned ak_bits, unsigned int modp_id)
 {
 	struct ike_info *ike_info=alg_info->ike;
 	unsigned cnt=alg_info->alg_info_cnt, i;
@@ -183,57 +184,125 @@ in_loop:
 }
 
 
+/*
+ * print which ESP algorithm has actually been selected, based upon which
+ * ones are actually loaded.
+ */
 int
 alg_info_snprint_esp(char *buf, int buflen, struct alg_info_esp *alg_info)
 {
 	char *ptr=buf;
+	int ret;
 	struct esp_info *esp_info;
 	int cnt;
-	int len;
 	int eklen, aklen;
-	ptr=buf;
-	ALG_INFO_ESP_FOREACH(alg_info, esp_info, cnt) {
-		if (kernel_alg_esp_enc_ok(esp_info->esp_ealg_id, 0, NULL) &&
-	   	    (kernel_alg_esp_auth_ok(esp_info->esp_aalg_id, NULL))) {
-			eklen=esp_info->esp_ealg_keylen;
-			if (!eklen) 
-				eklen=kernel_alg_esp_enc_keylen(esp_info->esp_ealg_id)*BITS_PER_BYTE;
-			aklen=esp_info->esp_aalg_keylen;
-			if (!aklen) 
-				aklen=kernel_alg_esp_auth_keylen(esp_info->esp_aalg_id)*BITS_PER_BYTE;
+	const char *sep="";
 
-			len=snprintf(ptr, buflen, "%s(%d)_%03d-%s(%d)_%03d"
-				     , enum_name(&esp_transformid_names, esp_info->esp_ealg_id)+sizeof("ESP")
-				     , esp_info->esp_ealg_id, eklen
-				     , enum_name(&auth_alg_names, esp_info->esp_aalg_id)+sizeof("AUTH_ALGORITHM_HMAC")
-				     , esp_info->esp_aalg_id, aklen);
-			ptr+=len;
-			buflen-=len;
-			if ( cnt > 0) {
-				len=snprintf(ptr, buflen, ", ");
-				ptr+=len;
-				buflen-=len;
-			}
-			if (buflen<0) break;
-		}
+	ptr=buf;
+
+	buf[0]=0; strncat(buf, "none", buflen);
+
+	ALG_INFO_ESP_FOREACH(alg_info, esp_info, cnt) {
+	    if (kernel_alg_esp_enc_ok(esp_info->esp_ealg_id, 0, NULL)) {
+		DBG_log("esp algid=%d not available", esp_info->esp_ealg_id);
+		continue;
+	    }
+
+	    if (kernel_alg_esp_auth_ok(esp_info->esp_aalg_id, NULL)) {
+		DBG_log("auth algid=%d not available", esp_info->esp_aalg_id);
+		continue;
+	    }
+	    
+	    eklen=esp_info->esp_ealg_keylen;
+	    if (!eklen) 
+		eklen=kernel_alg_esp_enc_keylen(esp_info->esp_ealg_id)*BITS_PER_BYTE;
+	    aklen=esp_info->esp_aalg_keylen;
+	    if (!aklen) 
+		aklen=kernel_alg_esp_auth_keylen(esp_info->esp_aalg_id)*BITS_PER_BYTE;
+	    
+	    ret=snprintf(ptr, buflen, "%s%s(%d)_%03d-%s(%d)_%03d"
+			 , sep
+			 , enum_name(&esp_transformid_names, esp_info->esp_ealg_id)+sizeof("ESP")
+			 , esp_info->esp_ealg_id, eklen
+			 , enum_name(&auth_alg_names, esp_info->esp_aalg_id) + (esp_info->esp_aalg_id ? sizeof("AUTH_ALGORITHM_HMAC") : sizeof("AUTH_ALGORITHM"))
+			 , esp_info->esp_aalg_id, aklen);
+	    ptr+=ret;
+	    buflen-=ret;
+	    if (buflen<0) break;
+
+	    sep = ", ";
 	}
 	return ptr-buf;
 }
+
+/*
+ * print which AH algorithm has actually been selected, based upon which
+ * ones are actually loaded.
+ */
+int
+alg_info_snprint_ah(char *buf, int buflen, struct alg_info_esp *alg_info)
+{
+	char *ptr=buf;
+	int ret;
+	struct esp_info *esp_info;
+	int cnt;
+	int aklen;
+	const char *sep="";
+
+	ptr=buf;
+
+	buf[0]=0; strncat(buf, "none", buflen);
+
+	ALG_INFO_ESP_FOREACH(alg_info, esp_info, cnt) {
+
+	    if (kernel_alg_esp_auth_ok(esp_info->esp_aalg_id, NULL)) {
+		DBG_log("auth algid=%d not available", esp_info->esp_aalg_id);
+		continue;
+	    }
+	    
+	    aklen=esp_info->esp_aalg_keylen;
+	    if (!aklen) 
+		aklen=kernel_alg_esp_auth_keylen(esp_info->esp_aalg_id)*BITS_PER_BYTE;
+	    
+	    ret=snprintf(ptr, buflen, "%s%s(%d)_%03d"
+			 , sep
+			 , enum_name(&auth_alg_names, esp_info->esp_aalg_id)+sizeof("AUTH_ALGORITHM_HMAC")
+			 , esp_info->esp_aalg_id, aklen);
+	    ptr+=ret;
+	    buflen-=ret;
+	    if (buflen<0) break;
+
+	    sep = ", ";
+	}
+	return ptr-buf;
+}
+
+int
+alg_info_snprint_phase2(char *buf, int buflen, struct alg_info_esp *alg_info)
+{
+    switch(alg_info->alg_info_protoid) {
+    case PROTO_IPSEC_ESP:
+	return alg_info_snprint_esp(buf, buflen, alg_info);
+    case PROTO_IPSEC_AH:
+	return alg_info_snprint_ah(buf, buflen, alg_info);
+    default:
+	bad_case(alg_info->alg_info_protoid);
+    }
+}
+
 
 char *alg_info_snprint_ike1(struct ike_info *ike_info
 			    , int eklen, int aklen
 			    , char *buf
 			    , int buflen)
 {
-	snprintf(buf, buflen-1, "%s(%d)_%03d-%s(%d)_%03d-%s(%d)"
-		, enum_name(&oakley_enc_names, ike_info->ike_ealg)+ sizeof("OAKLEY") 
-		, ike_info->ike_ealg, eklen
-		, enum_name(&oakley_hash_names, ike_info->ike_halg)+ sizeof("OAKLEY")
-		, ike_info->ike_halg, aklen
-		, enum_name(&oakley_group_names, ike_info->ike_modp)+ sizeof("OAKLEY_GROUP")
-		, ike_info->ike_modp);
-       return buf;
-
+    snprintf(buf, buflen-1, "%d_%03d-%d_%03d-%d",
+	     ike_info->ike_ealg,
+	     eklen,
+	     ike_info->ike_halg,
+	     aklen,
+	     ike_info->ike_modp);
+    return buf;
 }
 
 int
@@ -263,21 +332,14 @@ alg_info_snprint_ike(char *buf, int buflen, struct alg_info_ike *alg_info)
 		aklen=ike_info->ike_hklen;
 		if (!aklen) 
 		    aklen=hash_desc->hash_digest_len * BITS_PER_BYTE;
-		/* fixme: needs to handle too short buffer properly instead of crashing */
-		ret=snprintf(ptr, buflen, "%s(%d)_%03d-%s(%d)_%03d-%s(%d)"
+		ret=snprintf(ptr, buflen, "%s(%d)_%03d-%s(%d)_%03d-%d, "
 			     , enum_name(&oakley_enc_names, ike_info->ike_ealg)+sizeof("OAKLEY")
 			     , ike_info->ike_ealg, eklen
-			     , enum_name(&oakley_hash_names, ike_info->ike_halg)+sizeof("OAKLEY")
+			     , enum_name(&auth_alg_names, ike_info->ike_halg)+sizeof("AUTH_ALGORITHM_HMAC")
 			     , ike_info->ike_halg, aklen
-			      , enum_name(&oakley_group_names, ike_info->ike_modp)+sizeof("OAKLEY_GROUP")
 			     , ike_info->ike_modp);
 		ptr+=ret;
 		buflen-=ret;
-                if ( cnt > 0) {
-                        ret=snprintf(ptr, buflen, ", ");
-                        ptr+=ret;
-                        buflen-=ret;
-                }
 		if (buflen<0) break;
 	    }
 	}
@@ -301,6 +363,8 @@ parser_init_ike(struct parser_context *p_ctx)
     p_ctx->ealg_getbyname=ealg_getbyname_ike;
     p_ctx->aalg_getbyname=aalg_getbyname_ike;
     p_ctx->modp_getbyname=modp_getbyname_ike;
+    p_ctx->ealg_permit=TRUE;
+    p_ctx->aalg_permit=TRUE;
 }
 
 struct alg_info_ike *
@@ -364,45 +428,59 @@ kernel_alg_db_add(struct db_context *db_ctx
 		  , lset_t policy
 		  , bool logit)
 {
-	int ealg_i, aalg_i;
-	ealg_i=esp_info->esp_ealg_id;
-	if (!ESP_EALG_PRESENT(ealg_i)) {
-	    if(logit) {
-		openswan_loglog(RC_LOG_SERIOUS
-				, "requested kernel enc ealg_id=%d not present"
-				, ealg_i);
-	    } else {
-		DBG_log("requested kernel enc ealg_id=%d not present", ealg_i);
+	int ealg_i=0, aalg_i;
+
+	if(policy & POLICY_ENCRYPT) {
+	    ealg_i=esp_info->esp_ealg_id;
+	    if (!ESP_EALG_PRESENT(ealg_i)) {
+		if(logit) {
+		    openswan_loglog(RC_LOG_SERIOUS
+				    , "requested kernel enc ealg_id=%d not present"
+				    , ealg_i);
+		} else {
+		    DBG_log("requested kernel enc ealg_id=%d not present", ealg_i);
+		}
+		return FALSE;
 	    }
-	    return FALSE;
 	}
 
-	if (!(policy & POLICY_AUTHENTICATE)) {	/* skip ESP auth attrs for AH*/
-		aalg_i=alg_info_esp_aa2sadb(esp_info->esp_aalg_id);
-		if (!ESP_AALG_PRESENT(aalg_i)) {
-			DBG_log("kernel_alg_db_add() kernel auth "
-					"aalg_id=%d not present",
-					aalg_i);
-			return FALSE;
-		}
+	aalg_i=alg_info_esp_aa2sadb(esp_info->esp_aalg_id);
+	if (!ESP_AALG_PRESENT(aalg_i)) {
+	    DBG_log("kernel_alg_db_add() kernel auth "
+		    "aalg_id=%d not present",
+		    aalg_i);
+	    return FALSE;
 	}
 
 	/* 	do algo policy */
 	kernel_alg_policy_algorithms(esp_info);
 
-	/*	open new transformation */
-	db_trans_add(db_ctx, ealg_i);
+	if(policy & POLICY_ENCRYPT) {
+	    /*	open new transformation */
+	    db_trans_add(db_ctx, ealg_i);
 
-	/* add ESP auth attr */
-	if (!(policy & POLICY_AUTHENTICATE)) 
+	    /* add ESP auth attr (if present) */
+	    if (esp_info->esp_aalg_id != AUTH_ALGORITHM_NONE) {
 		db_attr_add_values(db_ctx, 
-				AUTH_ALGORITHM, esp_info->esp_aalg_id);
+				   AUTH_ALGORITHM, esp_info->esp_aalg_id);
+	    }
 
-	/*	add keylegth if specified in esp= string */
-	if (esp_info->esp_ealg_keylen) {
+	    /*	add keylegth if specified in esp= string */
+	    if (esp_info->esp_ealg_keylen) {
 		db_attr_add_values(db_ctx, 
-				KEY_LENGTH, esp_info->esp_ealg_keylen);
+				   KEY_LENGTH, esp_info->esp_ealg_keylen);
+	    }
+
+	} else if(policy & POLICY_AUTHENTICATE) {
+	    /*	open new transformation */
+	    db_trans_add(db_ctx, aalg_i);
+
+	    /* add ESP auth attr */
+	    db_attr_add_values(db_ctx, 
+			       AUTH_ALGORITHM, esp_info->esp_aalg_id);
+
 	}
+
 	return TRUE;
 }
 
@@ -416,30 +494,32 @@ kernel_alg_db_add(struct db_context *db_ctx
 struct db_context * 
 kernel_alg_db_new(struct alg_info_esp *alg_info, lset_t policy, bool logit)
 {
-	int ealg_i, aalg_i, tn=0;
+    int ealg_i, aalg_i;
+    unsigned int tn=0;
 	int i;
 	const struct esp_info *esp_info;
 	struct esp_info tmp_esp_info;
 	struct db_context *ctx_new=NULL;
 	struct db_trans *t;
 	struct db_prop  *prop;
-	int trans_cnt;
+	unsigned int trans_cnt = 0;
 	bool success = TRUE;
+	int protoid = 0;
 
-	if (!(policy & POLICY_ENCRYPT))	{     /* possible for AH-only modes */
-	    DBG(DBG_CONTROL
-		, DBG_log("algo code only works for encryption modes"));
-		return NULL;
+	if(policy & POLICY_ENCRYPT) {
+	    trans_cnt=(esp_ealg_num*esp_aalg_num);
+	    protoid = PROTO_IPSEC_ESP;
+	} else if(policy & POLICY_AUTHENTICATE) {
+	    trans_cnt=esp_aalg_num;
+	    protoid = PROTO_IPSEC_AH;
 	}
-
-	trans_cnt=(esp_ealg_num*esp_aalg_num);
 
 	DBG(DBG_EMITTING, DBG_log("kernel_alg_db_new() "
 		"initial trans_cnt=%d",
 		trans_cnt));
 
 	/*	pass aprox. number of transforms and attributes */
-	ctx_new = db_prop_new(PROTO_IPSEC_ESP, trans_cnt, trans_cnt * 2);
+	ctx_new = db_prop_new(protoid, trans_cnt, trans_cnt * 2);
 
 	/*
 	 * 	Loop: for each element (struct esp_info) of
@@ -496,8 +576,8 @@ kernel_alg_db_new(struct alg_info_esp *alg_info, lset_t policy, bool logit)
 			"attrs[0].type=%d, attrs[0].val=%d"
 			, tn
 			, t[tn].transid, t[tn].attr_cnt
-			, t[tn].attrs ? t[tn].attrs[0].type : -1
-			, t[tn].attrs ? t[tn].attrs[0].val : -1
+			, t[tn].attrs ? t[tn].attrs[0].type.ipsec : 255
+			, t[tn].attrs ? t[tn].attrs[0].val : 255
 			));
 	}
 	prop->trans_cnt = tn;
@@ -586,62 +666,104 @@ void kernel_alg_show_status(void)
 void
 kernel_alg_show_connection(struct connection *c, const char *instance)
 {
-	char buf[256];
+	char buf[1024];
 	struct state *st;
+	const char *satype;
+
+	if(c->policy & POLICY_ENCRYPT) satype="ESP";
+	else if(c->policy & POLICY_AUTHENTICATE) satype="AH";
+	else satype="ESP+AH";
 
 	if(c->alg_info_esp == NULL) return;
 
 	if (c->alg_info_esp) {
 	    alg_info_snprint(buf, sizeof(buf), (struct alg_info *)c->alg_info_esp, TRUE);
 	    whack_log(RC_COMMENT
-		      , "\"%s\"%s:   ESP algorithms wanted: %s"
+		      , "\"%s\"%s:   %s algorithms wanted: %s"
 		      , c->name
-		      , instance
+		      , instance, satype
 		      , buf);
 	}
 
 	if (c->alg_info_esp) {
-	    alg_info_snprint_esp(buf, sizeof(buf), c->alg_info_esp);
+	    alg_info_snprint_phase2(buf, sizeof(buf), c->alg_info_esp);
 	    whack_log(RC_COMMENT
-		      , "\"%s\"%s:   ESP algorithms loaded: %s"
+		      , "\"%s\"%s:   %s algorithms loaded: %s"
 		      , c->name
-		      , instance
+		      , instance, satype
 		      , buf);
 	}
 
 	st = state_with_serialno(c->newest_ipsec_sa);
 	if (st && st->st_esp.present)
 		whack_log(RC_COMMENT
-		, "\"%s\"%s:   ESP algorithm newest: %s_%d-%s; pfsgroup=%s"
+		, "\"%s\"%s:   %s algorithm newest: %s_%d-%s; pfsgroup=%s"
 		, c->name
-		, instance
-		, enum_show(&esp_transformid_names, st->st_esp.attrs.transid) +sizeof("ESP") 
-		, st->st_esp.attrs.key_len
-		, enum_show(&auth_alg_names, st->st_esp.attrs.auth)+ sizeof("AUTH_ALGORITHM")
+			  , instance, satype
+		, enum_show(&esp_transformid_names
+			    ,st->st_esp.attrs.transattrs.encrypt)
+		+4 /* strlen("ESP_") */
+		, st->st_esp.attrs.transattrs.enckeylen
+		, enum_show(&auth_alg_names, st->st_esp.attrs.transattrs.integ_hash)+
+		+15 /* strlen("AUTH_ALGORITHM_") */
 		, c->policy & POLICY_PFS ?
 			c->alg_info_esp->esp_pfsgroup ?
 					enum_show(&oakley_group_names, 
-						c->alg_info_esp->esp_pfsgroup) + sizeof("OAKLEY_GROUP")
+						c->alg_info_esp->esp_pfsgroup)
+						+13 /*strlen("OAKLEY_GROUP_")*/
+				: "<Phase1>"
+			: "<N/A>"
+		    );
+	
+	if (st && st->st_ah.present)
+		whack_log(RC_COMMENT
+		, "\"%s\"%s:   %s algorithm newest: %s; pfsgroup=%s"
+		, c->name
+			  , instance, satype
+		, enum_show(&auth_alg_names, st->st_esp.attrs.transattrs.integ_hash)+
+		+15 /* strlen("AUTH_ALGORITHM_") */
+		, c->policy & POLICY_PFS ?
+			c->alg_info_esp->esp_pfsgroup ?
+					enum_show(&oakley_group_names, 
+						c->alg_info_esp->esp_pfsgroup)
+						+13 /*strlen("OAKLEY_GROUP_")*/
 				: "<Phase1>"
 			: "<N/A>"
 	);
+
 }
 
 struct db_sa *
-kernel_alg_makedb(struct alg_info_esp *ei, bool logit)
+kernel_alg_makedb(lset_t policy, struct alg_info_esp *ei, bool logit)
 {
     struct db_context *dbnew;
     struct db_prop *p;
     struct db_prop_conj pc;
     struct db_sa t, *n;
-    lset_t policy = POLICY_ENCRYPT;  /* hack for now */
+
+    memset(&t, 0, sizeof(t));
 
     if(ei == NULL) {
-	DBG(DBG_CONTROL, DBG_log("empty esp_info, returning empty"));
-	return NULL;
+	struct db_sa *sadb;
+	lset_t pm = POLICY_ENCRYPT | POLICY_AUTHENTICATE;
+
+#if 0
+y	if (can_do_IPcomp)
+	    pm |= POLICY_COMPRESS;
+#endif
+
+	sadb = &ipsec_sadb[(policy & pm) >> POLICY_IPSEC_SHIFT];
+
+	/* make copy, to keep from freeing the static policies */
+	sadb = sa_copy_sa(sadb, 0);
+	sadb->parentSA = FALSE;
+
+	DBG(DBG_CONTROL, DBG_log("empty esp_info, returning defaults"));
+	return sadb;
     }
     
     dbnew=kernel_alg_db_new(ei, policy, logit);
+
     if(!dbnew) {
 	DBG(DBG_CONTROL, DBG_log("failed to translate esp_info to proposal, returning empty"));
 	return NULL;
@@ -662,6 +784,7 @@ kernel_alg_makedb(struct alg_info_esp *ei, bool logit)
 
     /* make a fresh copy */
     n = sa_copy_sa(&t, 0);
+    n->parentSA = FALSE;
     
     db_destroy(dbnew);
 

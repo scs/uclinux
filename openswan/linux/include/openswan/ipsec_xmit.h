@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_xmit.h,v 1.14 2005-05-11 01:00:26 mcr Exp $
+ * RCSID $Id: ipsec_xmit.h,v 1.14 2005/05/11 01:00:26 mcr Exp $
  */
 
 #include "openswan/ipsec_sa.h"
@@ -63,15 +63,16 @@ enum ipsec_xmit_value
  * state machine states
  */
 
-#define IPSEC_XSM_INIT			0	/* make it easy, starting state is 0 */
-#define IPSEC_XSM_ENCAP_INIT	1
-#define IPSEC_XSM_ENCAP_SELECT	2
-#define IPSEC_XSM_ESP			3
-#define IPSEC_XSM_ESP_AH		4
-#define IPSEC_XSM_AH			5
-#define IPSEC_XSM_IPIP			6
-#define IPSEC_XSM_IPCOMP		7
-#define IPSEC_XSM_CONT			8
+#define IPSEC_XSM_INIT1			0	/* make it easy, starting state is 0 */
+#define IPSEC_XSM_INIT2			1
+#define IPSEC_XSM_ENCAP_INIT	2
+#define IPSEC_XSM_ENCAP_SELECT	3
+#define IPSEC_XSM_ESP			4
+#define IPSEC_XSM_ESP_AH		5
+#define IPSEC_XSM_AH			6
+#define IPSEC_XSM_IPIP			7
+#define IPSEC_XSM_IPCOMP		8
+#define IPSEC_XSM_CONT			9
 #define IPSEC_XSM_DONE 			100
 
 
@@ -104,7 +105,8 @@ struct ipsec_xmit_state
 
 	struct sockaddr_encap matcher;	/* eroute search key */
 	struct eroute *eroute;
-	struct ipsec_sa *ipsp, *ipsq;	/* ipsec_sa pointers */
+        struct ipsec_sa *ipsp;	        /* ipsec_sa pointers */
+  //struct ipsec_sa *ipsp_outer;    /* last SA applied by encap_bundle */
 	char sa_txt[SATOT_BUF];
 	size_t sa_len;
 	int hard_header_stripped;	/* has the hard header been removed yet? */
@@ -121,7 +123,6 @@ struct ipsec_xmit_state
 #ifdef NET_21
 	int pass;
 #endif /* NET_21 */
-	int error;
 	uint32_t eroute_pid;
 	struct ipsec_sa ips;
 #ifdef CONFIG_IPSEC_NAT_TRAVERSAL
@@ -169,20 +170,37 @@ enum ipsec_xmit_value
 ipsec_xmit_encap_bundle(struct ipsec_xmit_state *ixs);
 
 extern void ipsec_xsm(struct ipsec_xmit_state *ixs);
+#ifdef HAVE_KMEM_CACHE_T
+extern kmem_cache_t *ipsec_ixs_cache;
+#else
 extern struct kmem_cache *ipsec_ixs_cache;
+#endif
 extern int ipsec_ixs_max;
 extern atomic_t ipsec_ixs_cnt;
 
 extern void ipsec_extract_ports(struct iphdr * iph, struct sockaddr_encap * er);
+
+/* avoid forward reference complain on <2.5 */
+struct flowi;
+
+extern enum ipsec_xmit_value
+ipsec_xmit_send(struct ipsec_xmit_state*ixs, struct flowi *fl);
+
+extern enum ipsec_xmit_value
+ipsec_nat_encap(struct ipsec_xmit_state*ixs);
+
+extern enum ipsec_xmit_value
+ipsec_tunnel_send(struct ipsec_xmit_state *ixs);
+
+extern void ipsec_xmit_cleanup(struct ipsec_xmit_state*ixs);
 
 
 extern int ipsec_xmit_trap_count;
 extern int ipsec_xmit_trap_sendcount;
 
 #ifdef CONFIG_KLIPS_DEBUG
-extern int debug_tunnel;
-
-#define debug_xmit debug_tunnel
+extern int debug_xmit;
+extern int debug_mast;
 
 #define ipsec_xmit_dmp(_x,_y, _z) if (debug_xmit && sysctl_ipsec_debug_verbose) ipsec_dmp_block(_x,_y,_z)
 #else
@@ -197,7 +215,7 @@ extern int sysctl_ipsec_tos;
 
 /*
  * $Log: ipsec_xmit.h,v $
- * Revision 1.14  2005-05-11 01:00:26  mcr
+ * Revision 1.14  2005/05/11 01:00:26  mcr
  * 	do not call debug routines if !defined KLIPS_DEBUG.
  *
  * Revision 1.13  2005/04/29 05:01:38  mcr

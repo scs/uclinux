@@ -935,7 +935,7 @@ informational(struct msg_digest *md)
 	}
     }
 
-    loglog(RC_LOG_SERIOUS, "received and ignored informational message");
+    /* loglog(RC_LOG_SERIOUS, "received and ignored informational message"); */
     return STF_IGNORE;
 }
 
@@ -1233,12 +1233,27 @@ process_packet(struct msg_digest **mdp)
     struct state *st = NULL;
     enum state_kind from_state = STATE_UNDEFINED;	/* state we started in */
 
+#define SEND_NOTIFICATION(t) { \
+    if (st) send_notification_from_state(st, from_state, t); \
+    else send_notification_from_md(md, t); }
+
     if (!in_struct(&md->hdr, &isakmp_hdr_desc, &md->packet_pbs, &md->message_pbs))
     {
-	/* XXX specific failures (special notification?):
+	/* Identify specific failures:
 	 * - bad ISAKMP major/minor version numbers
-	 * - size of packet vs size of message
 	 */
+	if (md->packet_pbs.roof - md->packet_pbs.cur >= (ptrdiff_t)isakmp_hdr_desc.size) {
+	    struct isakmp_hdr *hdr = (struct isakmp_hdr *)md->packet_pbs.cur;
+	    if ((hdr->isa_version >> ISA_MAJ_SHIFT) != ISAKMP_MAJOR_VERSION) {
+		SEND_NOTIFICATION(INVALID_MAJOR_VERSION);
+		return;
+	    }
+	    else if ((hdr->isa_version & ISA_MIN_MASK) != ISAKMP_MINOR_VERSION) {
+		SEND_NOTIFICATION(INVALID_MINOR_VERSION);
+		return;
+	    }
+	}
+	SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 	return;
     }
 
@@ -1246,6 +1261,7 @@ process_packet(struct msg_digest **mdp)
     {
 	log("size (%u) differs from size specified in ISAKMP HDR (%u)"
 	    , (unsigned) pbs_room(&md->packet_pbs), md->hdr.isa_length);
+	SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 	return;
     }
 
@@ -1262,14 +1278,14 @@ process_packet(struct msg_digest **mdp)
 	{
 	    log("Message ID was 0x%08lx but should be zero in Main Mode",
 		(unsigned long) md->hdr.isa_msgid);
-	    /* XXX Could send notification back */
+	    SEND_NOTIFICATION(INVALID_MESSAGE_ID);
 	    return;
 	}
 
 	if (is_zero_cookie(md->hdr.isa_icookie))
 	{
 	    log("Initiator Cookie must not be zero in Phase 1 message");
-	    /* XXX Could send notification back */
+	    SEND_NOTIFICATION(INVALID_COOKIE);
 	    return;
 	}
 
@@ -1282,6 +1298,7 @@ process_packet(struct msg_digest **mdp)
 	    {
 		log("initial Phase 1 message is invalid:"
 		    " its Encrypted Flag is on");
+		SEND_NOTIFICATION(INVALID_FLAGS);
 		return;
 	    }
 
@@ -1384,7 +1401,7 @@ process_packet(struct msg_digest **mdp)
 	{
 	    log("Quick Mode message is invalid because"
 		" it has an Initiator Cookie of 0");
-	    /* XXX Could send notification back */
+	    SEND_NOTIFICATION(INVALID_COOKIE);
 	    return;
 	}
 
@@ -1392,7 +1409,7 @@ process_packet(struct msg_digest **mdp)
 	{
 	    log("Quick Mode message is invalid because"
 		" it has a Responder Cookie of 0");
-	    /* XXX Could send notification back */
+	    SEND_NOTIFICATION(INVALID_COOKIE);
 	    return;
 	}
 
@@ -1400,7 +1417,7 @@ process_packet(struct msg_digest **mdp)
 	{
 	    log("Quick Mode message is invalid because"
 		" it has a Message ID of 0");
-	    /* XXX Could send notification back */
+	    SEND_NOTIFICATION(INVALID_MESSAGE_ID);
 	    return;
 	}
 
@@ -1430,7 +1447,7 @@ process_packet(struct msg_digest **mdp)
 	    {
 		loglog(RC_LOG_SERIOUS, "Quick Mode message is unacceptable because"
 		    " it is for an incomplete ISAKMP SA");
-		/* XXX Could send notification back */
+		SEND_NOTIFICATION(PAYLOAD_MALFORMED /* XXX ? */);
 		return;
 	    }
 
@@ -1441,7 +1458,7 @@ process_packet(struct msg_digest **mdp)
 		    " it uses a previously used Message ID 0x%08lx"
 		    " (perhaps this is a duplicated packet)"
 		    , (unsigned long) md->hdr.isa_msgid);
-		/* XXX Could send notification INVALID_MESSAGE_ID back */
+		SEND_NOTIFICATION(INVALID_MESSAGE_ID);
 		return;
 	    }
 
@@ -1467,6 +1484,7 @@ process_packet(struct msg_digest **mdp)
     default:
 	log("unsupported exchange type %s in message"
 	    , enum_show(&exchange_names, md->hdr.isa_xchg));
+	SEND_NOTIFICATION(UNSUPPORTED_EXCHANGE_TYPE);
 	return;
     }
 
@@ -1562,14 +1580,14 @@ process_packet(struct msg_digest **mdp)
 	if (st == NULL)
 	{
 	    log("discarding encrypted message for an unknown ISAKMP SA");
-	    /* XXX Could send notification back */
+	    SEND_NOTIFICATION(PAYLOAD_MALFORMED /* XXX ? */);
 	    return;
 	}
 	if (st->st_skeyid_e.ptr == (u_char *) NULL)
 	{
 	    loglog(RC_LOG_SERIOUS, "discarding encrypted message"
 		" because we haven't yet negotiated keying materiel");
-	    /* XXX Could send notification back */
+	    SEND_NOTIFICATION(INVALID_FLAGS);
 	    return;
 	}
 
@@ -1601,7 +1619,7 @@ process_packet(struct msg_digest **mdp)
 	    if (pbs_left(&md->message_pbs) % e->enc_blocksize != 0)
 	    {
 		loglog(RC_LOG_SERIOUS, "malformed message: not a multiple of encryption blocksize");
-		/* XXX Could send notification back */
+		SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 		return;
 	    }
 
@@ -1636,7 +1654,7 @@ process_packet(struct msg_digest **mdp)
 	if (smc->flags & SMF_INPUT_ENCRYPTED)
 	{
 	    loglog(RC_LOG_SERIOUS, "packet rejected: should have been encrypted");
-	    /* XXX Could send notification back */
+	    SEND_NOTIFICATION(INVALID_FLAGS);
 	    return;
 	}
     }
@@ -1663,6 +1681,7 @@ process_packet(struct msg_digest **mdp)
 	    if (pd == &md->digest[PAYLIMIT])
 	    {
 		loglog(RC_LOG_SERIOUS, "more than %d payloads in message; ignored", PAYLIMIT);
+		SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 		return;
 	    }
 
@@ -1705,6 +1724,7 @@ process_packet(struct msg_digest **mdp)
 		    loglog(RC_LOG_SERIOUS, "%smessage ignored because it contains an unknown or"
 			" unexpected payload type (%s) at the outermost level"
 			, excuse, enum_show(&payload_names, np));
+		    SEND_NOTIFICATION(INVALID_PAYLOAD_TYPE);
 		    return;
 		}
 	    }
@@ -1718,6 +1738,7 @@ process_packet(struct msg_digest **mdp)
 		    loglog(RC_LOG_SERIOUS, "%smessage ignored because it contains an"
 			" payload type (%s) unexpected in this message"
 			, excuse, enum_show(&payload_names, np));
+		    SEND_NOTIFICATION(INVALID_PAYLOAD_TYPE);
 		    return;
 		}
 		needed &= ~s;
@@ -1726,6 +1747,7 @@ process_packet(struct msg_digest **mdp)
 	    if (!in_struct(&pd->payload, sd, &md->message_pbs, &pd->pbs))
 	    {
 		loglog(RC_LOG_SERIOUS, "%smalformed payload in packet", excuse);
+		SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 		return;
 	    }
 
@@ -1765,6 +1787,7 @@ process_packet(struct msg_digest **mdp)
 	    loglog(RC_LOG_SERIOUS, "message for %s is missing payloads %s"
 		, enum_show(&state_names, from_state)
 		, bitnamesof(payload_name, needed));
+	    SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 	    return;
 	}
     }
@@ -1780,6 +1803,7 @@ process_packet(struct msg_digest **mdp)
 	&& md->hdr.isa_np != ISAKMP_NEXT_SA)
 	{
 	    loglog(RC_LOG_SERIOUS, "malformed Phase 1 message: does not start with an SA payload");
+	    SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 	    return;
 	}
     }
@@ -1803,6 +1827,7 @@ process_packet(struct msg_digest **mdp)
 	if (md->hdr.isa_np != ISAKMP_NEXT_HASH)
 	{
 	    loglog(RC_LOG_SERIOUS, "malformed Quick Mode message: does not start with a HASH payload");
+	    SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 	    return;
 	}
 
@@ -1816,6 +1841,7 @@ process_packet(struct msg_digest **mdp)
 		if (p != &md->digest[i])
 		{
 		    loglog(RC_LOG_SERIOUS, "malformed Quick Mode message: SA payload is in wrong position");
+		    SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 		    return;
 		}
 	    }
@@ -1836,12 +1862,14 @@ process_packet(struct msg_digest **mdp)
 		    loglog(RC_LOG_SERIOUS, "malformed Quick Mode message:"
 			" if any ID payload is present,"
 			" there must be exactly two");
+		    SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 		    return;
 		}
 		if (id+1 != id->next)
 		{
 		    loglog(RC_LOG_SERIOUS, "malformed Quick Mode message:"
 			" the ID payloads are not adjacent");
+		    SEND_NOTIFICATION(PAYLOAD_MALFORMED);
 		    return;
 		}
 	    }
@@ -1867,7 +1895,7 @@ process_packet(struct msg_digest **mdp)
 
 	for (p = md->chain[ISAKMP_NEXT_D]; p != NULL; p = p->next)
 	{
-	    loglog(RC_LOG_SERIOUS, "ignoring Delete SA payload");
+	    accept_delete(st, md, p);
 	    DBG_cond_dump(DBG_PARSING, "del:", p->pbs.cur, pbs_left(&p->pbs));
 	}
 
@@ -2162,13 +2190,14 @@ complete_state_transition(struct msg_digest **mdp, stf_status result)
 	    result = STF_FAIL;
 	    /* FALL THROUGH ... */
 	case STF_FAIL:
-	    /* XXX Could send notification back
-	     * As it is, we act as if this message never happened:
+	    /* As it is, we act as if this message never happened:
 	     * whatever retrying was in place, remains in place.
 	     */
 	    whack_log(RC_NOTIFICATION + md->note
 		, "%s: %s", enum_name(&state_names, st->st_state)
 		, enum_name(&ipsec_notification_names, md->note));
+
+	    SEND_NOTIFICATION(md->note);
 
 	    DBG(DBG_CONTROL,
 		DBG_log("state transition function for %s failed: %s"

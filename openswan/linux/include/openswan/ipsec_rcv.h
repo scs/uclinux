@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_rcv.h,v 1.28.2.2 2006-10-06 21:39:26 paul Exp $
+ * RCSID $Id: ipsec_rcv.h,v 1.28.2.1 2006/07/10 15:52:20 paul Exp $
  */
 
 #ifndef IPSEC_RCV_H
@@ -38,8 +38,8 @@
 
 #define __NO_VERSION__
 #ifndef AUTOCONF_INCLUDED
-#include <linux/config.h>	/* for CONFIG_IP_FORWARD */
-#endif
+#include <linux/config.h>
+#endif	/* for CONFIG_IP_FORWARD */
 #ifdef CONFIG_MODULES
 #include <linux/module.h>
 #endif
@@ -90,15 +90,16 @@ enum ipsec_rcv_value {
 
 #define IPSEC_RSM_INIT			0	/* make it easy, starting state is 0 */
 #define	IPSEC_RSM_DECAP_INIT	1
-#define	IPSEC_RSM_DECAP_CHK		2
+#define	IPSEC_RSM_DECAP_LOOKUP	2
 #define	IPSEC_RSM_AUTH_INIT		3
-#define	IPSEC_RSM_AUTH_CALC		4
-#define	IPSEC_RSM_AUTH_CHK		5
-#define	IPSEC_RSM_DECRYPT		6
-#define	IPSEC_RSM_DECAP_CONT	7	/* do we restart at IPSEC_RSM_DECAP_INIT */
-#define	IPSEC_RSM_CLEANUP		8
-#define	IPSEC_RSM_IPCOMP		9
-#define	IPSEC_RSM_COMPLETE		10
+#define	IPSEC_RSM_AUTH_DECAP	4
+#define	IPSEC_RSM_AUTH_CALC		5
+#define	IPSEC_RSM_AUTH_CHK		6
+#define	IPSEC_RSM_DECRYPT		7
+#define	IPSEC_RSM_DECAP_CONT	8	/* do we restart at IPSEC_RSM_DECAP_INIT */
+#define	IPSEC_RSM_CLEANUP		9
+#define	IPSEC_RSM_IPCOMP		10
+#define	IPSEC_RSM_COMPLETE		11
 #define IPSEC_RSM_DONE 			100
 
 struct ipsec_rcv_state {
@@ -106,11 +107,13 @@ struct ipsec_rcv_state {
 	struct net_device_stats *stats;
 	struct iphdr    *ipp;          /* the IP header */
 	struct ipsec_sa *ipsp;         /* current SA being processed */
+	struct ipsec_sa *lastipsp;     /* last SA that was processed */
 	int len;                       /* length of packet */
 	int ilen;                      /* length of inner payload (-authlen) */
 	int authlen;                   /* how big is the auth data at end */
 	int hard_header_len;           /* layer 2 size */
 	int iphlen;                    /* how big is IP header */
+	unsigned int   transport_direct:1;
 	struct auth_alg *authfuncs;
 	ip_said said;
 	char   sa[SATOT_BUF];
@@ -146,6 +149,7 @@ struct ipsec_rcv_state {
 	 */
 	int		state;
 	int		next_state;
+	int		auth_checked;
 
 #ifdef CONFIG_KLIPS_OCF
 	struct work_struct	workq;
@@ -170,7 +174,11 @@ struct ipsec_rcv_state {
 };
 
 extern void ipsec_rsm(struct ipsec_rcv_state *irs);
+#ifdef HAVE_KMEM_CACHE_T
+extern kmem_cache_t *ipsec_irs_cache;
+#else
 extern struct kmem_cache *ipsec_irs_cache;
+#endif
 extern int ipsec_irs_max;
 extern atomic_t ipsec_irs_cnt;
 
@@ -192,18 +200,17 @@ extern int debug_rcv;
 extern int sysctl_ipsec_inbound_policy_check;
 #endif /* __KERNEL__ */
 
+extern int klips26_udp_encap_rcv(struct sock *sk, struct sk_buff *skb);
 extern int klips26_rcv_encap(struct sk_buff *skb, __u16 encap_type);
 
+// manage ipsec rcv state objects
+extern int ipsec_rcv_state_cache_init (void);
+extern void ipsec_rcv_state_cache_cleanup (void);
 
 #endif /* IPSEC_RCV_H */
 
 /*
  * $Log: ipsec_rcv.h,v $
- * Revision 1.28.2.2  2006-10-06 21:39:26  paul
- * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
- * set. This is defined through autoconf.h which is included through the
- * linux kernel build macros.
- *
  * Revision 1.28.2.1  2006/07/10 15:52:20  paul
  * Fix for bug #642 by Bart Trojanowski
  *

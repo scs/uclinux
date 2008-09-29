@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: fetch.c,v 1.6 2004-06-14 02:01:32 mcr Exp $
+ * RCSID $Id: fetch.c,v 1.6 2004/06/14 02:01:32 mcr Exp $
  */
 
 #include <stdlib.h>
@@ -28,6 +28,7 @@
 #include <openswan.h>
 
 #ifdef LDAP_VER
+#define LDAP_DEPRECATED 1
 #include <ldap.h>
 #endif
 
@@ -41,6 +42,7 @@
 #include "whack.h"
 #include "ocsp.h"
 #include "fetch.h"
+#include "oswtime.h"
 
 #ifdef LIBCURL
 #define LIBCURL_UNUSED 
@@ -328,7 +330,7 @@ fetch_curl(chunk_t url LIBCURL_UNUSED, chunk_t *blob LIBCURL_UNUSED)
         curl_easy_cleanup(curl);
         pfree(uri);
         /* not using freeanychunk because of realloc (no leak detective) */
-        free(response.ptr);
+        curl_free(response.ptr);
     }
     return strlen(errorbuffer) > 0 ? "libcurl error" : NULL;
 #else
@@ -664,7 +666,7 @@ fetch_ocsp_status(ocsp_location_t* location LIBCURL_UNUSED)
 	curl_easy_cleanup(curl);
 	pfree(uri);
 	/* not using freeanychunk because of realloc (no leak detective) */
-	free(response.ptr);
+	curl_free(response.ptr);
     }
     freeanychunk(location->nonce);
     freeanychunk(request);

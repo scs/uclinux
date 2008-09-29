@@ -1,6 +1,5 @@
-# Makefile for the KLIPS interface utilities
-# Copyright (C) 1998, 1999  Henry Spencer.
-# Copyright (C) 1999, 2000, 2001  Richard Guy Briggs
+# Makefile for pluto/userspace crypto libraries
+# Copyright (C) 2005 Michael Richardson <mcr@xelerance.com>
 # 
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -12,12 +11,13 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.4 2005-06-23 01:45:22 mcr Exp $
+# RCSID $Id: Makefile,v 1.4 2005/06/23 01:45:22 mcr Exp $
 
 OPENSWANSRCDIR?=$(shell cd ../..; pwd)
+srcdir=$(shell pwd)
 include ${OPENSWANSRCDIR}/Makefile.inc
 
-SUBDIRS=libaes libdes
+SUBDIRS=libaes libdes libmd5 libsha1 libmd2
 
 ifeq ($(USE_EXTRACRYPTO),true)
 SUBDIRS+=libblowfish libtwofish libserpent libsha2

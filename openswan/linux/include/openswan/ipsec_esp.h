@@ -12,13 +12,13 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_esp.h,v 1.28 2004-09-13 02:22:10 mcr Exp $
+ * RCSID $Id: ipsec_esp.h,v 1.28 2004/09/13 02:22:10 mcr Exp $
  */
 
 #include "openswan/ipsec_md5h.h"
 #include "openswan/ipsec_sha1.h"
 
-#include "crypto/des.h"
+#include "klips-crypto/des.h"
 
 #ifndef IPPROTO_ESP
 #define IPPROTO_ESP 50
@@ -52,7 +52,9 @@ struct des_eks {
 	des_key_schedule ks;
 };
 
+#ifndef CONFIG_XFRM_ALTERNATE_STACK
 extern struct inet_protocol esp_protocol;
+#endif /* CONFIG_XFRM_ALTERNATE_STACK */
 
 struct options;
 
@@ -74,7 +76,7 @@ extern int debug_esp;
 
 /*
  * $Log: ipsec_esp.h,v $
- * Revision 1.28  2004-09-13 02:22:10  mcr
+ * Revision 1.28  2004/09/13 02:22:10  mcr
  * 	#define inet_protocol if necessary.
  *
  * Revision 1.27  2004/09/06 18:35:41  mcr

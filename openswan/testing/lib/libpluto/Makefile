@@ -11,41 +11,46 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.4 2005-05-12 03:09:33 mcr Exp $
+# RCSID $Id: Makefile,v 1.5 2005/08/05 17:04:54 mcr Exp $
 
-OPENSWANSRCDIR=../../..
+OPENSWANSRCDIR?=$(shell cd ../../..; pwd)
+srcdir?=${OPENSWANSRCDIR}/testing/lib/libpluto/
 include $(OPENSWANSRCDIR)/Makefile.inc
 
 SUBDIRS=
+SRCDIR=${srcdir}
 UTILS=${OPENSWANSRCDIR}/testing/utils
-export OPENSWANLIB
-export OSWLOGLIB
-export LIBDESLITE
-export LIBAES
 
-TESTS=$(shell awk '{print $$2;}' TESTLIST)
+TESTS=$(shell awk '{print $$2;}' ${srcdir}TESTLIST)
 
 all: ${TESTS}
 	echo ${TESTS}
 
-%: %.c
-	source ${UTILS}/functions.sh; libtest `basename $< .c`
+one:
+	export OPENSWANLIB=${OPENSWANLIB} REGRESSRESULTS=$${REGRESSRESULTS-../results} ; source ${UTILS}/functions.sh; eval `grep ${TEST} TESTLIST`
+
+refineconnection: refineconnection.c lib-refineconnection/testlist.sh OUTPUT.refineconnection.txt FLAGS.refineconnection
+	source ${UTILS}/functions.sh; multilibtest `basename $< .c`
 
 def:
 	@echo "Please read doc/intro.html or INSTALL before running make"
 	@false
 
 check:
-	REGRESSRESULTS=$${REGRESSRESULTS-../results} ; source ${UTILS}/functions.sh; source TESTLIST
+	@ECHO=: REGRESSRESULTS=$${REGRESSRESULTS-../results} ; source ${UTILS}/functions.sh; source ${srcdir}TESTLIST
+	@echo */core.*
 
 install install_file_list checkprograms programs:
 	@true
 
 clean:
-	cat TESTLIST | while read testtype name status; \
+	cat ${srcdir}TESTLIST | while read testtype name status; \
 	do\
 		rm -rf `basename $$name .c`;\
 	done
+
+ike-secrets.txt: OUTPUT.parentI2.txt
+	grep '../parentI2 ikev2 [IR]' OUTPUT.parentI2.txt | cut -c13- >ike-secrets.txt
 
 cleanall: clean
 
@@ -55,34 +60,20 @@ mostlyclean: clean
 
 realclean: clean
 
-#
-# $Log: Makefile,v $
-# Revision 1.4  2005-05-12 03:09:33  mcr
-# 	added spdbph1 test case.
-#
-# Revision 1.3  2005/03/13 18:58:27  mcr
-# 	added skeyid calculation test.
-#
-# Revision 1.2  2005/03/13 00:28:52  mcr
-# 	make sure to export *LIB variables.
-#
-# Revision 1.1  2004/10/16 22:54:21  mcr
-# 	new test case for spdb.c clone/copy functions.
-#
-# Revision 1.4  2004/04/09 18:09:41  mcr
-# Moved from testing/lib/libfreeswan/Makefile,v
-#
-# Revision 1.3  2004/04/03 19:44:51  ken
-# FREESWANSRCDIR -> OPENSWANSRCDIR (patch by folken)
-#
-# Revision 1.2  2003/11/05 04:57:30  dhr
-#
-# set up a default REGRESSRESULTS for libfreeswan tests (like other kinds of tests)
-#
-# Revision 1.1  2002/06/08 17:41:22  mcr
-# 	library test routines.
-#
-# 
+depend:
+	(source ${UTILS}/functions.sh; ls *.c | (while read file; do echo 'Calculating depends for '$$file >&2; ECHO=':' MOREFLAGS=-MM complibtest .Makefile.depend.$$file.${OSDEP} $$file >&2; cat .Makefile.depend.$$file.${OSDEP}; done) | sed -e 's,${OPENSWANSRCDIR},../..,g' >Makefile.depend.${OSDEP})
+
+-include ${srcdir}Makefile.depend.${OSDEP}
 
 
+east.record: ${OPENSWANSRCDIR}/programs/pluto/rcv_whack.c
+	(cd ${OPENSWANSRCDIR}/programs/pluto && unset OPENSWANSRCDIR && pl_inst.sh)
+	(cd ${OPENSWANSRCDIR}/testing/pluto/whackrecord-01 && ../../utils/runme.sh )
+	source ${OPENSWANSRCDIR}/umlsetup.sh; cp $$POOLSPACE/east/root/var/tmp/east.record .
+
+updatepcaps:
+	cp lib-parentI1/parentI1.pcap lib-parentR1
+	cp lib-parentR1/parentR1.pcap lib-parentI2
+	cp lib-parentI2/parentI2.pcap lib-parentR2
+	cp lib-parentR2/parentR2.pcap lib-parentI3
 

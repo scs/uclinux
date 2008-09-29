@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: crypto.c,v 1.36.2.1 2005-09-27 04:28:09 paul Exp $
+ * RCSID $Id: crypto.c,v 1.41 2005/10/06 19:41:27 mcr Exp $
  */
 
 #include <stdio.h>
@@ -21,7 +21,7 @@
 
 #include <openswan.h>
 #define HEADER_DES_LOCL_H   /* stupid trick to force prototype decl in <des.h> */
-#include <crypto/des.h>
+#include <klips-crypto/des.h>
 
 #include <errno.h>
 
@@ -34,6 +34,8 @@
 #include "crypto.h" /* requires sha1.h and md5.h */
 #include "alg_info.h"
 #include "ike_alg.h"
+
+#include "tpm/tpm.h"
 
 
 /* moduli and generator. */
@@ -61,8 +63,10 @@ static void do_des(u_int8_t *buf, size_t buf_len, u_int8_t *key, size_t key_size
 static struct encrypt_desc crypto_encrypter_des =
 {
     common: {name: "oakley_des_cbc",
+	     officname:         "1des",
              algo_type:         IKE_ALG_ENCRYPT,
              algo_id:           OAKLEY_DES_CBC,
+	     algo_v2id:         IKEv2_ENCR_DES,
              algo_next:         NULL, },
     enc_ctxsize:        sizeof(des_key_schedule),
     enc_blocksize:      DES_CBC_BLOCK_SIZE,
@@ -78,8 +82,10 @@ static void do_3des(u_int8_t *buf, size_t buf_len, u_int8_t *key, size_t key_siz
 static struct encrypt_desc crypto_encrypter_3des =
 { 	
     common: {name: "oakley_3des_cbc",
+	     officname:         "3des",
 	     algo_type: 	IKE_ALG_ENCRYPT,
-	     algo_id:   	OAKLEY_3DES_CBC, 
+	     algo_id:   	OAKLEY_3DES_CBC,
+	     algo_v2id:         IKEv2_ENCR_3DES,
 	     algo_next: 	NULL, },
     enc_ctxsize: 	sizeof(des_key_schedule) * 3,
     enc_blocksize: 	DES_CBC_BLOCK_SIZE, 
@@ -93,22 +99,61 @@ static struct encrypt_desc crypto_encrypter_3des =
 static struct hash_desc crypto_hasher_md5 =
 { 	
     common: {name: "oakley_md5",
+	     officname: "md5",
 	     algo_type: IKE_ALG_HASH,
 	     algo_id:   OAKLEY_MD5,
+	     algo_v2id: IKEv2_PRF_HMAC_MD5,
 	     algo_next: NULL, },
     hash_ctx_size: sizeof(MD5_CTX),
+    hash_key_size:   MD5_DIGEST_SIZE,
     hash_digest_len: MD5_DIGEST_SIZE,
     hash_init: (void (*)(void *)) osMD5Init,
     hash_update: (void (*)(void *, const u_int8_t *, size_t)) osMD5Update,
     hash_final: (void (*)(u_char *, void *)) osMD5Final,
 };
+
+static struct hash_desc crypto_integ_md5 =
+{ 	
+    common: {name: "oakley_md5",
+	     officname: "md5",
+	     algo_type: IKE_ALG_INTEG,
+	     algo_id:   OAKLEY_MD5,
+	     algo_v2id: IKEv2_AUTH_HMAC_MD5_96,
+	     algo_next: NULL, },
+    hash_ctx_size: sizeof(MD5_CTX),
+    hash_key_size:   MD5_DIGEST_SIZE,
+    hash_digest_len: MD5_DIGEST_SIZE,
+    hash_init: (void (*)(void *)) osMD5Init,
+    hash_update: (void (*)(void *, const u_int8_t *, size_t)) osMD5Update,
+    hash_final: (void (*)(u_char *, void *)) osMD5Final,
+};
+
 static struct hash_desc crypto_hasher_sha1 =
 { 	
     common: {name: "oakley_sha",
+	     officname: "sha1",
 	     algo_type: IKE_ALG_HASH,
 	     algo_id:   OAKLEY_SHA,
+	     algo_v2id: IKEv2_PRF_HMAC_SHA1,
 	     algo_next: NULL, },
     hash_ctx_size: sizeof(SHA1_CTX),
+    hash_key_size:   SHA1_DIGEST_SIZE,
+    hash_digest_len: SHA1_DIGEST_SIZE,
+    hash_init: (void (*)(void *)) SHA1Init,
+    hash_update: (void (*)(void *, const u_int8_t *, size_t)) SHA1Update,
+    hash_final: (void (*)(u_char *, void *)) SHA1Final,
+};
+
+static struct hash_desc crypto_integ_sha1 =
+{ 	
+    common: {name: "oakley_sha",
+	     officname: "sha1",
+	     algo_type: IKE_ALG_INTEG,
+	     algo_id:   OAKLEY_SHA,
+	     algo_v2id: IKEv2_AUTH_HMAC_SHA1_96,
+	     algo_next: NULL, },
+    hash_ctx_size: sizeof(SHA1_CTX),
+    hash_key_size:   SHA1_DIGEST_SIZE,
     hash_digest_len: SHA1_DIGEST_SIZE,
     hash_init: (void (*)(void *)) SHA1Init,
     hash_update: (void (*)(void *, const u_int8_t *, size_t)) SHA1Update,
@@ -181,7 +226,9 @@ init_crypto(void)
 #endif
 	    
 	    ike_alg_add((struct ike_alg *) &crypto_hasher_sha1);
+	    ike_alg_add((struct ike_alg *) &crypto_integ_sha1);
 	    ike_alg_add((struct ike_alg *) &crypto_hasher_md5);
+	    ike_alg_add((struct ike_alg *) &crypto_integ_md5);
 	}
 #endif
 }
@@ -297,79 +344,12 @@ crypto_cbc_encrypt(const struct encrypt_desc *e, bool enc
 
     e->do_crypt(buf, size, st->st_enc_key.ptr
 		, st->st_enc_key.len, st->st_new_iv, enc);
+
     /*
       e->set_key(&ctx, st->st_enc_key.ptr, st->st_enc_key.len);
       e->cbc_crypt(&ctx, buf, size, st->st_new_iv, enc);
     */
 }
-
-/* HMAC package
- * rfc2104.txt specifies how HMAC works.
- */
-
-void
-hmac_init(struct hmac_ctx *ctx,
-    const struct hash_desc *h,
-    const u_char *key, size_t key_len)
-{
-    int k;
-
-    ctx->h = h;
-    ctx->hmac_digest_len = h->hash_digest_len;
-
-    /* Prepare the two pads for the HMAC */
-
-    memset(ctx->buf1, '\0', HMAC_BUFSIZE);
-
-    if (key_len <= HMAC_BUFSIZE)
-    {
-	memcpy(ctx->buf1, key, key_len);
-    }
-    else
-    {
-	h->hash_init(&ctx->hash_ctx);
-	h->hash_update(&ctx->hash_ctx, key, key_len);
-	h->hash_final(ctx->buf1, &ctx->hash_ctx);
-    }
-
-    memcpy(ctx->buf2, ctx->buf1, HMAC_BUFSIZE);
-
-    for (k = 0; k < HMAC_BUFSIZE; k++)
-    {
-	ctx->buf1[k] ^= HMAC_IPAD;
-	ctx->buf2[k] ^= HMAC_OPAD;
-    }
-
-    hmac_reinit(ctx);
-}
-
-void
-hmac_reinit(struct hmac_ctx *ctx)
-{
-    ctx->h->hash_init(&ctx->hash_ctx);
-    ctx->h->hash_update(&ctx->hash_ctx, ctx->buf1, HMAC_BUFSIZE);
-}
-
-void
-hmac_update(struct hmac_ctx *ctx,
-    const u_char *data, size_t data_len)
-{
-    ctx->h->hash_update(&ctx->hash_ctx, data, data_len);
-}
-
-void
-hmac_final(u_char *output, struct hmac_ctx *ctx)
-{
-    const struct hash_desc *h = ctx->h;
-
-    h->hash_final(output, &ctx->hash_ctx);
-
-    h->hash_init(&ctx->hash_ctx);
-    h->hash_update(&ctx->hash_ctx, ctx->buf2, HMAC_BUFSIZE);
-    h->hash_update(&ctx->hash_ctx, output, h->hash_digest_len);
-    h->hash_final(output, &ctx->hash_ctx);
-}
-
 
 /*
  * Local Variables:

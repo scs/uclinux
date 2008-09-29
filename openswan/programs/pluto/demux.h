@@ -11,14 +11,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: demux.h,v 1.35 2005-06-14 22:38:06 mcr Exp $
+ * RCSID $Id: demux.h,v 1.36 2005/08/31 03:36:53 mcr Exp $
  */
 
 #ifndef _DEMUX_H
 #define _DEMUX_H
 
 #include "server.h"
-
+#include "packet.h"
 #include "quirks.h"
 
 struct state;	/* forward declaration of tag */
@@ -58,15 +58,27 @@ struct msg_digest {
     u_int16_t sender_port;	/* host order */
     pb_stream packet_pbs;	/* whole packet */
     pb_stream message_pbs;	/* message to be processed */
+    pb_stream clr_pbs;          /* place to store decrypted packet */
     struct isakmp_hdr hdr;	/* message's header */
     bool encrypted;	/* was it encrypted? */
     enum state_kind from_state;	/* state we started in */
-    const struct state_microcode *smc;	/* microcode for initial state */
+    const struct state_microcode *smc;	  /* microcode for initial state (v1)*/
+    const struct state_v2_microcode *svm; /* microcode for initial state (v2)*/
+    bool new_iv_set;
     struct state *st;	/* current state object */
+    struct state *pst;  /* parent state object (if any) */
+
+    enum phase1_role role;
+    msgid_t          msgid_received;
+    
     pb_stream reply;	/* room for reply */
     pb_stream rbody;	/* room for reply body (after header) */
     notification_t note;	/* reason for failure */
     bool dpd;           /* Peer supports RFC 3706 DPD */
+    bool ikev2;         /* Peer supports IKEv2 */
+    bool event_already_set;
+    stf_status result;  /* temporary stored here for access by Tcl */
+
 
 #   define PAYLIMIT 20
     struct payload_digest
@@ -81,8 +93,10 @@ extern void release_md(struct msg_digest *md);
 
 typedef stf_status state_transition_fn(struct msg_digest *md);
 
-extern void complete_state_transition(struct msg_digest **mdp, stf_status result);
-extern void process_packet(struct msg_digest **mdp);
+extern void fmt_ipsec_sa_established(struct state *st
+				     , char *sadetails, int sad_len);
+extern void fmt_isakmp_sa_established(struct state *st
+				      , char *sadetails, int sad_len);
 
 extern void free_md_pool(void);
 
@@ -90,4 +104,18 @@ extern void free_md_pool(void);
 extern void receive_ike_echo_request(struct msg_digest *md);
 extern void receive_ike_echo_reply(struct msg_digest *md);
 
+extern void process_packet(struct msg_digest **mdp);
+extern void process_v1_packet(struct msg_digest **mdp);
+extern void process_v2_packet(struct msg_digest **mdp);
+extern bool check_msg_errqueue(const struct iface_port *ifp, short interest);
+
+
 #endif /* _DEMUX_H */
+
+/*
+ * Local Variables:
+ * c-basic-offset:4
+ * c-style: pluto
+ * End:
+ */
+ 

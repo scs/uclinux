@@ -16,12 +16,16 @@
  */
 
 #include <fcntl.h>
-#include <linux/types.h>
+#include <sys/types.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include "crypto/aes.h"
-#include "crypto/aes_cbc.h"
-#include "crypto/ocf_assist.h"
+#include "sysdep.h"
+#include "klips-crypto/aes.h"
+#include "klips-crypto/aes_cbc.h"
+#include "klips-crypto/ocf_assist.h"
+#if defined(macintosh) || (defined(__MACH__) && defined(__APPLE__))
+#include "openswan.h"
+#endif
 
 /****************************************************************************/
 
@@ -174,7 +178,7 @@ ocf_aes_cryptodev_internal(
     cop.src = (char *)fixed_src;
     cop.dst = (char *)dst;
     cop.len = fixed_len;
-    cop.iv = iv;
+    cop.iv = (char *)iv;
     if (ioctl(crypto_fd, CIOCCRYPT, &cop) < 0) {
         /* fprintf(stderr, "%s CIOCCRYPT failed\n", __FUNCTION__);  */
 		goto failed;
@@ -197,10 +201,10 @@ failed:
 int
 ocf_aes_cbc_encrypt(
 	aes_context *ctx,
-	__u8 (*input),
+	const __u8 (*input),
 	__u8 (*output),
 	long length,
-	__u8 (*ivec),
+	const __u8 (*ivec),
 	int enc)
 {
 	if (crypto_fd != -1) {
@@ -215,7 +219,7 @@ ocf_aes_cbc_encrypt(
 			output,
 			length,
 			ivec,
-			16);
+			(u_int32_t)16);
 		return length;
 	}
 	return length;

@@ -1,9 +1,7 @@
-As of this release, the following are considered known bugs.  For a detailed
-list, see http://bugs.openswan.org 
+This code is still less than perfect and undoubtedly has bugs.  As of this
+release, the following are considered known bugs.
 
-* Using esp= with compress=yes does not work as expected. If you really
-  need this, try Andy Gay's patch in contrib/ipcomp. This issue is fixed
-  in openswan 3.x (for details, see bug #538)
+For a detailed list, see http://bugs.openswan.org/
 
 * Test cases using AH for authentication currently fail. If you need this 
   functionality for interop, either use an older release (1.99) or JuanJo 
@@ -20,7 +18,11 @@ list, see http://bugs.openswan.org
   the result is unpredictable. 
 
 * Pluto will not retry if it can not find its key in DNS when it starts.
-  [Paul: is this still true?]
+
+* Extrusion and Opportunistic Encryption do not mix well without
+  Advanced Routing. (There is a workaround using advanced routing)
+
+* Openswan on OSX/FreeBSD does not properly install the SA's into the kernel.
 
 * Installing a new Openswan on top of an old one doesn't update kernel
   configuration options, so if new options are added, you need to start
@@ -54,7 +56,6 @@ list, see http://bugs.openswan.org
   delete/add sequence, which leaves a timing window in which there is no
   route for the destination.  Workarounds are complex; firewalling is
   probably the best countermeasure right now.
-  [Paul: this clearly is no longer valid with 'ip route change']
 
 * Yet another potential leak arises because the PF_KEYv2 replace form of
   addroute command is non-atomic.  There is a possibility for packets to
@@ -89,4 +90,8 @@ list, see http://bugs.openswan.org
   is more than "IPsec-overhead" larger than the MTU. This is to compatible
   with plpmtud (i.e. "PMTUbis") being proposed in the pmtud WG.
 
-This file is RCSID $Id: BUGS,v 1.56.2.6 2007-05-16 17:06:11 paul Exp $
+* Document and/or make configure option of the define IPSEC_obey_DF. It seems
+  currently not to be set anywhere.
+
+* Also document and/or make option for MSS_HACK_ / MSS_HACK (in ipsec_xmit.c)
+

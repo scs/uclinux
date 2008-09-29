@@ -4,9 +4,9 @@ TEST_TYPE=klipstest
 TESTNAME=west-icmp-07
 TESTHOST=west
 EXITONEMPTY=--exitonempty
-ARPREPLY=--arpreply 
+PRIVATE_ARPREPLY=true
 
-THREEEIGHT=true
+#THREEEIGHT=true
 PUB_INPUT=../inputs/08-sunrise-sunset-twofish.pcap
 REF_PRIV_OUTPUT=spi1-cleartext.txt
 

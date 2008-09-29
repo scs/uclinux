@@ -12,11 +12,13 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.273.2.7 2006-11-17 15:35:51 paul Exp $
 
 
 OPENSWANSRCDIR?=$(shell pwd)
 export OPENSWANSRCDIR
+
+TERMCAP=
+export TERMCAP
 
 include ${OPENSWANSRCDIR}/Makefile.inc
 
@@ -43,7 +45,7 @@ KERNELREL=$(shell ${KVSHORTUTIL} ${KERNELSRC}/Makefile)
 # directories visited by all recursion
 
 # declaration for make's benefit
-.PHONY:	def insert kpatch klink patches _patches _patches2.2 _patches2.4 \
+.PHONY:	def insert kpatch patches _patches _patches2.2 _patches2.4 \
 	klipsdefaults programs install clean distclean \
 	ogo oldgo menugo xgo \
 	omod menumod xmod \
@@ -57,6 +59,7 @@ KERNELREL=$(shell ${KVSHORTUTIL} ${KERNELSRC}/Makefile)
 
 kpatch: unapplypatch applypatch klipsdefaults
 npatch: unapplynpatch applynpatch
+ngpatch: unapplyngpatch applyngpatch
 
 unapplypatch:
 	-@if [ -f ${KERNELSRC}/openswan.patch ]; then \
@@ -66,7 +69,7 @@ unapplypatch:
 
 applypatch:
 	@echo Now performing forward patches; 
-	make kernelpatch${KERNELREL} | tee ${KERNELSRC}/openswan.patch | (cd ${KERNELSRC} && patch -p1 -b -z .preipsec --forward --ignore-whitespace )
+	${MAKE} kernelpatch${KERNELREL} | tee ${KERNELSRC}/openswan.patch | (cd ${KERNELSRC} && patch -p1 -b -z .preipsec --forward --ignore-whitespace )
 
 unapplynpatch:
 	-@if [ -f ${KERNELSRC}/natt.patch ]; then \
@@ -76,7 +79,17 @@ unapplynpatch:
 
 applynpatch:
 	@echo Now performing forward NAT patches; 
-	make nattpatch${KERNELREL} | tee ${KERNELSRC}/natt.patch | (cd ${KERNELSRC} && patch -p1 -b -z .preipsec --forward --ignore-whitespace )
+	${MAKE} nattpatch${KERNELREL} | tee ${KERNELSRC}/natt.patch | (cd ${KERNELSRC} && patch -p1 -b -z .preipsec --forward --ignore-whitespace )
+
+unapplyngpatch:
+	-@if [ -f ${KERNELSRC}/klipsng.patch ]; then \
+		echo Undoing previous klipsNG patches; \
+		cat ${KERNELSRC}/klipsng.patch | (cd ${KERNELSRC} && patch -p1 -R --force -E -z .preng --reverse --ignore-whitespace ); \
+	fi
+
+applyngpatch:
+	@echo Now performing klipsNG patches; 
+	${MAKE} ngpatch${KERNELREL} | tee ${KERNELSRC}/klipsng.patch | (cd ${KERNELSRC} && patch -p1 -b -z .preng --forward --ignore-whitespace )
 
 # patch kernel
 PATCHER=packaging/utils/patcher
@@ -198,14 +211,16 @@ programs install clean::
 
 else
 ABSOBJDIR:=$(shell mkdir -p ${OBJDIR}; cd ${OBJDIR} && pwd)
+OBJDIRTOP=${ABSOBJDIR}
+export OBJDIRTOP
 
 programs install clean:: ${OBJDIR}/Makefile
 	@echo OBJDIR: ${OBJDIR}
-	(cd ${ABSOBJDIR} && OBJDIRTOP=${ABSOBJDIR} OBJDIR=${ABSOBJDIR} make $@ )
+	(cd ${ABSOBJDIR} && OBJDIRTOP=${ABSOBJDIR} OBJDIR=${ABSOBJDIR} ${MAKE} $@ )
 
 ${OBJDIR}/Makefile: ${srcdir}/Makefile packaging/utils/makeshadowdir
 	@echo Setting up for OBJDIR=${OBJDIR}
-	@packaging/utils/makeshadowdir `(cd ${srcdir}; pwd)` ${OBJDIR} "${SUBDIRS}"
+	@packaging/utils/makeshadowdir `(cd ${srcdir}; echo $$PWD)` ${OBJDIR} "${SUBDIRS}"
 
 endif
 
@@ -280,16 +295,6 @@ precheck:
 		exit 1 ; \
 	fi
 
-# set version code if this is a fresh CVS checkout
-ifeq ($(wildcard cvs.datemark),cvs.datemark)
-verset Makefile.ver: cvs.datemark
-	echo IPSECVERSION=`date -r cvs.datemark +cvs%Y%b%d_%H:%M:%S` >Makefile.ver 
-	rm -f cvs.datemark; 
-else
-verset Makefile.ver: 
-	@grep IPSECVERSION Makefile.ver
-endif
-
 Makefile: Makefile.ver
 
 # configuring (exit statuses disregarded, something fishy here sometimes)
@@ -335,10 +340,10 @@ confcheck:
 # kernel building, with error checks
 kernel:
 	rm -f out.kbuild out.kinstall
-	# undocumented kernel folklore: clean BEFORE dep. 
-	# we run make dep seperately, because there is no point in running ERRCHECK
-	# on the make dep output.
-	# see LKML thread "clean before or after dep?"
+        # undocumented kernel folklore: clean BEFORE dep. 
+        # we run make dep seperately, because there is no point in running ERRCHECK
+        # on the make dep output.
+        # see LKML thread "clean before or after dep?"
 	( cd $(KERNELSRC) ; $(MAKE) $(KERNMAKEOPTS) $(KERNCLEAN) $(KERNDEP) )
 	( cd $(KERNELSRC) ; $(MAKE) $(KERNMAKEOPTS) $(KERNEL) ) 2>&1 | tee out.kbuild
 	@if egrep -q '^CONFIG_MODULES=y' $(KCFILE) ; \
@@ -366,8 +371,8 @@ preprhkern4module:
 		rm -rf include/asm && \
 		(cd include/linux && sed -e '/#include "\/boot\/kernel.h"/d' <rhconfig.h >rhconfig.h-new && mv rhconfig.h-new rhconfig.h ) && \
 		rm -f include/linux/modules/*.stamp && \
-		make dep && \
-		make oldconfig; \
+		${MAKE} dep && \
+		${MAKE} oldconfig; \
 	done;
 
 # module-only building, with error checks
@@ -402,7 +407,7 @@ module24:
 	@echo '========================================================='
 	@echo 
 	@echo 'KLIPS module built successfully. '
-	@echo ipsec.o is in ${MODBUILDDIR}/ipsec.o
+	@echo ipsec.o is in ${MODBUILDDIR}
 	@echo 
 	@(cd ${MODBUILDDIR}; ls -l ipsec.o)
 	@(cd ${MODBUILDDIR}; size ipsec.o)
@@ -424,9 +429,9 @@ minstall:
 
 # module-only install, with error checks
 minstall24:
-	( OSMODLIB=`make -C $(KERNELSRC) -p dummy | ( sed -n -e '/^MODLIB/p' -e '/^MODLIB/q' ; cat > /dev/null ) | sed -e 's/^MODLIB[ :=]*\([^;]*\).*/\1/'` ; \
+	( OSMODLIB=`${MAKE} -C $(KERNELSRC) -p dummy | ( sed -n -e '/^MODLIB/p' -e '/^MODLIB/q' ; cat > /dev/null ) | sed -e 's/^MODLIB[ :=]*\([^;]*\).*/\1/'` ; \
 	if [ -z "$$OSMODLIB" ] ; then \
-		OSMODLIB=`make -C $(KERNELSRC) -n -p modules_install | ( sed -n -e '/^MODLIB/p' -e '/^MODLIB/q' ; cat > /dev/null ) | sed -e 's/^MODLIB[ :=]*\([^;]*\).*/\1/'` ; \
+		OSMODLIB=`${MAKE} -C $(KERNELSRC) -n -p modules_install | ( sed -n -e '/^MODLIB/p' -e '/^MODLIB/q' ; cat > /dev/null ) | sed -e 's/^MODLIB[ :=]*\([^;]*\).*/\1/'` ; \
 	fi ; \
 	if [ -z "$$OSMODLIB" ] ; then \
 		echo "No known place to install module. Aborting." ; \
@@ -478,7 +483,7 @@ module26:
 	@echo '========================================================='
 	@echo 
 	@echo 'KLIPS26 module built successfully. '
-	@echo ipsec.ko is in ${MOD26BUILDDIR}/ipsec.ko
+	@echo ipsec.ko is in ${MOD26BUILDDIR}
 	@echo 
 	@(cd ${MOD26BUILDDIR}; ls -l ipsec.ko)
 	@(cd ${MOD26BUILDDIR}; size ipsec.ko)
@@ -493,9 +498,9 @@ mod26clean module26clean:
 
 # module-only install, with error checks
 minstall26:
-	( OSMODLIB=`make -C $(KERNELSRC) -p help | ( sed -n -e '/^MODLIB/p' -e '/^MODLIB/q' ; cat > /dev/null ) | sed -e 's/^MODLIB[ :=]*\([^;]*\).*/\1/'` ; \
+	( OSMODLIB=`${MAKE} -C $(KERNELSRC) -p help | ( sed -n -e '/^MODLIB/p' -e '/^MODLIB/q' ; cat > /dev/null ) | sed -e 's/^MODLIB[ :=]*\([^;]*\).*/\1/'` ; \
 	if [ -z "$$OSMODLIB" ] ; then \
-		OSMODLIB=`make -C $(KERNELSRC) -n -p modules_install | ( sed -n -e '/^MODLIB/p' -e '/^MODLIB/q' ; cat > /dev/null ) | sed -e 's/^MODLIB[ :=]*\([^;]*\).*/\1/'` ; \
+		OSMODLIB=`${MAKE} -C $(KERNELSRC) -n -p modules_install | ( sed -n -e '/^MODLIB/p' -e '/^MODLIB/q' ; cat > /dev/null ) | sed -e 's/^MODLIB[ :=]*\([^;]*\).*/\1/'` ; \
 	fi ; \
 	if [ -z "$$OSMODLIB" ] ; then \
 		echo "No known place to install module. Aborting." ; \
@@ -536,10 +541,10 @@ kinstall:
 	( cd $(KERNELSRC) ; $(MAKE) $(KERNMAKEOPTS) install ) 2>&1 | tee -a out.kinstall
 	${ERRCHECK} out.kinstall
 
-kernelpatch2.6:
+kernelpatch2.6 kernelpatch:
 	packaging/utils/kernelpatch 2.6
 
-kernelpatch2.4 kernelpatch:
+kernelpatch2.4:
 	packaging/utils/kernelpatch 2.4
 
 kernelpatch2.2:
@@ -554,6 +559,9 @@ nattpatch:
 	else	echo "Cannot determine Linux kernel version. Perhaps you need to set KERNELSRC? (eg: export KERNELSRC=/usr/src/linux-`uname -r`/)"; exit 1; \
 	fi;
 
+ngpatch2.6:
+	packaging/utils/ngpatch 2.6
+
 nattpatch2.6:
 	packaging/utils/nattpatch 2.6
 
@@ -562,6 +570,9 @@ nattpatch2.4:
 
 nattpatch2.2:
 	packaging/utils/nattpatch 2.2
+
+nattupdate:
+	(cd UMLPOOL && diff -u plain26/net/ipv4/udp.c.orig plain26/net/ipv4/udp.c; exit 0) >nat-t/net/ipv4/udp.c.os2_6.patch
 
 # take all the patches out of the kernel
 # (Note, a couple of files are modified by non-patch means; they are
@@ -593,7 +604,7 @@ buildready:
 
 rpm:
 	@echo please cd packaging/redhat and
-	@echo run "make RH_KERNELSRC=/some/path/to/kernel/src rpm"
+	@echo run "${MAKE} RH_KERNELSRC=/some/path/to/kernel/src rpm"
 
 ipkg_strip:
 	@echo "Minimizing size for ipkg binaries..."
@@ -612,7 +623,7 @@ ipkg_module:
 	KV=$(shell ${KVUTIL} ${KERNELSRC}/Makefile) && \
 	mkdir -p $(OPENSWANSRCDIR)/packaging/ipkg/kernel-module/lib/modules/$$KV/net/ipsec
 	KV=$(shell ${KVUTIL} ${KERNELSRC}/Makefile) && \
-	cp ${OPENSWANSRCDIR}/modobj/ipsec.o $(OPENSWANSRCDIR)/packaging/ipkg/kernel-module/lib/modules/$$KV/net/ipsec/
+	cp ${OPENSWANSRCDIR}/modobj*/ipsec.[k]o $(OPENSWANSRCDIR)/packaging/ipkg/kernel-module/lib/modules/$$KV/net/ipsec/
 	KV=$(shell ${KVUTIL} ${KERNELSRC}/Makefile)
 
 ipkg_clean:
@@ -628,6 +639,6 @@ ipkg: programs install ipkg_strip ipkg_module
 
 
 env:
-	env
-	exit 1
+	@env | sed -e "s/'/'\\\\''/g" -e "s/\([^=]*\)=\(.*\)/\1='\2'/"
+
 

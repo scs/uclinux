@@ -11,12 +11,18 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.13 2004-12-18 18:13:44 mcr Exp $
+# RCSID $Id: Makefile,v 1.15 2005/11/12 20:42:44 patrickn Exp $
 
 OPENSWANSRCDIR?=$(shell cd ..; pwd)
 include $(OPENSWANSRCDIR)/Makefile.inc
 
-SUBDIRS=lib utils klips pluto dnssec scripts packaging
+srcdir?=${OPENSWANSRCDIR}/testing/
+
+SUBDIRS=lib utils 
+SUBDIRS+=klips 
+SUBDIRS+=pluto dnssec scripts packaging
+#SUBDIRS+=kunit
+SUBDIRS+=pfkey
 
 def:
 	@echo "Please read doc/intro.html or INSTALL before running make"

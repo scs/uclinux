@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: adns.c,v 1.11.24.1 2007-09-05 03:01:04 paul Exp $
+ * RCSID $Id: adns.c,v 1.11.24.1 2007/09/05 03:01:04 paul Exp $
  */
 
 #ifndef USE_LWRES	/* whole file! */
@@ -71,6 +71,7 @@
 
 #include "constants.h"
 #include "adns.h"	/* needs <resolv.h> */
+#include "osw_select.h"
 
 /* shared by all processes */
 
@@ -233,14 +234,14 @@ worker(int qfd, int afd)
 	a.amagic = ADNS_A_MAGIC;
 	a.serial = q.serial;
 
-	a.result = res_nquery(statp, q.name_buf, C_IN, q.type, a.ans, sizeof(a.ans));
+	a.result = res_nquery(statp, q.name_buf, ns_c_in, q.type, a.ans, sizeof(a.ans));
 	a.h_errno_val = h_errno;
 
 	a.len = offsetof(struct adns_answer, ans) + (a.result < 0? 0 : a.result);
 
 #ifdef DEBUG
-	if (((q.debugging & IMPAIR_DELAY_ADNS_KEY_ANSWER) && q.type == T_KEY)
-	|| ((q.debugging & IMPAIR_DELAY_ADNS_TXT_ANSWER) && q.type == T_TXT))
+	if (((q.debugging & IMPAIR_DELAY_ADNS_KEY_ANSWER) && q.type == ns_t_key)
+	|| ((q.debugging & IMPAIR_DELAY_ADNS_TXT_ANSWER) && q.type == ns_t_txt))
 	    sleep(30);	/* delay the answer */
 #endif
 
@@ -504,11 +505,11 @@ answer(struct worker_info *w)
     else
     {
 	/* pass the answer on to Pluto */
-	enum helper_exit_status r
+	enum helper_exit_status rs
 	    = write_pipe(PLUTO_AFD, (const unsigned char *) &a);
 
-	if (r != HES_CONTINUE)
-	    exit(r);
+	if (rs != HES_CONTINUE)
+	    exit(rs);
 	w->busy = FALSE;
 	forward_query(w);
     }
@@ -520,22 +521,22 @@ master(void)
 {
     for (;;)
     {
-	fd_set readfds;
+	osw_fd_set readfds;
 	int maxfd = PLUTO_QFD;		/* approximate lower bound */
 	int ndes = 0;
 	struct worker_info *w;
 
-	FD_ZERO(&readfds);
+	OSW_FD_ZERO(&readfds);
 	if (!eof_from_pluto)
 	{
-	    FD_SET(PLUTO_QFD, &readfds);
+	    OSW_FD_SET(PLUTO_QFD, &readfds);
 	    ndes++;
 	}
 	for (w = wi; w != wi_roof; w++)
 	{
 	    if (w->busy)
 	    {
-		FD_SET(w->afd, &readfds);
+		OSW_FD_SET(w->afd, &readfds);
 		ndes++;
 		if (maxfd < w->afd)
 		    maxfd = w->afd;
@@ -546,7 +547,7 @@ master(void)
 	    return HES_OK;	/* done! */
 
 	do {
-	    ndes = select(maxfd + 1, &readfds, NULL, NULL, NULL);
+	    ndes = osw_select(maxfd + 1, &readfds, NULL, NULL, NULL);
 	} while (ndes == -1 && errno == EINTR);
 	if (ndes == -1)
 	{
@@ -555,14 +556,14 @@ master(void)
 	}
 	else if (ndes > 0)
 	{
-	    if (FD_ISSET(PLUTO_QFD, &readfds))
+	    if (OSW_FD_ISSET(PLUTO_QFD, &readfds))
 	    {
 		query();
 		ndes--;
 	    }
 	    for (w = wi; ndes > 0 && w != wi_roof; w++)
 	    {
-		if (w->busy && FD_ISSET(w->afd, &readfds))
+		if (w->busy && OSW_FD_ISSET(w->afd, &readfds))
 		{
 		    answer(w);
 		    ndes--;

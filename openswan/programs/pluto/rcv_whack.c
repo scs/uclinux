@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: rcv_whack.c,v 1.116 2005-05-19 14:58:55 mcr Exp $
+ * RCSID $Id: rcv_whack.c,v 1.119 2005/10/02 22:30:12 mcr Exp $
  */
 
 #include <stdio.h>
@@ -20,26 +20,29 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef HOST_NAME_MAX   /* POSIX 1003.1-2001 says <unistd.h> defines this */
+# define HOST_NAME_MAX  255 /* upper bound, according to SUSv2 */
+#endif
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <resolv.h>
 #include <arpa/nameser.h>	/* missing from <resolv.h> on old systems */
-#include <sys/queue.h>
+#include <fcntl.h>
 
 #include <openswan.h>
-#include "pfkeyv2.h"
+#include "openswan/pfkeyv2.h"
 
+#include "sysdep.h"
+#include "oswconf.h"
 #include "constants.h"
 #include "defs.h"
 #include "id.h"
 #include "x509.h"
 #include "pgp.h"
 #include "certs.h"
-#include "paths.h"
 #include "ac.h"
 #include "smartcard.h"
 #ifdef XAUTH_USEPAM
@@ -66,6 +69,10 @@
 
 #include "kernel_alg.h"
 #include "ike_alg.h"
+
+#ifdef TPM
+#include "tpm/tpm.h"
+#endif
 
 /* bits loading keys from asynchronous DNS */
 
@@ -121,6 +128,84 @@ key_add_merge(struct key_add_common *oc, const struct id *keyid)
     }
 }
 
+static char whackrecordname[PATH_MAX];
+static FILE *whackrecordfile=NULL;
+
+/*
+ * writes out 64-bit time, even though we actually
+ * only have 32-bit time here. Assumes that time will
+ * be written out in big-endian format, with MSB word
+ * being first.
+ *
+ */
+static bool writewhackrecord(char *buf, int buflen)
+{
+    u_int32_t header[3];
+    time_t n;
+
+    /* round up buffer length */
+    int abuflen = (buflen + 3) & ~0x3;
+
+    /* bail if we aren't writing anything */
+    if(whackrecordfile == NULL) return TRUE;
+
+    header[0]=buflen + sizeof(u_int32_t)*3;
+    header[1]=0;
+    time(&n);
+    header[2]=n;
+
+    //DBG_log("buflen: %u abuflen: %u\n", header[0], abuflen);
+    
+    fwrite(header, sizeof(u_int32_t)*3, 1, whackrecordfile);
+    fwrite(buf, abuflen, 1, whackrecordfile);
+    
+    return TRUE;
+}
+
+
+/*
+ * we write out an empty record with the right WHACK magic.
+ * this should permit a later mechanism to figure out the
+ * endianess of the file, since we will get records from
+ * other systems for analysis eventually.
+ */
+static bool openwhackrecordfile(char *file)
+{
+    char when[256];
+    char FQDN[HOST_NAME_MAX + 1];
+    u_int32_t magic;
+    struct tm tm1, *tm;
+    time_t n;
+    
+    strcpy(FQDN, "unknown host");
+    gethostname(FQDN, sizeof(FQDN));
+
+    strncpy(whackrecordname, file, sizeof(whackrecordname));
+    whackrecordfile = fopen(whackrecordname, "w");
+    if(whackrecordfile==NULL) {
+	openswan_log("Failed to open whack record file: '%s'\n"
+		     , whackrecordname);
+	return FALSE;
+    }
+
+    time(&n);
+    tm = localtime_r(&n, &tm1);
+    strftime(when, sizeof(when), "%F %T", tm);
+    
+    fprintf(whackrecordfile, "#!-pluto-whack-file- recorded on %s on %s\n",
+	    FQDN, when);
+
+    magic = WHACK_BASIC_MAGIC;
+    writewhackrecord((char *)&magic, 4);
+    
+    DBG(DBG_CONTROL
+	, DBG_log("started recording whack messages to %s\n"
+		  , whackrecordname));
+    return TRUE;
+}
+    
+
+
 static void
 key_add_continue(struct adns_continuation *ac, err_t ugh)
 {
@@ -162,7 +247,7 @@ key_add_request(const struct whack_message *msg)
     else
     {
 	if (!msg->whack_addkey)
-	    delete_public_keys(&keyid, msg->pubkey_alg);
+	    delete_public_keys(&pluto_pubkeys, &keyid, msg->pubkey_alg);
 
 	if (msg->keyval.len == 0)
 	{
@@ -191,7 +276,7 @@ key_add_request(const struct whack_message *msg)
 		case ka_TXT:
 		    ugh = start_adns_query(&keyid
 			, &keyid	/* same */
-			, T_TXT
+			, ns_t_txt
 			, key_add_continue
 			, &kc->ac);
 		    break;
@@ -199,7 +284,7 @@ key_add_request(const struct whack_message *msg)
 		case ka_KEY:
 		    ugh = start_adns_query(&keyid
 			, NULL
-			, T_KEY
+			, ns_t_key
 			, key_add_continue
 			, &kc->ac);
 		    break;
@@ -222,128 +307,83 @@ key_add_request(const struct whack_message *msg)
 	else
 	{
 	    ugh = add_public_key(&keyid, DAL_LOCAL, msg->pubkey_alg
-		, &msg->keyval, &pubkeys);
+		, &msg->keyval, &pluto_pubkeys);
 	    if (ugh != NULL)
 		loglog(RC_LOG_SERIOUS, "%s", ugh);
 	}
     }
 }
 
-/* Handle a kernel request. Supposedly, there's a message in
- * the kernelsock socket.
+/*
+ * handle a whack message.
  */
-void
-whack_handle(int whackctlfd)
+void whack_process(int whackfd, struct whack_message msg)
 {
-    struct whack_message msg;
-    struct sockaddr_un whackaddr;
-    int whackaddrlen = sizeof(whackaddr);
-    int whackfd = accept(whackctlfd, (struct sockaddr *)&whackaddr, &whackaddrlen);
-    /* Note: actual value in n should fit in int.  To print, cast to int. */
-    ssize_t n;
-
-    //DBG_log("whack_crash %d\n", msg.whack_crash);
-
-    if (whackfd < 0)
-    {
-	log_errno((e, "accept() failed in whack_handle()"));
-	return;
-    }
-    n = read(whackfd, &msg, sizeof(msg));
-    if (n == -1)
-    {
-	log_errno((e, "read() failed in whack_handle()"));
-	close(whackfd);
-	return;
-    }
-
-    whack_log_fd = whackfd;
-
-    /* sanity check message */
-    {
-	err_t ugh = NULL;
-        struct whackpacker wp;
-        
-        wp.msg = &msg;
-        wp.n   = n;
-        wp.str_next = msg.string;
-        wp.str_roof = (char *)&msg + n;
-
-	if ((size_t)n < offsetof(struct whack_message, whack_shutdown) + sizeof(msg.whack_shutdown))
-	{
-	    ugh = builddiag("ignoring runt message from whack: got %d bytes", (int)n);
-	}
-	else if (msg.magic != WHACK_MAGIC)
-	{
-	    if (msg.magic == WHACK_BASIC_MAGIC)
-	    {
-		/* Only basic commands.  Simpler inter-version compatability. */
-		if (msg.whack_status)
-		    show_status();
-
-		if (msg.whack_shutdown)
-		{
-		    openswan_log("shutting down");
-		    exit_pluto(0);	/* delete lock and leave, with 0 status */
-		}
-		ugh = "";	/* bail early, but without complaint */
-	    }
-	    else
-	    {
-		ugh = builddiag("ignoring message from whack with bad magic %d; should be %d; Mismatched versions of userland tools and KLIPS code."
-		    , msg.magic, WHACK_MAGIC);
-	    }
-	}
-        else if ((ugh = unpack_whack_msg(&wp)) != NULL)
-        {
-            /* nothing, ugh is already set */
-        }
-        else
-        {
-            msg.keyval.ptr = wp.str_next;       /* grab chunk */
-        }
-
-	if (ugh != NULL)
-	{
-	    if (*ugh != '\0') 
-		loglog(RC_BADWHACKMESSAGE, "%s", ugh);
-	    whack_log_fd = NULL_FD;
-	    close(whackfd);
-	    return;
-	}
-    }
-
-    //DBG_log("whack_crash %d\n", msg.whack_crash);
+    const struct osw_conf_options *oco = osw_init_options();
 
     if (msg.whack_options)
     {
+	switch(msg.opt_set) {
+	case WHACK_ADJUSTOPTIONS:
 #ifdef DEBUG
-	if (msg.name == NULL)
-	{
-	    /* we do a two-step so that if either old or new would
-	     * cause the message to print, it will be printed.
-	     */
-	    set_debugging(cur_debugging | msg.debugging);
-	    DBG(DBG_CONTROL
-		, DBG_log("base debugging = %s"
-		    , bitnamesof(debug_bit_names, msg.debugging)));
-	    base_debugging = msg.debugging;
-	    set_debugging(base_debugging);
-	}
-	else if (!msg.whack_connection)
-	{
-	    struct connection *c = con_by_name(msg.name, TRUE);
-
-	    if (c != NULL)
+	    if (msg.name == NULL)
 	    {
-		c->extra_debugging = msg.debugging;
+		/* we do a two-step so that if either old or new would
+		 * cause the message to print, it will be printed.
+		 */
+		set_debugging(cur_debugging | msg.debugging);
 		DBG(DBG_CONTROL
-		    , DBG_log("\"%s\" extra_debugging = %s"
-			, c->name
-			, bitnamesof(debug_bit_names, c->extra_debugging)));
+		    , DBG_log("base debugging = %s"
+			      , bitnamesof(debug_bit_names, msg.debugging)));
+		base_debugging = msg.debugging;
+		set_debugging(base_debugging);
 	    }
-	}
+	    else if (!msg.whack_connection)
+	    {
+		struct connection *c = con_by_name(msg.name, TRUE);
+		
+		if (c != NULL)
+		{
+		    c->extra_debugging = msg.debugging;
+		    DBG(DBG_CONTROL
+			, DBG_log("\"%s\" extra_debugging = %s"
+				  , c->name
+				  , bitnamesof(debug_bit_names, c->extra_debugging)));
+		}
+	    }
 #endif
+	    break;
+
+	case WHACK_SETDUMPDIR:
+	    /* XXX */
+	    break;
+	    
+	case WHACK_STARTWHACKRECORD:
+	    /* close old filename */
+	    if(whackrecordfile) {
+		DBG(DBG_CONTROL
+		    , DBG_log("stopped recording whack messages to %s\n"
+			      , whackrecordname));
+		fclose(whackrecordfile);
+	    }
+	    whackrecordfile=NULL;
+
+	    openwhackrecordfile(msg.string1);
+
+	    /* do not do any other processing for these */
+	    goto done;
+	    
+	case WHACK_STOPWHACKRECORD:
+	    if(whackrecordfile) {
+		DBG(DBG_CONTROL
+		    , DBG_log("stopped recording whack messages to %s\n"
+			      , whackrecordname));
+		fclose(whackrecordfile);
+	    }
+	    whackrecordfile=NULL;
+	    /* do not do any other processing for these */
+	    goto done;
+	}
     }
 
     if (msg.whack_myid)
@@ -380,6 +420,8 @@ whack_handle(int whackctlfd)
     /* process "listen" before any operation that could require it */
     if (msg.whack_listen)
     {
+	fflush(stderr);
+	fflush(stdout);
 	close_peerlog();    /* close any open per-peer logs */
 	openswan_log("listening for IKE messages");
 	listening = TRUE;
@@ -409,17 +451,17 @@ whack_handle(int whackctlfd)
 
     if (msg.whack_reread & REREAD_CACERTS)
     {
-	load_authcerts("CA cert", CA_CERT_PATH, AUTH_CA);
+	load_authcerts("CA cert", oco->cacerts_dir, AUTH_CA);
     }
 
     if (msg.whack_reread & REREAD_AACERTS)
     {
-       load_authcerts("AA cert", AA_CERT_PATH, AUTH_AA);
+       load_authcerts("AA cert", oco->aacerts_dir, AUTH_AA);
     }
 
     if (msg.whack_reread & REREAD_OCSPCERTS)
     {
-       load_authcerts("OCSP cert", OCSP_CERT_PATH, AUTH_OCSP);
+       load_authcerts("OCSP cert", oco->ocspcerts_dir, AUTH_OCSP);
     }
 
     if (msg.whack_reread & REREAD_ACERTS)
@@ -433,6 +475,16 @@ whack_handle(int whackctlfd)
 	load_crls();
     }
 
+    if (msg.tpmeval) 
+    {
+#ifdef TPM
+	passert(msg.tpmeval != NULL);
+	tpm_eval(msg.tpmeval);
+#else
+	openswan_log("Pluto not built with TAPROOM");
+#endif	
+    }
+
 #ifdef HAVE_OCSP
     if (msg.whack_purgeocsp)
     {
@@ -440,6 +492,11 @@ whack_handle(int whackctlfd)
        free_ocsp_cache();
     }
 #endif
+
+    if (msg.whack_list & LIST_PSKS)
+    {
+	list_psks();
+    }
 
     if (msg.whack_list & LIST_CERTS)
     {
@@ -564,7 +621,7 @@ whack_handle(int whackctlfd)
 	    whack_log(RC_DEAF, "need --listen before --initiate");
 	else
 	    initiate_connection(msg.name
-				, msg.whack_async? NULL_FD : dup_any(whackfd)
+				, msg.whack_async ? NULL_FD : dup_any(whackfd)
 				, msg.debugging
 				, pcim_demand_crypto);
     }
@@ -574,7 +631,7 @@ whack_handle(int whackctlfd)
 	if (!listening)
 	    whack_log(RC_DEAF, "need --listen before opportunistic initiation");
 	else
-	    initiate_opportunistic(&msg.oppo_my_client, &msg.oppo_peer_client, 0
+	    initiate_ondemand(&msg.oppo_my_client, &msg.oppo_peer_client, 0
 		, FALSE
 		, msg.whack_async? NULL_FD : dup_any(whackfd), "whack");
     }
@@ -591,8 +648,109 @@ whack_handle(int whackctlfd)
 	exit_pluto(0);	/* delete lock and leave, with 0 status */
     }
 
+done:
     whack_log_fd = NULL_FD;
     close(whackfd);
+}
+
+/*
+ * Handle a whack request. 
+ */
+void
+whack_handle(int whackctlfd)
+{
+    struct whack_message msg, msg_saved;
+    struct sockaddr_un whackaddr;
+    socklen_t whackaddrlen = sizeof(whackaddr);
+    int whackfd = accept(whackctlfd, (struct sockaddr *)&whackaddr, &whackaddrlen);
+    /* Note: actual value in n should fit in int.  To print, cast to int. */
+    ssize_t n;
+    //static int msgnum=0;
+
+    if (whackfd < 0)
+    {
+	log_errno((e, "accept() failed in whack_handle()"));
+	return;
+    }
+    if (fcntl(whackfd, F_SETFD, FD_CLOEXEC) < 0)
+    {
+       log_errno((e, "failed to set CLOEXEC in whack_handle()"));
+       close(whackfd);
+       return;
+    }
+    memset(&msg, 0, sizeof(msg));
+    n = read(whackfd, &msg, sizeof(msg));
+    if (n <= 0)
+    {
+	log_errno((e, "read() failed in whack_handle()"));
+	close(whackfd);
+	return;
+    }
+
+    whack_log_fd = whackfd;
+
+    msg_saved = msg;
+
+    //DBG_log("msg %d size=%u\n", ++msgnum, n);
+
+    /* sanity check message */
+    {
+	err_t ugh = NULL;
+        struct whackpacker wp;
+        
+        wp.msg = &msg;
+        wp.n   = n;
+        wp.str_next = msg.string;
+        wp.str_roof = (unsigned char *)&msg + n;
+
+	if ((size_t)n < offsetof(struct whack_message, whack_shutdown) + sizeof(msg.whack_shutdown))
+	{
+	    ugh = builddiag("ignoring runt message from whack: got %d bytes", (int)n);
+	}
+	else if (msg.magic != WHACK_MAGIC)
+	{
+	    if (msg.magic == WHACK_BASIC_MAGIC)
+	    {
+		/* Only basic commands.  Simpler inter-version compatability. */
+		if (msg.whack_status)
+		    show_status();
+
+		if (msg.whack_shutdown)
+		{
+		    openswan_log("shutting down");
+		    exit_pluto(0);	/* delete lock and leave, with 0 status */
+		}
+		ugh = "";	/* bail early, but without complaint */
+	    }
+	    else
+	    {
+		ugh = builddiag("ignoring message from whack with bad magic %d; should be %d; Mismatched versions of userland tools and KLIPS code."
+		    , msg.magic, WHACK_MAGIC);
+	    }
+	}
+        else if ((ugh = unpack_whack_msg(&wp)) != NULL)
+        {
+            /* nothing, ugh is already set */
+        }
+        else
+        {
+            msg.keyval.ptr = wp.str_next;    /* grab chunk */
+        }
+
+	if (ugh != NULL)
+	{
+	    if (*ugh != '\0') 
+		loglog(RC_BADWHACKMESSAGE, "%s", ugh);
+	    whack_log_fd = NULL_FD;
+	    close(whackfd);
+	    return;
+	}
+    }
+
+    /* dump record if necessary */
+    writewhackrecord((char *)&msg_saved, n);
+    
+    whack_process(whackfd, msg);
 }
 
 /*
@@ -631,8 +789,6 @@ bool whack_prompt_for(int whackfd
 	
     return TRUE;
 }
-
-
 
 /*
  * Local Variables:

@@ -67,7 +67,7 @@
 #define ONE_TABLE
 #define ONE_IM_TABLE
 #else
-#ifdef __SH4__
+#if defined(__SH3__) || defined(__SH4__)
 /* How to distinguish the 166MHz part from the 240MHz part?
  * They've different caches and probably different "best" here.
  */

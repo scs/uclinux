@@ -22,8 +22,7 @@ to configure and bring up
 <emphasis remap='B'>ipsec_pluto(8).</emphasis>
 It calls 
 <emphasis remap='B'>_plutoload</emphasis>
-to invoke pluto, and watches to makes sure that pluto is restarted if it fails.
-It is also responsible for generating a default raw RSA hostkey if none exists.</para>
+to invoke pluto, and watches to makes sure that pluto is restarted if it fails.</para>
 </refsect1>
 
 <refsect1 id='see_also'><title>SEE ALSO</title>
@@ -31,7 +30,7 @@ It is also responsible for generating a default raw RSA hostkey if none exists.<
 </refsect1>
 
 <refsect1 id='history'><title>HISTORY</title>
-<para>Man page written for the Linux Openswan project &lt;<ulink url='http://www.openswan.org/'>http://www.openswan.org/</ulink>&gt;
+<para>Man page written for the Linux FreeS/WAN project &lt;<ulink url='http://www.freeswan.org/'>http://www.freeswan.org/</ulink>&gt;
 by Michael Richardson. Original program written by Henry Spencer.</para>
 
 </refsect1>

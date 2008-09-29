@@ -14,7 +14,6 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_life.c,v 1.13.10.2 2007-09-05 02:39:38 paul Exp $
  *
  */
 
@@ -62,8 +61,8 @@
 #include "openswan/ipcomp.h"
 #endif /* CONFIG_KLIPS_IPCOMP */
 
-#include <pfkeyv2.h>
-#include <pfkey.h>
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
 
 #include "openswan/ipsec_proto.h"
 
@@ -122,10 +121,10 @@ ipsec_lifetime_check(struct ipsec_lifetime64 *il64,
 			    saname,
 			    dir);
 
-		if(ips->ips_state != SADB_SASTATE_DYING) {
+		if(ips->ips_state != K_SADB_SASTATE_DYING) {
 			pfkey_expire(ips, 0);
 		}
-		ips->ips_state = SADB_SASTATE_DYING;
+		ips->ips_state = K_SADB_SASTATE_DYING;
 
 		return ipsec_life_softdied;
 	}
@@ -214,61 +213,6 @@ ipsec_lifetime_update_soft(struct ipsec_lifetime64 *lifetime,
 
 	
 /*
- * $Log: ipsec_life.c,v $
- * Revision 1.13.10.2  2007-09-05 02:39:38  paul
- * include ip.h to account for header file surgery in 2.6.22 [david]
- *
- * Revision 1.13.10.1  2006/10/06 21:39:26  paul
- * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
- * set. This is defined through autoconf.h which is included through the
- * linux kernel build macros.
- *
- * Revision 1.13  2004/07/10 19:11:18  mcr
- * 	CONFIG_IPSEC -> CONFIG_KLIPS.
- *
- * Revision 1.12  2004/04/23 20:44:35  ken
- * Update comments
- *
- * Revision 1.11  2004/04/06 02:49:26  mcr
- * 	pullup of algo code from alg-branch.
- *
- * Revision 1.10  2004/03/30 11:03:10  paul
- * two more occurances of snprintf, found by Sam from a users oops msg.
- *
- * Revision 1.9  2003/10/31 02:27:55  mcr
- * 	pulled up port-selector patches and sa_id elimination.
- *
- * Revision 1.8.4.1  2003/10/29 01:30:41  mcr
- * 	elimited "struct sa_id".
- *
- * Revision 1.8  2003/02/06 02:00:10  rgb
- * Fixed incorrect debugging text label
- *
- * Revision 1.7  2002/05/23 07:16:26  rgb
- * Fixed absolute/relative reference to lifetime count printout.
- *
- * Revision 1.6  2002/04/24 07:55:32  mcr
- * 	#include patches and Makefiles for post-reorg compilation.
- *
- * Revision 1.5  2002/04/24 07:36:28  mcr
- * Moved from ./klips/net/ipsec/ipsec_life.c,v
- *
- * Revision 1.4  2002/01/29 17:17:55  mcr
- * 	moved include of ipsec_param.h to after include of linux/kernel.h
- * 	otherwise, it seems that some option that is set in ipsec_param.h
- * 	screws up something subtle in the include path to kernel.h, and
- * 	it complains on the snprintf() prototype.
- *
- * Revision 1.3  2002/01/29 02:13:17  mcr
- * 	introduction of ipsec_kversion.h means that include of
- * 	ipsec_param.h must preceed any decisions about what files to
- * 	include to deal with differences in kernel source.
- *
- * Revision 1.2  2001/11/26 09:16:14  rgb
- * Merge MCR's ipsec_sa, eroute, proc and struct lifetime changes.
- *
- * Revision 1.1.2.1  2001/09/25 02:25:57  mcr
- * 	lifetime structure created and common functions created.
  *
  * Local variables:
  * c-file-style: "linux"

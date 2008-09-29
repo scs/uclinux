@@ -5,29 +5,41 @@
 struct connection;
 
 struct ike_alg {
-  const char *name;
-  u_int16_t algo_type;	
-  u_int16_t algo_id;	
-  struct ike_alg *algo_next;
+    const char *name;
+    const char *officname;
+    u_int16_t algo_type;	
+    u_int16_t algo_id;
+    enum ikev2_trans_type_encr algo_v2id;
+    struct ike_alg *algo_next;
 };
 
 struct encrypt_desc {
-  struct ike_alg common;
-  size_t enc_ctxsize;
-  size_t enc_blocksize;
-  unsigned keydeflen;
-  unsigned keymaxlen;
-  unsigned keyminlen;
-  void (*do_crypt)(u_int8_t *dat, size_t datasize, u_int8_t *key, size_t key_size, u_int8_t *iv, bool enc);
+    struct ike_alg common;
+    size_t   enc_ctxsize;
+    size_t   enc_blocksize;
+/* Is this always true?  usually with CBC methods. Maybe not with others */
+#define iv_size enc_blocksize
+    unsigned keydeflen;
+    unsigned keymaxlen;
+    unsigned keyminlen;
+    void (*do_crypt)(u_int8_t *dat
+		     , size_t datasize
+		     , u_int8_t *key
+		     , size_t key_size
+		     , u_int8_t *iv
+		     , bool enc);
 };
 
+typedef void (*hash_update_t)(void *, const u_char *, size_t) ;
+
 struct hash_desc {
-  struct ike_alg common;
-  size_t hash_ctx_size;
-  size_t hash_digest_len;
-  void (*hash_init)(void *ctx);
-  void (*hash_update)(void *ctx, const u_int8_t *in, size_t datasize);
-  void (*hash_final)(u_int8_t *out, void *ctx);
+    struct ike_alg common;
+    size_t hash_key_size;          /* in bits */
+    size_t hash_ctx_size;
+    size_t hash_digest_len;
+    void (*hash_init)(void *ctx);
+    hash_update_t hash_update;
+    void (*hash_final)(u_int8_t *out, void *ctx);
 };
 
 struct alg_info_ike; /* forward reference */
@@ -44,7 +56,7 @@ void ike_alg_show_connection(struct connection *c, const char *instance);
 bool ike_alg_enc_present(int ealg);
 bool ike_alg_hash_present(int halg);
 bool ike_alg_enc_ok(int ealg, unsigned key_len, struct alg_info_ike *alg_info_ike, const char **);
-bool ike_alg_ok_final(int ealg, unsigned key_len, int aalg, int group, struct alg_info_ike *alg_info_ike);
+bool ike_alg_ok_final(int ealg, unsigned key_len, int aalg, unsigned int group, struct alg_info_ike *alg_info_ike);
 
 int ike_alg_init(void);
 
@@ -55,12 +67,20 @@ int ike_alg_init(void);
  */
 #define IKE_ALG_ENCRYPT	0
 #define IKE_ALG_HASH	1
-#define IKE_ALG_MAX	1
+#define IKE_ALG_INTEG	2
+#define IKE_ALG_MAX	3
 extern struct ike_alg *ike_alg_base[IKE_ALG_MAX+1];
 int ike_alg_add(struct ike_alg *);
 int ike_alg_register_enc(struct encrypt_desc *e);
 int ike_alg_register_hash(struct hash_desc *a);
-struct ike_alg *ike_alg_find(unsigned algo_type, unsigned algo_id, unsigned keysize);
+struct ike_alg *ike_alg_find(unsigned algo_type
+			     , unsigned algo_id
+			     , unsigned keysize);
+
+struct ike_alg *ike_alg_ikev2_find(unsigned algo_type
+				   , enum ikev2_trans_type_encr algo_v2id
+				   , unsigned keysize);
+
 static __inline__ struct hash_desc *ike_alg_get_hasher(int alg)
 {
 	return (struct hash_desc *) ike_alg_find(IKE_ALG_HASH, alg, 0);
@@ -75,6 +95,14 @@ extern struct db_sa *oakley_alg_makedb(struct alg_info_ike *ai
 				       , struct db_sa *basic
 				       , int maxtrans);
 
-extern struct db_sa *kernel_alg_makedb(struct alg_info_esp *ai
+extern struct db_sa *kernel_alg_makedb(lset_t policy
+				       , struct alg_info_esp *ei
 				       , bool logit);
 #endif /* _IKE_ALG_H */
+
+/*
+ * Local Variables:
+ * c-basic-offset:4
+ * c-style: pluto
+ * End:
+ */

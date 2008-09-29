@@ -8,7 +8,7 @@
 #
 # See @FINALDOCDIR@/policygroups.html for details.
 #
-# $Id: private-or-clear.in,v 1.5 2003-02-17 02:22:15 mcr Exp $
+# $Id: private-or-clear.in,v 1.5 2003/02/17 02:22:15 mcr Exp $
 #
 
 0.0.0.0/0

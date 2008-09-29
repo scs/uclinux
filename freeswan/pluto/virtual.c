@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: virtual.c,v 1.3 2003/09/29 05:08:44 philipc Exp $
+ * RCSID $Id: virtual.c,v 1.3 2003-09-29 05:08:44 philipc Exp $
  */
 
 #ifdef VIRTUAL_IP

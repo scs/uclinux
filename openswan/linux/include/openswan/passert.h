@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id: passert.h,v 1.7.8.1 2007-09-05 02:32:24 paul Exp $
+ * RCSID $Id: passert.h,v 1.7.8.1 2007/09/05 02:32:24 paul Exp $
  */
 
 #include "openswan.h"
@@ -39,10 +39,10 @@ extern void pexpect_log(const char *pred_str
       (*openswan_passert_fail)("impossible", __FILE__, __LINE__); \
     }} while(0)
 
-extern void switch_fail(int n
+extern void openswan_switch_fail(int n
     , const char *file_str, unsigned long line_no) NEVER_RETURNS;
 
-# define bad_case(n) switch_fail((int) n, __FILE__, __LINE__)
+# define bad_case(n) openswan_switch_fail((int) n, __FILE__, __LINE__)
 
 # define passert(pred) do { \
 	if (!(pred)) \

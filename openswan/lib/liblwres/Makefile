@@ -13,27 +13,31 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile,v 1.8.6.1 2007-10-22 14:33:11 paul Exp $
+# $Id: Makefile,v 1.11 2005/09/17 21:57:45 mcr Exp $
 
-CINCLUDES =	-I${srcdir}/unix/include \
-		-I. -I./include -I${srcdir}/include 
+OPENSWANSRCDIR?=$(shell cd ../..; pwd)
+include ${OPENSWANSRCDIR}/Makefile.inc
+
+CINCLUDES =	-I${srcdir}${ISCARCH}/include \
+		-I${srcdir}../libisc/${ISCARCH}/include \
+		-I${srcdir}../libisc/include \
+		-I. -I./include -I${srcdir}include 
 CDEFINES = -g
 CWARNINGS = -Werror
 
-CFLAGS+=${CINCLUDES} ${CDEFINES} ${CWARNINGS}
+CFLAGS+=${USERCOMPILE} ${PORTINCLUDE} ${CINCLUDES} ${CDEFINES} ${CWARNINGS} 
 
 VERSION="@(\#) openswan-hacking-9.3-for-osw2"
 LIBINTERFACE=2
 LIBREVISION=0
 LIBAGE=1
-RANLIB=ranlib
 
 # Alphabetically
 OBJS =		async.o context.o gai_strerror.o getaddrinfo.o gethost.o \
 		getipnode.o getnameinfo.o getrrset.o getrrset2.o herror.o \
 		lwbuffer.o lwconfig.o lwpacket.o lwresutil.o \
 		lwres_gabn.o lwres_gnba.o lwres_grbn.o lwres_noop.o \
-		lwinetaton.o lwinetpton.o lwinetntop.o 
+		lwinetaton.o lwinetpton.o lwinetntop.o version.o
 
 # Alphabetically
 SRCS =		async.c context.c gai_strerror.c getaddrinfo.c gethost.c \
@@ -42,29 +46,32 @@ SRCS =		async.c context.c gai_strerror.c getaddrinfo.c gethost.c \
 		lwres_gabn.c lwres_gnba.c lwres_grbn.c lwres_noop.c \
 		lwinetaton.c lwinetpton.c lwinetntop.c
 
-programs all: liblwres.a
+LIB=liblwres.a
+LIBRARY=lwres
+ONEFILE=async.c
+
+.PHONY:	all install clean l t lt tar check depend checkprograms
+
+all: programs
 
 version.o: version.c
-	${LIBTOOL} ${CC} ${ALL_CFLAGS} \
+	${LIBTOOL} ${CC} ${CFLAGS} \
 		-DVERSION=\"${VERSION}\" \
 		-DLIBINTERFACE=${LIBINTERFACE} \
 		-DLIBREVISION=${LIBREVISION} \
 		-DLIBAGE=${LIBAGE} \
 		${CINCLUDES} ${CDEFINES} ${CWARNINGS} \
-		-c ${srcdir}/version.c
-
-liblwres.a: ${OBJS} version.o
-	${AR} ${ARFLAGS} $@ ${OBJS} version.o
-	${RANLIB} $@
+		-c ${srcdir}version.c
 
 timestamp: liblwres.a
 	touch timestamp
 
-clean distclean mostlyclean realclean cleanall spotless::
-	rm -f liblwres.a liblwres.la timestamp $(OBJS) version.o
+$(OBJS):	$(HDRS)
 
-install checkprograms check install_file_list:
+check:
+	echo no checks in lib right now.
+
+checkprograms:
 	@true
 
-TAGS: ${SRCS}
-	etags ${SRCS}
+include ${srcdir}../Makefile.library

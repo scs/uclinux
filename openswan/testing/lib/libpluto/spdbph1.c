@@ -2,6 +2,7 @@
 #define AGGRESSIVE 1
 #define XAUTH 1
 #define PRINT_SA_DEBUG 1
+#include <stdlib.h>
 #include "openswan.h"
 #include "constants.h"
 #include "defs.h"
@@ -11,6 +12,8 @@
 #include "ike_alg.h"
 
 char *progname;
+
+bool can_do_IPcomp = TRUE;  
 
 void exit_log(const char *msg, ...)
 {
@@ -41,6 +44,34 @@ get_preshared_secret(const struct connection *c)
     return NULL;
 }
 
+struct spd_route;
+ipsec_spi_t
+get_my_cpi(struct spd_route *sr, bool tunnel)
+{
+    return 10;
+}
+
+ipsec_spi_t
+get_ipsec_spi(ipsec_spi_t avoid, int proto, struct spd_route *sr, bool tunnel)
+{
+    return 10;
+}
+
+ipsec_spi_t
+uniquify_his_cpi(ipsec_spi_t cpi, struct state *st)
+{
+    return 12;
+}
+
+const char *
+ip_str(const ip_address *src)
+{
+    static char buf[ADDRTOT_BUF];
+
+    addrtot(src, 0, buf, sizeof(buf));
+    return buf;
+}
+
 main(int argc, char *argv[])
 {
     int i;
@@ -51,6 +82,7 @@ main(int argc, char *argv[])
     err_t ugh;
 
     progname = argv[0];
+    leak_detective=1;
 
     tool_init_log();
     init_crypto();

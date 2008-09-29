@@ -1167,7 +1167,6 @@ parse_isakmp_sa_body(
     if (sa->isasa_doi != ISAKMP_DOI_IPSEC)
     {
 	loglog(RC_LOG_SERIOUS, "Unknown/unsupported DOI %s", enum_show(&doi_names, sa->isasa_doi));
-	/* XXX Could send notification back */
 	return DOI_NOT_SUPPORTED;
     }
 
@@ -1181,7 +1180,6 @@ parse_isakmp_sa_body(
     {
 	loglog(RC_LOG_SERIOUS, "unsupported IPsec DOI situation (%s)"
 	    , bitnamesof(sit_bit_names, ipsecdoisit));
-	/* XXX Could send notification back */
 	return SITUATION_NOT_SUPPORTED;
     }
 
@@ -2139,7 +2137,6 @@ parse_ipsec_sa_body(
     if (sa->isasa_doi != ISAKMP_DOI_IPSEC)
     {
 	loglog(RC_LOG_SERIOUS, "Unknown or unsupported DOI %s", enum_show(&doi_names, sa->isasa_doi));
-	/* XXX Could send notification back */
 	return DOI_NOT_SUPPORTED;
     }
 
@@ -2151,7 +2148,6 @@ parse_ipsec_sa_body(
     {
 	loglog(RC_LOG_SERIOUS, "unsupported IPsec DOI situation (%s)"
 	    , bitnamesof(sit_bit_names, ipsecdoisit));
-	/* XXX Could send notification back */
 	return SITUATION_NOT_SUPPORTED;
     }
 

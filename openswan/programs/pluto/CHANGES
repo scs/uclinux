@@ -1,7 +1,7 @@
 Changes to Pluto
 ================
 
-RCSID $Id: CHANGES,v 1.198 2003-06-14 18:51:01 dhr Exp $
+RCSID $Id: CHANGES,v 1.198 2003/06/14 18:51:01 dhr Exp $
 
 - [MCR] changes to support co-terminal connections of the near kind.
 

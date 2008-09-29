@@ -2,7 +2,7 @@
  * Dynamic db (proposal, transforms, attributes) handling.
  * Author: JuanJo Ciarlante <jjo-ipsec@mendoza.gov.ar>
  * 
- * $Id: db_ops.c,v 1.3 2006/03/23 01:19:17 steveb Exp $
+ * $Id: db_ops.c,v 1.3 2006-03-23 01:19:17 steveb Exp $
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

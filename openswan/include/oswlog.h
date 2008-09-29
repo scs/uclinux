@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: oswlog.h,v 1.11 2005-01-26 00:52:16 mcr Exp $
+ * RCSID $Id: oswlog.h,v 1.11 2005/01/26 00:52:16 mcr Exp $
  */
 
 #ifndef _OSWLOG_H_
@@ -20,9 +20,17 @@
 
 #include <openswan.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 /* moved common code to library file */
 #include "openswan/passert.h"
+
+#define loglog  openswan_loglog
+#define plog    openswan_log
+extern int openswan_log(const char *message, ...) PRINTF_LIKE(1);
+extern void openswan_loglog(int mess_no, const char *message, ...) PRINTF_LIKE(2);
+extern void openswan_exit_log(const char *message, ...) PRINTF_LIKE(1);
+
 
 #if !defined(NO_DEBUG)
 
@@ -35,24 +43,27 @@ extern lset_t cur_debugging;	/* current debugging level */
 #define DBG(cond, action)   { if (DBGP(cond)) { action ; } }
 
 #define DBG_log openswan_DBG_log
-#define loglog  openswan_loglog
-#define plog    openswan_log
 #define DBG_dump openswan_DBG_dump
-extern void openswan_DBG_log(const char *message, ...) PRINTF_LIKE(1);
+extern int openswan_DBG_log(const char *message, ...) PRINTF_LIKE(1);
 extern void openswan_DBG_dump(const char *label, const void *p, size_t len);
-extern void openswan_log(const char *message, ...) PRINTF_LIKE(1);
-extern void openswan_loglog(int mess_no, const char *message, ...) PRINTF_LIKE(2);
-extern void openswan_exit_log(const char *message, ...) PRINTF_LIKE(1);
 
 #define DBG_dump_chunk(label, ch) DBG_dump(label, (ch).ptr, (ch).len)
 
 extern void exit_tool(int);
 extern void tool_init_log(void);
 extern void tool_close_log(void);
+extern void set_debugging(lset_t deb);
+
 
 #else /*!DEBUG*/
 
 #define DBG(cond, action)	{ }	/* do nothing */
+#define DBGP(...) (0)
+#define exit_tool exit
+#define openswan_DBG_dump(...) do { } while(0)
+#define DBG_log(...) do { } while(0)
+extern void tool_init_log(void);
+extern void tool_close_log(void);
 
 #endif /*!DEBUG*/
 
@@ -139,6 +150,25 @@ enum rc_type {
 };
 
 
+/* the following routines do a dance to capture errno before it is changed
+ * A call must doubly parenthesize the argument list (no varargs macros).
+ * The first argument must be "e", the local variable that captures errno.
+ */
+#define log_errno(a) { int e = errno; openswan_log_errno_routine a; }
+extern void openswan_log_errno_routine(int e, const char *message, ...) PRINTF_LIKE(2);
+#define exit_log_errno(a) { int e = errno; openswan_exit_log_errno_routine a; }
+extern void openswan_exit_log_errno_routine(int e, const char *message, ...) PRINTF_LIKE(2) NEVER_RETURNS NEVER_RETURNS;
+
+/*
+ * general utilities
+ */
+
+/* option pickup from files (userland only because of use of FILE) */
+const char *optionsfrom(const char *filename, int *argcp, char ***argvp,
+						int opt_ind, FILE *errorreport);
+
+/* sanitize a string */
+extern size_t sanitize_string(char *buf, size_t size);
 
 #endif /* _OSWLOG_H_ */
 

@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: ipsec.in,v 1.38 2004-12-10 12:38:29 paul Exp $
+# RCSID $Id: ipsec.in,v 1.38 2004/12/10 12:38:29 paul Exp $
 
 # where the private directory and the config files are
 IPSEC_EXECDIR="${IPSEC_EXECDIR-@IPSEC_EXECDIR@}"
@@ -51,7 +51,13 @@ fixversion() {
 			stack=" (netkey)"
                         kv="`uname -r`"
                 else
-                        kv="(no kernel code presently loaded)"
+			if test -f /mach_kernel
+			then
+				stack=" (OSX)"
+                        	kv="`uname -r`"
+			else
+                        	kv="(no kernel code presently loaded)"
+			fi
                 fi
 	fi
 	if test " $kv" != " $version"

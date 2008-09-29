@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# $Id: Makefile,v 1.1 2002/07/15 05:50:34 danield Exp $
+# $Id: Makefile,v 1.1 2002-07-15 05:50:34 danield Exp $
 
 Make.common: ../Makefile
 	make -s -C .. showdefs > $@

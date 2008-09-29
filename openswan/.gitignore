@@ -1,3 +1,9 @@
+*~
+OBJ.*
+*.rej
+*.bak
+TAGS
 UMLPOOL
-CVS
+testing/*/OUTPUT/*
+testing/*/*/OUTPUT
 umlsetup.sh

@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pem.h,v 1.3 2002/07/08 05:17:42 danield Exp $
+ * RCSID $Id: pem.h,v 1.3 2002-07-08 05:17:42 danield Exp $
  */
 
 extern err_t pemtobin(chunk_t *blob, const char* passphrase);

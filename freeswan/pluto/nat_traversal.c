@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: nat_traversal.c,v 1.5 2005/12/19 00:41:37 danield Exp $
+ * RCSID $Id: nat_traversal.c,v 1.5 2005-12-19 00:41:37 danield Exp $
  */
 
 #ifdef NAT_TRAVERSAL

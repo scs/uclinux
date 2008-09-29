@@ -12,14 +12,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pfkey_v2_parse.c,v 1.65 2005-04-06 17:46:05 mcr Exp $
+ * RCSID $Id: pfkey_v2_parse.c,v 1.65 2005/04/06 17:46:05 mcr Exp $
  */
 
 /*
  *		Template from klips/net/ipsec/ipsec/ipsec_parser.c.
  */
 
-char pfkey_v2_parse_c_version[] = "$Id: pfkey_v2_parse.c,v 1.65 2005-04-06 17:46:05 mcr Exp $";
+char pfkey_v2_parse_c_version[] = "$Id: pfkey_v2_parse.c,v 1.65 2005/04/06 17:46:05 mcr Exp $";
 
 /*
  * Some ugly stuff to allow consistent debugging code for use in the
@@ -56,18 +56,17 @@ extern int debug_pfkey;
 #else /* __KERNEL__ */
 
 # include <sys/types.h>
-# include <linux/types.h>
-# include <linux/errno.h>
+# include <sys/errno.h>
+# include <stdio.h>
 
 # include <openswan.h>
 # include "constants.h" 
-# include "programs/pluto/defs.h"  /* for PRINTF_LIKE */
 
 #endif /* __KERNEL__ */
 
 
-#include <pfkeyv2.h>
-#include <pfkey.h>
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
 
 #include "openswan/ipsec_sa.h"  /* IPSEC_SAREF_NULL, IPSEC_SA_REF_TABLE_IDX_WIDTH */
 
@@ -77,8 +76,8 @@ extern int debug_pfkey;
 #include <openswan/pfkey_debug.h>
 
 unsigned int pfkey_lib_debug = PF_KEY_DEBUG_PARSE_NONE;
-void (*pfkey_debug_func)(const char *message, ...) PRINTF_LIKE(1);
-void (*pfkey_error_func)(const char *message, ...) PRINTF_LIKE(1);
+int (*pfkey_debug_func)(const char *message, ...) PRINTF_LIKE(1);
+int (*pfkey_error_func)(const char *message, ...) PRINTF_LIKE(1);
 
 
 #define SENDERR(_x) do { error = -(_x); goto errlab; } while (0)
@@ -89,19 +88,19 @@ struct satype_tbl {
 	char* name;
 } static satype_tbl[] = {
 #ifdef __KERNEL__
-	{ IPPROTO_ESP,	SADB_SATYPE_ESP,	"ESP"  },
-	{ IPPROTO_AH,	SADB_SATYPE_AH,		"AH"   },
-	{ IPPROTO_IPIP,	SADB_X_SATYPE_IPIP,	"IPIP" },
+	{ IPPROTO_ESP,	K_SADB_SATYPE_ESP,	"ESP"  },
+	{ IPPROTO_AH,	K_SADB_SATYPE_AH,		"AH"   },
+	{ IPPROTO_IPIP,	K_SADB_X_SATYPE_IPIP,	"IPIP" },
 #ifdef CONFIG_KLIPS_IPCOMP
-	{ IPPROTO_COMP,	SADB_X_SATYPE_COMP,	"COMP" },
+	{ IPPROTO_COMP,	K_SADB_X_SATYPE_COMP,	"COMP" },
 #endif /* CONFIG_KLIPS_IPCOMP */
-	{ IPPROTO_INT,	SADB_X_SATYPE_INT,	"INT" },
+	{ IPPROTO_INT,	K_SADB_X_SATYPE_INT,	"INT" },
 #else /* __KERNEL__ */
-	{ SA_ESP,	SADB_SATYPE_ESP,	"ESP"  },
-	{ SA_AH,	SADB_SATYPE_AH,		"AH"   },
-	{ SA_IPIP,	SADB_X_SATYPE_IPIP,	"IPIP" },
-	{ SA_COMP,	SADB_X_SATYPE_COMP,	"COMP" },
-	{ SA_INT,	SADB_X_SATYPE_INT,	"INT" },
+	{ SA_ESP,	K_SADB_SATYPE_ESP,	"ESP"  },
+	{ SA_AH,	K_SADB_SATYPE_AH,		"AH"   },
+	{ SA_IPIP,	K_SADB_X_SATYPE_IPIP,	"IPIP" },
+	{ SA_COMP,	K_SADB_X_SATYPE_COMP,	"COMP" },
+	{ SA_INT,	K_SADB_X_SATYPE_INT,	"INT" },
 #endif /* __KERNEL__ */
 	{ 0,		0,			"UNKNOWN" }
 };
@@ -156,10 +155,7 @@ DEBUG_NO_STATIC int
 pfkey_sa_parse(struct sadb_ext *pfkey_ext)
 {
 	int error = 0;
-	struct sadb_sa *pfkey_sa = (struct sadb_sa *)pfkey_ext;
-#if 0
-	struct sadb_sa sav2;
-#endif
+	struct k_sadb_sa *pfkey_sa = (struct k_sadb_sa *)pfkey_ext;
 	
 	/* sanity checks... */
 	if(!pfkey_sa) {
@@ -168,71 +164,57 @@ pfkey_sa_parse(struct sadb_ext *pfkey_ext)
 		SENDERR(EINVAL);
 	}
 	
-#if 0
-	/* check if this structure is short, and if so, fix it up.
-	 * XXX this is NOT the way to do things.
-	 */
-	if(pfkey_sa->sadb_sa_len == sizeof(struct sadb_sa_v1)/IPSEC_PFKEYv2_ALIGN) {
-
-		/* yes, so clear out a temporary structure, and copy first */
-		memset(&sav2, 0, sizeof(sav2));
-		memcpy(&sav2, pfkey_sa, sizeof(struct sadb_sa_v1));
-		sav2.sadb_x_sa_ref=-1;
-		sav2.sadb_sa_len = sizeof(struct sadb_sa) / IPSEC_PFKEYv2_ALIGN;
-		
-		pfkey_sa = &sav2;
-	}
-#endif
 
 
-	if(pfkey_sa->sadb_sa_len != sizeof(struct sadb_sa) / IPSEC_PFKEYv2_ALIGN) {
+	if(pfkey_sa->sadb_sa_len !=sizeof(struct k_sadb_sa)/IPSEC_PFKEYv2_ALIGN
+	   && pfkey_sa->sadb_sa_len!=sizeof(struct sadb_sa)/IPSEC_PFKEYv2_ALIGN) {
 		ERROR(
 			  "pfkey_sa_parse: "
 			  "length wrong pfkey_sa->sadb_sa_len=%d sizeof(struct sadb_sa)=%d.\n",
 			  pfkey_sa->sadb_sa_len,
-			  (int)sizeof(struct sadb_sa));
+			  (int)sizeof(struct k_sadb_sa));
 		SENDERR(EINVAL);
 	}
 
-#if SADB_EALG_MAX < 255	
-	if(pfkey_sa->sadb_sa_encrypt > SADB_EALG_MAX) {
+#if K_SADB_EALG_MAX < 255	
+	if(pfkey_sa->sadb_sa_encrypt > K_SADB_EALG_MAX) {
 		ERROR(
 			  "pfkey_sa_parse: "
-			  "pfkey_sa->sadb_sa_encrypt=%d > SADB_EALG_MAX=%d.\n",
+			  "pfkey_sa->sadb_sa_encrypt=%d > K_SADB_EALG_MAX=%d.\n",
 			  pfkey_sa->sadb_sa_encrypt,
-			  SADB_EALG_MAX);
+			  K_SADB_EALG_MAX);
 		SENDERR(EINVAL);
 	}
 #endif
 	
-#if SADB_AALG_MAX < 255	
-	if(pfkey_sa->sadb_sa_auth > SADB_AALG_MAX) {
+#if K_SADB_AALG_MAX < 255	
+	if(pfkey_sa->sadb_sa_auth > K_SADB_AALG_MAX) {
 		ERROR(
 			  "pfkey_sa_parse: "
-			  "pfkey_sa->sadb_sa_auth=%d > SADB_AALG_MAX=%d.\n",
+			  "pfkey_sa->sadb_sa_auth=%d > K_SADB_AALG_MAX=%d.\n",
 			  pfkey_sa->sadb_sa_auth,
-			  SADB_AALG_MAX);
+			  K_SADB_AALG_MAX);
 		SENDERR(EINVAL);
 	}
 #endif
 	
-#if SADB_SASTATE_MAX < 255	
-	if(pfkey_sa->sadb_sa_state > SADB_SASTATE_MAX) {
+#if K_SADB_SASTATE_MAX < 255	
+	if(pfkey_sa->sadb_sa_state > K_SADB_SASTATE_MAX) {
 		ERROR(
 			  "pfkey_sa_parse: "
 			  "state=%d exceeds MAX=%d.\n",
 			  pfkey_sa->sadb_sa_state,
-			  SADB_SASTATE_MAX);
+			  K_SADB_SASTATE_MAX);
 		SENDERR(EINVAL);
 	}
 #endif
 	
-	if(pfkey_sa->sadb_sa_state == SADB_SASTATE_DEAD) {
+	if(pfkey_sa->sadb_sa_state == K_SADB_SASTATE_DEAD) {
 		ERROR(
 			  "pfkey_sa_parse: "
 			  "state=%d is DEAD=%d.\n",
 			  pfkey_sa->sadb_sa_state,
-			  SADB_SASTATE_DEAD);
+			  K_SADB_SASTATE_DEAD);
 		SENDERR(EINVAL);
 	}
 	
@@ -244,19 +226,29 @@ pfkey_sa_parse(struct sadb_ext *pfkey_ext)
 		SENDERR(EINVAL);
 	}
 	
-	if(! ((pfkey_sa->sadb_sa_exttype ==  SADB_EXT_SA) ||
-	      (pfkey_sa->sadb_sa_exttype ==  SADB_X_EXT_SA2)))
+	if(! ((pfkey_sa->sadb_sa_exttype ==  K_SADB_EXT_SA) ||
+	      (pfkey_sa->sadb_sa_exttype ==  K_SADB_X_EXT_SA2)))
 	{
 		ERROR(
 			  "pfkey_sa_parse: "
-			  "unknown exttype=%d, expecting SADB_EXT_SA=%d or SADB_X_EXT_SA2=%d.\n",
+			  "unknown exttype=%d, expecting K_SADB_EXT_SA=%d or K_SADB_X_EXT_SA2=%d.\n",
 			  pfkey_sa->sadb_sa_exttype,
-			  SADB_EXT_SA,
-			  SADB_X_EXT_SA2);
+			  K_SADB_EXT_SA,
+			  K_SADB_X_EXT_SA2);
 		SENDERR(EINVAL);
 	}
 
-	if((IPSEC_SAREF_NULL != pfkey_sa->sadb_x_sa_ref) && (pfkey_sa->sadb_x_sa_ref >= (1 << IPSEC_SA_REF_TABLE_IDX_WIDTH))) {
+	if(pfkey_sa->sadb_sa_len > sizeof(struct sadb_sa)/IPSEC_PFKEYv2_ALIGN) {
+		if(pfkey_sa->sadb_x_sa_ref == IPSEC_SAREF_NULL ||
+		   pfkey_sa->sadb_x_sa_ref == ~(IPSEC_SAREF_NULL))
+		{
+			pfkey_sa->sadb_x_sa_ref = IPSEC_SAREF_NULL;
+		}
+	}
+
+	if((IPSEC_SAREF_NULL != pfkey_sa->sadb_x_sa_ref)
+	   && (pfkey_sa->sadb_x_sa_ref >= (1 << IPSEC_SA_REF_TABLE_IDX_WIDTH)))
+	{
 		ERROR(
 			  "pfkey_sa_parse: "
 			  "SAref=%d must be (SAref == IPSEC_SAREF_NULL(%d) || SAref < IPSEC_SA_REF_TABLE_NUM_ENTRIES(%d)).\n",
@@ -310,9 +302,9 @@ pfkey_lifetime_parse(struct sadb_ext  *pfkey_ext)
 		SENDERR(EINVAL);
 	}
 
-	if((pfkey_lifetime->sadb_lifetime_exttype != SADB_EXT_LIFETIME_HARD) &&
-	   (pfkey_lifetime->sadb_lifetime_exttype != SADB_EXT_LIFETIME_SOFT) &&
-	   (pfkey_lifetime->sadb_lifetime_exttype != SADB_EXT_LIFETIME_CURRENT)) {
+	if((pfkey_lifetime->sadb_lifetime_exttype != K_SADB_EXT_LIFETIME_HARD) &&
+	   (pfkey_lifetime->sadb_lifetime_exttype != K_SADB_EXT_LIFETIME_SOFT) &&
+	   (pfkey_lifetime->sadb_lifetime_exttype != K_SADB_EXT_LIFETIME_CURRENT)) {
 		DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 			  "pfkey_lifetime_parse: "
 			  "unexpected ext_type=%d.\n", 
@@ -322,14 +314,13 @@ pfkey_lifetime_parse(struct sadb_ext  *pfkey_ext)
 
 	DEBUGGING(PF_KEY_DEBUG_PARSE_STRUCT,
 		  "pfkey_lifetime_parse: "
-		  "life_type=%d(%s) alloc=%u bytes=%u add=%u use=%u pkts=%u.\n", 
+		  "life_type=%d(%s) alloc=%u bytes=%u add=%u use=%u.\n", 
 		  pfkey_lifetime->sadb_lifetime_exttype,
 		  pfkey_v2_sadb_ext_string(pfkey_lifetime->sadb_lifetime_exttype),
 		  pfkey_lifetime->sadb_lifetime_allocations,
 		  (unsigned)pfkey_lifetime->sadb_lifetime_bytes,
 		  (unsigned)pfkey_lifetime->sadb_lifetime_addtime,
-		  (unsigned)pfkey_lifetime->sadb_lifetime_usetime,
-		  pfkey_lifetime->sadb_x_lifetime_packets); 
+		  (unsigned)pfkey_lifetime->sadb_lifetime_usetime);
 errlab:
 	return error;
 }
@@ -370,16 +361,16 @@ pfkey_address_parse(struct sadb_ext *pfkey_ext)
 	}
 	
 	switch(pfkey_address->sadb_address_exttype) {	
-	case SADB_EXT_ADDRESS_SRC:
-	case SADB_EXT_ADDRESS_DST:
-	case SADB_EXT_ADDRESS_PROXY:
-	case SADB_X_EXT_ADDRESS_DST2:
-	case SADB_X_EXT_ADDRESS_SRC_FLOW:
-	case SADB_X_EXT_ADDRESS_DST_FLOW:
-	case SADB_X_EXT_ADDRESS_SRC_MASK:
-	case SADB_X_EXT_ADDRESS_DST_MASK:
+	case K_SADB_EXT_ADDRESS_SRC:
+	case K_SADB_EXT_ADDRESS_DST:
+	case K_SADB_EXT_ADDRESS_PROXY:
+	case K_SADB_X_EXT_ADDRESS_DST2:
+	case K_SADB_X_EXT_ADDRESS_SRC_FLOW:
+	case K_SADB_X_EXT_ADDRESS_DST_FLOW:
+	case K_SADB_X_EXT_ADDRESS_SRC_MASK:
+	case K_SADB_X_EXT_ADDRESS_DST_MASK:
 #ifdef NAT_TRAVERSAL
-	case SADB_X_EXT_NAT_T_OA:
+	case K_SADB_X_EXT_NAT_T_OA:
 #endif
 		break;
 	default:
@@ -387,7 +378,7 @@ pfkey_address_parse(struct sadb_ext *pfkey_ext)
 			"pfkey_address_parse: "
 			"unexpected ext_type=%d.\n",
 			pfkey_address->sadb_address_exttype);
-		SENDERR(ENOPKG);
+		SENDERR(ENODEV);
 	}
 
 	switch(s->sa_family) {
@@ -513,8 +504,8 @@ pfkey_key_parse(struct sadb_ext *pfkey_ext)
 		SENDERR(EINVAL);
 	}
 
-	if(! ( (pfkey_key->sadb_key_exttype == SADB_EXT_KEY_AUTH) ||
-	       (pfkey_key->sadb_key_exttype == SADB_EXT_KEY_ENCRYPT))) {
+	if(! ( (pfkey_key->sadb_key_exttype == K_SADB_EXT_KEY_AUTH) ||
+	       (pfkey_key->sadb_key_exttype == K_SADB_EXT_KEY_ENCRYPT))) {
 		ERROR(
 			"pfkey_key_parse: "
 			"expecting extension type AUTH or ENCRYPT, got %d.\n",
@@ -551,12 +542,12 @@ pfkey_ident_parse(struct sadb_ext *pfkey_ext)
 		SENDERR(EINVAL);
 	}
 
-	if(pfkey_ident->sadb_ident_type > SADB_IDENTTYPE_MAX) {
+	if(pfkey_ident->sadb_ident_type > K_SADB_IDENTTYPE_MAX) {
 		ERROR(
 			"pfkey_ident_parse: "
 			"ident_type=%d out of range, must be less than %d.\n",
 			pfkey_ident->sadb_ident_type,
-			SADB_IDENTTYPE_MAX);
+			K_SADB_IDENTTYPE_MAX);
 		SENDERR(EINVAL);
 	}
 
@@ -580,8 +571,8 @@ pfkey_ident_parse(struct sadb_ext *pfkey_ext)
 		}
 	}
 	
-	if( ! ((pfkey_ident->sadb_ident_exttype == SADB_EXT_IDENTITY_SRC) ||
-	       (pfkey_ident->sadb_ident_exttype == SADB_EXT_IDENTITY_DST))) {
+	if( ! ((pfkey_ident->sadb_ident_exttype == K_SADB_EXT_IDENTITY_SRC) ||
+	       (pfkey_ident->sadb_ident_exttype == K_SADB_EXT_IDENTITY_DST))) {
 		ERROR(
 			"pfkey_key_parse: "
 			"expecting extension type IDENTITY_SRC or IDENTITY_DST, got %d.\n",
@@ -627,7 +618,7 @@ pfkey_prop_parse(struct sadb_ext *pfkey_ext)
 	int error = 0;
 	int i, num_comb;
 	struct sadb_prop *pfkey_prop = (struct sadb_prop *)pfkey_ext;
-	struct sadb_comb *pfkey_comb = (struct sadb_comb *)((char*)pfkey_ext + sizeof(struct sadb_prop));
+	struct k_sadb_comb *k_pfkey_comb = (struct k_sadb_comb *)((char*)pfkey_ext + sizeof(struct sadb_prop));
 
 	/* sanity checks... */
 	if((pfkey_prop->sadb_prop_len < sizeof(struct sadb_prop) / IPSEC_PFKEYv2_ALIGN) || 
@@ -662,13 +653,14 @@ pfkey_prop_parse(struct sadb_ext *pfkey_ext)
 	num_comb = ((pfkey_prop->sadb_prop_len * IPSEC_PFKEYv2_ALIGN) - sizeof(struct sadb_prop)) / sizeof(struct sadb_comb);
 
 	for(i = 0; i < num_comb; i++) {
-		if(pfkey_comb->sadb_comb_auth > SADB_AALG_MAX) {
+		struct sadb_comb *pfkey_comb = (struct sadb_comb *)k_pfkey_comb;
+		if(pfkey_comb->sadb_comb_auth > K_SADB_AALG_MAX) {
 			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 				"pfkey_prop_parse: "
-				"pfkey_comb[%d]->sadb_comb_auth=%d > SADB_AALG_MAX=%d.\n",
+				"pfkey_comb[%d]->sadb_comb_auth=%d > K_SADB_AALG_MAX=%d.\n",
 				i,
 				pfkey_comb->sadb_comb_auth,
-				SADB_AALG_MAX);
+				K_SADB_AALG_MAX);
 			SENDERR(EINVAL);
 		}
 
@@ -715,14 +707,14 @@ pfkey_prop_parse(struct sadb_ext *pfkey_ext)
 			}
 		}
 
-#if SADB_EALG_MAX < 255	
-		if(pfkey_comb->sadb_comb_encrypt > SADB_EALG_MAX) {
+#if K_SADB_EALG_MAX < 255	
+		if(pfkey_comb->sadb_comb_encrypt > K_SADB_EALG_MAX) {
 			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 				"pfkey_comb_parse: "
-				"pfkey_comb[%d]->sadb_comb_encrypt=%d > SADB_EALG_MAX=%d.\n",
+				"pfkey_comb[%d]->sadb_comb_encrypt=%d > K_SADB_EALG_MAX=%d.\n",
 				i,
 				pfkey_comb->sadb_comb_encrypt,
-				SADB_EALG_MAX);
+				K_SADB_EALG_MAX);
 			SENDERR(EINVAL);
 		}
 #endif
@@ -812,24 +804,18 @@ pfkey_prop_parse(struct sadb_ext *pfkey_ext)
 			SENDERR(EINVAL);
 		}
 
+#ifdef COMB_PACKETS
 		if(pfkey_comb->sadb_x_comb_hard_packets && pfkey_comb->sadb_x_comb_soft_packets > pfkey_comb->sadb_x_comb_hard_packets) {
 			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 				"pfkey_prop_parse: "
 				"pfkey_comb[%d]->sadb_x_comb_soft_packets=%d > hard_packets=%d, fatal.\n",
 				i,
-				pfkey_comb->sadb_x_comb_soft_packets,
-				pfkey_comb->sadb_x_comb_hard_packets);
+				k_pfkey_comb->sadb_x_comb_soft_packets,
+				k_pfkey_comb->sadb_x_comb_hard_packets);
 			SENDERR(EINVAL);
 		}
+#endif
 
-		if(pfkey_comb->sadb_comb_reserved) {
-			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-				"pfkey_prop_parse: "
-				"comb[%d].res=%d, must be zero.\n",
-				i,
-				pfkey_comb->sadb_comb_reserved);
-			SENDERR(EINVAL);
-		}
 		pfkey_comb++;
 	}
 
@@ -890,26 +876,26 @@ pfkey_supported_parse(struct sadb_ext *pfkey_ext)
 		   rgb, 2000-04-06 */
 
 		switch(pfkey_supported->sadb_supported_exttype) {
-		case SADB_EXT_SUPPORTED_AUTH:
-			if(pfkey_alg->sadb_alg_id > SADB_AALG_MAX) {
+		case K_SADB_EXT_SUPPORTED_AUTH:
+			if(pfkey_alg->sadb_alg_id > K_SADB_AALG_MAX) {
 				DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 					"pfkey_supported_parse: "
-					"alg[%d], alg_id=%d > SADB_AALG_MAX=%d, fatal.\n",
+					"alg[%d], alg_id=%d > K_SADB_AALG_MAX=%d, fatal.\n",
 					i,
 					pfkey_alg->sadb_alg_id,
-					SADB_AALG_MAX);
+					K_SADB_AALG_MAX);
 				SENDERR(EINVAL);
 			}
 			break;
 		case SADB_EXT_SUPPORTED_ENCRYPT:
-#if SADB_EALG_MAX < 255	
-			if(pfkey_alg->sadb_alg_id > SADB_EALG_MAX) {
+#if K_SADB_EALG_MAX < 255	
+			if(pfkey_alg->sadb_alg_id > K_SADB_EALG_MAX) {
 				DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 					"pfkey_supported_parse: "
-					"alg[%d], alg_id=%d > SADB_EALG_MAX=%d, fatal.\n",
+					"alg[%d], alg_id=%d > K_SADB_EALG_MAX=%d, fatal.\n",
 					i,
 					pfkey_alg->sadb_alg_id,
-					SADB_EALG_MAX);
+					K_SADB_EALG_MAX);
 				SENDERR(EINVAL);
 			}
 #endif
@@ -917,10 +903,10 @@ pfkey_supported_parse(struct sadb_ext *pfkey_ext)
 		default:
 			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 				"pfkey_supported_parse: "
-				"alg[%d], alg_id=%d > SADB_EALG_MAX=%d, fatal.\n",
+				"alg[%d], alg_id=%d > K_SADB_EALG_MAX=%d, fatal.\n",
 				i,
 				pfkey_alg->sadb_alg_id,
-				SADB_EALG_MAX);
+				K_SADB_EALG_MAX);
 			SENDERR(EINVAL);
 		}
 		pfkey_alg++;
@@ -1047,11 +1033,11 @@ pfkey_x_satype_parse(struct sadb_ext *pfkey_ext)
 		SENDERR(EINVAL);
 	}
 
-	if(pfkey_x_satype->sadb_x_satype_satype > SADB_SATYPE_MAX) {
+	if(pfkey_x_satype->sadb_x_satype_satype > K_SADB_SATYPE_MAX) {
 		DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 			"pfkey_x_satype_parse: "
 			"satype %d > max %d, invalid.\n", 
-			pfkey_x_satype->sadb_x_satype_satype, SADB_SATYPE_MAX);
+			pfkey_x_satype->sadb_x_satype_satype, K_SADB_SATYPE_MAX);
 		SENDERR(EINVAL);
 	}
 
@@ -1162,6 +1148,47 @@ pfkey_x_ext_nat_t_port_parse(struct sadb_ext *pfkey_ext)
 }
 #endif
 
+DEBUG_NO_STATIC int
+pfkey_x_ext_outif_parse(struct sadb_ext *pfkey_ext)
+{
+	int error = 0;
+	struct sadb_x_plumbif *p = (struct sadb_x_plumbif *)pfkey_ext;
+	
+	DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM, "pfkey_x_outif_parse:\n");
+	/* sanity checks... */
+	
+	if (p->sadb_x_outif_len != IPSEC_PFKEYv2_WORDS(sizeof(*p))) {
+		    DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
+			      "pfkey_x_outif_parse: size wrong ext_len=%d, key_ext_len=%d.\n",
+			      p->sadb_x_outif_len, (int)sizeof(*p));
+		    SENDERR(EINVAL);
+	}
+	
+ errlab:
+	return error;
+}
+
+DEBUG_NO_STATIC int
+pfkey_x_ext_saref_parse(struct sadb_ext *pfkey_ext)
+{
+	int error = 0;
+	struct sadb_x_saref *p = (struct sadb_x_saref *)pfkey_ext;
+	
+	DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM, "pfkey_x_saref_parse:\n");
+	/* sanity checks... */
+	
+	if (p->sadb_x_saref_len != IPSEC_PFKEYv2_WORDS(sizeof(*p))) {
+		    DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
+			      "pfkey_x_saref_parse: size wrong ext_len=%d, key_ext_len=%d.\n",
+			      p->sadb_x_saref_len, (int)sizeof(*p));
+		    SENDERR(EINVAL);
+	}
+	
+ errlab:
+	return error;
+}
+
+
 #define DEFINEPARSER(NAME) static struct pf_key_ext_parsers_def NAME##_def={NAME, #NAME};
 
 DEFINEPARSER(pfkey_sa_parse);
@@ -1181,6 +1208,8 @@ DEFINEPARSER(pfkey_x_ext_protocol_parse);
 DEFINEPARSER(pfkey_x_ext_nat_t_type_parse);
 DEFINEPARSER(pfkey_x_ext_nat_t_port_parse);
 #endif
+DEFINEPARSER(pfkey_x_ext_outif_parse);
+DEFINEPARSER(pfkey_x_ext_saref_parse);
 
 struct pf_key_ext_parsers_def *ext_default_parsers[]=
 {
@@ -1210,14 +1239,17 @@ struct pf_key_ext_parsers_def *ext_default_parsers[]=
 	&pfkey_address_parse_def,
 	&pfkey_address_parse_def,
 	&pfkey_x_ext_debug_parse_def,
-	&pfkey_x_ext_protocol_parse_def
+	&pfkey_x_ext_protocol_parse_def,
 #ifdef NAT_TRAVERSAL
-	,
 	&pfkey_x_ext_nat_t_type_parse_def,
 	&pfkey_x_ext_nat_t_port_parse_def,
 	&pfkey_x_ext_nat_t_port_parse_def,
-	&pfkey_address_parse_def
+	&pfkey_address_parse_def,
+#else
+	NULL,NULL,NULL,NULL,
 #endif
+	&pfkey_x_ext_outif_parse_def,
+	&pfkey_x_ext_saref_parse_def,
 };
 
 int
@@ -1229,7 +1261,7 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 	int error = 0;
 	int remain;
 	struct sadb_ext *pfkey_ext;
-	int extensions_seen = 0;
+	pfkey_ext_track extensions_seen = 0;
 	
 	DEBUGGING(PF_KEY_DEBUG_PARSE_STRUCT,
 		  "pfkey_msg_parse: "
@@ -1250,7 +1282,7 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 	pfkey_extensions_init(extensions);
 	
 	remain = pfkey_msg->sadb_msg_len;
-	remain -= sizeof(struct sadb_msg) / IPSEC_PFKEYv2_ALIGN;
+	remain -= IPSEC_PFKEYv2_WORDS(sizeof(struct sadb_msg));
 	
 	pfkey_ext = (struct sadb_ext*)((char*)pfkey_msg +
 				       sizeof(struct sadb_msg));
@@ -1272,22 +1304,22 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 		SENDERR(EINVAL);
 	}
 
-	if(pfkey_msg->sadb_msg_type > SADB_MAX) {
+	if(pfkey_msg->sadb_msg_type > K_SADB_MAX) {
 		ERROR("pfkey_msg_parse: "
 			"msg type=%d > max=%d.\n",
 			pfkey_msg->sadb_msg_type,
-			SADB_MAX);
+			K_SADB_MAX);
 		SENDERR(EINVAL);
 	}
 
 	switch(pfkey_msg->sadb_msg_type) {
-	case SADB_GETSPI:
-	case SADB_UPDATE:
-	case SADB_ADD:
-	case SADB_DELETE:
-	case SADB_GET:
-	case SADB_X_GRPSA:
-	case SADB_X_ADDFLOW:
+	case K_SADB_GETSPI:
+	case K_SADB_UPDATE:
+	case K_SADB_ADD:
+	case K_SADB_DELETE:
+	case K_SADB_GET:
+	case K_SADB_X_GRPSA:
+	case K_SADB_X_ADDFLOW:
 		if(!satype2proto(pfkey_msg->sadb_msg_satype)) {
 			ERROR("pfkey_msg_parse: "
 				  "satype %d conversion to proto failed for msg_type %d (%s).\n",
@@ -1305,9 +1337,9 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 				  pfkey_msg->sadb_msg_type,
 				  pfkey_v2_sadb_type_string(pfkey_msg->sadb_msg_type));
 		}
-	case SADB_ACQUIRE:
-	case SADB_REGISTER:
-	case SADB_EXPIRE:
+	case K_SADB_ACQUIRE:
+	case K_SADB_REGISTER:
+	case K_SADB_EXPIRE:
 		if(!pfkey_msg->sadb_msg_satype) {
 			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 				  "pfkey_msg_parse: "
@@ -1322,7 +1354,7 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 	
 	/* errno must not be set in downward messages */
 	/* this is not entirely true... a response to an ACQUIRE could return an error */
-	if((dir == EXT_BITS_IN) && (pfkey_msg->sadb_msg_type != SADB_ACQUIRE) && pfkey_msg->sadb_msg_errno) {
+	if((dir == EXT_BITS_IN) && (pfkey_msg->sadb_msg_type != K_SADB_ACQUIRE) && pfkey_msg->sadb_msg_errno) {
 		DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 			    "pfkey_msg_parse: "
 			    "errno set to %d.\n",
@@ -1336,19 +1368,12 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 		  remain
 		  );
 
-	DEBUGGING(PF_KEY_DEBUG_PARSE_FLOW,
-		"pfkey_msg_parse: "
-		"extensions permitted=%08x, required=%08x.\n",
-		extensions_bitmaps[dir][EXT_BITS_PERM][pfkey_msg->sadb_msg_type],
-		extensions_bitmaps[dir][EXT_BITS_REQ][pfkey_msg->sadb_msg_type]);
-	
 	extensions_seen = 1;
 	
 	while( (remain * IPSEC_PFKEYv2_ALIGN) >= sizeof(struct sadb_ext) ) {
 		/* Is there enough message left to support another extension header? */
 		if(remain < pfkey_ext->sadb_ext_len) {
-			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-				"pfkey_msg_parse: "
+			ERROR("pfkey_msg_parse: "
 				"remain %d less than ext len %d.\n", 
 				remain, pfkey_ext->sadb_ext_len);
 			SENDERR(EINVAL);
@@ -1362,21 +1387,20 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 			remain);
 		
 		/* Is the extension header type valid? */
-		if((pfkey_ext->sadb_ext_type > SADB_EXT_MAX) || (!pfkey_ext->sadb_ext_type)) {
+		if((pfkey_ext->sadb_ext_type > K_SADB_EXT_MAX) || (!pfkey_ext->sadb_ext_type)) {
 			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 				"pfkey_msg_parse: "
-				"ext type %d(%s) invalid, SADB_EXT_MAX=%d.\n", 
+				"ext type %d(%s) invalid, K_SADB_EXT_MAX=%d.\n", 
 				pfkey_ext->sadb_ext_type,
 				pfkey_v2_sadb_ext_string(pfkey_ext->sadb_ext_type),
-				SADB_EXT_MAX);
+				K_SADB_EXT_MAX);
 			SENDERR(EINVAL);
 		}
 		
 		/* Have we already seen this type of extension? */
-		if((extensions_seen & ( 1 << pfkey_ext->sadb_ext_type )) != 0)
+		if(extensions[pfkey_ext->sadb_ext_type] != NULL)
 		{
-			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-				"pfkey_msg_parse: "
+			ERROR("pfkey_msg_parse: "
 				"ext type %d(%s) already seen.\n", 
 				pfkey_ext->sadb_ext_type,
 				pfkey_v2_sadb_ext_string(pfkey_ext->sadb_ext_type));
@@ -1393,15 +1417,10 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 		}
 
 		/* Is this type of extension permitted for this type of message? */
-		if(!(extensions_bitmaps[dir][EXT_BITS_PERM][pfkey_msg->sadb_msg_type] &
-		     1<<pfkey_ext->sadb_ext_type)) {
-			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-				"pfkey_msg_parse: "
-				"ext type %d(%s) not permitted, exts_perm_in=%08x, 1<<type=%08x\n", 
-				pfkey_ext->sadb_ext_type, 
-				pfkey_v2_sadb_ext_string(pfkey_ext->sadb_ext_type),
-				extensions_bitmaps[dir][EXT_BITS_PERM][pfkey_msg->sadb_msg_type],
-				1<<pfkey_ext->sadb_ext_type);
+		if(!pfkey_permitted_extension(dir,pfkey_msg->sadb_msg_type,pfkey_ext->sadb_ext_type)) {
+			ERROR("ext type %d(%s) not permitted (parse)\n", 
+			      pfkey_ext->sadb_ext_type, 
+			      pfkey_v2_sadb_ext_string(pfkey_ext->sadb_ext_type));
 			SENDERR(EINVAL);
 		}
 
@@ -1418,8 +1437,7 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 		/* Parse the extension */
 		if((error =
 		    (*ext_parsers[pfkey_ext->sadb_ext_type]->parser)(pfkey_ext))) {
-			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-				"pfkey_msg_parse: "
+			ERROR("pfkey_msg_parse: "
 				"extension parsing for type %d(%s) failed with error %d.\n",
 				pfkey_ext->sadb_ext_type,
 				pfkey_v2_sadb_ext_string(pfkey_ext->sadb_ext_type),
@@ -1433,8 +1451,8 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 			pfkey_v2_sadb_ext_string(pfkey_ext->sadb_ext_type));
 		
 		/* Mark that we have seen this extension and remember the header location */
-		extensions_seen |= ( 1 << pfkey_ext->sadb_ext_type );
 		extensions[pfkey_ext->sadb_ext_type] = pfkey_ext;
+		pfkey_mark_extension(pfkey_ext->sadb_ext_type,&extensions_seen);
 
 	next_ext:		
 		/* Calculate how much message remains */
@@ -1457,388 +1475,121 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 		SENDERR(EINVAL);
 	}
 
-	/* check required extensions */
-	DEBUGGING(PF_KEY_DEBUG_PARSE_STRUCT,
-		"pfkey_msg_parse: "
-		"extensions permitted=%08x, seen=%08x, required=%08x.\n",
-		extensions_bitmaps[dir][EXT_BITS_PERM][pfkey_msg->sadb_msg_type],
-		extensions_seen,
-		extensions_bitmaps[dir][EXT_BITS_REQ][pfkey_msg->sadb_msg_type]);
-
 	/* don't check further if it is an error return message since it
 	   may not have a body */
 	if(pfkey_msg->sadb_msg_errno) {
 		SENDERR(-error);
 	}
 
-	if((extensions_seen &
-	    extensions_bitmaps[dir][EXT_BITS_REQ][pfkey_msg->sadb_msg_type]) !=
-	   extensions_bitmaps[dir][EXT_BITS_REQ][pfkey_msg->sadb_msg_type]) {
-		DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-			"pfkey_msg_parse: "
-			"required extensions missing:%08x.\n",
-			extensions_bitmaps[dir][EXT_BITS_REQ][pfkey_msg->sadb_msg_type] -
-			(extensions_seen &
-			 extensions_bitmaps[dir][EXT_BITS_REQ][pfkey_msg->sadb_msg_type]));
+	if(pfkey_extensions_missing(dir,pfkey_msg->sadb_msg_type,extensions_seen)) {
+		ERROR("required extensions missing.seen=%08llx.\n",(unsigned long long)extensions_seen);
 		SENDERR(EINVAL);
 	}
 	
-	if((dir == EXT_BITS_IN) && (pfkey_msg->sadb_msg_type == SADB_X_DELFLOW)
-	   && ((extensions_seen	& SADB_X_EXT_ADDRESS_DELFLOW)
-	       != SADB_X_EXT_ADDRESS_DELFLOW)
+	if((dir == EXT_BITS_IN) && (pfkey_msg->sadb_msg_type == K_SADB_X_DELFLOW)
+	   && ((extensions_seen	& K_SADB_X_EXT_ADDRESS_DELFLOW)
+	       != K_SADB_X_EXT_ADDRESS_DELFLOW)
 	   && (((extensions_seen & (1<<SADB_EXT_SA)) != (1<<SADB_EXT_SA))
-	   || ((((struct sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_flags
+	   || ((((struct k_sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_flags
 		& SADB_X_SAFLAGS_CLEARFLOW)
 	       != SADB_X_SAFLAGS_CLEARFLOW))) {
 		DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 			"pfkey_msg_parse: "
-			"required SADB_X_DELFLOW extensions missing: either %08x must be present or %08x must be present with SADB_X_SAFLAGS_CLEARFLOW set.\n",
-			SADB_X_EXT_ADDRESS_DELFLOW
-			- (extensions_seen & SADB_X_EXT_ADDRESS_DELFLOW),
-			(1<<SADB_EXT_SA) - (extensions_seen & (1<<SADB_EXT_SA)));
+			"required SADB_X_DELFLOW extensions missing: either %16llx must be present or %16llx must be present with SADB_X_SAFLAGS_CLEARFLOW set.\n",
+			(unsigned long long)K_SADB_X_EXT_ADDRESS_DELFLOW
+			- (extensions_seen & K_SADB_X_EXT_ADDRESS_DELFLOW),
+			(unsigned long long)(1<<SADB_EXT_SA) - (extensions_seen & (1<<SADB_EXT_SA)));
 		SENDERR(EINVAL);
 	}
 	
 	switch(pfkey_msg->sadb_msg_type) {
-	case SADB_ADD:
-	case SADB_UPDATE:
+	case K_SADB_ADD:
+	case K_SADB_UPDATE:
 		/* check maturity */
 		if(((struct sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_state !=
-		   SADB_SASTATE_MATURE) {
+		   K_SADB_SASTATE_MATURE) {
 			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 				"pfkey_msg_parse: "
 				"state=%d for add or update should be MATURE=%d.\n",
-				((struct sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_state,
-				SADB_SASTATE_MATURE);
+				((struct k_sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_state,
+				K_SADB_SASTATE_MATURE);
 			SENDERR(EINVAL);
 		}
 		
 		/* check AH and ESP */
 		switch(((struct sadb_msg*)extensions[SADB_EXT_RESERVED])->sadb_msg_satype) {
 		case SADB_SATYPE_AH:
-			if(!(((struct sadb_sa*)extensions[SADB_EXT_SA]) &&
-			     ((struct sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_auth !=
+			if(!(((struct k_sadb_sa*)extensions[SADB_EXT_SA]) &&
+			     ((struct k_sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_auth !=
 			     SADB_AALG_NONE)) {
-				DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-					"pfkey_msg_parse: "
+				ERROR("pfkey_msg_parse: "
 					"auth alg is zero, must be non-zero for AH SAs.\n");
 				SENDERR(EINVAL);
 			}
-			if(((struct sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_encrypt !=
+			if(((struct k_sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_encrypt !=
 			   SADB_EALG_NONE) {
-				DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-					"pfkey_msg_parse: "
+				ERROR("pfkey_msg_parse: "
 					"AH handed encalg=%d, must be zero.\n",
-					((struct sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_encrypt);
+					((struct k_sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_encrypt);
 				SENDERR(EINVAL);
 			}
 			break;
 		case SADB_SATYPE_ESP:
-			if(!(((struct sadb_sa*)extensions[SADB_EXT_SA]) &&
-			     ((struct sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_encrypt !=
+			if(!(((struct k_sadb_sa*)extensions[SADB_EXT_SA]) &&
+			     ((struct k_sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_encrypt !=
 			     SADB_EALG_NONE)) {
-				DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-					"pfkey_msg_parse: "
+				ERROR("pfkey_msg_parse: "
 					"encrypt alg=%d is zero, must be non-zero for ESP=%d SAs.\n",
-					((struct sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_encrypt,
+					((struct k_sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_encrypt,
 					((struct sadb_msg*)extensions[SADB_EXT_RESERVED])->sadb_msg_satype);
 				SENDERR(EINVAL);
 			}
-			if((((struct sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_encrypt ==
+			if((((struct k_sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_encrypt ==
 			    SADB_EALG_NULL) &&
-			   (((struct sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_auth ==
+			   (((struct k_sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_auth ==
 			    SADB_AALG_NONE) ) {
-				DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-					"pfkey_msg_parse: "
+				ERROR("pfkey_msg_parse: "
 					"ESP handed encNULL+authNONE, illegal combination.\n");
 				SENDERR(EINVAL);
 			}
 			break;
-		case SADB_X_SATYPE_COMP:
-			if(!(((struct sadb_sa*)extensions[SADB_EXT_SA]) &&
-			     ((struct sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_encrypt !=
+		case K_SADB_X_SATYPE_COMP:
+			if(!(((struct k_sadb_sa*)extensions[SADB_EXT_SA]) &&
+			     ((struct k_sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_encrypt !=
 			     SADB_EALG_NONE)) {
-				DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-					"pfkey_msg_parse: "
+				ERROR("pfkey_msg_parse: "
 					"encrypt alg=%d is zero, must be non-zero for COMP=%d SAs.\n",
-					((struct sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_encrypt,
+					((struct k_sadb_sa*)extensions[SADB_EXT_SA])->sadb_sa_encrypt,
 					((struct sadb_msg*)extensions[SADB_EXT_RESERVED])->sadb_msg_satype);
 				SENDERR(EINVAL);
 			}
-			if(((struct sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_auth !=
+			if(((struct k_sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_auth !=
 			   SADB_AALG_NONE) {
-				DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
-					"pfkey_msg_parse: "
+			        ERROR("pfkey_msg_parse: "
 					"COMP handed auth=%d, must be zero.\n",
-					((struct sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_auth);
+					((struct k_sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_auth);
 				SENDERR(EINVAL);
 			}
 			break;
 		default:
 			break;
 		}
-		if(ntohl(((struct sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_spi) <= 255) {
+		if(ntohl(((struct k_sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_spi) <= 255) {
 			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
 				"pfkey_msg_parse: "
 				"spi=%08x must be > 255.\n",
-				ntohl(((struct sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_spi));
+				ntohl(((struct k_sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_spi));
 			SENDERR(EINVAL);
 		}
 	default:	
 		break;
 	}
-errlab:
 
+errlab:
 	return error;
 }
 
 /*
- * $Log: pfkey_v2_parse.c,v $
- * Revision 1.65  2005-04-06 17:46:05  mcr
- * 	failure to recognize an extension is considered an error.
- * 	This could be a problem in the future, but we need some kind
- * 	of logging. This should be rate limited, probably.
- *
- * Revision 1.64  2005/01/26 00:50:35  mcr
- * 	adjustment of confusion of CONFIG_IPSEC_NAT vs CONFIG_KLIPS_NAT,
- * 	and make sure that NAT_TRAVERSAL is set as well to match
- * 	userspace compiles of code.
- *
- * Revision 1.63  2004/10/28 22:54:10  mcr
- * 	results from valgrind, thanks to: Harald Hoyer <harald@redhat.com>
- *
- * Revision 1.62  2004/10/03 01:26:36  mcr
- * 	fixes for gcc 3.4 compilation.
- *
- * Revision 1.61  2004/07/10 19:11:18  mcr
- * 	CONFIG_IPSEC -> CONFIG_KLIPS.
- *
- * Revision 1.59  2004/04/18 03:03:49  mcr
- * 	renamed common include files from pluto directory.
- *
- * Revision 1.58  2004/03/08 01:59:08  ken
- * freeswan.h -> openswan.h
- *
- * Revision 1.57  2003/12/10 01:20:19  mcr
- * 	NAT-traversal patches to KLIPS.
- *
- * Revision 1.56  2003/12/04 23:01:12  mcr
- * 	removed ipsec_netlink.h
- *
- * Revision 1.55  2003/11/07 01:30:37  ken
- * Cast sizeof() to int to keep things 64bit clean
- *
- * Revision 1.54  2003/10/31 02:27:12  mcr
- * 	pulled up port-selector patches and sa_id elimination.
- *
- * Revision 1.53.20.2  2003/10/29 01:11:32  mcr
- * 	added debugging for pfkey library.
- *
- * Revision 1.53.20.1  2003/09/21 13:59:44  mcr
- * 	pre-liminary X.509 patch - does not yet pass tests.
- *
- * Revision 1.53  2003/01/30 02:32:09  rgb
- *
- * Rename SAref table macro names for clarity.
- * Convert IPsecSAref_t from signed to unsigned to fix apparent SAref exhaustion bug.
- *
- * Revision 1.52  2002/12/30 06:53:07  mcr
- * 	deal with short SA structures... #if 0 out for now. Probably
- * 	not quite the right way.
- *
- * Revision 1.51  2002/12/13 18:16:02  mcr
- * 	restored sa_ref code
- *
- * Revision 1.50  2002/12/13 18:06:52  mcr
- * 	temporarily removed sadb_x_sa_ref reference for 2.xx
- *
- * Revision 1.49  2002/10/05 05:02:58  dhr
- *
- * C labels go on statements
- *
- * Revision 1.48  2002/09/20 15:40:45  rgb
- * Added sadb_x_sa_ref to struct sadb_sa.
- *
- * Revision 1.47  2002/09/20 05:01:31  rgb
- * Fixed usage of pfkey_lib_debug.
- * Format for function declaration style consistency.
- * Added text labels to elucidate numeric values presented.
- * Re-organised debug output to reduce noise in output.
- *
- * Revision 1.46  2002/07/24 18:44:54  rgb
- * Type fiddling to tame ia64 compiler.
- *
- * Revision 1.45  2002/05/23 07:14:11  rgb
- * Cleaned up %p variants to 0p%p for test suite cleanup.
- *
- * Revision 1.44  2002/04/24 07:55:32  mcr
- * 	#include patches and Makefiles for post-reorg compilation.
- *
- * Revision 1.43  2002/04/24 07:36:40  mcr
- * Moved from ./lib/pfkey_v2_parse.c,v
- *
- * Revision 1.42  2002/01/29 22:25:36  rgb
- * Re-add ipsec_kversion.h to keep MALLOC happy.
- *
- * Revision 1.41  2002/01/29 01:59:10  mcr
- * 	removal of kversions.h - sources that needed it now use ipsec_param.h.
- * 	updating of IPv6 structures to match latest in6.h version.
- * 	removed dead code from openswan.h that also duplicated kversions.h
- * 	code.
- *
- * Revision 1.40  2002/01/20 20:34:50  mcr
- * 	added pfkey_v2_sadb_type_string to decode sadb_type to string.
- *
- * Revision 1.39  2001/11/27 05:29:22  mcr
- * 	pfkey parses are now maintained by a structure
- * 	that includes their name for debug purposes.
- * 	DEBUGGING() macro changed so that it takes a debug
- * 	level so that pf_key() can use this to decode the
- * 	structures without innundanting humans.
- * 	Also uses pfkey_v2_sadb_ext_string() in messages.
- *
- * Revision 1.38  2001/11/06 19:47:47  rgb
- * Added packet parameter to lifetime and comb structures.
- *
- * Revision 1.37  2001/10/18 04:45:24  rgb
- * 2.4.9 kernel deprecates linux/malloc.h in favour of linux/slab.h,
- * lib/openswan.h version macros moved to lib/kversions.h.
- * Other compiler directive cleanups.
- *
- * Revision 1.36  2001/06/14 19:35:16  rgb
- * Update copyright date.
- *
- * Revision 1.35  2001/05/03 19:44:51  rgb
- * Standardise on SENDERR() macro.
- *
- * Revision 1.34  2001/03/16 07:41:51  rgb
- * Put openswan.h include before pluto includes.
- *
- * Revision 1.33  2001/02/27 07:13:51  rgb
- * Added satype2name() function.
- * Added text to default satype_tbl entry.
- * Added satype2name() conversions for most satype debug output.
- *
- * Revision 1.32  2001/02/26 20:01:09  rgb
- * Added internal IP protocol 61 for magic SAs.
- * Ditch unused sadb_satype2proto[], replaced by satype2proto().
- * Re-formatted debug output (split lines, consistent spacing).
- * Removed acquire, register and expire requirements for a known satype.
- * Changed message type checking to a switch structure.
- * Verify expected NULL auth for IPCOMP.
- * Enforced spi > 0x100 requirement, now that pass uses a magic SA for
- * appropriate message types.
- *
- * Revision 1.31  2000/12/01 07:09:00  rgb
- * Added ipcomp sanity check to require encalgo is set.
- *
- * Revision 1.30  2000/11/17 18:10:30  rgb
- * Fixed bugs mostly relating to spirange, to treat all spi variables as
- * network byte order since this is the way PF_KEYv2 stored spis.
- *
- * Revision 1.29  2000/10/12 00:02:39  rgb
- * Removed 'format, ##' nonsense from debug macros for RH7.0.
- *
- * Revision 1.28  2000/09/20 16:23:04  rgb
- * Remove over-paranoid extension check in the presence of sadb_msg_errno.
- *
- * Revision 1.27  2000/09/20 04:04:21  rgb
- * Changed static functions to DEBUG_NO_STATIC to reveal function names in
- * oopsen.
- *
- * Revision 1.26  2000/09/15 11:37:02  rgb
- * Merge in heavily modified Svenning Soerensen's <svenning@post5.tele.dk>
- * IPCOMP zlib deflate code.
- *
- * Revision 1.25  2000/09/12 22:35:37  rgb
- * Restructured to remove unused extensions from CLEARFLOW messages.
- *
- * Revision 1.24  2000/09/12 18:59:54  rgb
- * Added Gerhard's IPv6 support to pfkey parts of libopenswan.
- *
- * Revision 1.23  2000/09/12 03:27:00  rgb
- * Moved DEBUGGING definition to compile kernel with debug off.
- *
- * Revision 1.22  2000/09/09 06:39:27  rgb
- * Restrict pfkey errno check to downward messages only.
- *
- * Revision 1.21  2000/09/08 19:22:34  rgb
- * Enabled pfkey_sens_parse().
- * Added check for errno on downward acquire messages only.
- *
- * Revision 1.20  2000/09/01 18:48:23  rgb
- * Fixed reserved check bug and added debug output in
- * pfkey_supported_parse().
- * Fixed debug output label bug in pfkey_ident_parse().
- *
- * Revision 1.19  2000/08/27 01:55:26  rgb
- * Define OCTETBITS and PFKEYBITS to avoid using 'magic' numbers in code.
- *
- * Revision 1.18  2000/08/24 17:00:36  rgb
- * Ignore unknown extensions instead of failing.
- *
- * Revision 1.17  2000/06/02 22:54:14  rgb
- * Added Gerhard Gessler's struct sockaddr_storage mods for IPv6 support.
- *
- * Revision 1.16  2000/05/10 19:25:11  rgb
- * Fleshed out proposal and supported extensions.
- *
- * Revision 1.15  2000/01/24 21:15:31  rgb
- * Added disabled pluto pfkey lib debug flag.
- * Added algo debugging reporting.
- *
- * Revision 1.14  2000/01/22 23:24:29  rgb
- * Added new functions proto2satype() and satype2proto() and lookup
- * table satype_tbl.  Also added proto2name() since it was easy.
- *
- * Revision 1.13  2000/01/21 09:43:59  rgb
- * Cast ntohl(spi) as (unsigned long int) to shut up compiler.
- *
- * Revision 1.12  2000/01/21 06:28:19  rgb
- * Added address cases for eroute flows.
- * Indented compiler directives for readability.
- * Added klipsdebug switching capability.
- *
- * Revision 1.11  1999/12/29 21:14:59  rgb
- * Fixed debug text cut and paste typo.
- *
- * Revision 1.10  1999/12/10 17:45:24  rgb
- * Added address debugging.
- *
- * Revision 1.9  1999/12/09 23:11:42  rgb
- * Ditched <string.h> include since we no longer use memset().
- * Use new pfkey_extensions_init() instead of memset().
- * Added check for SATYPE in pfkey_msg_build().
- * Tidy up comments and debugging comments.
- *
- * Revision 1.8  1999/12/07 19:55:26  rgb
- * Removed unused first argument from extension parsers.
- * Removed static pluto debug flag.
- * Moved message type and state checking to pfkey_msg_parse().
- * Changed print[fk] type from lx to x to quiet compiler.
- * Removed redundant remain check.
- * Changed __u* types to uint* to avoid use of asm/types.h and
- * sys/types.h in userspace code.
- *
- * Revision 1.7  1999/12/01 22:20:51  rgb
- * Moved pfkey_lib_debug variable into the library.
- * Added pfkey version check into header parsing.
- * Added check for SATYPE only for those extensions that require a
- * non-zero value.
- *
- * Revision 1.6  1999/11/27 11:58:05  rgb
- * Added ipv6 headers.
- * Moved sadb_satype2proto protocol lookup table from
- * klips/net/ipsec/pfkey_v2_parser.c.
- * Enable lifetime_current checking.
- * Debugging error messages added.
- * Add argument to pfkey_msg_parse() for direction.
- * Consolidated the 4 1-d extension bitmap arrays into one 4-d array.
- * Add CVS log entry to bottom of file.
- * Moved auth and enc alg check to pfkey_msg_parse().
- * Enable accidentally disabled spirange parsing.
- * Moved protocol/algorithm checks from klips/net/ipsec/pfkey_v2_parser.c
- *
  * Local variables:
  * c-file-style: "linux"
  * End:

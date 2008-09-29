@@ -11,13 +11,21 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: crypto.h,v 1.21 2005-07-05 22:05:02 mcr Exp $
+ * RCSID $Id: crypto.h,v 1.22 2005/09/20 18:03:13 mcr Exp $
  */
+
+#ifndef _CRYPTO_H
+#define _CRYPTO_H
 
 #include <gmp.h>    /* GNU MP library */
 
 #include "sha1.h"
 #include "md5.h"
+#ifdef USE_SHA2
+#include "libsha2/sha2.h"
+#endif
+
+#include "mpzfuncs.h"
 
 extern void init_crypto(void);
 
@@ -67,11 +75,13 @@ void crypto_cbc_encrypt(const struct encrypt_desc *e, bool enc, u_int8_t *buf, s
 /* unification of cryptographic hashing mechanisms */
 
 union hash_ctx {
-	MD5_CTX ctx_md5;
-	SHA1_CTX ctx_sha1;
-	char ctx_sha256[108];   /* This is _ugly_ [TM], but avoids */
-	char ctx_sha512[212];   /* header coupling (is checked at runtime */
-    };
+    MD5_CTX ctx_md5;
+    SHA1_CTX ctx_sha1;
+#ifdef USE_SHA2
+    sha256_context ctx_sha256;
+    sha512_context ctx_sha512;
+#endif
+};
 
 
 /* HMAC package
@@ -85,9 +95,11 @@ struct hmac_ctx {
     size_t hmac_digest_len;	/* copy of h->hash_digest_len */
     union hash_ctx hash_ctx;	/* ctx for hash function */
     u_char buf1[HMAC_BUFSIZE], buf2[HMAC_BUFSIZE];
-    char ctx_sha256[108];	/* This is _ugly_ [TM], but avoids */
-    char ctx_sha512[212];	/* header coupling (is checked at runtime */
-    };
+#ifdef USE_SHA2
+    sha256_context ctx_sha256;
+    sha512_context ctx_sha512;
+#endif
+};
 
 extern void hmac_init(
     struct hmac_ctx *ctx,
@@ -115,3 +127,12 @@ extern void hmac_final(u_char *output, struct hmac_ctx *ctx);
 	hmac_final((ch).ptr, (ctx)); \
     }
 #endif
+
+#endif /* _CRYPTO_H */
+
+/*
+ * Local Variables:
+ * c-basic-offset:4
+ * c-style: pluto
+ * End:
+ */

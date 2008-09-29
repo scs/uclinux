@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # 
-# $Id: make-uml.sh,v 1.48 2005-07-14 01:35:54 mcr Exp $
+# $Id: make-uml.sh,v 1.51 2005/11/21 08:44:57 mcr Exp $
 #
 
 # show me
@@ -14,6 +14,8 @@ case $# in
     1) OPENSWANSRCDIR=$1; shift;;
 esac
 
+CC=${CC-cc}
+
 if [ `id -u` = 0 ]
 then
     echo Do not run this as root.
@@ -22,6 +24,10 @@ fi
 
 # we always use OBJ directories for UML builds.
 export USE_OBJDIR=true
+
+# include this dir, in particular so that we can get the local "touch"
+# program.
+export PATH=$OPENSWANSRCDIR/testing/utils:$PATH 
 
 
 #
@@ -99,6 +105,8 @@ else
 fi
 
 mkdir -p $POOLSPACE
+if [ ! -d ${OPENSWANSRCDIR}/UMLPOOL/. ]; then ln -s $POOLSPACE ${OPENSWANSRCDIR}/UMLPOOL; fi
+
 UMLMAKE=$POOLSPACE/Makefile
 NOW=`date`
 USER=${USER-`id -un`}
@@ -109,27 +117,76 @@ echo '#' >>$UMLMAKE
 UMLPLAIN=$POOLSPACE/plain${KERNVER}
 mkdir -p $UMLPLAIN
 
-setup_make >>$UMLMAKE
-
 # now, setup up root dir
+NEED_plain=false
+
+# go through each regular host and see what kernel to use, and
+# see if we have to build the local plain kernel.
 for host in $REGULARHOSTS
 do
-    setup_host_make $host $UMLPLAIN/linux regular ${KERNVER} >>$UMLMAKE
+    kernelvar=UML_plain${KERNVER}_KERNEL
+    UMLKERNEL=${!kernelvar}
+    if [ -z "${UMLKERNEL}" ]
+    then
+	kernelvar=UML_${host}_KERNEL
+	UMLKERNEL=${!kernelvar}
+	if [ -z "${UMLKERNEL}" ]
+	then
+	    # must need stock kernel.
+	    UMLKERNEL=${UMLPLAIN}/linux
+	    NEED_plain=true
+	fi
+    fi
+    echo Using kernel: $UMLKERNEL for $host
+
+    setup_host_make $host $UMLKERNEL regular ${KERNVER} >>$UMLMAKE
 done
 
-if [ ! -x $UMLPLAIN/linux ]
+# build a plain kernel if we need it!
+if $NEED_plain && [ ! -x $UMLPLAIN/linux ] 
 then
     cd $UMLPLAIN
-    lndir -silent $KERNPOOL .
+
+    lndirkerndirnogit $KERNPOOL .
 
     applypatches
-
+ 
     echo Copying kernel config ${TESTINGROOT}/kernelconfigs/umlplain${KERNVER}.config 
     rm -f .config
     cp ${TESTINGROOT}/kernelconfigs/umlplain${KERNVER}.config .config
     
-    (make ARCH=um $NONINTCONFIG && make ARCH=um dep && make ARCH=um linux ) || exit 1 </dev/null 
+    (make CC=${CC} ARCH=um $NONINTCONFIG && make ARCH=um CC=${CC} linux ) || exit 1 </dev/null 
+fi 
+
+UMLNETKEY=$POOLSPACE/netkey${KERNVER}
+mkdir -p $UMLNETKEY
+NETKEYKERNEL=$UMLNETKEY/linux
+
+if [ ! -x $NETKEYKERNEL ] 
+  then
+   cd $UMLNETKEY
+
+    lndirkerndirnogit $KERNPOOL .
+
+    applypatches
+ 
+    #Antony  Make netkey kernel in there.
+    echo "make a net-key enabled kernel" 
+    NETKEYCONF=${TESTINGROOT}/kernelconfigs/umlnetkey${KERNVER}.config
+    echo "using $NETKEYCONF for umlnetkey "
+     (make CC=${CC} ARCH=um allnoconfig KCONFIG_ALLCONFIG=$NETKEYCONF && make CC=${CC} ARCH=um linux) || exit 1 </dev/null
 fi
+
+
+BUILD_MODULES=${BUILD_MODULES-true}
+if $NEED_plain
+then
+    :
+else
+    BUILD_MODULES=false
+fi
+    
+setup_make $BUILD_MODULES >>$UMLMAKE
 
 # now, execute the Makefile that we have created!
 cd $POOLSPACE && make $REGULARHOSTS 
@@ -152,10 +209,35 @@ KERNDEP=''
 
 mkdir -p $UMLSWAN
 
-if [ ! -x $UMLSWAN/linux ]
+# now, setup up root dir
+NEED_swan=false
+
+# go through each regular host and see what kernel to use, and
+# see if we have to build the local plain kernel.
+for host in $OPENSWANHOSTS
+do
+    kernelvar=UML_swan${KERNVER}_KERNEL
+    UMLKERNEL=${!kernelvar}
+    if [ -z "${UMLKERNEL}" ]
+    then
+	kernelvar=UML_${host}_KERNEL
+	UMLKERNEL=${!kernelvar}
+	if [ -z "${UMLKERNEL}" ]
+	then
+	    # must need stock kernel.
+	    UMLKERNEL=${UMLSWAN}/linux
+	    NEED_swan=true
+	fi
+    fi
+    echo Using kernel: $UMLKERNEL for $host
+
+    setup_host_make $host $UMLKERNEL openswan ${KERNVER} $NEED_plain $NETKEYKERNEL  >>$UMLMAKE
+done
+
+if $NEED_swan && [ ! -x $UMLSWAN/linux ]
 then
     cd $UMLSWAN
-    lndir -silent $KERNPOOL .
+    lndirkerndirnogit $KERNPOOL .
 
     applypatches
     
@@ -166,11 +248,11 @@ then
     # nuke final executable here since we will do FreeSWAN in a moment.
     rm -f linux .depend
     KERNDEP=dep
+
+    grep CONFIG_KLIPS $UMLSWAN/.config || exit 1
 fi
 
-grep CONFIG_KLIPS $UMLSWAN/.config || exit 1
-
-if [ ! -x $UMLSWAN/linux ]
+if $NEED_swan && [ ! -x $UMLSWAN/linux ]
 then
     cd $OPENSWANSRCDIR || exit 1
  
@@ -182,13 +264,7 @@ fi
 
 cd $OPENSWANSRCDIR || exit 1
 
-make USE_OBJDIR=true programs
-
-# now, setup up root dir
-for host in $OPENSWANHOSTS
-do
-    setup_host_make $host $UMLSWAN/linux openswan ${KERNVER} >>$UMLMAKE
-done
+make WERROR=-Werror USE_OBJDIR=true programs
 
 # now, execute the Makefile that we have created!
 cd $POOLSPACE && make $OPENSWANHOSTS 
@@ -196,7 +272,16 @@ cd $POOLSPACE && make $OPENSWANHOSTS
     
 #
 # $Log: make-uml.sh,v $
-# Revision 1.48  2005-07-14 01:35:54  mcr
+# Revision 1.51  2005/11/21 08:44:57  mcr
+# 	adjust UML to use initrd and cramfs.
+#
+# Revision 1.50  2005/07/27 15:51:39  mcr
+# 	set up $PATH to use local touch program.
+#
+# Revision 1.49  2005/07/22 13:45:49  mcr
+# 	make sure that UML builds are always with -Werror.
+#
+# Revision 1.48  2005/07/14 01:35:54  mcr
 # 	use USE_OBJDIR.
 #
 # Revision 1.47  2005/06/06 19:53:42  mcr
@@ -364,4 +449,4 @@ cd $POOLSPACE && make $OPENSWANHOSTS
 # Revision 1.1  2001/09/25 00:52:16  mcr
 # 	a script to build a UML+FreeSWAN testing environment.
 #
-#    
+   

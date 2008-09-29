@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: nethub.c,v 1.10 2002-08-30 01:37:35 mcr Exp $
+ * RCSID $Id: nethub.c,v 1.10 2002/08/30 01:37:35 mcr Exp $
  *
  * @(#) based upon uml_router from User-Mode-Linux tools package by Jeff Dike.
  *
@@ -39,6 +39,7 @@
 #define _GNU_SOURCE 1
 #include <getopt.h>
 
+#include "socketwrapper.h"
 #include "pcap.h"
 #include <sys/queue.h>
 
@@ -49,8 +50,8 @@
 #include "netdissect.h"
 
 struct netdissect_options gndo;
-int tcpdump_print = 1;
 #endif
+int tcpdump_print = 0;
 
 #include "nethub.h"
 #include "netjig.h"
@@ -202,7 +203,7 @@ int still_used(struct sockaddr_un *sun)
 {
   int test_fd, ret = 1;
 
-  if((test_fd = socket(PF_UNIX, SOCK_STREAM, 0)) < 0){
+  if((test_fd = safe_socket(PF_UNIX, SOCK_STREAM, 0)) < 0){
     perror("socket");
     exit(1);
   }
@@ -352,6 +353,27 @@ void bind_sockets(struct nethub *nh)
   exit(1);
 }
 
+void
+hexdump_block(const u_char *cp, u_int length)
+{
+	u_int i, s;
+	int nshorts;
+
+	nshorts = (u_int) length / sizeof(u_short);
+	i = 0;
+	while (--nshorts >= 0) {
+		if ((i++ % 8) == 0)
+			(void)fprintf(stderr, "\r\n\t\t\t");
+		s = *cp++;
+		(void)fprintf(stderr, " %02x%02x", s, *cp++);
+	}
+	if (length & 1) {
+		if ((i % 8) == 0)
+			(void)fprintf(stderr, "\r\n\t\t\t");
+		(void)fprintf(stderr, " %02x", *cp);
+	}
+	fprintf(stderr, "\r\n");
+}
 
 #ifdef NETDISSECT
 /* Like default_print() but data need not be aligned */
@@ -489,7 +511,7 @@ struct nethub *init_nethub(struct netjig_state *ns,
 		}
 	} 
 
-	if((nh->ctl_listen_fd = socket(PF_UNIX, SOCK_STREAM, 0)) < 0){
+	if((nh->ctl_listen_fd = safe_socket(PF_UNIX, SOCK_STREAM, 0)) < 0){
 		perror("socket");
 		exit(1);
 	}
@@ -505,7 +527,7 @@ struct nethub *init_nethub(struct netjig_state *ns,
 		exit(1);
 	}
 	
-	if((nh->data_fd = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0){
+	if((nh->data_fd = safe_socket(PF_UNIX, SOCK_DGRAM, 0)) < 0){
 		perror("socket");
 		exit(1);
 	}

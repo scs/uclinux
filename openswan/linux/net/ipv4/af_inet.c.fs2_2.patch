@@ -1,4 +1,4 @@
-RCSID $Id: af_inet.c.fs2_2.patch,v 1.9 2004-11-29 17:53:20 mcr Exp $
+RCSID $Id: af_inet.c.fs2_2.patch,v 1.9 2004/11/29 17:53:20 mcr Exp $
 --- linux/net/ipv4/af_inet.c.preipsec	Mon Aug  9 15:05:13 1999
 +++ linux/net/ipv4/af_inet.c	Fri Sep 17 10:13:07 1999
 @@ -1140,6 +1140,17 @@

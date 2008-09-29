@@ -16,7 +16,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: async.c,v 1.7.4.2 2006-09-22 21:10:16 paul Exp $ */
+/* $Id: async.c,v 1.7.4.1 2006/08/16 17:29:11 mcr Exp $ */
 
 #include <config.h>
 
@@ -146,9 +146,10 @@ lwres_getrrsetbyname_xmit(lwres_context_t *ctx,
 	lwres_result_t lwresult;
 
 	if(!las->inqueue) {
-	  las->next = ctx->pending;
-	  ctx->pending = las;
-	  las->inqueue = 1;
+		REQUIRE(las != ctx->pending);
+		las->next = ctx->pending;
+		ctx->pending = las;
+		las->inqueue = 1;
 	}
 
 	lwresult = lwres_context_send(ctx, las->b_out.base, las->b_out.length);
@@ -169,6 +170,7 @@ lwres_sanitize_list(lwres_context_t *ctx)
 	while(hare != NULL) {
 	  REQUIRE(hare != (volatile struct lwres_async_state *)0xa5a5a5a5);
 	  REQUIRE(hare != (volatile struct lwres_async_state *)0x5a5a5a5a);
+	  REQUIRE(hare->inqueue == 1);
 	  
 	  hare=hare->next;
 
@@ -301,6 +303,9 @@ lwres_getrrsetbyname_read(struct lwres_async_state **plas,
 	las->inqueue = 0;
 
 	*plas = las;
+
+	/* seems dumb, but it should be the case that we actually removed it, right! */
+	REQUIRE(ctx->pending != las);
 
 	/*
 	 * Free what we've transmitted, long ago.

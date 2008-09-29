@@ -18,18 +18,15 @@
  * Split out from ipsec_init.c version 1.70.
  */
 
-char ipsec_proc_c_version[] = "RCSID $Id: ipsec_proc.c,v 1.39.2.7 2007-11-06 18:24:44 paul Exp $";
-
-
 #ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
 #endif
 #include <linux/version.h>
 #define __NO_VERSION__
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-#include <linux/moduleparam.h>
-#endif
 #include <linux/module.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) 
+#include <linux/moduleparam.h> 
+#endif 
 #include <linux/kernel.h> /* printk() */
 #include <linux/ip.h>          /* struct iphdr */
 
@@ -92,8 +89,8 @@ char ipsec_proc_c_version[] = "RCSID $Id: ipsec_proc.c,v 1.39.2.7 2007-11-06 18:
 
 #include "openswan/ipsec_proto.h"
 
-#include <pfkeyv2.h>
-#include <pfkey.h>
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
 
 #ifdef CONFIG_PROC_FS
 
@@ -112,6 +109,20 @@ struct ipsec_birth_reply ipsec_ipv6_birth_packet;
 #ifdef CONFIG_KLIPS_DEBUG
 int debug_esp = 0;
 int debug_ah = 0;
+int sysctl_ipsec_inbound_policy_check = 1;
+int debug_tunnel = 0;
+int debug_xmit = 0;
+int debug_xform = 0;
+int debug_eroute = 0;
+int debug_spi = 0;
+int debug_radij = 0;
+int debug_pfkey = 0;
+int debug_rcv = 0;
+int debug_netlink = 0;
+int sysctl_ipsec_debug_verbose = 0;
+int sysctl_ipsec_debug_ipcomp =0;
+int sysctl_ipsec_icmp = 0;
+int sysctl_ipsec_tos = 0;
 #endif /* CONFIG_KLIPS_DEBUG */
 
 #define DECREMENT_UNSIGNED(X, amount) ((amount < (X)) ? (X)-amount : 0)
@@ -119,8 +130,7 @@ int debug_ah = 0;
 #ifdef CONFIG_KLIPS_ALG
 extern int ipsec_xform_get_info(char *buffer, char **start,
 				off_t offset, int length IPSEC_PROC_LAST_ARG);
-#endif /* CONFIG_KLIPS_ALG */
-
+#endif
 
 IPSEC_PROCFS_DEBUG_NO_STATIC
 int
@@ -186,7 +196,7 @@ ipsec_spi_get_info(char *buffer,
 		for (sa_p = ipsec_sadb_hash[i];
 		     sa_p;
 		     sa_p = sa_p->ips_hnext) {
-			atomic_inc(&sa_p->ips_refcount);
+			ipsec_sa_get(sa_p);
 			sa_len = satot(&sa_p->ips_said, 'x', sa, sizeof(sa));
 			len += ipsec_snprintf(buffer+len, length-len, "%s ",
 				       sa_len ? sa : " (error)");
@@ -234,7 +244,7 @@ ipsec_spi_get_info(char *buffer,
 					len += ipsec_snprintf(buffer+len, length-len, "0cf0");
 					for (j = 0; j < (sa_p->ips_iv_bits / 8) - 2; j++) {
 						len += ipsec_snprintf(buffer+len, length-len, "%02x",
-								   (((__u32)sa_p) >> j) & 0xff);
+								   (int) ((((long)sa_p) >> j) & 0xff));
 					}
 				} else
 #endif
@@ -395,11 +405,20 @@ ipsec_spi_get_info(char *buffer,
 			len += ipsec_snprintf(buffer + len, length-len, " natencap=na");
 #endif /* CONFIG_IPSEC_NAT_TRAVERSAL */
 				
+			/* we decrement by one, because this SA has been referenced in order to dump this info */
 			len += ipsec_snprintf(buffer + len,length-len, " refcount=%d",
-				       atomic_read(&sa_p->ips_refcount));
+				       atomic_read(&sa_p->ips_refcount)-1);
 
 			len += ipsec_snprintf(buffer+len, length-len, " ref=%d",
 				       sa_p->ips_ref);
+			len += ipsec_snprintf(buffer+len, length-len, " refhim=%d",
+				       sa_p->ips_refhim);
+
+			if(sa_p->ips_out) {
+				len += ipsec_snprintf(buffer+len, length-len, " outif=%s:%d",
+						      sa_p->ips_out->name,
+						      sa_p->ips_transport_direct);
+			}
 #ifdef CONFIG_KLIPS_DEBUG
 			if(debug_xform) {
 			len += ipsec_snprintf(buffer+len, length-len, " reftable=%lu refentry=%lu",
@@ -410,7 +429,7 @@ ipsec_spi_get_info(char *buffer,
 
 			len += ipsec_snprintf(buffer+len, length-len, "\n");
 
-                        atomic_dec(&sa_p->ips_refcount);   
+                        ipsec_sa_put(sa_p);   
                        
                         if (len >= max_content) {
                                /* we've done all that can fit -- stop loops */
@@ -469,39 +488,35 @@ ipsec_spigrp_get_info(char *buffer,
 		     sa_p != NULL;
 		     sa_p = sa_p->ips_hnext)
 		{
-			atomic_inc(&sa_p->ips_refcount);
-			if(sa_p->ips_inext == NULL) {
-				sa_p2 = sa_p;
-				while(sa_p2 != NULL) {
-					atomic_inc(&sa_p2->ips_refcount);
-					sa_len = satot(&sa_p2->ips_said,
-						       'x', sa, sizeof(sa));
-					
-					len += ipsec_snprintf(buffer+len, length-len, "%s ",
-						       sa_len ? sa : " (error)");
-					atomic_dec(&sa_p2->ips_refcount);
-					sa_p2 = sa_p2->ips_onext;
-				}
-				len += ipsec_snprintf(buffer+len, length-len, "\n");
-                       }
-
-                       atomic_dec(&sa_p->ips_refcount);
-                                        
-                       if (len >= max_content) {
-                               /* we've done all that can fit -- stop loops */
-                               len = max_content;      /* truncate crap */
-                               goto done_spigrp_i;
-                       } else {
-                               const off_t pos = begin + len;
-
-                               if (pos <= offset) {
-                                       /* all is before first interesting character:
-                                        * discard, but note where we are.
-                                        */
+			sa_p2 = sa_p;
+			while(sa_p2 != NULL) {
+				struct ipsec_sa *sa2n;
+				sa_len = satot(&sa_p2->ips_said,
+					       'x', sa, sizeof(sa));
+				
+				len += ipsec_snprintf(buffer+len, length-len, "%s ",
+						      sa_len ? sa : " (error)");
+				
+				sa2n = sa_p2->ips_next;
+				sa_p2 = sa2n;
+			}
+			len += ipsec_snprintf(buffer+len, length-len, "\n");
+			
+			if (len >= max_content) {
+				/* we've done all that can fit -- stop loops */
+				len = max_content;      /* truncate crap */
+				goto done_spigrp_i;
+			} else {
+				const off_t pos = begin + len;
+				
+				if (pos <= offset) {
+					/* all is before first interesting character:
+					 * discard, but note where we are.
+					 */
                                         len = 0;
                                         begin = pos;
-                               }
-                       }
+				}
+			}
 		}
 	}
 
@@ -631,36 +646,32 @@ unsigned int natt_available = 1;
 #else
 unsigned int natt_available = 0;
 #endif
-#ifdef module_param
-module_param(natt_available, int, 0444);
-#else
-MODULE_PARM("natt_available","i");
-#endif
+module_param(natt_available,int,0644);
 
 IPSEC_PROCFS_DEBUG_NO_STATIC
 int
 ipsec_natt_get_info(char *buffer,
-                    char **start,
-                    off_t offset,
-                    int length  IPSEC_PROC_LAST_ARG)
+		    char **start,
+		    off_t offset,
+		    int length  IPSEC_PROC_LAST_ARG)
 {
-        int len = 0;
-        off_t begin = 0;
+	int len = 0;
+	off_t begin = 0;
 
-        len += ipsec_snprintf(buffer + len,
-                              length-len, "%d\n",
+	len += ipsec_snprintf(buffer + len,
+			      length-len, "%d\n",
 #ifdef CONFIG_IPSEC_NAT_TRAVERSAL
-                              1
+			      1
 #else
-                              0
+			      0
 #endif
-                );
+		);
 
-        *start = buffer + (offset - begin);     /* Start of wanted data */
-        len -= (offset - begin);                        /* Start slop */
-        if (len > length)
-                len = length;
-        return len;
+	*start = buffer + (offset - begin);	/* Start of wanted data */
+	len -= (offset - begin);			/* Start slop */
+	if (len > length)
+		len = length;
+	return len;
 }
 
 IPSEC_PROCFS_DEBUG_NO_STATIC
@@ -871,11 +882,13 @@ static struct ipsec_proc_list proc_items[]={
 	{"ipv6",       &proc_birth_dir,     NULL,             ipsec_birth_info, ipsec_birth_set, (void *)&ipsec_ipv6_birth_packet},
 	{"tncfg",      &proc_net_ipsec_dir, NULL,             ipsec_tncfg_get_info,      NULL, NULL},
 #ifdef CONFIG_KLIPS_ALG
+
 	{"xforms",     &proc_net_ipsec_dir, NULL,             ipsec_xform_get_info,      NULL, NULL},
-#endif /* CONFIG_KLIPS_ALG */
+#endif
 	{"stats",      &proc_net_ipsec_dir, &proc_stats_dir,  NULL,      NULL, NULL},
 	{"trap_count", &proc_stats_dir,     NULL,             ipsec_stats_get_int_info, NULL, &ipsec_xmit_trap_count},
 	{"trap_sendcount", &proc_stats_dir, NULL,             ipsec_stats_get_int_info, NULL, &ipsec_xmit_trap_sendcount},
+	{"natt",       &proc_net_ipsec_dir, NULL,             ipsec_natt_get_info,    NULL, NULL},
 	{"version",    &proc_net_ipsec_dir, NULL,             ipsec_version_get_info,    NULL, NULL},
 	{NULL,         NULL,                NULL,             NULL,      NULL, NULL}
 };
@@ -898,25 +911,25 @@ ipsec_proc_init()
 
         /* for 2.0 kernels */
 #if !defined(PROC_FS_2325) && !defined(PROC_FS_21)
-	error |= proc_register_dynamic(&proc_net, &ipsec_eroute);
-	error |= proc_register_dynamic(&proc_net, &ipsec_spi);
-	error |= proc_register_dynamic(&proc_net, &ipsec_spigrp);
-	error |= proc_register_dynamic(&proc_net, &ipsec_tncfg);
-	error |= proc_register_dynamic(&proc_net, &ipsec_version);
+	error |= proc_register_dynamic(&PROC_NET, &ipsec_eroute);
+	error |= proc_register_dynamic(&PROC_NET, &ipsec_spi);
+	error |= proc_register_dynamic(&PROC_NET, &ipsec_spigrp);
+	error |= proc_register_dynamic(&PROC_NET, &ipsec_tncfg);
+	error |= proc_register_dynamic(&PROC_NET, &ipsec_version);
 #ifdef CONFIG_KLIPS_DEBUG
-	error |= proc_register_dynamic(&proc_net, &ipsec_klipsdebug);
+	error |= proc_register_dynamic(&PROC_NET, &ipsec_klipsdebug);
 #endif /* CONFIG_KLIPS_DEBUG */
 #endif
 
 	/* for 2.2 kernels */
 #if !defined(PROC_FS_2325) && defined(PROC_FS_21)
-	error |= proc_register(proc_net, &ipsec_eroute);
-	error |= proc_register(proc_net, &ipsec_spi);
-	error |= proc_register(proc_net, &ipsec_spigrp);
-	error |= proc_register(proc_net, &ipsec_tncfg);
-	error |= proc_register(proc_net, &ipsec_version);
+	error |= proc_register(PROC_NET, &ipsec_eroute);
+	error |= proc_register(PROC_NET, &ipsec_spi);
+	error |= proc_register(PROC_NET, &ipsec_spigrp);
+	error |= proc_register(PROC_NET, &ipsec_tncfg);
+	error |= proc_register(PROC_NET, &ipsec_version);
 #ifdef CONFIG_KLIPS_DEBUG
-	error |= proc_register(proc_net, &ipsec_klipsdebug);
+	error |= proc_register(PROC_NET, &ipsec_klipsdebug);
 #endif /* CONFIG_KLIPS_DEBUG */
 #endif
 
@@ -928,7 +941,7 @@ ipsec_proc_init()
 	memset(&ipsec_ipv4_birth_packet, 0, sizeof(struct ipsec_birth_reply));
 	memset(&ipsec_ipv6_birth_packet, 0, sizeof(struct ipsec_birth_reply));
 
-	proc_net_ipsec_dir = proc_mkdir("ipsec", proc_net);
+	proc_net_ipsec_dir = proc_mkdir("ipsec", PROC_NET);
 	if(proc_net_ipsec_dir == NULL) {
 		/* no point in continuing */
 		return 1;
@@ -961,12 +974,12 @@ ipsec_proc_init()
 	}
 	
 	/* now create some symlinks to provide compatibility */
-	proc_symlink("ipsec_eroute", proc_net, "ipsec/eroute/all");
-	proc_symlink("ipsec_spi",    proc_net, "ipsec/spi/all");
-	proc_symlink("ipsec_spigrp", proc_net, "ipsec/spigrp/all");
-	proc_symlink("ipsec_tncfg",  proc_net, "ipsec/tncfg");
-	proc_symlink("ipsec_version",proc_net, "ipsec/version");
-	proc_symlink("ipsec_klipsdebug",proc_net,"ipsec/klipsdebug");
+	proc_symlink("ipsec_eroute", PROC_NET, "ipsec/eroute/all");
+	proc_symlink("ipsec_spi",    PROC_NET, "ipsec/spi/all");
+	proc_symlink("ipsec_spigrp", PROC_NET, "ipsec/spigrp/all");
+	proc_symlink("ipsec_tncfg",  PROC_NET, "ipsec/tncfg");
+	proc_symlink("ipsec_version",PROC_NET, "ipsec/version");
+	proc_symlink("ipsec_klipsdebug",PROC_NET,"ipsec/klipsdebug");
 
 #endif /* !PROC_FS_2325 */
 
@@ -1023,191 +1036,18 @@ ipsec_proc_cleanup()
 
 
 #ifdef CONFIG_KLIPS_DEBUG
-	remove_proc_entry("ipsec_klipsdebug", proc_net);
+	remove_proc_entry("ipsec_klipsdebug", PROC_NET);
 #endif /* CONFIG_KLIPS_DEBUG */
-	remove_proc_entry("ipsec_eroute",     proc_net);
-	remove_proc_entry("ipsec_spi",        proc_net);
-	remove_proc_entry("ipsec_spigrp",     proc_net);
-	remove_proc_entry("ipsec_tncfg",      proc_net);
-	remove_proc_entry("ipsec_version",    proc_net);
-	remove_proc_entry("ipsec",            proc_net);
+	remove_proc_entry("ipsec_eroute",     PROC_NET);
+	remove_proc_entry("ipsec_spi",        PROC_NET);
+	remove_proc_entry("ipsec_spigrp",     PROC_NET);
+	remove_proc_entry("ipsec_tncfg",      PROC_NET);
+	remove_proc_entry("ipsec_version",    PROC_NET);
+	remove_proc_entry("ipsec",            PROC_NET);
 #endif /* 2.4 kernel */
 }
 
 /*
- * $Log: ipsec_proc.c,v $
- * Revision 1.39.2.7  2007-11-06 18:24:44  paul
- * include linux/moduleparam.h on linux 2.4.x kernels.
- *
- * Revision 1.39.2.6  2007/09/05 02:41:20  paul
- * Added xforms info to /proc file. Patch by David McCullough
- *
- * Revision 1.39.2.5  2007/08/09 14:37:45  paul
- * Patch by sergeil to compile on 2.4.35.
- *
- * Revision 1.39.2.4  2006/11/15 22:21:39  paul
- * backport of creating a /sys/ file to test for nat-t capability in kernel.
- *
- * Revision 1.39.2.3  2006/10/06 21:39:26  paul
- * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
- * set. This is defined through autoconf.h which is included through the
- * linux kernel build macros.
- *
- * Revision 1.39.2.2  2006/02/13 18:48:12  paul
- * Fix by  Ankit Desai <ankit@elitecore.com> for module unloading.
- *
- * Revision 1.39.2.1  2005/09/07 00:45:59  paul
- * pull up of mcr's nat-t klips detection patch from head
- *
- * Revision 1.39  2005/05/20 03:19:18  mcr
- * 	modifications for use on 2.4.30 kernel, with backported
- * 	printk_ratelimit(). all warnings removed.
- *
- * Revision 1.38  2005/04/29 05:10:22  mcr
- * 	removed from extraenous includes to make unit testing easier.
- *
- * Revision 1.37  2005/04/13 22:49:49  mcr
- * 	moved KLIPS specific snprintf() wrapper to seperate file.
- *
- * Revision 1.36  2005/04/06 17:44:36  mcr
- * 	when NAT-T is compiled out, show encap as "NA"
- *
- * Revision 1.35  2005/01/26 00:50:35  mcr
- * 	adjustment of confusion of CONFIG_IPSEC_NAT vs CONFIG_KLIPS_NAT,
- * 	and make sure that NAT_TRAVERSAL is set as well to match
- * 	userspace compiles of code.
- *
- * Revision 1.34  2004/12/03 21:25:57  mcr
- * 	compile time fixes for running on 2.6.
- * 	still experimental.
- *
- * Revision 1.33  2004/08/17 03:27:23  mcr
- * 	klips 2.6 edits.
- *
- * Revision 1.32  2004/08/03 18:19:08  mcr
- * 	in 2.6, use "net_device" instead of #define device->net_device.
- * 	this probably breaks 2.0 compiles.
- *
- * Revision 1.31  2004/07/10 19:11:18  mcr
- * 	CONFIG_IPSEC -> CONFIG_KLIPS.
- *
- * Revision 1.30  2004/04/25 21:23:11  ken
- * Pull in dhr's changes from FreeS/WAN 2.06
- *
- * Revision 1.29  2004/04/06 02:49:26  mcr
- * 	pullup of algo code from alg-branch.
- *
- * Revision 1.28  2004/03/28 20:29:58  paul
- *      <hugh_> ssize_t, not ssized_t
- *
- * Revision 1.27  2004/03/28 20:27:20  paul
- * Included tested and confirmed fixes mcr made and dhr verified for
- * snprint statements. Changed one other snprintf to use ipsec_snprintf
- * so it wouldnt break compatibility with 2.0/2.2 kernels. Verified with
- * dhr. (thanks dhr!)
- *
- * Revision 1.26  2004/02/09 22:07:06  mcr
- * 	added information about nat-traversal setting to spi-output.
- *
- * Revision 1.25.4.1  2004/04/05 04:30:46  mcr
- * 	patches for alg-branch to compile/work with 2.x openswan
- *
- * Revision 1.25  2003/10/31 02:27:55  mcr
- * 	pulled up port-selector patches and sa_id elimination.
- *
- * Revision 1.24.4.1  2003/10/29 01:30:41  mcr
- * 	elimited "struct sa_id".
- *
- * Revision 1.24  2003/06/20 01:42:21  mcr
- * 	added counters to measure how many ACQUIREs we send to pluto,
- * 	and how many are successfully sent.
- *
- * Revision 1.23  2003/04/03 17:38:09  rgb
- * Centralised ipsec_kfree_skb and ipsec_dev_{get,put}.
- *
- * Revision 1.22  2002/09/20 15:40:57  rgb
- * Renamed saref macros for consistency and brevity.
- *
- * Revision 1.21  2002/09/20 05:01:35  rgb
- * Print ref and  reftable, refentry seperately.
- *
- * Revision 1.20  2002/09/19 02:35:39  mcr
- * 	do not define structures needed by /proc/net/ipsec/ if we
- * 	aren't going create that directory.
- *
- * Revision 1.19  2002/09/10 01:43:25  mcr
- * 	fixed problem in /-* comment.
- *
- * Revision 1.18  2002/09/03 16:22:11  mcr
- * 	fixed initialization of birth/stuff values - some simple
- * 	screw ups in the code.
- * 	removed debugging that was left in by mistake.
- *
- * Revision 1.17  2002/09/02 17:54:53  mcr
- * 	changed how the table driven /proc entries are created so that
- * 	making subdirs is now explicit rather than implicit.
- *
- * Revision 1.16  2002/08/30 01:23:37  mcr
- * 	reorganized /proc creating code to clear up ifdefs,
- * 	make the 2.4 code table driven, and put things into
- * 	/proc/net/ipsec subdir. Symlinks are left for compatibility.
- *
- * Revision 1.15  2002/08/13 19:01:25  mcr
- * 	patches from kenb to permit compilation of FreeSWAN on ia64.
- * 	des library patched to use proper DES_LONG type for ia64.
- *
- * Revision 1.14  2002/07/26 08:48:31  rgb
- * Added SA ref table code.
- *
- * Revision 1.13  2002/07/24 18:44:54  rgb
- * Type fiddling to tame ia64 compiler.
- *
- * Revision 1.12  2002/05/27 18:56:07  rgb
- * Convert to dynamic ipsec device allocation.
- *
- * Revision 1.11  2002/05/23 07:14:50  rgb
- * Added refcount code.
- * Cleaned up %p variants to 0p%p for test suite cleanup.
- * Convert "usecount" to "refcount" to remove ambiguity.
- *
- * Revision 1.10  2002/04/24 07:55:32  mcr
- * 	#include patches and Makefiles for post-reorg compilation.
- *
- * Revision 1.9  2002/04/24 07:36:28  mcr
- * Moved from ./klips/net/ipsec/ipsec_proc.c,v
- *
- * Revision 1.8  2002/01/29 17:17:55  mcr
- * 	moved include of ipsec_param.h to after include of linux/kernel.h
- * 	otherwise, it seems that some option that is set in ipsec_param.h
- * 	screws up something subtle in the include path to kernel.h, and
- * 	it complains on the snprintf() prototype.
- *
- * Revision 1.7  2002/01/29 04:00:52  mcr
- * 	more excise of kversions.h header.
- *
- * Revision 1.6  2002/01/29 02:13:17  mcr
- * 	introduction of ipsec_kversion.h means that include of
- * 	ipsec_param.h must preceed any decisions about what files to
- * 	include to deal with differences in kernel source.
- *
- * Revision 1.5  2002/01/12 02:54:30  mcr
- * 	beginnings of /proc/net/ipsec dir.
- *
- * Revision 1.4  2001/12/11 02:21:05  rgb
- * Don't include module version here, fixing 2.2 compile bug.
- *
- * Revision 1.3  2001/12/05 07:19:44  rgb
- * Fixed extraneous #include "version.c" bug causing modular KLIPS failure.
- *
- * Revision 1.2  2001/11/26 09:16:14  rgb
- * Merge MCR's ipsec_sa, eroute, proc and struct lifetime changes.
- *
- * Revision 1.74  2001/11/22 05:44:11  henry
- * new version stuff
- *
- * Revision 1.1.2.1  2001/09/25 02:19:40  mcr
- * 	/proc manipulation code moved to new ipsec_proc.c
- *
  *
  * Local variables:
  * c-file-style: "linux"

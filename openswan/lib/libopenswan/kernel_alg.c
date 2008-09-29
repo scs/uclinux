@@ -29,10 +29,11 @@
 #include <unistd.h>
 #include <sys/queue.h>
 
-#include <pfkeyv2.h>
-#include <pfkey.h>
-
 #include <openswan.h>
+
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
+
 #include <openswan/ipsec_policy.h>
 
 #include "constants.h"
@@ -42,8 +43,8 @@
 #include "oswalloc.h"
 
 /* ALG storage */
-struct sadb_alg esp_aalg[SADB_AALG_MAX+1];
-struct sadb_alg esp_ealg[SADB_EALG_MAX+1];
+struct sadb_alg esp_aalg[K_SADB_AALG_MAX+1];
+struct sadb_alg esp_ealg[K_SADB_EALG_MAX+1];
 int esp_ealg_num=0;
 int esp_aalg_num=0;
 
@@ -57,13 +58,15 @@ sadb_alg_ptr (int satype, int exttype, int alg_id, int rw)
 				break;
 			goto fail;		
 		case SADB_EXT_SUPPORTED_ENCRYPT:
-			if (alg_id<=SADB_EALG_MAX)
+			if (alg_id<=K_SADB_EALG_MAX)
 				break;
 			goto fail;		
 		default:
 			goto fail;
 	}
+
 	switch(satype) {
+		case SADB_SATYPE_AH:
 		case SADB_SATYPE_ESP:
 			alg_p=(exttype == SADB_EXT_SUPPORTED_ENCRYPT)? 
 				&esp_ealg[alg_id] : &esp_aalg[alg_id];
@@ -73,8 +76,6 @@ sadb_alg_ptr (int satype, int exttype, int alg_id, int rw)
 					esp_ealg_num++ : esp_aalg_num++;
 			}
 			break;
-		case SADB_SATYPE_AH:
-			goto fail;
 		default:
 			goto fail;
 	}
@@ -103,16 +104,21 @@ kernel_alg_init(void)
 	esp_ealg_num=esp_aalg_num=0;
 }
 
-static int
+/* used by test skaffolding */
+int
 kernel_alg_add(int satype, int exttype, const struct sadb_alg *sadb_alg)
 {
 	struct sadb_alg *alg_p=NULL;
 	int alg_id=sadb_alg->sadb_alg_id;
+
 	DBG(DBG_KLIPS, DBG_log("kernel_alg_add():"
 		"satype=%d, exttype=%d, alg_id=%d",
 		satype, exttype, sadb_alg->sadb_alg_id));
-	if (!(alg_p=sadb_alg_ptr(satype, exttype, alg_id, 1)))
-		return -1;
+	if (!(alg_p=sadb_alg_ptr(satype, exttype, alg_id, 1))) {
+	    DBG_log("kernel_alg_add(%d,%d,%d) fails because alg combo is invalid\n"
+		    , satype, exttype, sadb_alg->sadb_alg_id);
+	    return -1;
+	}
 
 	/*
 	DBG(DBG_KLIPS, DBG_log("kernel_alg_add(): assign *%p=*%p",
@@ -214,6 +220,7 @@ kernel_alg_proc_read(void) {
 						sadb_alg.sadb_alg_ivlen=ivlen;
 						sadb_alg.sadb_alg_minbits=minbits;
 						sadb_alg.sadb_alg_maxbits=maxbits;
+						sadb_alg.sadb_alg_reserved=0;
 						ret=kernel_alg_add(satype, supp_exttype, &sadb_alg);
 						DBG(DBG_CRYPT, DBG_log("kernel_alg_proc_read() alg_id=%d, "
 							"alg_ivlen=%d, alg_minbits=%d, alg_maxbits=%d, "
@@ -370,6 +377,33 @@ kernel_alg_esp_auth_keylen(int auth)
 	return a_keylen;
 }
 
+err_t
+kernel_alg_ah_auth_ok(int auth, 
+		      struct alg_info_esp *alg_info __attribute__((unused)))
+{
+	int ret=(ESP_AALG_PRESENT(alg_info_esp_aa2sadb(auth)));
+
+	if(ret) {
+	    return NULL;
+	} else {
+	    return "bad auth alg";
+	}
+}
+
+int
+kernel_alg_ah_auth_keylen(int auth)
+{
+	int sadb_aalg=alg_info_esp_aa2sadb(auth);
+	int a_keylen=0;
+	if (sadb_aalg)
+		a_keylen=esp_aalg[sadb_aalg].sadb_alg_maxbits/BITS_PER_BYTE;
+
+	DBG(DBG_CONTROL | DBG_CRYPT | DBG_PARSING
+		    , DBG_log("kernel_alg_ah_auth_keylen(auth=%d, sadb_aalg=%d): "
+		    "a_keylen=%d", auth, sadb_aalg, a_keylen));
+	return a_keylen;
+}
+
 struct esp_info *
 kernel_alg_esp_info(u_int8_t transid, u_int16_t keylen, u_int16_t auth)
 {
@@ -397,13 +431,21 @@ kernel_alg_esp_info(u_int8_t transid, u_int16_t keylen, u_int16_t auth)
 	} else if(keylen <= esp_ealg[sadb_ealg].sadb_alg_maxbits &&
 		  keylen >= esp_ealg[sadb_ealg].sadb_alg_minbits) {
 	    ei_buf.enckeylen = keylen/BITS_PER_BYTE;
+	} else {
+	    DBG(DBG_PARSING, DBG_log("kernel_alg_esp_info():"
+				     "transid=%d, proposed keylen=%u is invalid, not %u<X<%u "
+				     , transid, keylen
+				     , esp_ealg[sadb_ealg].sadb_alg_maxbits
+				     , esp_ealg[sadb_ealg].sadb_alg_minbits));
+	    /* proposed key length is invalid! */
+	    return NULL;
 	}
 
 	ei_buf.authkeylen=esp_aalg[sadb_aalg].sadb_alg_maxbits/BITS_PER_BYTE;
 	ei_buf.encryptalg=sadb_ealg;
 	ei_buf.authalg=sadb_aalg;
 	DBG(DBG_PARSING, DBG_log("kernel_alg_esp_info():"
-		"transid=%d, auth=%d, ei=%p, "
+		"transid=%d, auth=%d, ei=%0p, "
 		"enckeylen=%d, authkeylen=%d, encryptalg=%d, authalg=%d",
 		transid, auth, &ei_buf,
 		(int)ei_buf.enckeylen, (int)ei_buf.authkeylen,

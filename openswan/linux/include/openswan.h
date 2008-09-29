@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id: openswan.h,v 1.93 2005-04-14 20:21:51 mcr Exp $
+ * RCSID $Id: openswan.h,v 1.95 2005/08/25 01:24:40 paul Exp $
  */
 #define	_OPENSWAN_H	/* seen it, no need to see it again */
 
@@ -27,6 +27,16 @@
 #define FALSE 0
 #endif
 
+/*
+ * When using uclibc, malloc(0) returns NULL instead of success. This is
+ * to make it use the inbuilt work-around.
+ * See: http://osdir.com/ml/network.freeswan.devel/2003-11/msg00009.html
+ */
+#ifdef __UCLIBC__
+# if !defined(__MALLOC_GLIBC_COMPAT__) && !defined(MALLOC_GLIBC_COMPAT)
+#  warning Please compile uclibc with GLIBC_COMPATIBILITY defined
+# endif
+#endif
 
 
 /*
@@ -34,14 +44,19 @@
  * where we get them depends on whether we're in userland or not.
  */
 /* things that need to come from one place or the other, depending */
-#ifdef __KERNEL__
+#if defined(linux) 
+#if defined(__KERNEL__)
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <openswan/ipsec_kversion.h>
+#include <openswan/ipsec_param.h>
 #define user_assert(foo)  /*nothing*/
-#else
+
+#else /* NOT in kernel */
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <string.h>
@@ -56,27 +71,70 @@
 #  define uint64_t u_int64_t 
 
 
-#  define DEBUG_NO_STATIC static
 
-#endif
+#endif /* __KERNEL__ */
 
-#include <openswan/ipsec_param.h>
+#endif /* linux */
 
+#define DEBUG_NO_STATIC static
 
 /*
- * Grab the kernel version to see if we have NET_21, and therefore 
- * IPv6. Some of this is repeated from ipsec_kversions.h. Of course, 
- * we aren't really testing if the kernel has IPv6, but rather if the
- * the include files do.
+ * Yes Virginia, we have started a windows port.
  */
-#include <linux/version.h>
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION(x,y,z) (((x)<<16)+((y)<<8)+(z))
+#if defined(__CYGWIN32__)
+#if !defined(WIN32_KERNEL) 
+/* get windows equivalents */
+#include <stdio.h>
+#include <string.h>
+#include <win32/types.h>
+#include <netinet/in.h>
+#include <cygwin/socket.h>
+#include <assert.h>
+#define user_assert(foo) assert(foo)
+#endif /* _KERNEL */
+#endif /* WIN32 */
+
+/*
+ * Kovacs? A macosx port?
+ */
+#if defined(macintosh) || (defined(__MACH__) && defined(__APPLE__))
+#include <TargetConditionals.h>
+#include <AvailabilityMacros.h>
+#include <machine/types.h>
+#include <machine/endian.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <tcpd.h>
+#include <assert.h>
+#define user_assert(foo) assert(foo)
+#define __u32  unsigned int
+#define __u8  unsigned char
+#define s6_addr16 __u6_addr.__u6_addr16
+#define DEBUG_NO_STATIC static
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,1,0)
-#define NET_21
+/*
+ * FreeBSD
+ */
+#if defined(__FreeBSD__)
+#  define DEBUG_NO_STATIC static
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <assert.h>
+#define user_assert(foo) assert(foo)
+/* apparently this way to deal with an IPv6 address is not standard. */
+#define s6_addr16 __u6_addr.__u6_addr16
 #endif
+
 
 #ifndef IPPROTO_COMP
 #  define IPPROTO_COMP 108
@@ -85,16 +143,6 @@
 #ifndef IPPROTO_INT
 #  define IPPROTO_INT 61
 #endif /* !IPPROTO_INT */
-
-#ifdef CONFIG_KLIPS_DEBUG
-#ifndef DEBUG_NO_STATIC
-#  define DEBUG_NO_STATIC
-#endif
-#else /* CONFIG_KLIPS_DEBUG */
-#ifndef DEBUG_NO_STATIC
-#  define DEBUG_NO_STATIC static
-#endif
-#endif /* CONFIG_KLIPS_DEBUG */
 
 #if !defined(ESPINUDP_WITH_NON_IKE)
 #define ESPINUDP_WITH_NON_IKE   1  /* draft-ietf-ipsec-nat-t-ike-00/01 */
@@ -108,13 +156,13 @@
  */
 
 /* first, some quick fakes in case we're on an old system with no IPv6 */
-#ifndef s6_addr16
+#if !defined(s6_addr16) && defined(__CYGWIN32__)
 struct in6_addr {
 	union 
 	{
-		__u8		u6_addr8[16];
-		__u16		u6_addr16[8];
-		__u32		u6_addr32[4];
+		u_int8_t	u6_addr8[16];
+		u_int16_t	u6_addr16[8];
+		u_int32_t	u6_addr32[4];
 	} in6_u;
 #define s6_addr			in6_u.u6_addr8
 #define s6_addr16		in6_u.u6_addr16
@@ -178,12 +226,20 @@ struct prng {			/* pseudo-random-number-generator guts */
  */
 typedef uint32_t IPsecSAref_t;
 
-#define IPSEC_SA_REF_FIELD_WIDTH (8 * sizeof(IPsecSAref_t))
+/* Translation to/from nfmark.
+ *
+ * use bits 16-31. Leave bit 32 as a indicate that IPsec processing
+ * has already been done.
+ */
+#define IPSEC_SA_REF_TABLE_IDX_WIDTH 15
+#define IPSEC_SA_REF_TABLE_OFFSET    16
+#define IPSEC_SA_REF_MAASK           ((1<<IPSEC_SA_REF_TABLE_IDX_WIDTH)-1)
 
-#define IPsecSAref2NFmark(x) ((x) << (IPSEC_SA_REF_FIELD_WIDTH - IPSEC_SA_REF_TABLE_IDX_WIDTH))
-#define NFmark2IPsecSAref(x) ((x) >> (IPSEC_SA_REF_FIELD_WIDTH - IPSEC_SA_REF_TABLE_IDX_WIDTH))
+#define IPsecSAref2NFmark(x) (((x)&IPSEC_SA_REF_MASK) << IPSEC_SA_REF_TABLE_OFFSET)
+#define NFmark2IPsecSAref(x) (((x) >> IPSEC_SA_REF_TABLE_OFFSET)&IPSEC_SA_REF_MASK)
 
-#define IPSEC_SAREF_NULL (~((IPsecSAref_t)0))
+#define IPSEC_SAREF_NULL ((IPsecSAref_t)0)
+#define IPSEC_SAREF_NA   ((IPsecSAref_t)0xffff0001)
 
 /* GCC magic for use in function definitions! */
 #ifdef GCC_LINT
@@ -199,6 +255,11 @@ typedef uint32_t IPsecSAref_t;
 #endif
 
 
+/*
+ * function to log stuff from libraries that may be used in multiple
+ * places.
+ */
+typedef int (*openswan_keying_debug_func_t)(const char *message, ...);
 
 
 
@@ -210,7 +271,13 @@ typedef uint32_t IPsecSAref_t;
 err_t ttoul(const char *src, size_t srclen, int format, unsigned long *dst);
 size_t ultot(unsigned long src, int format, char *buf, size_t buflen);
 #define	ULTOT_BUF	(22+1)	/* holds 64 bits in octal */
+
+/* looks up names in DNS */
 err_t ttoaddr(const char *src, size_t srclen, int af, ip_address *dst);
+
+/* does not look up names in DNS */
+err_t ttoaddr_num(const char *src, size_t srclen, int af, ip_address *dst);
+
 err_t tnatoaddr(const char *src, size_t srclen, int af, ip_address *dst);
 size_t addrtot(const ip_address *src, int format, char *buf, size_t buflen);
 /* RFC 1886 old IPv6 reverse-lookup format is the bulkiest */
@@ -232,8 +299,8 @@ err_t ttodatav(const char *src, size_t srclen, int base,
 #define TTODATAV_IGNORESPACE  (1<<1)  /* ignore spaces in base64 encodings*/
 #define TTODATAV_SPACECOUNTS  0       /* do not ignore spaces in base64   */
 
-size_t datatot(const char *src, size_t srclen, int format, char *buf,
-								size_t buflen);
+size_t datatot(const unsigned char *src, size_t srclen, int format
+	       , char *buf, size_t buflen);
 size_t keyblobtoid(const unsigned char *src, size_t srclen, char *dst,
 								size_t dstlen);
 size_t splitkeytoid(const unsigned char *e, size_t elen, const unsigned char *m,
@@ -248,6 +315,7 @@ err_t loopbackaddr(int af, ip_address *dst);
 err_t unspecaddr(int af, ip_address *dst);
 err_t anyaddr(int af, ip_address *dst);
 err_t initaddr(const unsigned char *src, size_t srclen, int af, ip_address *dst);
+err_t add_port(int af, ip_address *addr, unsigned short port);
 err_t initsubnet(const ip_address *addr, int maskbits, int clash, ip_subnet *dst);
 err_t addrtosubnet(const ip_address *addr, ip_subnet *dst);
 
@@ -257,6 +325,7 @@ int addrtypeof(const ip_address *src);
 int subnettypeof(const ip_subnet *src);
 size_t addrlenof(const ip_address *src);
 size_t addrbytesptr(const ip_address *src, const unsigned char **dst);
+size_t addrbytesptr_write(ip_address *src, unsigned char **dst);
 size_t addrbytesof(const ip_address *src, unsigned char *dst, size_t dstlen);
 int masktocount(const ip_address *src);
 void networkof(const ip_subnet *src, ip_address *dst);
@@ -272,6 +341,7 @@ int subnetishost(const ip_subnet *s);
 int samesaid(const ip_said *a, const ip_said *b);
 int sameaddrtype(const ip_address *a, const ip_address *b);
 int samesubnettype(const ip_subnet *a, const ip_subnet *b);
+int isvalidsubnet(const ip_subnet *a);
 int isanyaddr(const ip_address *src);
 int isunspecaddr(const ip_address *src);
 int isloopbackaddr(const ip_address *src);
@@ -385,7 +455,7 @@ atobytes(
 );
 size_t				/* 0 failure, else true size */
 bytestoa(
-	const char *src,
+	const unsigned char *src,
 	size_t srclen,
 	int format,		/* character; 0 means default */
 	char *dst,
@@ -402,7 +472,7 @@ atodata(
 );
 size_t				/* 0 failure, else true size */
 datatoa(
-	const char *src,
+	const unsigned char *src,
 	size_t srclen,
 	int format,		/* character; 0 means default */
 	char *dst,
@@ -431,30 +501,10 @@ int
 goodmask(
 	struct in_addr mask
 );
-int
-masktobits(
-	struct in_addr mask
-);
-struct in_addr
-bitstomask(
-	int n
-);
+extern int masktobits(struct in_addr mask);
+extern struct in_addr  bitstomask(int n);
+extern struct in6_addr bitstomask6(int n);
 
-
-
-/*
- * general utilities
- */
-
-#ifndef __KERNEL__
-/* option pickup from files (userland only because of use of FILE) */
-const char *optionsfrom(const char *filename, int *argcp, char ***argvp,
-						int optind, FILE *errorreport);
-
-/* sanitize a string */
-extern size_t sanitize_string(char *buf, size_t size);
-
-#endif
 
 
 /*
@@ -475,7 +525,8 @@ enum klips_debug_flags {
     KDF_RCV         = 9,
     KDF_TUNNEL      = 10,
     KDF_PFKEY       = 11,
-    KDF_COMP        = 12
+    KDF_COMP        = 12,
+    KDF_NATT        = 13,
 };
 
 

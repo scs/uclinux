@@ -4,16 +4,14 @@
 #define PRINT_SA_DEBUG 1
 #include "../../programs/pluto/spdb.c"
 
-#define AD(x) x, elemsof(x)	/* Array Description */
-#define AD_NULL NULL, 0
 /*
  * empty structure, for clone use.
  */
 static struct db_attr otempty[] = {
-	{ OAKLEY_ENCRYPTION_ALGORITHM, -1 },
-	{ OAKLEY_HASH_ALGORITHM,       -1 },
-	{ OAKLEY_AUTHENTICATION_METHOD, -1 },
-	{ OAKLEY_GROUP_DESCRIPTION,    -1 },
+	{ .type.oakley=OAKLEY_ENCRYPTION_ALGORITHM, -1 },
+	{ .type.oakley=OAKLEY_HASH_ALGORITHM,       -1 },
+	{ .type.oakley=OAKLEY_AUTHENTICATION_METHOD, -1 },
+	{ .type.oakley=OAKLEY_GROUP_DESCRIPTION,    -1 },
 	};
 
 static struct db_trans oakley_trans_empty[] = {
@@ -25,7 +23,7 @@ static struct db_prop oakley_pc_empty[] =
 
 static struct db_prop_conj oakley_props_empty[] = { { AD(oakley_pc_empty) } };
 
-struct db_sa oakley_empty = { AD(oakley_props_empty) };
+struct db_sa oakley_empty = { AD_SAp(oakley_props_empty) };
 
 char *progname;
 
@@ -42,6 +40,7 @@ main(int argc, char *argv[])
     struct db_sa *sa2 = NULL;
 
     progname = argv[0];
+    leak_detective=1;
 
     tool_init_log();
     

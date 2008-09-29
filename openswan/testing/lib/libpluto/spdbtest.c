@@ -18,6 +18,7 @@ main(int argc, char *argv[])
     struct db_sa *sa2 = NULL;
     
     progname = argv[0];
+    leak_detective=1;
 
     tool_init_log();
     

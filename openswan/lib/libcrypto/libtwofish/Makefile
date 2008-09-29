@@ -1,25 +1,15 @@
 OPENSWANSRCDIR?=$(shell cd ../../..; pwd)
+srcdir?=./
+
 include ${OPENSWANSRCDIR}/Makefile.inc
+include ${OPENSWANSRCDIR}/Makefile.ver
 
-CFLAGS=-O3 -fomit-frame-pointer -Wall $(EXTRA_CFLAGS)
-INC=-I../include 
+OBJS := twofish.o twofish_cbc.o
 
-LIBOBJ=twofish.o twofish_cbc.o
-BLIB=libtwofish.a
+ONEFILE=twofish.c
+LIBRARY=crypto/libtwofish
+LIB=libtwofish.a
+INCLUDES+=-I${srcdir}../include
 
-.c.o:
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(INC) -c $< -o $@
+include ${srcdir}../../Makefile.library
 
-$(BLIB): $(LIBOBJ)
-	$(AR) $(ARFLAGS) $(BLIB) $(LIBOBJ)
-
-programs: $(BLIB)
-
-install:
-	@exit 0
-
-test: test_main.o $(BLIB)
-	$(CC) -o $@ $^ 
-
-clean:
-	rm -f *.[oa] core $(TARGET) test

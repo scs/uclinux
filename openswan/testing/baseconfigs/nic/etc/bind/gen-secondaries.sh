@@ -56,7 +56,7 @@ done
 
 #
 # $Log: gen-secondaries.sh,v $
-# Revision 1.1  2002-10-24 05:35:46  mcr
+# Revision 1.1  2002/10/24 05:35:46  mcr
 # 	file/script to generate secondary list.
 #
 #

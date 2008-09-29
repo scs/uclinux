@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: packet.h,v 1.29 2004-10-16 22:38:37 mcr Exp $
+ * RCSID $Id: packet.h,v 1.29 2004/10/16 22:38:37 mcr Exp $
  */
 
 #ifndef _PACKET_H
@@ -61,7 +61,8 @@ typedef const struct field_desc {
  * Several routines are provided to manipulate these objects
  * Actual packet transfer is done elsewhere.
  */
-typedef struct packet_byte_stream {
+struct packet_byte_stream
+{
     struct packet_byte_stream *container;   /* PBS of which we are part */
     struct_desc *desc;
     const char *name;	/* what does this PBS represent? */
@@ -74,7 +75,8 @@ typedef struct packet_byte_stream {
      */
     u_int8_t *lenfld;
     field_desc *lenfld_desc;
-} pb_stream;
+};
+typedef struct packet_byte_stream pb_stream;
 
 /* For an input PBS, pbs_offset is amount of stream processed.
  * For an output PBS, pbs_offset is current size of stream.
@@ -108,8 +110,11 @@ extern bool out_raw(const void *bytes, size_t len, pb_stream *outs, const char *
 extern void close_output_pbs(pb_stream *pbs);
 
 #ifdef DEBUG
+#define DBG_dump_pbs(pbs) DBG_dump((pbs)->name, (pbs)->start, pbs_offset(pbs))
 extern void DBG_print_struct(const char *label, const void *struct_ptr,
     struct_desc *sd, bool len_meaningful);
+#else
+#define DBG_dump_pbs(pbs) do {} while(0)
 #endif
 
 /* ISAKMP Header: for all messages
@@ -225,7 +230,8 @@ struct isakmp_attribute
 
 extern struct_desc
     isakmp_oakley_attribute_desc,
-    isakmp_ipsec_attribute_desc;
+    isakmp_ipsec_attribute_desc,
+    ikev2_trans_attr_desc;
 
 /* ISAKMP Security Association Payload
  * layout from RFC 2408 "ISAKMP" section 3.4
@@ -647,6 +653,184 @@ struct isakmp_nat_oa
 extern struct_desc isakmp_nat_d;
 extern struct_desc isakmp_nat_oa;
 
+/* descriptor for each payload type
+ *
+ * There is a slight problem in that some payloads differ, depending
+ * on the mode.  Since this is table only used for top-level payloads,
+ * Proposal and Transform payloads need not be handled.
+ * That leaves only Identification payloads as a problem.
+ * We make all these entries NULL
+ */
+extern struct_desc *const payload_descs[ISAKMP_NEXT_ROOF];
+
+/*
+ * IKEv2 structures
+ */
+/* 
+ * 3.2.  Generic Payload Header
+ */
+struct ikev2_generic
+{
+	u_int8_t    isag_np;
+	u_int8_t    isag_critical;
+	u_int16_t   isag_length;
+};
+extern struct_desc ikev2_generic_desc;
+
+struct ikev2_sa
+{
+	u_int8_t  isasa_np;			/* Next payload */
+	u_int8_t  isasa_critical;
+	u_int16_t isasa_length;		/* Payload length */
+};
+
+extern struct_desc ikev2_sa_desc;
+
+struct ikev2_prop
+{
+	u_int8_t  isap_np;		/* Next payload */
+	u_int8_t  isap_critical;
+	u_int16_t isap_length;		/* Payload length */
+	u_int8_t  isap_propnum;
+	u_int8_t  isap_protoid;
+	u_int8_t  isap_spisize;
+	u_int8_t  isap_numtrans;
+};
+
+extern struct_desc ikev2_prop_desc;
+
+/* rfc4306, section 3.3.2 */
+struct ikev2_trans
+{
+	u_int8_t  isat_np;	    /* Next payload */
+	u_int8_t  isat_critical;
+	u_int16_t isat_length;	    /* Payload length */
+	u_int8_t  isat_type;        /* transform type */
+	u_int8_t  isat_res2;
+	u_int16_t  isat_transid;     /* ID */
+};
+extern struct_desc ikev2_trans_desc;
+
+/* rfc4306, section 3.3.5 */
+struct ikev2_trans_attr
+{
+	u_int16_t isatr_type;	     /* Attribute Type */
+	u_int16_t isatr_lv;	     /* Length (AF=0) or Value (AF=1) */
+	/* u_intXX_t isatr_value;      Value if AF=0, absent if AF=1 */
+};
+extern struct_desc ikev2_trans_attr_desc;
+
+/* rfc4306, section 3.4 */
+struct ikev2_ke
+{
+	u_int8_t  isak_np;	    /* Next payload */
+	u_int8_t  isak_critical;
+	u_int16_t isak_length;	    /* Payload length */
+	u_int16_t isak_group;       /* transform type */
+	u_int16_t isak_res2;
+};
+extern struct_desc ikev2_ke_desc;
+
+/* rfc4306, section 3.5 */
+struct ikev2_id
+{
+	u_int8_t  isai_np;	    /* Next payload */
+	u_int8_t  isai_critical;
+	u_int16_t isai_length;	    /* Payload length */
+	u_int8_t  isai_type;        /* transform type */
+	u_int8_t  isai_res1;
+	u_int16_t isai_res2;
+};
+extern struct_desc ikev2_id_desc;
+
+/* rfc4306, section 3.8 */
+struct ikev2_a
+{
+	u_int8_t  isaa_np;	    /* Next payload */
+	u_int8_t  isaa_critical;
+	u_int16_t isaa_length;	    /* Payload length */
+	u_int8_t  isaa_type;        /* auth type */
+	u_int8_t  isaa_res1;
+	u_int16_t isaa_res2;
+};
+extern struct_desc ikev2_a_desc;
+
+/* rfc4306 section 3.6 CERT Payload */
+struct ikev2_cert 
+{
+    u_int8_t  isac_np;	    /* Next payload */
+    u_int8_t  isac_critical;
+    u_int16_t isac_length;	    /* Payload length */
+    u_int8_t  isac_enc;            /* encoding type */
+};
+
+
+/* NOTE: this packet type has a fixed portion that is not a
+ * multiple of 4 octets.  This means that sizeof(struct isakmp_cr)
+ * yields the wrong value for the length.
+ */
+#define IKEV2_CERT_SIZE		5
+extern struct_desc ikev2_certificate_desc;
+
+/* rfc4306 section 3.6 CERTREQ Payload */
+struct ikev2_certreq 
+{
+    u_int8_t  isacertreq_np;	    /* Next payload */
+    u_int8_t  isacertreq_critical;
+    u_int16_t isacertreq_length;	  /* Payload length */
+    u_int8_t  isacertreq_enc;            /* encoding type */
+};
+
+
+/* NOTE: this packet type has a fixed portion that is not a
+ * multiple of 4 octets.  This means that sizeof(struct isakmp_cr)
+ * yields the wrong value for the length.
+ */
+#define IKEV2_CERTREQ_SIZE		5
+extern struct_desc  ikev2_certificate_req_desc;
+
+/* rfc4306, section 3.9, nonce, uses generic header */
+extern struct_desc ikev2_nonce_desc;
+
+/* rfc4306 section 3.10 NOTIFY Payload */
+struct ikev2_notify 
+{
+    u_int8_t  isan_np;		/* Next payload */
+    u_int8_t  isan_critical;
+    u_int16_t isan_length;	/* Payload length */
+    u_int8_t  isan_protoid;	/* Protocol ID: noSA=0,IKE=1,AH=2,ESP=3 */
+    u_int8_t  isan_spisize;	/* SPI size: 0 for IKE_SA */
+    u_int16_t isan_type;	/* Notification type, see notification_t */
+};
+extern struct_desc ikev2_notify_desc;
+
+/* rfc4306, section 3.12, vendor ID, uses generic header */
+extern struct_desc ikev2_vendor_id_desc;
+
+/* rfc4306, section 3.13 */
+struct ikev2_ts
+{
+    u_int8_t  isat_np;	    /* Next payload */
+    u_int8_t  isat_critical;
+    u_int16_t isat_length;	    /* Payload length */
+    u_int8_t  isat_num;         /* number of TSs */
+    u_int8_t  isat_res1;
+    u_int16_t isat_res2;
+};
+struct ikev2_ts1
+{
+    u_int8_t  isat1_type;
+    u_int8_t  isat1_ipprotoid;
+    u_int16_t isat1_sellen;
+    u_int16_t isat1_startport;
+    u_int16_t isat1_endport;
+};
+extern struct_desc ikev2_ts_desc;
+extern struct_desc ikev2_ts1_desc;
+
+/* rfc4306, section 3.14, encrypted payload, uses generic header */
+extern struct_desc ikev2_e_desc;
+
 /* union of all payloads */
 
 union payload {
@@ -662,17 +846,26 @@ union payload {
     struct isakmp_delete delete;
     struct isakmp_nat_oa nat_oa;
     struct isakmp_mode_attr attribute;
+    struct ikev2_generic    v2gen;
+    struct ikev2_ke         v2ke;
+    struct ikev2_trans      v2trans;
+    struct ikev2_prop       v2prop;
+    struct ikev2_sa         v2sa;
+    struct ikev2_id         v2id;
+    struct ikev2_a          v2a;
+    struct ikev2_ts         v2ts;
+    struct ikev2_cert       v2cert;
+    struct ikev2_certreq    v2certreq;
+    struct ikev2_notify     v2n;
 };
 
-/* descriptor for each payload type
- *
- * There is a slight problem in that some payloads differ, depending
- * on the mode.  Since this is table only used for top-level payloads,
- * Proposal and Transform payloads need not be handled.
- * That leaves only Identification payloads as a problem.
- * We make all these entries NULL
- */
-extern struct_desc *const payload_descs[ISAKMP_NEXT_ROOF];
 
 #endif /* _PACKET_H */
 
+/*
+ * Local Variables:
+ * c-basic-offset:4
+ * c-style: pluto
+ * End:
+ */
+ 

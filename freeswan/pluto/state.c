@@ -353,8 +353,9 @@ delete_state(struct state *st)
     }
 
     /* tell the other side of any IPSEC SAs that are going down */
-    if (IS_IPSEC_SA_ESTABLISHED(st->st_state))
-	send_ipsec_delete(st);
+    if (IS_IPSEC_SA_ESTABLISHED(st->st_state) ||
+	IS_ISAKMP_SA_ESTABLISHED(st->st_state))
+	send_delete(st);
 
     delete_event(st);	/* delete any pending timer event */
 
@@ -608,6 +609,55 @@ find_sender(size_t packet_len, u_char *packet)
 		&& memcmp(st->st_tpacket.ptr, packet, packet_len) == 0)
 		    return st;
 
+    return NULL;
+}
+
+struct state *
+find_phase2_state_to_delete(const struct state *p1st, u_int8_t protoid,
+    ipsec_spi_t spi, bool *bogus)
+{
+    struct state *st;
+    int i;
+
+    if (bogus) *bogus = FALSE;
+    for (i = 0; i < STATE_TABLE_SIZE; i++)
+	for (st = statetable[i]; st != NULL; st = st->st_hashchain_next)
+	    if ( (IS_IPSEC_SA_ESTABLISHED(st->st_state))
+		&& (p1st->st_connection->host_pair == st->st_connection->host_pair)
+		&& (same_peer_ids(p1st->st_connection, st->st_connection, NULL)))
+		{
+		    if ((protoid == PROTO_IPSEC_ESP) && (st->st_esp.present)
+			&&(st->st_esp.attrs.spi == spi))
+			return st;
+		    else if ((protoid == PROTO_IPSEC_AH) && (st->st_ah.present)
+			&& (st->st_ah.attrs.spi == spi))
+			return st;
+		    else if ((protoid == PROTO_IPSEC_ESP) && (st->st_esp.present)
+			&& (st->st_esp.our_spi == spi) && (bogus))
+			*bogus = TRUE;
+		    else if ((protoid == PROTO_IPSEC_AH) && (st->st_ah.present)
+			&& (st->st_ah.our_spi == spi) && (bogus))
+			*bogus = TRUE;
+		}
+    return NULL;
+}
+
+struct state *
+find_phase1_state_to_delete(const struct state *p1st,
+    const u_char *icookie, const u_char *rcookie)
+{
+    struct state *st;
+    int i;
+
+    for (i = 0; i < STATE_TABLE_SIZE; i++)
+	for (st = statetable[i]; st != NULL; st = st->st_hashchain_next)
+	    if ( (IS_ISAKMP_SA_ESTABLISHED(st->st_state))
+		&& (memcmp(icookie, st->st_icookie, COOKIE_SIZE) == 0)
+		&& (memcmp(rcookie, st->st_rcookie, COOKIE_SIZE) == 0)
+		&& (p1st->st_connection->host_pair == st->st_connection->host_pair)
+		&& (same_peer_ids(p1st->st_connection, st->st_connection, NULL)) ) {
+		    return st;
+		}
     return NULL;
 }
 

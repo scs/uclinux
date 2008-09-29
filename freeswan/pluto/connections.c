@@ -975,6 +975,7 @@ add_connection(const struct whack_message *wm)
 	}
 
 	/* set internal fields */
+	c->initiated = FALSE;
 	c->ac_next = connections;
 	connections = c;
 	c->interface = NULL;
@@ -1392,6 +1393,7 @@ initiate_connection(const char *name, int whackfd)
 	     * This is a fudge, but not yet important.
 	     * If we are to proceed asynchronously, whackfd will be NULL_FD.
 	     */
+	    c->initiated = TRUE;
 	    ipsecdoi_initiate(whackfd, c, c->policy, 1, SOS_NOBODY);
 	    whackfd = NULL_FD;	/* protect from close */
 	}
@@ -1647,6 +1649,7 @@ terminate_connection(const char *nm)
 	{
 	    set_cur_connection(c);
 	    log("terminating SAs using this connection");
+	    c->initiated = FALSE;
 	    delete_states_by_connection(c);
 	    reset_cur_connection();
 	}

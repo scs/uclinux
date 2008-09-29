@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: _plutorun.in,v 1.31.2.4 2006-10-11 16:24:52 paul Exp $
+# RCSID $Id: _plutorun.in,v 1.32 2005/09/18 01:38:56 mcr Exp $
 
 me='ipsec _plutorun'		# for messages
 
@@ -20,6 +20,7 @@ info=/var/run/pluto/ipsec.info
 
 popts=
 stderrlog=
+showonly=
 plutorestartoncrash=true
 
 wherelog=daemon.error
@@ -41,11 +42,14 @@ do
 	--nocrsend)	         nocrsend="$2" ; shift	;;
 	--strictcrlpolicy)	 strictcrlpolicy="$2" ; shift	;;
 	--crlcheckinterval)	 crlcheckinterval="$2"; shift	;;
+	--force_busy)		 force_busy="$2"; shift	;;
         --ocspuri)               ocspuri="$2"; shift    ;;
 	--dump)	                 dumpdir="$2" ; shift	;;
 	--opts)	                 popts="$2" ; shift	;;
 	--stderrlog)             stderrlog="$2" ; shift	;;
 	--wait)	                 plutowait="$2" ; shift	;;
+        --show)	                 show="--show"  ; shift ;;
+	--showonly)	         showonly="true" ;;
 	--pre)	                 prepluto="$2" ; shift	;;
 	--post)	                 postpluto="$2" ; shift	;;
 	--log)	                 wherelog="$2" ; shift	;;
@@ -87,6 +91,11 @@ case "$uniqueids" in
 yes)	popts="$popts --uniqueids"	;;
 no|'')				;;
 *)	echo "unknown uniqueids value (not yes/no) \`$IPSECuniqueids'"	;;
+esac
+case "$force_busy" in
+yes)  popts="$popts --force_busy"       ;;
+no|'')                                ;;
+*)    echo "unknown force_busy value (not yes/no) \`$IPSECforce_busy'"    ;;
 esac
 case "$nocrsend" in
 yes)  popts="$popts --nocrsend"       ;;
@@ -185,49 +194,34 @@ then
 fi
 
 IPSEC_SECRETS=${IPSEC_CONFS}/ipsec.secrets
-FEDORA_SECRETS=${IPSEC_CONFS}/ipsec.d/hostkey.secrets
-if test ! -f  "${FEDORA_SECRETS}"
+if test ! -f "${IPSEC_SECRETS}"
 then
-	if test ! -f "${IPSEC_SECRETS}" || test -z "`egrep '^: RSA' ${IPSEC_SECRETS}`"
-	then
-		# we need to generate a default hostkey. Do this in a subshell so we don't
-		# block the iniscript if there is no entropy for enough random
-		( 
-		# find the proper secrets file
-		if test ! -f ${IPSEC_SECRETS}
-		then
-			logger -p authpriv.info -t ipsec__plutorun No file ${IPSEC_SECRETS}, generating key.
-			ipsec newhostkey --output ${IPSEC_SECRETS} --quiet
-		else
-			if test -z "`egrep '^: RSA' ${IPSEC_SECRETS}`"
-			then
-				# no default RSA found. perhaps fedora include file?
-				if test -n "`egrep '^include '${IPSEC_CONFS}'/ipsec.d/\*.secrets$' ${IPSEC_SECRETS}`"
-				then
-					# fedora style secret key include
-					if test ! -f ${FEDORA_SECRETS}
-					then
-						logger -p authpriv.info -t ipsec__plutorun No file ${FEDORA_SECRETS}, generating key.
-						ipsec newhostkey --output ${FEDORA_SECRETS} --quiet
-					fi
-				else
-					logger -p authpriv.info -t ipsec__plutorun Unknown default RSA hostkey scheme, not generating a default hostkey
-				fi
-			fi
-		fi
-		# We got a new secret, tell pluto to go re-read the secrets
-		ipsec auto --rereadsecrets
-		# XXX publish the key somehow?
-		) &
-	fi
+    ( logger -p authpriv.info -t ipsec__plutorun No file ${IPSEC_SECRETS}, generating key.
+      ipsec newhostkey --quiet 
+      
+      # tell pluto to go re-read the file
+      ipsec auto --rereadsecrets
+      # XXX publish the key somehow?
+    ) &
 fi
-
 
 # spin off into the background, with our own logging
 echo "$verb Pluto subsystem..." | logger -p authpriv.error -t ipsec__plutorun
 execdir=${IPSEC_EXECDIR-@IPSEC_EXECDIR@}
 libdir=${IPSEC_LIBDIR-@IPSEC_LIBDIR@}
-ipsecdir=${IPSEC_CONFS-@IPSEC_CONFDDIR@}
+
+ipsecdiropt=""
+if [ -n "${IPSEC_CONFDDIR-@IPSEC_CONFDDIR@}" ]
+then
+    ipsecdiropt="--ipsecdir ${IPSEC_CONFDDIR-@IPSEC_CONFDDIR@}"
+fi
+
+if test -n "$showonly"
+then
+	echo $execdir/pluto --nofork --secretsfile "$IPSEC_SECRETS" $ipsecdiropt $popts
+	exit 0
+fi
+
 until (
 	if test -s $info
 	then
@@ -235,7 +229,7 @@ until (
 		export defaultroutephys defaultroutevirt defaultrouteaddr defaultroutenexthop
 	fi
 	# eval allows $popts to contain redirection and other magic
-	eval $execdir/pluto --nofork --secretsfile "$IPSEC_SECRETS" --ipsecdir $ipsecdir $popts
+	eval $execdir/pluto --nofork --secretsfile "$IPSEC_SECRETS" $ipsecdiropt $popts
 	status=$?
 	echo "exit"
 	echo $status

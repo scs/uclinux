@@ -11,10 +11,16 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: adns.h,v 1.6 2002-12-17 14:26:54 dhr Exp $
+ * RCSID $Id: adns.h,v 1.6 2002/12/17 14:26:54 dhr Exp $
  */
 
+#ifndef _ADNS_H
+#define _ADNS_H
+
 #ifndef USE_LWRES	/* whole file! */
+
+/* even though we aren't using LWRES, we can still use the header files */
+#include "arpa/nameser.h"
 
 /* The interface in RHL6.x and BIND distribution 8.2.2 are different,
  * so we build some of our own :-(
@@ -73,3 +79,5 @@ enum helper_exit_status {
 };
 
 #endif /* !USE_LWRES */
+
+#endif /* _ADNS_H */

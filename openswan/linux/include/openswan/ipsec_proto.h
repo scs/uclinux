@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_proto.h,v 1.14 2005-04-29 04:50:03 mcr Exp $
+ * RCSID $Id: ipsec_proto.h,v 1.14 2005/04/29 04:50:03 mcr Exp $
  *
  */
 
@@ -51,13 +51,9 @@ extern struct ipsec_sa *ipsec_sa_alloc(int*error);
 
 
 extern struct ipsec_sa *ipsec_sa_getbyid(ip_said *);
-extern int ipsec_sa_put(struct ipsec_sa *);
-extern /* void */ int ipsec_sa_del(struct ipsec_sa *);
-extern /* void */ int ipsec_sa_delchain(struct ipsec_sa *);
 extern /* void */ int ipsec_sa_add(struct ipsec_sa *);
 
 extern int ipsec_sa_init(struct ipsec_sa *ipsp);
-extern int ipsec_sa_wipe(struct ipsec_sa *ipsp);
 
 /* debug declarations */
 
@@ -142,7 +138,7 @@ extern int debug_netlink;
 
 /*
  * $Log: ipsec_proto.h,v $
- * Revision 1.14  2005-04-29 04:50:03  mcr
+ * Revision 1.14  2005/04/29 04:50:03  mcr
  * 	prototypes for xmit and alg code.
  *
  * Revision 1.13  2005/04/17 03:46:07  mcr

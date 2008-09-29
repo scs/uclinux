@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lang.h,v 1.2 2004-09-20 18:00:42 mcr Exp $ */
+/* $Id: lang.h,v 1.2 2004/09/20 18:00:42 mcr Exp $ */
 
 #ifndef LWRES_LANG_H
 #define LWRES_LANG_H 1

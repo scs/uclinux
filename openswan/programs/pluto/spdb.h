@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: spdb.h,v 1.18 2005-05-12 03:03:36 mcr Exp $
+ * RCSID $Id: spdb.h,v 1.18 2005/05/12 03:03:36 mcr Exp $
  */
 
 #ifndef _SPDB_H_
@@ -25,39 +25,70 @@
  * Note: only "basic" values are represented so far.
  */
 struct db_attr {
-    u_int16_t type;	/* ISAKMP_ATTR_AF_TV is implied; 0 for end */
+    union {
+	enum ikev1_oakley_attr oakley;	/* ISAKMP_ATTR_AF_TV is implied;
+					   0 for end */
+	enum ikev1_ipsec_attr  ipsec;
+	unsigned int ikev2;
+    } type;
     u_int16_t val;
 };
 
 /* transform */
 struct db_trans {
-    u_int8_t transid;	/* Transform-Id */
-    struct db_attr *attrs;	/* array */
-    int attr_cnt;	/* number of elements */
+	u_int16_t     transid;  /* Transform-Id */
+	struct db_attr *attrs;	/* array */
+	unsigned int attr_cnt;  /* number of elements */
 };
 
-/* proposal */
+/* proposal - IKEv1 */
 struct db_prop {
-    u_int8_t protoid;	/* Protocol-Id */
-    struct db_trans *trans;	/* array (disjunction) */
-    int trans_cnt;	/* number of elements */
+    u_int8_t         protoid;	/* Protocol-Id */
+    struct db_trans *trans;	/* array (disjunction-OR) */
+    unsigned int trans_cnt;	/* number of elements */
     /* SPI size and value isn't part of DB */
 };
 
-/* conjunction of proposals */
+/* conjunction (AND) of proposals - IKEv1 */
 struct db_prop_conj {
-    struct db_prop *props;	/* array */
-    int prop_cnt;	/* number of elements */
+	struct db_prop *props;	/* array */
+	unsigned int prop_cnt;	/* number of elements */
+};
+
+/* transform - IKEv2 */
+struct db_v2_trans {
+	enum ikev2_trans_type    transform_type;
+	u_int16_t                transid;	        /* Transform-Id */
+	struct db_attr *attrs;	 /* array of attributes */
+	unsigned int attr_cnt;	         /* number of elements */
+};
+
+/* proposal - IKEv2 */
+/* transforms are OR of each unique transform_type */
+struct db_v2_prop_conj {
+	u_int8_t            propnum;
+	u_int8_t            protoid;	/* Protocol-Id: ikev2_trans_type */
+	struct db_v2_trans *trans;	/* array (disjunction-OR) */
+	unsigned int        trans_cnt;	/* number of elements */
+	/* SPI size and value isn't part of DB */
+};
+
+/* conjunction (AND) of proposals - IKEv2 */
+/* this is, for instance, ESP+AH, etc.    */
+struct db_v2_prop {
+	struct db_v2_prop_conj  *props;	/* array */
+	unsigned int prop_cnt;	        /* number of elements... AND*/
 };
 
 /* security association */
 struct db_sa {
-    struct db_prop_conj *prop_conjs;	/* array */
-    int prop_conj_cnt;	/* number of elements */
-    /* Hardwired for now;
-     * DOI: ISAKMP_DOI_IPSEC
-     * Situation: SIT_IDENTITY_ONLY
-     */
+    bool                    dynamic;    /* set if these items were allocated */
+    bool                    parentSA;   /* set if this is a parent/oakley */
+    struct db_prop_conj    *prop_conjs; /* array */
+    unsigned int prop_conj_cnt;         /* number of elements */
+    
+    struct db_v2_prop      *prop_disj;  /* array */
+    unsigned int prop_disj_cnt;         /* number of elements... OR */
 };
 
 /* The oakley sadb is subscripted by a bitset with members
@@ -75,6 +106,21 @@ extern struct db_sa oakley_sadb_am;
  */
 extern struct db_sa ipsec_sadb[1 << 3];
 
+/* for db_sa */
+#define AD_SAp(x)    prop_conjs: x, prop_conj_cnt: elemsof(x), parentSA:TRUE
+#define AD_SAc(x)    prop_conjs: x, prop_conj_cnt: elemsof(x), parentSA:FALSE
+#define AD_NULL     prop_conjs: NULL, prop_conj_cnt: 0,
+
+/* for db_trans */
+#define AD_TR(p, x) transid: p, attrs: x, attr_cnt: elemsof(x)	
+
+/* for db_prop */
+#define AD_PR(p, x) protoid: p, trans: x, trans_cnt: elemsof(x)	
+
+/* for db_prop_conj */
+#define AD_PC(x) props: x, prop_cnt: elemsof(x)	
+
+
 extern bool out_sa(
     pb_stream *outs,
     struct db_sa *sadb,
@@ -89,6 +135,8 @@ extern complaint_t accept_oakley_auth_method(
     u_int32_t amethod,  /* room for larger values */
     bool credcheck);    /* whether we can check credentials now */
 #endif
+
+extern lset_t preparse_isakmp_sa_body(pb_stream *sa_pbs);
 
 extern notification_t parse_isakmp_sa_body(
     pb_stream *sa_pbs,	/* body of input SA Payload */
@@ -126,11 +174,31 @@ extern bool out_attr(int type, unsigned long val, struct_desc *attr_desc
 		     , pb_stream *pbs);
 
 /* in spdb_print.c - normally never used in pluto */
-extern void print_sa_attr(struct db_attr *at);
-extern void print_sa_trans(struct db_trans *tr);
-extern void print_sa_prop(struct db_prop *dp);
-extern void print_sa_prop_conj(struct db_prop_conj *pc);
+extern void print_sa_attr_oakley(struct db_attr *at);
+extern void print_sa_attr_ipsec(struct db_attr *at);
+extern void print_sa_trans(struct db_sa *f, struct db_trans *tr);
+extern void print_sa_prop(struct db_sa *f, struct db_prop *dp);
+extern void print_sa_prop_conj(struct db_sa *f, struct db_prop_conj *pc);
 extern void sa_print(struct db_sa *f);
+
+extern void print_sa_v2_trans(struct db_v2_trans *tr);
+extern void print_sa_v2_prop_conj(struct db_v2_prop_conj *dp);
+extern void print_sa_v2_prop(struct db_v2_prop *pc);
+extern void sa_v2_print(struct db_sa *f);
+
+/* IKEv1 <-> IKEv2 things */
+extern struct db_sa *sa_v2_convert(struct db_sa *f);
+extern enum ikev2_trans_type_encr v1tov2_encr(int oakley);
+extern enum ikev2_trans_type_integ v1tov2_integ(int oakley);
+extern bool ikev2_acceptable_group(struct state *st, oakley_group_t group);
+
 
 
 #endif /*  _SPDB_H_ */
+
+/*
+ * Local Variables:
+ * c-style: pluto
+ * c-basic-offset: 4
+ * End:
+ */

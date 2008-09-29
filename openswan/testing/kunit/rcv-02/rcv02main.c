@@ -1,4 +1,6 @@
+#ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
+#endif
 #include <linux/version.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
@@ -13,21 +15,10 @@
 #include "openswan/ipsec_sa.h"
 #include "openswan/ipsec_policy.h"
 #include "openswan/ipsec_proto.h"
-#include "pfkeyv2.h"
-#include "pfkey.h"
+#include "openswan/ipsec_sysctl.h"
+#include "openswan/pfkeyv2.h"
+#include "openswan/pfkey.h"
 
-int debug_tunnel;
-int debug_eroute;
-int debug_spi;
-int debug_radij;
-int debug_pfkey;
-int debug_ah;
-int debug_esp;
-int debug_netlink;
-int sysctl_ipsec_debug_verbose;
-int sysctl_ipsec_debug_ipcomp;
-int sysctl_ipsec_icmp;
-int sysctl_ipsec_tos;
 extern int debug_rcv;
 
 struct prng ipsec_prng;
@@ -97,6 +88,20 @@ int netif_rx(struct sk_buff *skb)
   return 0;
 }
 
+struct net_device fake_ipsec_dev = {
+  .hard_header_len = 14
+};
+
+struct net_device *ipsec_get_device(int inst)
+{
+  struct net_device *ipsec_dev;
+
+  ipsec_dev = &fake_ipsec_dev;
+
+
+  return ipsec_dev;
+}
+
 int
 pfkey_register_reply(int satype, struct sadb_msg *sadb_msg)
 {
@@ -149,6 +154,7 @@ int main(char *argv[], int argc)
 	       0x49, 0x4a, 0x4a, 0x4c, 0x4c, 0x4f, 0x4f, 0x51,
 	       0x51, 0x52, 0x52, 0x54, 0x54, 0x57, 0x57, 0x58};
 
+  debug_xform = 1;
   init_kmalloc();
   debug_rcv=0xffffffff;
   sysctl_ipsec_debug_verbose = 1;
@@ -159,6 +165,8 @@ int main(char *argv[], int argc)
   {
     sa1 = ipsec_sa_alloc(&error);
     assert(error == 0);
+
+    ipsec_sa_intern(sa1);
 
     sa1->ips_said.spi = htonl(0x12345678);
     sa1->ips_said.proto = IPPROTO_IPIP;
@@ -177,6 +185,9 @@ int main(char *argv[], int argc)
   {
     sa = ipsec_sa_alloc(&error);
     assert(error == 0);
+
+    ipsec_sa_intern(sa);
+
     sa->ips_said.spi = htonl(0x12345678);
     sa->ips_said.proto = IPPROTO_ESP;
     sa->ips_said.dst.u.v4.sin_addr.s_addr = htonl(0xc001022D);
@@ -240,7 +251,7 @@ int main(char *argv[], int argc)
     /* modify the protocol (it's ESP!) */
     iph->protocol = IPPROTO_ESP;
 
-    printf("0x%08p natt: %d\n", sa, sa->ips_natt_type);
+    printf("SA natt: %d\n", sa->ips_natt_type);
     ret = klips26_rcv_encap(skb, UDP_ENCAP_ESPINUDP);
   }
   

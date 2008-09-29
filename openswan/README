@@ -1,9 +1,11 @@
+    ******* THIS IS A DEVELOPER RELEASE **** NOT FOR PRODUCTION *******
+
     ********* See docs/RELEASE-NOTES.txt for more information *********
 
-			Openswan 2.4.7 Release Notes
+			Openswan 2.X Release Notes
 
-Openswan is an IPsec implementation for Linux and BSD. It has support for
-most of the extensions (RFC + IETF drafts) related to IPsec, including
+Openswan is an IPsec implementation for Linux. It has support for most 
+of the extensions (RFC + IETF drafts) related to IPsec, including 
 X.509 Digital Certificates, NAT Traversal, and many others.
 
 Openswan was originally based on FreeS/WAN 2.04 CVS, along with some
@@ -55,6 +57,8 @@ To use KLIPS:
 
 	make KERNELSRC=/usr/src/linux-2.6 install minstall
 
+3)	For OCF HW offloading support, you need a patched kernel
+	See: http://ocf-linux.sourceforge.net/
 
 To use the native (aka, Netkey) stack:
 
@@ -175,4 +179,4 @@ currently 40MB)
 The bulk of this software is under the GNU General Public License; see
 LICENSE.  Some parts of it are not; see CREDITS for the details.
 
-$Id: README,v 1.102.2.4 2006-08-16 21:00:12 paul Exp $.
+$Id: README,v 1.102 2005/07/06 22:50:02 ken Exp $.

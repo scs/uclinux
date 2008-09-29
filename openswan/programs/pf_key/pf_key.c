@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pf_key.c,v 1.18 2004-04-04 01:50:56 ken Exp $
+ * RCSID $Id: pf_key.c,v 1.18 2004/04/04 01:50:56 ken Exp $
  *
  */
 
@@ -43,15 +43,17 @@
 
 #include <stdint.h>
 #include <openswan.h>
-#include <pfkeyv2.h>
-#include <pfkey.h>
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
+
+#include "socketwrapper.h"
 
 char *progname;
 uint32_t pfkey_seq = 0;
 int pfkey_sock;
 
 static void
-Usage(char *progname)
+Usage(void)
 {
 	fprintf(stderr, "%s: Usage: %s [--help]\n"
 		"\tby default listens for AH, ESP, IPIP and IPCOMP\n"
@@ -71,7 +73,7 @@ void
 pfkey_register(uint8_t satype) {
 	/* for registering SA types that can be negotiated */
 	int error = 0;
-	struct sadb_ext *extensions[SADB_EXT_MAX + 1];
+	struct sadb_ext *extensions[K_SADB_EXT_MAX + 1];
 	struct sadb_msg *pfkey_msg;
 
 	pfkey_extensions_init(extensions);
@@ -178,7 +180,7 @@ main(int argc, char *argv[])
 			break;
 			
 		case 'h':
-			Usage(progname);
+			Usage();
 			break;
 		case '0':
 			/* it was a long option with a flag */
@@ -189,7 +191,7 @@ main(int argc, char *argv[])
 	if(infilename  == NULL &&
 	   outfilename == NULL)
 	{
-		if((pfkey_sock = socket(PF_KEY, SOCK_RAW, PF_KEY_V2) ) < 0)
+		if((pfkey_sock = safe_socket(PF_KEY, SOCK_RAW, PF_KEY_V2) ) < 0)
 		{
 			fprintf(stderr, "%s: failed to open PF_KEY family socket: %s\n",
 				progname, strerror(errno));
@@ -207,16 +209,16 @@ main(int argc, char *argv[])
 		}
 		
 		if(ah_register) {
-			pfkey_register(SADB_SATYPE_AH);
+			pfkey_register(K_SADB_SATYPE_AH);
 		}
 		if(esp_register) {
-			pfkey_register(SADB_SATYPE_ESP);
+			pfkey_register(K_SADB_SATYPE_ESP);
 		}
 		if(ipip_register) {
-			pfkey_register(SADB_X_SATYPE_IPIP);
+			pfkey_register(K_SADB_X_SATYPE_IPIP);
 		}
 		if(ipcomp_register) {
-			pfkey_register(SADB_X_SATYPE_COMP);
+			pfkey_register(K_SADB_X_SATYPE_COMP);
 		}
 
 		if(fork_after_register) {
@@ -301,7 +303,7 @@ main(int argc, char *argv[])
 	
 /*
  * $Log: pf_key.c,v $
- * Revision 1.18  2004-04-04 01:50:56  ken
+ * Revision 1.18  2004/04/04 01:50:56  ken
  * Use openswan includes
  *
  * Revision 1.17  2003/11/07 01:36:55  ken

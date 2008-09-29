@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: connections.h,v 1.103.2.1 2005-11-17 01:44:12 mcr Exp $
+ * RCSID $Id: connections.h,v 1.104 2005/08/25 02:24:45 paul Exp $
  */
 
 /* There are two kinds of connections:
@@ -123,22 +123,26 @@ extern void fmt_policy_prio(policy_prio_t pp, char buf[POLICY_PRIO_BUF]);
 #include "certs.h"
 #include "smartcard.h"
 
-#ifdef VIRTUAL_IP
 struct virtual_t;
-#endif
 
 #ifdef XAUTH_USEPAM
 #include <security/pam_appl.h>
 #endif
 
-#ifdef VIRTUAL_IP
-struct virtual_t;
+/* for CIRCLEQ_ENTRY */
+#if defined(macintosh) || (defined(__MACH__) && defined(__APPLE__))
+#include <sys/queue.h>
 #endif
 
 struct ietfAttr;	/* forward declaration of ietfAttr defined in ac.h */
+struct host_pair;    /* opaque type */
 
 struct end {
     struct id id;
+    bool      left;
+
+    enum keyword_host host_type;
+    char  *host_addr_name;       /* string version from whack */
     ip_address
 	host_addr,
 	host_nexthop,
@@ -154,19 +158,26 @@ struct end {
     u_int16_t host_port;	/* where the IKE port is */
     bool      host_port_specific; /* if TRUE, then IKE ports are tested for*/
     u_int16_t port;		/* port number, if per-port keying. */
-    u_int8_t protocol;          /* protocol number, if per-per keying. */
-    cert_t cert;		/* end certificate */
+    u_int8_t protocol;          /* transport-protocol number, if per-X keying.*/
+
+    enum certpolicy sendcert;   /* whether or not to send the certificate */
+    char   *cert_filename;       /* where we got the certificate */
+    cert_t  cert;		/* end certificate */
+
     chunk_t ca;			/* CA distinguished name */
     struct ietfAttrList *groups;/* access control groups */
     smartcard_t *sc;		/* smartcard reader and key info */
-#ifdef VIRTUAL_IP
     struct virtual_t *virt;
-#endif
+/*#ifdef XAUTH*/
     bool xauth_server;
     bool xauth_client;
+    char *xauth_name;
+    char *xauth_password;
+/*#ifdef MODECFG */
     bool modecfg_server;        /* Give local addresses to tunnel's end */
     bool modecfg_client;        /* request address for local end */
-    enum certpolicy sendcert;   /* whether or not to send the certificate */
+/*#endif*/
+/*#endif*/
 };
 
 struct spd_route {
@@ -180,6 +191,7 @@ struct spd_route {
 
 struct connection {
     char *name;
+    char *connalias;
     lset_t policy;
     time_t sa_ike_life_seconds;
     time_t sa_ipsec_life_seconds;
@@ -208,16 +220,15 @@ struct connection {
     bool instance_initiation_ok;	/* this is an instance of a policy that mandates initiate */
     enum connection_kind kind;
     const struct iface_port *interface;	/* filled in iff oriented */
+
     bool initiated;
+    bool failed_ikev2;                  /* tried ikev2, but failed */
 
     so_serial_t	/* state object serial number */
 	newest_isakmp_sa,
 	newest_ipsec_sa;
 
-
-#ifdef DEBUG
     lset_t extra_debugging;
-#endif
 
     /* note: if the client is the gateway, the following must be equal */
     sa_family_t addr_family;		/* between gateways */
@@ -227,23 +238,27 @@ struct connection {
 				       next one to apply */
 
     struct gw_info *gw_info;
-    char                *alg_esp;    /* string the admin provided */
-    char                *alg_ike;    /* ditto. may be NULL */
     struct alg_info_esp *alg_info_esp;
     struct alg_info_ike *alg_info_ike;
 
-    struct host_pair *host_pair;
+    struct host_pair *host_pair;            /* opaque type outside of connections.c/hostpair.c */
     struct connection *hp_next;	/* host pair list link */
 
     struct connection *ac_next;	/* all connections list link */
     
     generalName_t *requested_ca;	/* collected certificate requests */
-#ifdef XAUTH_USEPAM
+#ifdef XAUTH_USEPAM 
     pam_handle_t  *pamh;		/*  PAM handle for that connection  */
 #endif
 #ifdef DYNAMICDNS
     char *dnshostname;
 #endif /* DYNAMICDNS */
+#ifdef MODECFG
+    ip_address modecfg_dns1;
+    ip_address modecfg_dns2;
+    ip_address modecfg_wins1;
+    ip_address modecfg_wins2;
+#endif
 };
 
 #define oriented(c) ((c).interface != NULL)
@@ -268,8 +283,11 @@ extern void initiate_connection(const char *name
 				, lset_t moredebug
 				, enum crypto_importance importance);
 extern void restart_connections_by_peer(struct connection *c);
-extern void initiate_opportunistic(const ip_address *our_client
-    , const ip_address *peer_client, int transport_proto, bool held, int whackfd, err_t why);
+extern void initiate_ondemand(const ip_address *our_client
+			      , const ip_address *peer_client
+			      , int transport_proto
+			      , bool held
+			      , int whackfd, err_t why);
 extern void terminate_connection(const char *nm);
 extern void release_connection(struct connection *c, bool relations);
 extern void delete_connection(struct connection *c, bool relations);
@@ -297,11 +315,11 @@ struct state;	/* forward declaration of tag (defined in state.h) */
 extern struct connection
 *con_by_name(const char *nm, bool strict);
 
-#define find_host_connection(me, my_port, him, his_port) find_host_connection2(__FUNCTION__, me, my_port, him, his_port)
+#define find_host_connection(me, my_port, him, his_port, policy) find_host_connection2(__FUNCTION__, me, my_port, him, his_port, policy)
 extern struct connection 
 *find_host_connection2(const char *func
 		       , const ip_address *me, u_int16_t my_port
-	, const ip_address *him, u_int16_t his_port),
+	, const ip_address *him, u_int16_t his_port, lset_t policy),
     *refine_host_connection(const struct state *st, const struct id *id
 	, bool initiator, bool aggrmode),
     *find_client_connection(struct connection *c
@@ -347,8 +365,8 @@ extern struct connection
 #define CONN_INST_BUF \
     (2 + 10 + 1 + SUBNETTOT_BUF + 7 + ADDRTOT_BUF + 3 + SUBNETTOT_BUF + 1)
 
-extern void fmt_conn_instance(const struct connection *c
-    , char buf[CONN_INST_BUF]);
+extern char *fmt_conn_instance(const struct connection *c
+			       , char buf[CONN_INST_BUF]);
 
 /* operations on "pending", the structure representing Quick Mode
  * negotiations delayed until a Keying Channel has been negotiated.
@@ -384,14 +402,14 @@ extern void show_connections_status(void);
 extern int  connection_compare(const struct connection *ca
 			       , const struct connection *cb);
 #ifdef NAT_TRAVERSAL
-void
+extern void
 update_host_pair(const char *why, struct connection *c,
        const ip_address *myaddr, u_int16_t myport ,
        const ip_address *hisaddr, u_int16_t hisport);
 #endif /* NAT_TRAVERSAL */
 
 /* export to pending.c */
-void host_pair_enqueue_pending(const struct connection *c
+extern void host_pair_enqueue_pending(const struct connection *c
 			       , struct pending *p
 			       , struct pending **pnext);
 struct pending **host_pair_first_pending(const struct connection *c);
@@ -399,7 +417,22 @@ struct pending **host_pair_first_pending(const struct connection *c);
 void connection_check_phase2(void);
 void init_connections(void);
 
+#define CONN_BUF_LEN	(2 * (END_BUF - 1) + 4)
+extern size_t format_connection(char *buf, size_t buf_len
+				, const struct connection *c
+				, struct spd_route *sr);
 
+
+extern void setup_client_ports(struct spd_route *sr);
+
+extern int foreach_connection_by_alias(const char *alias
+				       , int (*f)(struct connection *c, void *arg)
+				       , void *arg);
+
+
+extern struct connection *unoriented_connections;
+
+extern void update_host_pairs(struct connection *c);
 
 /*
  * Local Variables:

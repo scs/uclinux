@@ -32,4 +32,4 @@
                            '-------------'          
                                                    
     
-$Id: forwardingstate.txt,v 1.2 2003-06-30 01:45:55 mcr Exp $
+$Id: forwardingstate.txt,v 1.2 2003/06/30 01:45:55 mcr Exp $

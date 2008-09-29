@@ -5,7 +5,7 @@
  * 
  * Version: 0.7.3
  *
- * $Id: ipsec_alg.c,v 1.3 2004/08/02 03:42:17 gerg Exp $
+ * $Id: ipsec_alg.c,v 1.3 2004-08-02 03:42:17 gerg Exp $
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

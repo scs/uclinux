@@ -12,10 +12,10 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: newhostkey.in,v 1.6.46.2 2006-04-21 15:32:52 paul Exp $
+# RCSID $Id: newhostkey.in,v 1.8 2005/08/18 12:11:19 ken Exp $
 
 me="ipsec newhostkey"
-usage="Usage: $me --output filename [--bits n] [--quiet] [--hostname host] [--random randomdevice]
+usage="Usage: $me --output filename [--bits n] [--quiet] [--hostname host]
          or
        $me --output - [--bits n] [--quiet] [--verbose] [--hostname host] >filename"
 

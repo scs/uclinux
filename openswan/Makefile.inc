@@ -1,6 +1,6 @@
 # Openswan pathnames and other master configuration
 # Copyright (C) 2001, 2002  Henry Spencer.
-# Copyright (C) 2003, 2004  Xelerance Corporation
+# Copyright (C) 2003-2006   Xelerance Corporation
 # 
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -12,27 +12,11 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile.inc,v 1.116.2.16 2007-11-02 03:07:27 paul Exp $
+#
+# TODO: Some creative ifeq ($(BUILDENV,xxx) to automatically determine
+# where we are building on and disable things (eg KLIPS on OSX)
 
-
-# snapgear specific defaults from build env.
--include $(ROOTDIR)/modules/.config
-ifneq ($(CONFIG_OCF_CRYPTODEV),)
-HAVE_OCF := true
-endif
-ifneq ($(CONFIG_LIB_LIBSSL),)
-HAVE_OPENSSL := true
-endif
-ifneq ($(CONFIG_USER_FLATFSD_FLATFSD),)
-USE_SINGLE_CONF_DIR := true
-endif
-ifneq ($(CONFIG_LIB_LIBPAM_FORCE)$(CONFIG_LIB_LIBPAM),)
-USE_XAUTHPAM := true
-HAVE_THREADS := true # the comments below about XAUTH say we need threads
-endif
-ifdef CONFIG_PROP_STATSD_STATSD
-EXTRA_DEFINES += -DEXTERNAL_STATE_LOGGING=1
-endif
+-include ${OPENSWANSRCDIR}/Makefile.inc.local
 
 
 # Variables in this file with names starting with INC_ are not for use
@@ -183,20 +167,27 @@ INSTBINFLAGS=-b --suffix=.old
 INSTSUIDFLAGS=--mode=u+rxs,g+rx,o+rx --group=root -b --suffix=.old
 INSTMANFLAGS=
 INSTCONFFLAGS=
+# For OSX use
+#INSTBINFLAGS=-b -B .old
+#INSTSUIDFLAGS=--mode=u+rxs,g+rx,o+rx --group=root -b -B .old
+
+# flags for bison, overrode in packages/default/foo
+BISONOSFLAGS=
 
 
 ### misc configuration, included here in hopes that other files will not
 ### have to be changed for common customizations.
 
 # extra compile flags, for userland and kernel stuff, e.g. -g for debug info
-# Do no use this for cross-compiling flags such as -I or -L. Add those to a
-# CC variable
-# (caution, this stuff is still being sorted out, will change in future)
-USERCOMPILE?=-g -O3 -DDISABLE_UDP_CHECKSUM
+# you can add to this in the defaults file using +=
+USERCOMPILE?=-g ${WERROR} ${PORTDEFINE}
+#USERCOMPILE?=-g -O3 ${WERROR} 
 KLIPSCOMPILE=-O3 -DCONFIG_KLIPS_ALG
 # for AMD64 use 
 #USERCOMPILE?=-g -O3 -m64
 #KLIPSCOMPILE=-O3 -m64 -mno-red-zone
+
+PORTINCLUDE?=
 
 # command used to link/copy KLIPS into kernel source tree
 # There are good reasons why this is "ln -s"; only people like distribution
@@ -219,6 +210,9 @@ KERNEL=$(shell if expr " `uname -m`" : ' i.86' >/dev/null ; \
 	then echo $(INC_B)zImage ; \
 	else echo boot ; \
 	fi)
+
+# look for XMLTO command
+XMLTO?=$(shell which xmlto|grep /)
 
 #
 # default number of bits for ipsec newhostkey
@@ -246,6 +240,7 @@ RPMBUILD=rpmbuild
 # rpmbuild -bp on the kernel src.rpm and grab the tree from 
 # /usr/src/redhat/BUILD/ or use something like the example below using the
 # module directory.
+# note: there is now a kernel-devel rpm.
 #RH_KERNELSRC?=/usr/src/linux-2.4
 RH_KERNELSRC?=/lib/modules/2.6.9-1.681_FC3/build
 
@@ -254,18 +249,6 @@ RH_KERNELSRC?=/lib/modules/2.6.9-1.681_FC3/build
 
 ## build environment variations
 ##
-
-# set this to a place where you have installed a bind9.3 
-# snapshot (20021115 or better). A bind 9.2, particularly a RedHat
-# installed one in RH 7.2, won't work - you wind up depending upon
-# openssl.
-
-BIND9STATICLIBDIR?=/usr/local/lib
-
-# if you install elsewere, you may need to point the include files to it.
-#BIND9STATICLIBDIR?=/sandel/lib
-#BIND9INCDIR?=/sandel/include
-
 
 #
 # USE_ variables determine if features are compiled into Openswan.
@@ -277,13 +260,14 @@ BIND9STATICLIBDIR?=/usr/local/lib
 # We test with LWRES, but ship with it off, as it requires
 # additional headers not present on most systems.
 # Note you need a locally running bind9 nameserver with lwres{} enabled
-# to use this.
-USE_LWRES?=false
+# to use this, or have the "lwres" package installed and running.
+# This only affects conns that use DNS for keys in lookups.
+USE_LWRES?=true
 
-# Whether or not to use iproute2 based commands.
-# On Kernel 2.0, and early 2.2 systems you may need to either install the
-# iproute2 package, or set this to false
-USE_IPROUTE2?=true
+# Do a new lookup every time a connection is (re)started. This works better
+# on hosts with some dyndns service, since DPD will cause a new dns lookup,
+# but it could be a potential security issue if receiving spoofed dns.
+USE_DYNAMICDNS?=false
 
 # what kind of firewalling to use:
 #  2.0 	- ipfwadm
@@ -292,33 +276,57 @@ USE_IPROUTE2?=true
 #  2.6  - iptables
 IPSEC_FIREWALLTYPE=iptables
 
+# Do we want all the configuration files like ipsec.conf and ipsec.secrets
+# and any certificates to be in a single directory defined by 
+# FINALCONFDDIR?
+USE_SINGLE_CONF_DIR?=false
+
 # whether or not to include ipsec policy code into pluto.
 # false for now, since it is still experimental.
-USE_IPSECPOLICY?=false
+USE_IPSECPOLICY?=true
 
-# include IKEPING (a utility for testing IKE daemons) in the distribution
+# Build ikeping (a utility for testing IKE daemons) in the distribution
 USE_IKEPING?=true
 
-# include support for KEY RR 
+# Build support for KEY RR 
 # this will become false in the future, as all OE sites transition to
 # using TXT instead of KEY records.  See references to 'Flag Day'
 USE_KEYRR?=true
 
-# include support for Kernel 2.5/2.6 IPsec in pluto
-# You can safely do this on Kernel 2.6 systems, and it is recommended
-# to leave this enabled so if you do upgrade to a 2.6 Kernel, you don't
-# need to recompile.
-USE_KERNEL26?=true
+# Build support for Linux 2.4 and 2.6 KLIPS kernel level IPsec support
+# for pluto
+USE_KLIPS?=true
 
-# include support for sending Openswan Vendor IDs
+# KLIPS needs PFKEYv2, but sometimes we want PFKEY without KLIPS
+USE_PFKEYv2?=true
+
+# Build support for 2.6 KLIPS/MAST variation in pluto
+USE_MAST?=true
+
+# MAST is generally a prerequisite for SAREF support in applications
+USE_SAREF_KERNEL=false
+
+# Build support for Linux NETKEY (XFRM) kernel level IPsec support for
+# pluto (aka "native", "kame")
+USE_NETKEY?=true
+
+# Whether or not to use iproute2 based commands.
+# On Kernel 2.0, and early 2.2 systems you may need to either install the
+# iproute2 package, or set this to false. Required for USE_NETKEY.
+USE_IPROUTE2?=true
+
+# include support for BSD/KAME IPsec in pluto (on *BSD)
+USE_BSDKAME?=false
+
+# Build support for sending Openswan Vendor IDs
 USE_VENDORID?=true
 
-# include aggressive mode authentication system code - both Server and Client.
+# Build aggressive mode authentication system code - both Server and Client.
 # This is off by default, since aggressive mode leads to denial of service
 # attacks.
 USE_AGGRESSIVE?=true
 
-# include XAUTH authentication system code - both Server and Client.
+# Build XAUTH authentication system code - both Server and Client.
 # This is off by default, since XAUTH is tricky, and you can get into 
 # security trouble unless you do additional configuration.
 USE_XAUTH?=true
@@ -357,15 +365,15 @@ endif
 # device. Normal use does not need any of this.
 USE_WEAKSTUFF?=false
 
-# Do we want all the configuration files like ipsec.conf and ipsec.secrets
-# and any certificates to be in a single directory defined by 
-# FINALCONFDDIR?
-USE_SINGLE_CONF_DIR?=false
+# Build algorithms that don't even encrypt (also must set WEAKSTUFF)
+# unless you are doing negative testing, turning this on is foolish.
+USE_NOCRYPTO?=false
 
-# should we include additional algorithms? It adds lots of
-# code space increases risk of bad crypto code, but offers possibilities 
+# should we include additional (strong) algorithms?  It adds a measureable
+# amount of code space to pluto, and many of the algorithms have not had
+# the same scrutiny that AES and 3DES have received, but offers possibilities 
 # of switching away from AES/3DES quickly. 
-USE_EXTRACRYPTO?=false
+USE_EXTRACRYPTO?=true
 
 # Do we have pthreads available?  Only yes if you need it for XAUTH+PAM,
 # or if you need it for CRL fetching.
@@ -373,21 +381,31 @@ USE_EXTRACRYPTO?=false
 HAVE_THREADS?=false
 
 # Do we have OCF available?
-HAVE_OCF?=false
+HAVE_OCF?=true
+
+# Do we have an external stats daemon we can push state changes to?
+# Currently hardcoded to /bin/statsd
+HAVE_STATSD?=false
 
 # Do we have Openssl libraries available for BIGNUM support?
-HAVE_OPENSSL?=false
+HAVE_OPENSSL?=true
 
 # Do we assume that the /bin/sh is BASH?
 # if so, then internationalization code is retained in the shell scripts
 USE_BASH?=true
 
+# Whether or not to include TaProoM (TCL Pluto Mix) into pluto.
+# you need at least swig 1.3.24, as well as tcl libraries and includes
+USE_TAPROOM?=false
+
+X509_VERSION=X.509-1.5.4
 NONINTCONFIG=oldconfig
 
 # Should we build with object directories?
 # (not really a code option, but a build option)
+# by default we will start using object directories.
 ifeq ($(USE_OBJDIR),)
-USE_OBJDIR?=false
+USE_OBJDIR?=true
 endif
 
 # supply kernel-configuration ARCH defaults
@@ -395,55 +413,92 @@ ifeq ($(ARCH),)
 ARCH := $(shell uname -m)
 endif
 # always sanitize $(ARCH)
-ARCH := $(shell echo $(ARCH) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
+ARCH := $(shell echo $(ARCH) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/ -e 's/ //g')
 
-ifeq ($(OS),)
-OS:=$(shell uname -s | tr 'A-Z' 'a-z')
+ifeq ($(OSDEP),)
+OSDEP:=$(shell uname -s | tr 'A-Z' 'a-z')
 endif
 
 -include ${OPENSWANSRCDIR}/Makefile.ver
+IPSECVERSION:=${IPSECBASEVERSION}$(shell ${OPENSWANSRCDIR}/packaging/utils/setlocalversion ${OPENSWANSRCDIR})
+export IPSECVERSION
 
-# include OS/ARCH specific makefiles, if any.
-# OS=linux,bsd,win2k,mingw32,etc.
-#
--include ${OPENSWANSRCDIR}/packaging/defaults/${OS}
--include ${OPENSWANSRCDIR}/packaging/defaults/${OS}.${ARCH}
+# include OSDEP/ARCH specific makefiles, if any.
+# OSDEP=linux,bsd,cygwin,darwin
+# 
+# but, BUILDENV could be mingw32-linux, darwin, or mingw32, etc..
+ifeq ($(BUILDENV),)
+BUILDENV=$(shell uname -s | tr 'A-Z' 'a-z' | sed -e 's/\(.*\)-.*/\1/')
+endif
+export BUILDENV
+export OSDEP
+include ${OPENSWANSRCDIR}/packaging/defaults/${BUILDENV}
+-include ${OPENSWANSRCDIR}/packaging/defaults/${BUILDENV}.${ARCH}
 
-ifeq ($(USE_OBJDIR),true)
-OBJDIR=OBJ.${OS}.${ARCH}
+# On MAC OSX , we have to use YACC and not BISON. And use different backup
+# file suffix.
+ifeq ($(BUILDENV),"darwin")
+USE_YACC?=true
+INSTBINFLAGS=-b -B .old
+INSTSUIDFLAGS=--mode=u+rxs,g+rx,o+rx --group=root -b -B .old
 endif
 
-# export everything so that scripts can use them.
-export LIBOPENSWANDIR OPENSWANSRCDIR ARCH 
+ifeq ($(USE_OBJDIR),true)
+OBJDIR=OBJ.${BUILDENV}.${ARCH}
+OBJDIRTOP=${OPENSWANSRCDIR}/${OBJDIR}
+endif
 
-# where to place the object files which are built (default is in-tree)
+# where to place the object files which are built 
 OBJDIR?=.
 OBJDIRTOP?=${OPENSWANSRCDIR}
 
 ### paths within the source tree
 
 KLIPSINC=${OPENSWANSRCDIR}/linux/include
-
-# needed in module makefile
-KLIPSSRC=${OPENSWANSRCDIR}/linux/net/ipsec
+KLIPSSRCDIR=${OPENSWANSRCDIR}/linux/net/ipsec
+#KLIPSSRCDIR=/mara1/git/klips/net/ipsec
 
 LIBOPENSWANDIR=${OPENSWANSRCDIR}/lib/libopenswan
 OPENSWANLIB=${OBJDIRTOP}/lib/libopenswan/libopenswan.a
+PLUTOLIB=${OBJDIRTOP}/lib/libpluto/libpluto.a
 OSWLOGLIB=${OBJDIRTOP}/lib/libopenswan/liboswlog.a
 
 LWRESDIR=${OPENSWANSRCDIR}/lib/liblwres
-LWRESLIB=${OBJDIRTOP}/lib/liblwres/liblwres.a
+LIBLWRES=${OBJDIRTOP}/lib/liblwres/liblwres.a
+LIBDNS=${OBJDIRTOP}/lib/libdns/libdns.a
+LIBISC=${OBJDIRTOP}/lib/libisc/libisc.a
+LIBBSDPFKEY=${OBJDIRTOP}/lib/libbsdpfkey/libbsdpfkey.a
+ISCARCH?=unix
+ISCHOSTARCH?=unix
 
 LIBDESSRCDIR=${OPENSWANSRCDIR}/linux/crypto/ciphers/des
 LIBDESLITE:=${OBJDIRTOP}/lib/libcrypto/libdes/libdes.a
 LIBAES=${OBJDIRTOP}/lib/libcrypto/libaes/libaes.a
+LIBMD5=${OBJDIRTOP}/lib/libcrypto/libmd5/libmd5.a
+LIBMD2=${OBJDIRTOP}/lib/libcrypto/libmd2/libmd2.a
+LIBSHA1=${OBJDIRTOP}/lib/libcrypto/libsha1/libsha1.a
 LIBBLOWFISH=${OBJDIRTOP}/lib/libcrypto/libblowfish/libblowfish.a
 LIBTWOFISH=${OBJDIRTOP}/lib/libcrypto/libtwofish/libtwofish.a
 LIBSERPENT=${OBJDIRTOP}/lib/libcrypto/libserpent/libserpent.a
 LIBSHA2=${OBJDIRTOP}/lib/libcrypto/libsha2/libsha2.a
+CRYPTOLIBS=${LIBAES} ${LIBSHA1} ${LIBMD5} ${LIBMD2} ${LIBDESLITE} 
+
+ifeq ($(USE_EXTRACRYPTO),true)
+CRYPTOLIBS+=${LIBSHA2} ${LIBSERPENT} ${LIBTWOFISH} ${LIBBLOWFISH}
+endif
 
 LIBPOLICYDIR=${OPENSWANSRCDIR}/linux/lib/libipsecpolicy
 POLICYLIB=${OBJDIRTOP}/lib/libipsecpolicy/libipsecpolicy.a
+
+WHACKLIB=${OBJDIRTOP}/lib/libwhack/libwhack.a
+IPSECCONFLIB=${OBJDIRTOP}/lib/libipsecconf/libipsecconf.a
+
+# export everything so that scripts can use them.
+export LIBOPENSWANDIR OPENSWANSRCDIR ARCH PORTINCLUDE 
+export LIBOPENSWANDIR OPENSWANLIB OSWLOGLIB PLUTOLIB LWRESDIR LIBLWRES LIBDNS
+export LIBISC ISCARCH ISCHOSTARCH LIBDESSRCDIR LIBDESLITE LIBAES
+export LIBMD5 LIBMD2 LIBSHA1 LIBBLOWFISH LIBTWOFISH LIBSERPENT
+export LIBSHA2 CRYPTOLIBS LIBPOLICYDIR POLICYLIB WHACKLIB IPSECCONFLIB
 
 #KERNELBUILDMFLAGS=--debug=biv V=1 
 

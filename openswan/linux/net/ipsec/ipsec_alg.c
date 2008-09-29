@@ -18,12 +18,13 @@
  * for more details.
  *
  */
-#define __NO_VERSION__
-
-#if defined (MODULE)
-#include <linux/module.h>
+#ifndef AUTOCONF_INCLUDED
+#include <linux/config.h>
 #endif
+#include <linux/version.h>
 
+#define __NO_VERSION__
+#include <linux/module.h>
 #include <linux/kernel.h> /* printk() */
 
 #include <linux/netdevice.h>   /* struct device, and other headers */
@@ -63,17 +64,14 @@
 # include "openswan/ipcomp.h"
 #endif /* CONFIG_KLIPS_COMP */
 
-#include <pfkeyv2.h>
-#include <pfkey.h>
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
 
 #include "openswan/ipsec_alg.h"
 #include "openswan/ipsec_proto.h"
 
-#ifndef CONFIG_KLIPS_ALG
-#error This file _MUST_ be compiled with CONFIG_KLIPS_ALG enabled !
-#endif
-#if SADB_EALG_MAX < 255
-#warning Compiling with limited ESP support ( SADB_EALG_MAX < 256 )
+#if K_SADB_EALG_MAX < 255
+#warning Compiling with limited ESP support ( K_SADB_EALG_MAX < 256 )
 #endif
 
 static rwlock_t ipsec_alg_lock = RW_LOCK_UNLOCKED;
@@ -258,7 +256,7 @@ static void ipsec_alg_put(struct ipsec_alg *ixt) {
  * 	ipsec_tunnel_start_xmit with encrypt=IPSEC_ALG_ENCRYPT
  */
 int ipsec_alg_esp_encrypt(struct ipsec_sa *sa_p, __u8 * idat,
-			  int ilen, const __u8 * iv, int encrypt)
+			  int ilen, __u8 * iv, int encrypt)
 {
 	int ret;
 	struct ipsec_alg_enc *ixt_e=sa_p->ips_alg_enc;
@@ -272,11 +270,9 @@ int ipsec_alg_esp_encrypt(struct ipsec_sa *sa_p, __u8 * idat,
 		    "entering with encalg=%d, ixt_e=%p\n",
 		    sa_p->ips_encalg, ixt_e);
 	if (ixt_e == NULL) {
-#ifdef CONFIG_KLIPS_DEBUG
 	  KLIPS_ERROR(debug_flag,
 		      "klips_debug:ipsec_alg_esp_encrypt: "
 		      "NULL ipsec_alg_enc object\n");
-#endif
 		return -1;
 	}
 	KLIPS_PRINT(debug_flag,
@@ -309,7 +305,7 @@ int ipsec_alg_enc_key_create(struct ipsec_sa *sa_p) {
 		    "entering with encalg=%d ixt_e=%p\n",
 		    sa_p->ips_encalg, ixt_e);
 	if (!ixt_e) {
-		KLIPS_PRINT(debug_pfkey,
+		KLIPS_ERROR(debug_pfkey,
 			    "klips_debug:ipsec_alg_enc_key_create: "
 			    "NULL ipsec_alg_enc object\n");
 		return -EPROTO;
@@ -490,9 +486,9 @@ out:
 static int check_auth(struct ipsec_alg_auth *ixt)
 {
 	int ret=-EINVAL;
-	if (ixt->ixt_common.ixt_support.ias_id==0 || ixt->ixt_common.ixt_support.ias_id > SADB_AALG_MAX)
-		barf_out("invalid alg_id=%d > %d (SADB_AALG_MAX)\n",
-			 ixt->ixt_common.ixt_support.ias_id, SADB_AALG_MAX);
+	if (ixt->ixt_common.ixt_support.ias_id==0 || ixt->ixt_common.ixt_support.ias_id > K_SADB_AALG_MAX)
+		barf_out("invalid alg_id=%d > %d (K_SADB_AALG_MAX)\n",
+			 ixt->ixt_common.ixt_support.ias_id, K_SADB_AALG_MAX);
 
 	if (ixt->ixt_common.ixt_blocksize==0
 	    || ixt->ixt_common.ixt_blocksize%2)
@@ -572,12 +568,12 @@ int register_ipsec_alg(struct ipsec_alg *ixt)
 
 
 	ret = pfkey_list_insert_supported((struct ipsec_alg_supported *)&ixt->ixt_support
-					  , &(pfkey_supported_list[SADB_SATYPE_ESP]));
+					  , &(pfkey_supported_list[K_SADB_SATYPE_ESP]));
 
 	if (ret==0) {
 		ixt->ixt_state |= IPSEC_ALG_ST_SUPP;
 		/*	send register event to userspace	*/
-		pfkey_register_reply(SADB_SATYPE_ESP, NULL);
+		pfkey_register_reply(K_SADB_SATYPE_ESP, NULL);
 	} else
 		printk(KERN_ERR "pfkey_list_insert_supported returned %d. "
 				"Loading anyway.\n", ret);
@@ -606,10 +602,10 @@ int unregister_ipsec_alg(struct ipsec_alg *ixt) {
 	if (ixt->ixt_state&IPSEC_ALG_ST_SUPP) {
 		ixt->ixt_state &= ~IPSEC_ALG_ST_SUPP;
 		pfkey_list_remove_supported((struct ipsec_alg_supported *)&ixt->ixt_support
-					    , &(pfkey_supported_list[SADB_SATYPE_ESP]));
+					    , &(pfkey_supported_list[K_SADB_SATYPE_ESP]));
 
 		/*	send register event to userspace	*/
-		pfkey_register_reply(SADB_SATYPE_ESP, NULL);
+		pfkey_register_reply(K_SADB_SATYPE_ESP, NULL);
 	}
 
 out:
@@ -831,7 +827,7 @@ int ipsec_alg_init(void) {
 	KLIPS_PRINT(1, "klips_info:ipsec_alg_init: "
 			"KLIPS alg v=%d.%d.%d-%d (EALG_MAX=%d, AALG_MAX=%d)\n",
 			IPSEC_ALG_VERSION_QUAD(IPSEC_ALG_VERSION),
-			SADB_EALG_MAX, SADB_AALG_MAX);
+			K_SADB_EALG_MAX, K_SADB_AALG_MAX);
 	/*	Initialize tables */
 	write_lock_bh(&ipsec_alg_lock);
 	ipsec_alg_hash_init();
@@ -854,7 +850,7 @@ int ipsec_alg_init(void) {
 	}
 #endif
 
-#if defined(CONFIG_KLIPS_ENC_3DES) && CONFIG_KLIPS_ENC_3DES && !defined(CONFIG_KLIPS_ENC_3DES_MODULE) 
+#if defined(CONFIG_KLIPS_ENC_3DES) && !defined(CONFIG_KLIPS_ENC_3DES_MODULE) 
 #if defined(CONFIG_KLIPS_ENC_CRYPTOAPI) && CONFIG_KLIPS_ENC_CRYPTOAPI
 #warning "Using built-in 3des rather than CryptoAPI 3des"
 #endif	
@@ -863,17 +859,6 @@ int ipsec_alg_init(void) {
 		ipsec_3des_init();
 	}
 #endif
-#if defined(CONFIG_KLIPS_ENC_NULL) && CONFIG_KLIPS_ENC_NULL && !defined(CONFIG_KLIPS_ENC_NULL_MODULE) 
-#if defined(CONFIG_KLIPS_ENC_CRYPTOAPI) && CONFIG_KLIPS_ENC_CRYPTOAPI
-#warning "Using built-in null cipher rather than CryptoAPI null cipher"
-#endif	
-#warning "Building with null cipher (ESP_NULL), blame on you :-)"
-	{
-		extern int ipsec_null_init(void);
-		ipsec_null_init();
-	}
-#endif
-
 
 	/* If we are doing CryptoAPI, then init */
 #if defined(CONFIG_KLIPS_ENC_CRYPTOAPI) && CONFIG_KLIPS_ENC_CRYPTOAPI && !defined(CONFIG_KLIPS_ENC_CRYPTOAPI_MODULE)

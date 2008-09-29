@@ -73,9 +73,9 @@
 #endif
 #endif
 
-#include "crypto/des.h"
+#include "klips-crypto/des.h"
 #ifdef OCF_ASSIST
-#include "crypto/ocf_assist.h"
+#include "klips-crypto/ocf_assist.h"
 #endif
 
 #ifndef DES_DEFAULT_OPTIONS
@@ -189,11 +189,6 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 #undef NOPROTO
 #endif
 
-#ifdef RAND
-#define srandom(s) srand(s)
-#define random rand
-#endif
-
 #define ITERATIONS 16
 #define HALF_ITERATIONS 8
 
@@ -256,11 +251,7 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 				} \
 			}
 
-#if defined(WIN32)
-#define	ROTATE(a,n)	(_lrotr(a,n))
-#else
 #define	ROTATE(a,n)	(((a)>>(n))+((a)<<(32-(n))))
-#endif
 
 /* Don't worry about the LOAD_DATA() stuff, that is used by
  * fcrypt() to add it's little bit to the front */

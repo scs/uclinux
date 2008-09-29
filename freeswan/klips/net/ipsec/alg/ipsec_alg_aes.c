@@ -3,7 +3,7 @@
  *
  * Author: JuanJo Ciarlante <jjo-ipsec@mendoza.gov.ar>
  * 
- * $Id: ipsec_alg_aes.c,v 1.2 2004/08/02 03:42:17 gerg Exp $
+ * $Id: ipsec_alg_aes.c,v 1.2 2004-08-02 03:42:17 gerg Exp $
  * 
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

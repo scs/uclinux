@@ -51,4 +51,11 @@ extern state_transition_fn
     quick_inR1_outI2,
     quick_inI2;
 
-extern void send_ipsec_delete(struct state *p2st);
+extern void send_delete(struct state *st);
+extern void accept_delete(struct state *st, struct msg_digest *md,
+    struct payload_digest *p);
+
+extern void send_notification_from_state(struct state *st,
+    enum state_kind state, u_int16_t type);
+extern void send_notification_from_md(struct msg_digest *md, u_int16_t type);
+

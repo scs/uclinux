@@ -1,5 +1,5 @@
 #
-# $Id: net.nic.sh,v 1.5 2004-05-26 17:11:52 mcr Exp $
+# $Id: net.nic.sh,v 1.5 2004/05/26 17:11:52 mcr Exp $
 #
 if [ -n "$UML_public_CTL" ]
 then

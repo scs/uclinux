@@ -13,7 +13,6 @@
  * for more details.
  */
 
-char ipsec_esp_c_version[] = "RCSID $Id: ipsec_esp.c,v 1.13.2.7 2007-09-05 02:56:09 paul Exp $";
 #ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
 #endif
@@ -209,11 +208,13 @@ enum ipsec_rcv_value
 ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 {
 	struct ipsec_sa *ipsp = irs->ipsp;
+#ifdef CONFIG_KLIPS_ALG
 	struct esphdr *espp = irs->protostuff.espstuff.espp;
 	__u8 *idat;	/* pointer to content to be decrypted/authenticated */
 	int encaplen = 0;
 	struct sk_buff *skb;
 	struct ipsec_alg_enc *ixt_e=NULL;
+#endif
 
 #ifdef CONFIG_KLIPS_OCF
 	if (ipsp->ocf_in_use)
@@ -398,6 +399,7 @@ ipsec_xmit_esp_setup(struct ipsec_xmit_state *ixs)
   int padlen = 0, i;
   unsigned char *dat;
   unsigned char *idat, *pad;
+#if defined(CONFIG_KLIPS_AUTH_HMAC_MD5) || defined(CONFIG_KLIPS_AUTH_HMAC_SHA1)
   __u8 hash[AH_AMAX];
   union {
 #ifdef CONFIG_KLIPS_AUTH_HMAC_MD5
@@ -407,6 +409,7 @@ ipsec_xmit_esp_setup(struct ipsec_xmit_state *ixs)
     SHA1_CTX sha1;
 #endif /* CONFIG_KLIPS_AUTH_HMAC_SHA1 */
   } tctx;
+#endif
 
   dat = (unsigned char *)ixs->iph;
 
@@ -534,7 +537,9 @@ ipsec_xmit_esp_setup(struct ipsec_xmit_state *ixs)
 
 
 struct xform_functions esp_xform_funcs[]={
-	{	rcv_checks:         ipsec_rcv_esp_checks,
+	{
+		protocol:           IPPROTO_ESP,
+		rcv_checks:         ipsec_rcv_esp_checks,
 		rcv_setup_auth:     ipsec_rcv_esp_decrypt_setup,
 		rcv_calc_auth:      ipsec_rcv_esp_authcalc,
 		rcv_decrypt:        ipsec_rcv_esp_decrypt,
@@ -545,6 +550,7 @@ struct xform_functions esp_xform_funcs[]={
 	},
 };
 
+#ifndef CONFIG_XFRM_ALTERNATE_STACK
 #ifdef NET_26
 struct inet_protocol esp_protocol = {
   .handler = ipsec_rcv,
@@ -566,77 +572,13 @@ struct inet_protocol esp_protocol =
 #endif
 };
 #endif /* NET_26 */
+#endif /* CONFIG_XFRM_ALTERNATE_STACK */
 
 #endif /* !CONFIG_KLIPS_ESP */
 
-
 /*
- * $Log: ipsec_esp.c,v $
- * Revision 1.13.2.7  2007-09-05 02:56:09  paul
- * Use the new ipsec_kversion macros by David to deal with 2.6.22 kernels.
- * Fixes based on David McCullough patch.
- *
- * Revision 1.13.2.6  2006/10/06 21:39:26  paul
- * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
- * set. This is defined through autoconf.h which is included through the
- * linux kernel build macros.
- *
- * Revision 1.13.2.5  2006/08/24 03:02:01  paul
- * Compile fixes for when CONFIG_KLIPS_DEBUG is not set. (bug #642)
- *
- * Revision 1.13.2.4  2006/05/06 03:07:38  ken
- * Pull in proper padsize->tailroom fix from #public
- * Need to do correct math on padlen since padsize is not equal to tailroom
- *
- * Revision 1.13.2.3  2006/05/05 03:58:04  ken
- * ixs->padsize becomes ixs->tailroom
- *
- * Revision 1.13.2.2  2006/05/01 14:36:03  mcr
- * use KLIPS_ERROR for fatal things.
- *
- * Revision 1.13.2.1  2006/04/20 16:33:06  mcr
- * remove all of CONFIG_KLIPS_ALG --- one can no longer build without it.
- * Fix in-kernel module compilation. Sub-makefiles do not work.
- *
- * Revision 1.13  2005/05/21 03:19:57  mcr
- * 	hash ctx is not really that interesting most of the time.
- *
- * Revision 1.12  2005/05/11 01:28:49  mcr
- * 	removed "poor-man"s OOP in favour of proper C structures.
- *
- * Revision 1.11  2005/04/29 05:10:22  mcr
- * 	removed from extraenous includes to make unit testing easier.
- *
- * Revision 1.10  2005/04/17 04:36:14  mcr
- * 	code now deals with ESP and UDP-ESP code.
- *
- * Revision 1.9  2005/04/15 19:52:30  mcr
- * 	adjustments to use proper skb fields for data.
- *
- * Revision 1.8  2004/09/14 00:22:57  mcr
- * 	adjustment of MD5* functions.
- *
- * Revision 1.7  2004/09/13 02:23:01  mcr
- * 	#define inet_protocol if necessary.
- *
- * Revision 1.6  2004/09/06 18:35:49  mcr
- * 	2.6.8.1 gets rid of inet_protocol->net_protocol compatibility,
- * 	so adjust for that.
- *
- * Revision 1.5  2004/08/17 03:27:23  mcr
- * 	klips 2.6 edits.
- *
- * Revision 1.4  2004/08/04 15:57:07  mcr
- * 	moved des .h files to include/des/ *
- * 	included 2.6 protocol specific things
- * 	started at NAT-T support, but it will require a kernel patch.
- *
- * Revision 1.3  2004/07/10 19:11:18  mcr
- * 	CONFIG_IPSEC -> CONFIG_KLIPS.
- *
- * Revision 1.2  2004/04/06 02:49:25  mcr
- * 	pullup of algo code from alg-branch.
- *
- *
+ * Local variables:
+ * c-file-style: "linux"
+ * End:
  *
  */

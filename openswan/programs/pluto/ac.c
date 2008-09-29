@@ -12,22 +12,26 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ac.c,v 1.7 2004-06-14 01:46:02 mcr Exp $
+ * RCSID $Id: ac.c,v 1.10 2005/09/19 00:22:00 mcr Exp $
  */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <dirent.h>
 #include <time.h>
 #include <sys/types.h>
 
 #include <openswan.h>
 
+#include "sysdep.h"
+#include "oswconf.h"
 #include "constants.h"
 #include "oswlog.h"
 
+#include "oswtime.h"
 #include "defs.h"
 #include "asn1.h"
 #include "oid.h"
@@ -37,7 +41,6 @@
 #include "pgp.h"
 #include "certs.h"
 #include "log.h"
-#include "paths.h"
 #include "whack.h"
 #include "fetch.h"
 
@@ -311,7 +314,7 @@ decode_groups(char *groups, ietfAttrList_t **listp)
           ietfAttrList_t *el = alloc_thing(ietfAttrList_t, "ietfAttrList");
           
           attr->kind  = IETF_ATTRIBUTE_STRING;
-          attr->value.ptr = groups;
+          attr->value.ptr = (unsigned char *)groups;
           attr->value.len = end - groups;
           attr->count = 0;
       
@@ -324,24 +327,6 @@ decode_groups(char *groups, ietfAttrList_t **listp)
     }
 }
           
-void  
-unshare_ietfAttrList(ietfAttrList_t **listp)
-{
-    ietfAttrList_t *list = *listp;
-       
-    while (list != NULL)
-    {
-      ietfAttrList_t *el = alloc_thing(ietfAttrList_t, "ietfAttrList");
- 
-      el->attr = list->attr;
-      el->attr->count++;
-      el->next = NULL;
-      *listp = el;
-      listp = &el->next;
-      list = list->next;
-    }
-}
-       
 /*
  * parses ietfAttrSyntax
  */
@@ -351,7 +336,7 @@ parse_ietfAttrSyntax(chunk_t blob, int level0)
     asn1_ctx_t ctx;
     chunk_t object;
     u_int level;
-    int objectID = 0;
+    u_int objectID = 0;
     
     ietfAttrList_t *list = NULL;
 	
@@ -397,7 +382,7 @@ parse_roleSyntax(chunk_t blob, int level0)
     asn1_ctx_t ctx;
     chunk_t object;
     u_int level;
-    int objectID = 0;
+    u_int objectID = 0;
 
     asn1_init(&ctx, blob, level0, FALSE, DBG_RAW);
 
@@ -426,7 +411,7 @@ parse_ac(chunk_t blob, x509acert_t *ac)
     chunk_t type;
     chunk_t object;
     u_int level;
-    int objectID = 0;
+    u_int objectID = 0;
 
     asn1_init(&ctx, blob, 0, FALSE, DBG_RAW);
 
@@ -690,9 +675,9 @@ verify_x509acert(x509acert_t *ac, bool strict)
     time_t valid_until = ac->notAfter;
 
     DBG(DBG_CONTROL,
-	dntoa(buf, BUF_LEN, ac->entityName);
+	dntoa((char *)buf, BUF_LEN, ac->entityName);
 	DBG_log("holder: '%s'",buf);
-	dntoa(buf, BUF_LEN, ac->issuerName);
+	dntoa((char *)buf, BUF_LEN, ac->issuerName);
 	DBG_log("issuer: '%s'",buf);
     )
     
@@ -740,18 +725,19 @@ verify_x509acert(x509acert_t *ac, bool strict)
 void
 load_acerts(void)
 {
-    u_char buf[BUF_LEN];
+    char buf[BUF_LEN];
 
     /* change directory to specified path */
-    u_char *save_dir = getcwd(buf, BUF_LEN);
+    char *save_dir = getcwd(buf, BUF_LEN);
+    const struct osw_conf_options *oco = osw_init_options(); 
 
-    if (!chdir(A_CERT_PATH))
+    if (!chdir(oco->acerts_dir))
     {
 	struct dirent **filelist;
 	int n;
 
-	openswan_log("Changing to directory '%s'",A_CERT_PATH);
-	n = scandir(A_CERT_PATH, &filelist, file_select, alphasort);
+	openswan_log("Changing to directory '%s'", oco->acerts_dir);
+	n = scandir(oco->acerts_dir, &filelist, file_select, alphasort);
 
 	if (n > 0)
 	{
@@ -760,7 +746,13 @@ load_acerts(void)
 		chunk_t blob = empty_chunk;
 		bool pgp = FALSE;
 
-		if (load_coded_file(filelist[n]->d_name, NULL, "acert", &blob, &pgp))
+		if (load_coded_file(filelist[n]->d_name, NULL,
+#ifdef SINGLE_CONF_DIR
+				FALSE, /* too verbose in a shared dir */
+#else
+				TRUE,
+#endif
+				    "acert", &blob, &pgp))
 		{
 		    x509acert_t *ac = alloc_thing(x509acert_t, "x509acert");
 		    
@@ -778,7 +770,11 @@ load_acerts(void)
 	}
     }
     /* restore directory path */
-    chdir(save_dir);
+    if(!chdir(save_dir)) {
+	int e = errno;
+	openswan_log("Changing back to directory '%s' failed - (%d %s)",
+		save_dir, e, strerror(e));
+    }
 }
 
 /*
@@ -802,10 +798,10 @@ void
 list_acerts(bool utc)
 {
     x509acert_t *ac = x509acerts;
-    time_t now;
+    time_t tnow;
 
     /* determine the current time */
-    time(&now);
+    time(&tnow);
 
     if (ac != NULL)
     {
@@ -816,7 +812,7 @@ list_acerts(bool utc)
 
     while (ac != NULL)
     {
-	u_char buf[BUF_LEN];
+	char buf[BUF_LEN];
 	char   tbuf[TIMETOA_BUF];
 
 	whack_log(RC_COMMENT, "%s",timetoa(&ac->installed, utc, tbuf, sizeof(tbuf)));
@@ -839,7 +835,7 @@ list_acerts(bool utc)
 	dntoa(buf, BUF_LEN, ac->issuerName);
 	whack_log(RC_COMMENT, "       issuer:  '%s'", buf);
 	datatot(ac->serialNumber.ptr, ac->serialNumber.len, ':'
-	    , buf, BUF_LEN);
+		, buf, BUF_LEN);
 	whack_log(RC_COMMENT, "       serial:   %s", buf);
 
 	if (ac->groups != NULL)
@@ -871,7 +867,7 @@ list_acerts(bool utc)
 
 	whack_log(RC_COMMENT, "       validity: not before %s %s",
 		timetoa(&ac->notBefore, utc, tbuf, sizeof(tbuf)),
-		(ac->notBefore < now)?"ok":"fatal (not valid yet)");
+		(ac->notBefore < tnow)?"ok":"fatal (not valid yet)");
 	whack_log(RC_COMMENT, "                 not after  %s %s",
 		timetoa(&ac->notAfter, utc, tbuf, sizeof(tbuf)),
 		check_expiry(ac->notAfter, ACERT_WARNING_INTERVAL, TRUE));

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id: tif96,v 1.4 2002-04-24 07:36:18 mcr Exp $
+# RCSID $Id: tif96,v 1.4 2002/04/24 07:36:18 mcr Exp $
 #
 # This script is OBSOLETE -- rgb, May 6th, 1998
 
@@ -23,7 +23,7 @@ sleep 1
 
 #
 # $Log: tif96,v $
-# Revision 1.4  2002-04-24 07:36:18  mcr
+# Revision 1.4  2002/04/24 07:36:18  mcr
 # Moved from ./klips/test/ji/tif96,v
 #
 # Revision 1.3  1999/04/06 04:54:36  rgb

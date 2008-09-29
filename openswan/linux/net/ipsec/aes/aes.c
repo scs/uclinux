@@ -32,10 +32,10 @@
  *  - Removed some totally unused constants.
  */
 
-#include "crypto/aes.h"
+#include "klips-crypto/aes.h"
 
 #ifdef OCF_ASSIST
-#include "crypto/ocf_assist.h"
+#include "klips-crypto/ocf_assist.h"
 #endif
 
 // CONFIGURATION OPTIONS (see also aes.h)

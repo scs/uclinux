@@ -54,8 +54,8 @@
 
 #include "openswan/ipsec_proto.h"
 
-#include <pfkeyv2.h>
-#include <pfkey.h>
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
 
 /* ipsec_snprintf: like snprintf except
  * - size is signed and a negative value is treated as if it were 0
@@ -113,20 +113,6 @@ void ipsec_dmp_block(char *s, caddr_t bb, int len)
 }
 		
 /*
- *
- * $Log: ipsec_snprintf.c,v $
- * Revision 1.3.2.1  2006-10-06 21:39:26  paul
- * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
- * set. This is defined through autoconf.h which is included through the
- * linux kernel build macros.
- *
- * Revision 1.3  2005/04/29 05:10:22  mcr
- * 	removed from extraenous includes to make unit testing easier.
- *
- * Revision 1.2  2005/04/15 00:32:01  mcr
- * 	added ipsec_dmp_block routine.
- *
- *
  * Local Variables:
  * c-file-style: "linux"
  * End:

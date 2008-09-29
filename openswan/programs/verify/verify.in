@@ -22,16 +22,6 @@ if($ENV{'IPSEC_CONFS'}) { $conf=$ENV{'IPSEC_CONFS'} } else { $conf= `ipsec --con
 
 $print_depricacted=0;
 
-# support fedora style default RSA key
-if ( -e "$conf/ipsec.d/hostkey.secrets" )
-{
- $seckey="$conf/ipsec.d/hostkey.secrets"
-}
-else
-{
- $seckey="$conf/ipsec.secrets"
-}
-
 # Should we print in colour by default?
 $ctype=`/sbin/consoletype`;
 if ( $ctype && !($ctype eq "serial"))
@@ -213,15 +203,7 @@ sub udp500check {
 	run "/bin/ls /proc/sys/net/ipv4/conf";
 	foreach $net (grep !/(lo|all|default|ipsec|vmnet)/, @check=@out)
 	{
-	    if ( -e "/proc/net/ip_fwchains" )
-	    {
-		chomp($net);
-		printfun "Checking IPchains port 500 hole ($defaultsrcip on $net)";
-		run "ipchains --check input -p udp --src $defaultsrcip 500 --dst 2.3.4.5 500 -i $net";
-		chomp($out[0]);
-		if( $out[0] eq "accepted" ) { errchk "$out[0]"; } else { errchk "","BLOCKED"; }
-	    }
-	    elsif( -e "/proc/net/ip_tables_names" )
+	    if( -e "/proc/net/ip_tables_names" )
 	    {
 		# iptables --check will never happen, hack it outselves
 		# use tcpdump? nmap? custom rule? at least check outgoing 500? ping outside activeOE box?
@@ -296,7 +278,6 @@ sub installstartcheck {
              }
         }
 
-
         if ( -e "/proc/net/pfkey") {
         printfun "NETKEY detected, testing for disabled ICMP send_redirects";
         open("cat", "/proc/sys/net/ipv4/conf/default/send_redirects");
@@ -317,8 +298,8 @@ sub installstartcheck {
 	else { errchk "1"; } 
 	}
 
-	printfun "Checking for RSA private key ($seckey)";
-	run "ipsec showhostkey --file $seckey --txt 1.1.1.1";
+	printfun "Checking for RSA private key ($conf/ipsec.secrets)";
+	run "ipsec showhostkey --txt 1.1.1.1";
 	errchk "@out" , "DISABLED";
 	
 	# Wouldn't this test fail if your mucked up your interface definition?
@@ -379,7 +360,7 @@ sub cmdchecks {
     printfun "Checking for 'iptables' command";
     run "which iptables";
     errchk "@out";
-    open("cat","$conf/ipsec.conf");
+    open("cat","/etc/ipsec.conf");
     foreach(grep /crlcheckinterval/,<cat>)
      {
       if(!$curlcheckdone) {
@@ -473,9 +454,9 @@ else
 	tunnelchecks;
 	cmdchecks;
 	# Go find include files and put them all into an array.
-	@configfiles[0] = "$conf/ipsec.conf";
+	@configfiles[0] = "/etc/ipsec.conf";
 	$n=1;
-	open(OE,"grep ^include $conf/ipsec.conf|");
+	open(OE,"grep ^include /etc/ipsec.conf|");
 	while(<OE>) {
 		($include_temp,$configfiles[$n]) = split(" ",$_);
 		$n++;

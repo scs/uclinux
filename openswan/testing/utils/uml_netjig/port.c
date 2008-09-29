@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: port.c,v 1.16 2003-04-07 02:43:22 mcr Exp $
+ * RCSID $Id: port.c,v 1.16 2003/04/07 02:43:22 mcr Exp $
  *
  * @(#) based upon uml_router from User-Mode-Linux tools package by Jeff Dike.
  *
@@ -196,8 +196,13 @@ void handle_data(struct netjig_state *ns,
 #ifdef NETDISSECT
   /* now dump it to tcpdump dissector if one was configured */
   if(tcpdump_print) {
-    fprintf(stderr, "%8s:", nh->nh_name);
-    ether_if_print((u_char *)&gndo, &ph, (u_char *)packet);
+	  fprintf(stderr, "%8s:", nh->nh_name);
+	  ether_if_print((u_char *)&gndo, &ph, (u_char *)packet);
+  }
+#else
+  if(tcpdump_print) {
+	  fprintf(stderr, "%8s:", nh->nh_name);
+	  hexdump_block((u_char *)packet, len);
   }
 #endif
 
@@ -546,6 +551,7 @@ void accept_connection(struct netjig_state *ns,
   struct sockaddr addr;
   struct port *new_port;
   int len, new;
+  unsigned long fcntl_arg;
 
   len = sizeof(addr);
   new = accept(nh->ctl_listen_fd, &addr, &len);
@@ -553,6 +559,13 @@ void accept_connection(struct netjig_state *ns,
     perror("accept");
     return;
   }
+
+  /*
+   * set CLOEXEC it to suppress selenux avc denials on exec
+   */
+  fcntl_arg = fcntl(new, F_GETFD);
+  fcntl_arg |= FD_CLOEXEC;
+  fcntl(new, F_SETFD, fcntl_arg);
 
 #if 0
   if(fcntl(new, F_SETFL, O_NONBLOCK) < 0){

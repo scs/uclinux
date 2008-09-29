@@ -1,6 +1,6 @@
 
 #
-# RCSID $Id: defconfig,v 1.1 2004-08-22 04:57:16 mcr Exp $
+# RCSID $Id: defconfig,v 1.1 2004/08/22 04:57:16 mcr Exp $
 #
 
 #
@@ -56,7 +56,7 @@ CONFIG_IPSEC_NAT_TRAVERSAL=y
 #
 #
 # $Log: defconfig,v $
-# Revision 1.1  2004-08-22 04:57:16  mcr
+# Revision 1.1  2004/08/22 04:57:16  mcr
 # 	test case of module builds.
 #
 # Revision 1.1  2003/01/22 21:35:44  rgb

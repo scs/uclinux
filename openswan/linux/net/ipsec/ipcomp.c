@@ -1,5 +1,7 @@
 /*
  * IPCOMP zlib interface code.
+ * implementation of RFC 3173.
+ *
  * Copyright (C) 2000  Svenning Soerensen <svenning@post5.tele.dk>
  * Copyright (C) 2000, 2001  Richard Guy Briggs <rgb@conscoop.ottawa.on.ca>
  * 
@@ -13,8 +15,6 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  */
-
-char ipcomp_c_version[] = "RCSID $Id: ipcomp.c,v 1.41.2.8 2007-10-30 21:33:40 paul Exp $";
 
 /* SSS */
 
@@ -51,6 +51,7 @@ char ipcomp_c_version[] = "RCSID $Id: ipcomp.c,v 1.41.2.8 2007-10-30 21:33:40 pa
 
 #include <net/ip.h>
 
+#include "openswan/ipsec_kern24.h"
 #include "openswan/radij.h"
 #include "openswan/ipsec_encap.h"
 #include "openswan/ipsec_sa.h"
@@ -63,11 +64,7 @@ char ipcomp_c_version[] = "RCSID $Id: ipcomp.c,v 1.41.2.8 2007-10-30 21:33:40 pa
 #include "zlib/zlib.h"
 #include "zlib/zutil.h"
 
-#include <pfkeyv2.h> /* SADB_X_CALG_DEFLATE */
-
-#ifdef CONFIG_KLIPS_DEBUG
-int sysctl_ipsec_debug_ipcomp = 0;
-#endif /* CONFIG_KLIPS_DEBUG */
+#include <openswan/pfkeyv2.h> /* SADB_X_CALG_DEFLATE */
 
 static
 struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_mask);
@@ -679,7 +676,7 @@ struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_ma
 #endif /* NETDEV_23 */
 	n->ip_summed=0;
 #ifdef HAVE_TSTAMP
-        n->tstamp = skb->tstamp;
+	n->tstamp = skb->tstamp;
 #else
         n->stamp=skb->stamp;
 #endif

@@ -2,5 +2,5 @@
 # communication should always be private (i.e. encrypted).
 # See @FINALDOCDIR@/policygroups.html for details.
 #
-# $Id: private.in,v 1.4 2003-02-17 02:22:15 mcr Exp $
+# $Id: private.in,v 1.4 2003/02/17 02:22:15 mcr Exp $
 #

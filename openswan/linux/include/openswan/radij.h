@@ -1,5 +1,5 @@
 /*
- * RCSID $Id: radij.h,v 1.13 2004-04-05 19:55:08 mcr Exp $
+ * RCSID $Id: radij.h,v 1.13 2004/04/05 19:55:08 mcr Exp $
  */
 
 /*
@@ -203,7 +203,7 @@ extern int maj_keylen;
 
 /*
  * $Log: radij.h,v $
- * Revision 1.13  2004-04-05 19:55:08  mcr
+ * Revision 1.13  2004/04/05 19:55:08  mcr
  * Moved from linux/include/freeswan/radij.h,v
  *
  * Revision 1.12  2002/04/24 07:36:48  mcr

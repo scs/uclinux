@@ -11,10 +11,11 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: rnd.h,v 1.7 2002-04-24 07:35:58 mcr Exp $
+ * RCSID $Id: rnd.h,v 1.7 2002/04/24 07:35:58 mcr Exp $
  */
 
 extern u_char    secret_of_the_day[SHA1_DIGEST_SIZE];
+extern u_char    ikev2_secret_of_the_day[SHA1_DIGEST_SIZE];
 
 extern void get_rnd_bytes(u_char *buffer, int length);
 extern void init_rnd_pool(void);

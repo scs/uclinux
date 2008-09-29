@@ -55,4 +55,4 @@ make sure that the return address on your mail (From or Reply-To header)
 is a valid one.  We lack time and energy to try to unravel addresses that
 have been mangled in a futile attempt to confuse spammers. 
 
-This file is RCSID $Id: prob.report,v 1.10 2000-06-18 20:59:44 henry Exp $
+This file is RCSID $Id: prob.report,v 1.10 2000/06/18 20:59:44 henry Exp $

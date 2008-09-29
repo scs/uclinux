@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: log.h,v 1.54 2004-10-21 19:13:37 mcr Exp $
+ * RCSID $Id: log.h,v 1.54 2004/10/21 19:13:37 mcr Exp $
  */
 
 #include <openswan.h>
@@ -30,6 +30,8 @@ extern bool
     log_to_stderr,	/* should log go to stderr? */
     log_to_syslog,	/* should log go to syslog? */
     log_to_perpeer;     /* should log go to per-IP file? */
+
+extern bool log_did_something;  /* set if we should log time again to debug*/
 
 extern const char *base_perpeer_logdir;
 
@@ -72,17 +74,9 @@ extern void passert_fail(const char *pred_str
 			 , const char *file_str
 			 , unsigned long line_no) NEVER_RETURNS;
 
-/*
- * for pushing state to other subsystems
- */
-#ifdef EXTERNAL_STATE_LOGGING
-#define log_state(st) _log_state(st, st->st_state)
-#define log_state_chg(st,ns) if (ns != st->st_state) {_log_state(st, ns); } else
-extern void _log_state(struct state *st, enum state_kind state);
-#else
-#define log_state(st)
-#define log_state_chg(st, ns)
-#define _log_state(st, kind)
+#ifdef HAVE_STATSD
+/* for pushing state to other subsystems */
+extern void log_state(struct state *st, enum state_kind state);
 #endif
 
 #ifdef DEBUG
@@ -142,7 +136,7 @@ extern void _log_state(struct state *st, enum state_kind state);
 
 extern void pluto_init_log(void);
 extern void close_log(void);
-extern void plog(const char *message, ...) PRINTF_LIKE(1);
+extern int plog(const char *message, ...) PRINTF_LIKE(1);
 extern void exit_log(const char *message, ...) PRINTF_LIKE(1) NEVER_RETURNS;
 
 /* close of all per-peer logging */
@@ -150,17 +144,6 @@ extern void close_peerlog(void);
 
 /* free all per-peer log resources */
 extern void perpeer_logfree(struct connection *c);
-
-
-
-/* the following routines do a dance to capture errno before it is changed
- * A call must doubly parenthesize the argument list (no varargs macros).
- * The first argument must be "e", the local variable that captures errno.
- */
-#define log_errno(a) { int e = errno; log_errno_routine a; }
-extern void log_errno_routine(int e, const char *message, ...) PRINTF_LIKE(2);
-#define exit_log_errno(a) { int e = errno; exit_log_errno_routine a; }
-extern void exit_log_errno_routine(int e, const char *message, ...) PRINTF_LIKE(2) NEVER_RETURNS NEVER_RETURNS;
 
 extern void whack_log(int mess_no, const char *message, ...) PRINTF_LIKE(2);
 
@@ -172,13 +155,7 @@ extern void loglog(int mess_no, const char *message, ...) PRINTF_LIKE(2);
 /* show status, usually on whack log */
 extern void show_status(void);
 
-/* ip_str: a simple to use variant of addrtot.
- * It stores its result in a static buffer.
- * This means that newer calls overwrite the storage of older calls.
- * Note: this is not used in any of the logging functions, so their
- * callers may use it.
- */
-extern const char *ip_str(const ip_address *src);
+#define ip_str pluto_ip_str
 
 /*
  * call this routine to reset daily items.

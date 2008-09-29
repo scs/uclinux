@@ -15,10 +15,10 @@
  * This code was developed with the support of IXIA communications.
  *
  * Modifications to use OCF interface written by
- * Daniel Djamaludin <ddjamaludin@cyberguard.com>
+ * Daniel Djamaludin <danield@cyberguard.com>
  * Copyright (C) 2004-2005 Intel Corporation.  All Rights Reserved.
  *
- * RCSID $Id: crypt_ke.c,v 1.11.2.3 2006-03-20 13:32:03 paul Exp $
+ * RCSID $Id: crypt_ke.c,v 1.11.2.2 2005/08/19 17:52:42 ken Exp $
  */
 
 #include <stdlib.h>
@@ -29,7 +29,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <sys/queue.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -38,6 +37,7 @@
 #include <openswan.h>
 #include <openswan/ipsec_policy.h>
 
+#include "sysdep.h"
 #include "constants.h"
 #include "defs.h"
 #include "packet.h"
@@ -50,13 +50,13 @@
 #include "log.h"
 #include "timer.h"
 
-#ifdef HAVE_OCF_AND_OPENSSL
+#ifdef HAVE_OCF
 #include "id.h"
 #include "pgp.h"
 #include "x509.h"
 #include "certs.h"
 #include "keys.h"
-#include "ocf_cryptodev.h"
+#include "ocf_pk.h"
 #endif
 
 void calc_ke(struct pluto_crypto_req *r)
@@ -66,9 +66,6 @@ void calc_ke(struct pluto_crypto_req *r)
     const struct oakley_group_desc *group;
     chunk_t gi;
     struct pcr_kenonce *kn = &r->pcr_d.kn;
-#ifdef HAVE_OCF_AND_OPENSSL
-    BIGNUM r0;
-#endif
     
     group = lookup_group(kn->oakley_group);
     
@@ -81,13 +78,7 @@ void calc_ke(struct pluto_crypto_req *r)
     n_to_mpz(&secret, wire_chunk_ptr(kn, &(kn->secret)), LOCALSECRETSIZE);
     
     mpz_init(&mp_g);
-#ifdef HAVE_OCF_AND_OPENSSL
-    BN_init(&r0);
-    cryptodev.mod_exp(&r0, &groupgenerator, &secret, group->modulus);
-    bn2mp(&r0, (MP_INT *) &mp_g);
-#else
-    mpz_powm(&mp_g, &groupgenerator, &secret, group->modulus);
-#endif
+    cryptodev.mod_exp(&mp_g, &groupgenerator, &secret, group->modulus);
     
     gi = mpz_to_n(&mp_g, group->bytes);
     
@@ -106,11 +97,7 @@ void calc_ke(struct pluto_crypto_req *r)
 	DBG_dump_chunk("Public DH value sent:\n", gi));
 
     /* clean up after ourselves */
-#ifdef HAVE_OCF_AND_OPENSSL
-    BN_free(&r0);
-#else
     mpz_clear(&mp_g);
-#endif
     freeanychunk(gi);
 }
 
@@ -132,41 +119,41 @@ stf_status build_ke(struct pluto_crypto_req_cont *cn
 		    , const struct oakley_group_desc *group
 		    , enum crypto_importance importance)
 {
-  struct pluto_crypto_req *r;
-  err_t e;
-  bool toomuch = FALSE;
+    struct pluto_crypto_req rd;
+    struct pluto_crypto_req *r = &rd;
+    err_t e;
+    bool toomuch = FALSE;
 
-  r = alloc_thing(struct pluto_crypto_req, "build ke request");
-  
-  r->pcr_len  = sizeof(struct pluto_crypto_req);
-  r->pcr_type = pcr_build_kenonce;
-  r->pcr_pcim = importance;
+    memset(&rd, 0, sizeof(rd));
 
-  r->pcr_d.kn.thespace.start = 0;
-  r->pcr_d.kn.thespace.len   = sizeof(r->pcr_d.kn.space);
-  r->pcr_d.kn.oakley_group   = group->group;
+    r->pcr_len  = sizeof(struct pluto_crypto_req);
+    r->pcr_type = pcr_build_kenonce;
+    r->pcr_pcim = importance;
 
-  cn->pcrc_serialno = st->st_serialno;
-  e= send_crypto_helper_request(r, cn, &toomuch);
-
-  if(e != NULL) {
-      loglog(RC_LOG_SERIOUS, "can not start crypto helper: %s", e);
-      if(toomuch) {
-	  return STF_TOOMUCHCRYPTO;
-      } else {
-	  return STF_FAIL;
-      }
-  } else if(!toomuch) {
-      st->st_calculating = TRUE;
-      delete_event(st);
-      event_schedule(EVENT_CRYPTO_FAILED, EVENT_CRYPTO_FAILED_DELAY, st);
-      return STF_SUSPEND;
-  } else {
-      /* we must have run the continuation directly, so
-       * complete_state_transition already got called. 
-       */
-      return STF_INLINE;
-  }
+    pcr_init(r);
+    r->pcr_d.kn.oakley_group   = group->group;
+    
+    cn->pcrc_serialno = st->st_serialno;
+    e= send_crypto_helper_request(r, cn, &toomuch);
+    
+    if(e != NULL) {
+	loglog(RC_LOG_SERIOUS, "can not start crypto helper: %s", e);
+	if(toomuch) {
+	    return STF_TOOMUCHCRYPTO;
+	} else {
+	    return STF_FAIL;
+	}
+    } else if(!toomuch) {
+	st->st_calculating = TRUE;
+	delete_event(st);
+	event_schedule(EVENT_CRYPTO_FAILED, EVENT_CRYPTO_FAILED_DELAY, st);
+	return STF_SUSPEND;
+    } else {
+	/* we must have run the continuation directly, so
+	 * complete_v1_state_transition already got called. 
+	 */
+	return STF_INLINE;
+    }
 }
 
 
@@ -174,11 +161,12 @@ stf_status build_nonce(struct pluto_crypto_req_cont *cn
 		       , struct state *st 
 		       , enum crypto_importance importance)
 {
-  struct pluto_crypto_req *r;
-  err_t e;
-  bool toomuch = FALSE;
+    struct pluto_crypto_req rd;
+    struct pluto_crypto_req *r = &rd;
+    err_t e;
+    bool toomuch = FALSE;
 
-  r = alloc_thing(struct pluto_crypto_req, "build ke request");
+    memset(&rd, 0, sizeof(rd));
   
   r->pcr_len  = sizeof(struct pluto_crypto_req);
   r->pcr_type = pcr_build_nonce;
@@ -204,7 +192,7 @@ stf_status build_nonce(struct pluto_crypto_req_cont *cn
       return STF_SUSPEND;
   } else {
       /* we must have run the continuation directly, so
-       * complete_state_transition already got called. 
+       * complete_v1_state_transition already got called. 
        */
       return STF_INLINE;
   }
@@ -213,7 +201,7 @@ stf_status build_nonce(struct pluto_crypto_req_cont *cn
 
 /*
  * Local Variables:
- * c-basic-offset:4
+ * c-basic-offset: 4
  * c-style: pluto
  * End:
  */

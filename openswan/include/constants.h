@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: constants.h,v 1.3 2004-05-29 03:06:12 mcr Exp $
+ * RCSID $Id: constants.h,v 1.5 2005/09/05 20:58:23 mcr Exp $
  */
 
 #ifndef _CONSTANTS_H_
@@ -59,7 +59,9 @@ typedef int bool;
 #define streq(a, b) (strcmp((a), (b)) == 0)	/* clearer shorthand */
 #define strcaseeq(a, b) (strcasecmp((a), (b)) == 0)	/* clearer shorthand */
 
-/* set type with room for at least 64 elements for ALG opts (was 32 in stock FS) */
+/* set type with room for at least 64 elements for ALG opts
+ * (was 32 in stock FS)
+ */
 
 typedef unsigned long long lset_t;
 #define LEMPTY 0ULL
@@ -69,6 +71,8 @@ typedef unsigned long long lset_t;
 #define LHAS(set, elem)  ((LELEM(elem) & (set)) != LEMPTY)
 #define LIN(subset, set)  (((subset) & (set)) == (subset))
 #define LDISJOINT(a, b)  (((a) & (b)) == LEMPTY)
+
+#include "biglset.h"
 
 /* Routines to check and display values.
  *
@@ -102,7 +106,7 @@ extern const char *bitnamesofb(const char *const table[]
 #define LOOSE_ENUM_OTHER 255
 
 struct keyword_enum_value {
-    const unsigned char *name;
+    const char *name;
     unsigned int value;
 };
 
@@ -136,6 +140,7 @@ extern void init_constants(void);
 
 #include "ietf_constants.h"
 #include "pluto_constants.h"
+#include "names_constant.h"
 
 #define _CONSTANTS_H_
 #endif /* _CONSTANTS_H_ */

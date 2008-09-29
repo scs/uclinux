@@ -1,25 +1,14 @@
-CFLAGS=-O3 -fomit-frame-pointer -Wall $(EXTRA_CFLAGS)
-INC=-I../include 
-LIBOBJ=serpent.o serpent_cbc.o
-BLIB=libserpent.a
+OPENSWANSRCDIR?=$(shell cd ../../..; pwd)
+srcdir?=./
 
-.c.o:
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(INC) -c $< -o $@
+include ${OPENSWANSRCDIR}/Makefile.inc
+include ${OPENSWANSRCDIR}/Makefile.ver
 
-$(BLIB): $(LIBOBJ)
-	/bin/rm -f $(BLIB)
-	ar cr $(BLIB) $(LIBOBJ)
-	-if test -s /bin/ranlib; then /bin/ranlib $(BLIB); \
-	else if test -s /usr/bin/ranlib; then /usr/bin/ranlib $(BLIB); \
-	else exit 0; fi; fi
+OBJS=serpent.o serpent_cbc.o
+LIBRARY=crypto/libserpent
+LIB=libserpent.a
+ONEFILE=serpent.h
+INCLUDES+=-I${srcdir}../include
 
-programs: $(BLIB)
+include ${srcdir}../../Makefile.library
 
-install:
-	@exit 0
-
-test: test_main.o $(BLIB)
-	$(CC) -o $@ $^ 
-
-clean:
-	rm -f *.[oa] core $(TARGET) test

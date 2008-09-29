@@ -13,7 +13,6 @@
  * for more details.
  */
 
-char ipsec_ipip_c_version[] = "RCSID $Id: ipsec_ipip.c,v 1.3.2.4 2007-09-05 02:56:09 paul Exp $";
 #ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
 #endif
@@ -103,14 +102,16 @@ ipsec_xmit_ipip_setup(struct ipsec_xmit_state *ixs)
 }
 
 struct xform_functions ipip_xform_funcs[]={
-  {	rcv_checks:         NULL,
-	rcv_setup_auth:     NULL,
-	rcv_calc_auth:      NULL,
-	rcv_decrypt:        NULL,
-
-	xmit_setup:         ipsec_xmit_ipip_setup,
-	xmit_headroom:      sizeof(struct iphdr),
-	xmit_needtailroom:  0,
+  {
+	  protocol:           IPPROTO_IPIP,
+	  rcv_checks:         NULL,
+	  rcv_setup_auth:     NULL,
+	  rcv_calc_auth:      NULL,
+	  rcv_decrypt:        NULL,
+	  
+	  xmit_setup:         ipsec_xmit_ipip_setup,
+	  xmit_headroom:      sizeof(struct iphdr),
+	  xmit_needtailroom:  0,
   },
 };
 

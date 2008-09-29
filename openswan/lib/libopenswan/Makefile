@@ -12,7 +12,6 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.18.6.2 2007-10-22 14:33:11 paul Exp $
 
 
 OPENSWANSRCDIR?=$(shell cd ../..; pwd)
@@ -23,43 +22,59 @@ include ${OPENSWANSRCDIR}/Makefile.ver
 
 MANDIR=$(MANTREE)/man3
 
+X509LIB=x509dn.c certload.c pem.c pkcs.c asn1.c oid.c pgp.c x509chain.c
+
 SRCS=addrtoa.c addrtot.c addrtypeof.c alg_info.c anyaddr.c atoaddr.c \
 	atoasr.c atosubnet.c atoul.c constants.c copyright.c datatot.c \
-	alloc.c diag.c \
-	goodmask.c initaddr.c initsaid.c initsubnet.c keyblobtoid.c \
-	kernel_alg.c \
-	optionsfrom.c \
-	pfkey_v2_build.c pfkey_v2_ext_bits.c pfkey_v2_parse.c \
-	pfkey_v2_debug.c prng.c \
-	packet.c \
+	alloc.c biglset.c diag.c \
+	goodmask.c id.c initaddr.c initsaid.c initsubnet.c \
+	iprange.c \
+        keyblobtoid.c \
+	kernel_alg.c lex.c mpzfuncs.c \
+	optionsfrom.c oswconf.c oswtime.c \
+	prng.c \
 	portof.c rangetoa.c rangetosubnet.c sameaddr.c \
-	satot.c subnetof.c subnettoa.c subnettot.c \
+	satot.c secrets.c subnetof.c subnettoa.c subnettot.c \
 	subnettypeof.c ttoaddr.c ttodata.c ttoprotoport.c \
 	ttosa.c ttosubnet.c ttoul.c ultoa.c ultot.c \
-	udpfromto.c
+	$(X509LIB)
 
-SRCS+=sanitizestring.c pfkey_print.c
+SRCS+=sanitizestring.c pfkey_print.c pfkey_sock.c pfkey_error.c
 
-LOGSRCS=oswlog.c 
+ifeq ($(USE_KLIPS),true)
+KLIPS_DEFS=-DKLIPS 
+# for now, USE_KLIPS=>linux, which implies we have udpfromto() support.
+UDPFROMTO_DEFS=-DWITH_UDPFROMTO -DHAVE_IP_PKTINFO
+UDPFROMTO_SRCS=udpfromto.c
+endif
+
+ifeq ($(USE_PFKEYv2),true)
+PFKEYV2_DEFS=-DPFKEYV2
+PFKEYV2_SRCS+=pfkey_v2_build.c pfkey_v2_ext_bits.c pfkey_v2_parse.c
+PFKEYV2_SRCS+=pfkey_v2_debug.c 
+endif
 
 
-OBJS=${SRCS:.c=.o} version.o
+LOGSRCS=oswlog.c oswid.c
+
+
+OBJS=${SRCS:.c=.o} ${PFKEYV2_SRCS:.c=.o} ${UDPFROMTO_SRCS:.c=.o} version.o
 LOGOBJS=${LOGSRCS:.c=.o}
 
-KLIPSD=${OPENSWANSRCDIR}/linux/include
-KLIPSSRCDIR=${OPENSWANSRCDIR}/linux/net/ipsec
+KLIPSSRCDIR?=${OPENSWANSRCDIR}/linux/net/ipsec
 MANSRCDIR=${OPENSWANSRCDIR}/lib/libopenswan
 
 VPATH+= ${KLIPSSRCDIR}
 
-HDRS=${KLIPSD}/openswan.h internal.h
+HDRS=${KLIPSINC}/openswan.h internal.h
 
 LIBA=libopenswan.a
 LIBL=liboswlog.a
 # Original flags
-CFLAGS+=-I. -I${KLIPSSRCDIR} -I${KLIPSD} -I${OPENSWANSRCDIR} -DDEBUG
-CFLAGS+=-DWITH_UDPFROMTO -DHAVE_IP_PKTINFO
-CFLAGS+= -I${OPENSWANSRCDIR}/include $(USERCOMPILE)
+CFLAGS+=${PORTINCLUDE} -I. -I${KLIPSSRCDIR} -I${KLIPSINC}
+CFLAGS+=-I${OPENSWANSRCDIR} -DDEBUG
+CFLAGS+=${PFKEYV2_DEFS} ${KLIPS_DEFS} ${UDPFROMTO_DEFS}
+CFLAGS+= -I${OPENSWANSRCDIR}/include ${PORTINCLUDE} $(USERCOMPILE) ${CROSSFLAGS}
 CFLAGS+= -Wall
 #CFLAGS+= -Wconversion
 #CFLAGS+= -Wmissing-prototypes
@@ -76,6 +91,17 @@ ifeq ($(USE_NAT_TRAVERSAL),true)
 CFLAGS+= -DNAT_TRAVERSAL
 endif
 
+ifeq ($(USE_SINGLE_CONF_DIR),true)
+CFLAGS+= -DSINGLE_CONF_DIR=1
+endif
+
+CFLAGS+=-DFINALCONFDIR=\"${FINALCONFDIR}\"
+CFLAGS+=-DFINALCONFDDIR=\"${FINALCONFDDIR}\"
+CFLAGS+=-DFINALCONFFILE=\"${FINALCONFFILE}\"
+CFLAGS+=-DFINALVARDIR=\"${FINALVARDIR}\"
+CFLAGS+=-DFINALLIBEXECDIR=\"${FINALLIBEXECDIR}\"
+CFLAGS+=-DFINALLIBDIR=\"${FINALLIBDIR}\"
+CFLAGS+=-DFINALSBINDIR=\"${FINALSBINDIR}\"
 
 ARFLAGS=crvs
 EXTHDRS=des.h
@@ -86,10 +112,21 @@ MANS=anyaddr.3 atoaddr.3 atoasr.3 atoul.3 goodmask.3 \
 
 .PHONY:	all install clean l t lt tar check depend checkprograms
 
+# we can't do tests with two conditions, but we can concatenate the strings
+SHOULDWERESTART=${USE_OBJDIR}$(wildcard ttodata.3.xml)
+ifeq ($(SHOULDWERESTART),truettodata.3.xml)
+all programs clean install:
+	cd ${OPENSWANSRCDIR} && cd ${OBJDIRTOP}/lib/libopenswan && make $@
+else
 all:	$(LIBA) ${LIBL}
 programs: $(LIBA) ${LIBL}
+clean:	cleanall
+install: doinstall
 
-install:
+endif
+
+
+doinstall:
 	@mkdir -p $(MANDIR)
 	@for f in $(MANS) ; \
 	do \
@@ -141,8 +178,8 @@ version.c:	version.in.c ${OPENSWANSRCDIR}/Makefile.ver
 test-%: %.c
 	${CC} ${CFLAGS} -D`echo $* | tr 'a-z' 'A-Z'`_MAIN $*.c -o test-$*
 
-clean:
-	rm -f $(LIB) *.o try* core *.core $(EXTHDRS) $(EXTLIBS) version.c
+cleanall:
+	rm -f $(LIBA) $(LIBL) *.o try* core *.core $(EXTHDRS) $(EXTLIBS) version.c
 
 
 # developer-only stuff
@@ -189,91 +226,10 @@ tar:	clean
 check:
 	echo no checks in lib right now.
 
-depend:
-	makedepend -Y -- $(CFLAGS) -- $(SRCS)
-
 checkprograms:
 
-# DO NOT DELETE
+# Gather dependencies caused by explicit #includes within .c files
+depend:
+	(ls $(wildcard $(SRCS)) $(wildcard $(addprefix ${KLIPSSRCDIR}/,$(SRCS))) $(wildcard $(LOGSRCS)) | grep '\.c' | xargs $(GCC) -MM ${CFLAGS} ${PORTINCLUDE} ${ALLFLAGS} ) | sed -e 's,${OPENSWANSRCDIR},../..,g' >Makefile.depend
 
-alg_info.o: ../../linux/include/openswan.h
-alg_info.o: ../../linux/include/openswan/ipsec_param.h
-alg_info.o: ../../linux/include/openswan/ipsec_policy.h
-alg_info.o: ../../linux/include/openswan/passert.h
-alg_info.o: ../../linux/include/pfkeyv2.h ../../include/constants.h
-alg_info.o: ../../include/ietf_constants.h ../../include/pluto_constants.h
-alg_info.o: ../../include/alg_info.h ../../include/oswlog.h
-alg_info.o: ../../include/oswalloc.h
-atoaddr.o: internal.h ../../linux/include/openswan.h
-atoaddr.o: ../../linux/include/openswan/ipsec_param.h
-atoasr.o: internal.h ../../linux/include/openswan.h
-atoasr.o: ../../linux/include/openswan/ipsec_param.h
-atosubnet.o: internal.h ../../linux/include/openswan.h
-atosubnet.o: ../../linux/include/openswan/ipsec_param.h
-atoul.o: internal.h ../../linux/include/openswan.h
-atoul.o: ../../linux/include/openswan/ipsec_param.h
-constants.o: ../../linux/include/openswan.h
-constants.o: ../../linux/include/openswan/ipsec_param.h
-constants.o: ../../linux/include/openswan/ipsec_policy.h
-constants.o: ../../linux/include/openswan/passert.h ../../include/constants.h
-constants.o: ../../include/ietf_constants.h ../../include/pluto_constants.h
-constants.o: ../../include/enum_names.h
-copyright.o: internal.h ../../linux/include/openswan.h
-copyright.o: ../../linux/include/openswan/ipsec_param.h
-alloc.o: ../../linux/include/openswan.h
-alloc.o: ../../linux/include/openswan/ipsec_param.h ../../include/constants.h
-alloc.o: ../../include/ietf_constants.h ../../include/pluto_constants.h
-alloc.o: ../../include/oswalloc.h
-diag.o: ../../linux/include/openswan.h
-diag.o: ../../linux/include/openswan/ipsec_param.h ../../include/constants.h
-diag.o: ../../include/ietf_constants.h ../../include/pluto_constants.h
-diag.o: ../../include/oswlog.h ../../linux/include/openswan/passert.h
-initsaid.o: internal.h ../../linux/include/openswan.h
-initsaid.o: ../../linux/include/openswan/ipsec_param.h
-initsubnet.o: internal.h ../../linux/include/openswan.h
-initsubnet.o: ../../linux/include/openswan/ipsec_param.h
-keyblobtoid.o: internal.h ../../linux/include/openswan.h
-keyblobtoid.o: ../../linux/include/openswan/ipsec_param.h
-kernel_alg.o: ../../linux/include/pfkeyv2.h ../../linux/include/pfkey.h
-kernel_alg.o: ../../linux/include/openswan.h
-kernel_alg.o: ../../linux/include/openswan/ipsec_param.h
-kernel_alg.o: ../../linux/include/openswan/ipsec_policy.h
-kernel_alg.o: ../../include/constants.h ../../include/ietf_constants.h
-kernel_alg.o: ../../include/pluto_constants.h ../../include/alg_info.h
-kernel_alg.o: ../../include/kernel_alg.h ../../include/oswlog.h
-kernel_alg.o: ../../linux/include/openswan/passert.h ../../include/oswalloc.h
-optionsfrom.o: internal.h ../../linux/include/openswan.h
-optionsfrom.o: ../../linux/include/openswan/ipsec_param.h
-packet.o: ../../linux/include/openswan.h
-packet.o: ../../linux/include/openswan/ipsec_param.h
-packet.o: ../../include/constants.h ../../include/ietf_constants.h
-packet.o: ../../include/pluto_constants.h ../../include/oswlog.h
-packet.o: ../../linux/include/openswan/passert.h ../../include/packet.h
-portof.o: internal.h ../../linux/include/openswan.h
-portof.o: ../../linux/include/openswan/ipsec_param.h
-rangetosubnet.o: internal.h ../../linux/include/openswan.h
-rangetosubnet.o: ../../linux/include/openswan/ipsec_param.h
-sameaddr.o: internal.h ../../linux/include/openswan.h
-sameaddr.o: ../../linux/include/openswan/ipsec_param.h
-subnettot.o: internal.h ../../linux/include/openswan.h
-subnettot.o: ../../linux/include/openswan/ipsec_param.h
-subnettypeof.o: internal.h ../../linux/include/openswan.h
-subnettypeof.o: ../../linux/include/openswan/ipsec_param.h
-ttoaddr.o: internal.h ../../linux/include/openswan.h
-ttoaddr.o: ../../linux/include/openswan/ipsec_param.h
-ttodata.o: internal.h ../../linux/include/openswan.h
-ttodata.o: ../../linux/include/openswan/ipsec_param.h
-ttoprotoport.o: internal.h ../../linux/include/openswan.h
-ttoprotoport.o: ../../linux/include/openswan/ipsec_param.h
-ttosa.o: internal.h ../../linux/include/openswan.h
-ttosa.o: ../../linux/include/openswan/ipsec_param.h
-ttosubnet.o: internal.h ../../linux/include/openswan.h
-ttosubnet.o: ../../linux/include/openswan/ipsec_param.h
-ttoul.o: internal.h ../../linux/include/openswan.h
-ttoul.o: ../../linux/include/openswan/ipsec_param.h
-sanitizestring.o: ../../linux/include/openswan.h
-sanitizestring.o: ../../linux/include/openswan/ipsec_param.h
-sanitizestring.o: ../../linux/include/openswan/passert.h
-pfkey_print.o: ../../linux/include/openswan.h
-pfkey_print.o: ../../linux/include/openswan/ipsec_param.h
-pfkey_print.o: ../../linux/include/pfkeyv2.h ../../linux/include/pfkey.h
+-include ${srcdir}Makefile.depend

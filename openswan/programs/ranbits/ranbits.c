@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ranbits.c,v 1.12 2004-04-04 01:50:56 ken Exp $
+ * RCSID $Id: ranbits.c,v 1.12 2004/04/04 01:50:56 ken Exp $
  */
 
 #include <sys/types.h>
@@ -29,6 +29,12 @@
 #include <openswan.h>
 
 #ifndef DEVICE
+/*
+ * To the openwrt people: Do not chance /dev/random to /dev/urandom. The
+ * /dev/random device is ONLY used for generating long term keys, which
+ * should NEVER be done with /dev/urandom.
+ */
+
 #define	DEVICE	"/dev/random"
 #endif
 #ifndef QDEVICE
@@ -53,7 +59,7 @@ int isbytes = 0;		/* byte count rather than bits? */
 
 char me[] = "ipsec ranbits";	/* for messages */
 
-char buf[MAXBITS/CHAR_BIT];
+unsigned char buf[MAXBITS/CHAR_BIT];
 char outbuf[3*sizeof(buf)];
 
 int main(int argc, char *argv[])

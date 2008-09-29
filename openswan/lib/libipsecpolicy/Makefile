@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.4.6.1 2007-10-22 14:33:11 paul Exp $
+# RCSID $Id: Makefile,v 1.5 2005/09/17 21:57:45 mcr Exp $
 
 
 OPENSWANSRCDIR?=$(shell cd ../..; pwd)
@@ -30,7 +30,7 @@ KLIPSD=${OPENSWANSRCDIR}/linux/include
 
 LIB=libipsecpolicy.a
 # Original flags
-CFLAGS+=-I. -I${KLIPSD} -I${OPENSWANSRCDIR} $(USERCOMPILE)
+CFLAGS+=-I. -I${KLIPSD} -I${OPENSWANSRCDIR} -I${OPENSWANSRCDIR}/include $(USERCOMPILE) ${PORTINCLUDE}
 CFLAGS+= -Wall
 CFLAGS+= -Wpointer-arith
 CFLAGS+= -Wcast-qual
@@ -41,10 +41,20 @@ MANS=
 
 .PHONY:	all install clean l t lt tar check depend checkprograms
 
+# we can't do tests with two conditions, but we can concatenate the strings
+SHOULDWERESTART=${USE_OBJDIR}$(wildcard policyquery.c)
+ifeq ($(SHOULDWERESTART),truepolicyquery.c)
+all programs clean install:
+	cd ${OPENSWANSRCDIR} && cd ${OBJDIRTOP}/lib/libipsecpolicy && make $@
+else
 all:	$(LIB) 
-programs: $(LIB)
+programs: $(LIB) 
+clean:	cleanall
+install: doinstall
 
-install:
+endif
+
+doinstall:
 	@mkdir -p $(MANDIR)
 	@for f in $(MANS) ; \
 	do \
@@ -75,9 +85,9 @@ $(OBJS):	$(HDRS)
 
 # build version.c using version number from Makefile.ver
 version.c:	version.in.c ${OPENSWANSRCDIR}/Makefile.ver
-	sed '/"/s/xxx/$(IPSECVERSION)/' version.in.c >$@
+	sed '/"/s/xxx/$(IPSECVERSION)/' ${KLIPSSRCDIR}/version.in.c >$@
 
-clean:
+cleanall:
 	rm -f $(LIB) *.o try* core *.core $(EXTHDRS) $(EXTLIBS) version.c
 
 

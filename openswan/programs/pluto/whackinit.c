@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: whackinit.c,v 1.1 2004-12-16 01:24:45 mcr Exp $
+ * RCSID $Id: whackinit.c,v 1.1 2004/12/16 01:24:45 mcr Exp $
  */
 
 #include <stdio.h>
@@ -32,7 +32,7 @@
 #include <assert.h>
 
 #include <openswan.h>
-
+#include "socketwrapper.h"
 #include "constants.h"
 #include "oswlog.h"
 
@@ -296,7 +296,7 @@ send_reply(int sock, char *buf, ssize_t len)
 
 static int setup_socket()
 {
-    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    int sock = safe_socket(AF_UNIX, SOCK_STREAM, 0);
 
 #if 0
     /* send message to Pluto */

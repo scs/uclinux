@@ -10,22 +10,22 @@
  * empty structure, for clone use.
  */
 static struct db_attr otempty[] = {
-	{ OAKLEY_ENCRYPTION_ALGORITHM, -1 },
-	{ OAKLEY_HASH_ALGORITHM,       -1 },
-	{ OAKLEY_AUTHENTICATION_METHOD, -1 },
-	{ OAKLEY_GROUP_DESCRIPTION,    -1 },
+	{ .type.oakley=OAKLEY_ENCRYPTION_ALGORITHM, -1 },
+	{ .type.oakley=OAKLEY_HASH_ALGORITHM,       -1 },
+	{ .type.oakley=OAKLEY_AUTHENTICATION_METHOD, -1 },
+	{ .type.oakley=OAKLEY_GROUP_DESCRIPTION,    -1 },
 	};
 
 static struct db_trans oakley_trans_empty[] = {
-	{ KEY_IKE, AD(otempty) },
+    { AD_TR(KEY_IKE, otempty) },
     };
 
 static struct db_prop oakley_pc_empty[] =
-    { { PROTO_ISAKMP, AD(oakley_trans_empty) } };
+{ { AD_PR(PROTO_ISAKMP, oakley_trans_empty) } };
 
-static struct db_prop_conj oakley_props_empty[] = { { AD(oakley_pc_empty) } };
+static struct db_prop_conj oakley_props_empty[] = { { AD_PC(oakley_pc_empty) } };
 
-struct db_sa oakley_empty = { AD(oakley_props_empty) };
+struct db_sa oakley_empty = { AD_SAp(oakley_props_empty) };
 
 char *progname;
 
@@ -40,6 +40,7 @@ main(int argc, char *argv[])
     struct db_sa *sa1 = NULL;
 
     progname = argv[0];
+    leak_detective=1;
 
     tool_init_log();
     
@@ -69,5 +70,6 @@ main(int argc, char *argv[])
  * Local Variables:
  * c-style: pluto
  * c-basic-offset: 4
+ * compile-command: "make spdbfirst"
  * End:
  */

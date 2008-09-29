@@ -1,9 +1,0 @@
-See the following sites:
-
-http://emsi.it.pl/auto/opensclienthowto
-http://opensclient.pbwiki.com/
-
-Sinec this patch breaks other things in openswan, and since we cannot
-test the code because we have no serverside implementation, this
-patch will not be applied to the openswan codebase.
-

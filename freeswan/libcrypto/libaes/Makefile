@@ -11,7 +11,7 @@ endif
 
 ifdef CONFIG_HW_ASSIST
 EXTRA_CFLAGS += -DHW_ASSIST=1
-AES_CORE_OBJ += hw_assist.o
+AES_CORE_OBJ += 
 endif
 
 LIBOBJ := aes_xcbc_mac.o aes_cbc.o $(AES_CORE_OBJ)

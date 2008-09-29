@@ -1,4 +1,4 @@
-/*	$Id: db_ops.h,v 1.1 2002/07/15 05:55:21 danield Exp $	*/
+/*	$Id: db_ops.h,v 1.1 2002-07-15 05:55:21 danield Exp $	*/
 #ifndef _DB_OPS_H
 #define _DB_OPS_H
 /*

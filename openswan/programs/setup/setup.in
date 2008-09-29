@@ -13,7 +13,6 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: setup.in,v 1.122.6.7 2007-07-10 03:12:57 paul Exp $
 #
 # ipsec         init.d script for starting and stopping
 #               the IPsec security subsystem (KLIPS and Pluto).
@@ -87,7 +86,13 @@ done
 # Pick up IPsec configuration (until we have done this, successfully, we
 # do not know where errors should go, hence the explicit "daemon.error"s.)
 # Note the "--export", which exports the variables created.
-eval `ipsec _confread $config --optional --varprefix IPSEC --export --type config setup`
+variables=`ipsec addconn $config --varprefix IPSEC --configsetup`
+if [ $? != 0 ]
+then
+    echo "Failed to parse config setup portion of ipsec.conf"
+    exit $?
+fi
+eval $variables
 
 if test " $IPSEC_confreadstatus" != " "
 then
@@ -112,12 +117,12 @@ export IPSECsyslog
 umask 022
 
 mkdir -p /var/run/pluto
-mkdir -p /var/lock/subsys
 
 
 # do it
 case "$1" in
   start|--start|stop|--stop|_autostop|_autostart)
+	# remove for: @cygwin_START@ 
 	# portable way for checking for root
 	if [ ! -w / ]
 	then
@@ -126,6 +131,7 @@ case "$1" in
 			logger -s -p $IPSECsyslog -t ipsec_setup 2>&1
 		exit 1
 	fi
+	# remove for: @cygwin_END@
 	tmp=/var/run/pluto/ipsec_setup.st
 	outtmp=/var/run/pluto/ipsec_setup.out
 	(

@@ -23,10 +23,10 @@
 #else
 #include <sys/types.h>
 #endif
-#include "crypto/aes_cbc.h"
-#include "crypto/cbc_generic.h"
+#include "klips-crypto/aes_cbc.h"
+#include "klips-crypto/cbc_generic.h"
 #ifdef OCF_ASSIST
-#include "crypto/ocf_assist.h"
+#include "klips-crypto/ocf_assist.h"
 #endif
 
 /* returns bool success */
@@ -57,7 +57,7 @@ CBC_IMPL_BLK16(AES_cbc_encrypt, aes_context, u_int8_t *, aes_encrypt, aes_decryp
 
 /*
  * $Log: aes_cbc.c,v $
- * Revision 1.2  2004-07-10 07:48:40  mcr
+ * Revision 1.2  2004/07/10 07:48:40  mcr
  * Moved from linux/crypto/ciphers/aes/aes_cbc.c,v
  *
  * Revision 1.1  2004/04/06 02:48:12  mcr

@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: html2txt.sed,v 1.1 2001-01-29 01:18:07 sandy Exp $
+# RCSID $Id: html2txt.sed,v 1.1 2001/01/29 01:18:07 sandy Exp $
 /<head>/,/<\/head>/d
 /<HEAD>/,/<\/HEAD>/d
 /<^body$>/d

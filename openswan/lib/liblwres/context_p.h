@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context_p.h,v 1.2 2003-04-11 17:15:40 mcr Exp $ */
+/* $Id: context_p.h,v 1.2 2003/04/11 17:15:40 mcr Exp $ */
 
 #ifndef LWRES_CONTEXT_P_H
 #define LWRES_CONTEXT_P_H 1

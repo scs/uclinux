@@ -17,7 +17,7 @@
 
 #ifndef _KERNEL_ALG_H
 #define _KERNEL_ALG_H
-#include "pfkeyv2.h"
+#include "openswan/pfkeyv2.h"
 
 struct sadb_msg; /* forward definition */
 
@@ -38,6 +38,11 @@ extern bool kernel_alg_esp_ok_final(int ealg, unsigned int key_len, int aalg, st
 extern int kernel_alg_esp_enc_keylen(int alg_id);
 /* returns bool success if esp auth alg is present  */
 extern err_t kernel_alg_esp_auth_ok(int auth, struct alg_info_esp *nfo);
+
+extern int kernel_alg_ah_auth_keylen(int auth);
+extern err_t kernel_alg_ah_auth_ok(int auth,struct alg_info_esp *alg_info);
+
+
 /* returns auth keylen in BYTES for esp auth alg passed */
 extern int kernel_alg_esp_auth_keylen(int auth);
 /* returns 0 if read ok from /proc/net/pf_key_supported */
@@ -61,12 +66,12 @@ extern struct sadb_alg esp_ealg[];
 extern int esp_ealg_num;
 extern int esp_aalg_num;
 
-#define ESP_EALG_PRESENT(algo) (((algo)<=SADB_EALG_MAX)&&(esp_ealg[(algo)].sadb_alg_id==(algo)))
+#define ESP_EALG_PRESENT(algo) (((algo)<=K_SADB_EALG_MAX)&&(esp_ealg[(algo)].sadb_alg_id==(algo)))
 #define ESP_EALG_FOR_EACH(algo) \
-	for (algo=1; algo <= SADB_EALG_MAX; algo++) \
+	for (algo=1; algo <= K_SADB_EALG_MAX; algo++) \
 		if (ESP_EALG_PRESENT(algo))
 #define ESP_EALG_FOR_EACH_UPDOWN(algo) \
-	for (algo=SADB_EALG_MAX; algo >0 ; algo--) \
+	for (algo=K_SADB_EALG_MAX; algo >0 ; algo--) \
 		if (ESP_EALG_PRESENT(algo))
 #define ESP_AALG_PRESENT(algo) ((algo<=SADB_AALG_MAX)&&(esp_aalg[(algo)].sadb_alg_id==(algo)))
 #define ESP_AALG_FOR_EACH(algo) \
@@ -75,5 +80,10 @@ extern int esp_aalg_num;
 #define ESP_AALG_FOR_EACH_UPDOWN(algo) \
 	for (algo=SADB_AALG_MAX; algo >0 ; algo--) \
 		if (ESP_AALG_PRESENT(algo))
+
+/* used by test skaffold */
+extern int kernel_alg_add(int satype, int exttype
+			  , const struct sadb_alg *sadb_alg);
+
 
 #endif /* _KERNEL_ALG_H */

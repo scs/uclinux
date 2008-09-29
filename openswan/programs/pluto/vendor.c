@@ -12,15 +12,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: vendor.c,v 1.43.2.10 2007-10-28 07:00:23 paul Exp $
  */
 
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/queue.h>
 #include <openswan.h>
 
+#include "sysdep.h"
 #include "constants.h"
 #include "defs.h"
 #include "log.h"
@@ -68,18 +67,16 @@
  *  1f07f70eaa6514d3b0fa96542a500300 (VPN 3000 version 3.0.0)
  *  1f07f70eaa6514d3b0fa96542a500301 (VPN 3000 version 3.0.1)
  *  1f07f70eaa6514d3b0fa96542a500305 (VPN 3000 version 3.0.5)
- *  1f07f70eaa6514d3b0fa96542a500400 (Cisco VPN Concentrator, version 4.0.0)
- *  1f07f70eaa6514d3b0fa96542a500407 (Cisco VPN Concentrator, version 4.0.7)
+ *  1f07f70eaa6514d3b0fa96542a500407 (VPN 3000 version 4.0.7)
  *  (Can you see the pattern?)
  *  afcad71368a1f1c96b8696fc77570100 (Non-RFC Dead Peer Detection ?)
  *  c32364b3b4f447eb17c488ab2a480a57
- *  65963c60eacf802220adccf628738746
  *  6d761ddc26aceca1b0ed11fabbb860c4
  *  5946c258f99a1a57b03eb9d1759e0f24 (From a Cisco VPN 3k)
  *  ebbc5b00141d0c895e11bd395902d690 (From a Cisco VPN 3k)
  *  3e984048101e66cc659fd002b0ed3655 (From a Cisco 1800 IOS device)
- *  12f5f28c457168a9702d9fe274cc0100 (Cisco Unity)
-
+ *  ade1e70e9953c1328373ebf0257b85ed (From a Cisco PIX)
+ *
  * Microsoft L2TP (???):
  * (This could be the MSL2TP client, which is a stripped version of SafeNet)
  *
@@ -103,14 +100,8 @@
  * 4485152d18b6bbcd0be8a8469579ddcc
  * 625027749d5ab97f5616c1602765cf480a3b7d0b)
  *
- * Nortel (Contivity VPN Switch 1700?)
- * 424e455300000005
- *
  * Zyxel Zywall 2 / Zywall 30w
  * 625027749d5ab97f5616c1602765cf480a3b7d0b
- *
- * Juniper
- * 166f932d55eb64d8e4df4fd37e2313f0d0fd84510000000000000000
  */
 
 #define MAX_LOG_VID_LEN            32
@@ -201,14 +192,11 @@ static struct vid_struct _vid_tab[] = {
 	{ VID_CISCO3K, VID_KEEP | VID_SUBSTRING_MATCH, 
           NULL, "Cisco VPN 3000 Series" , "\x1f\x07\xf7\x0e\xaa\x65\x14\xd3\xb0\xfa\x96\x54\x2a\x50", 14},
 
-	{ VID_CISCO3K, VID_KEEP | VID_SUBSTRING_MATCH, 
-          NULL, "Cisco VPN 3000 Series" , "\x1f\x07\xf7\x0e\xaa\x65\x14\xd3\xb0\xfa\x96\x54\x2a\x50", 14},
-
 	{ VID_CISCO_IOS, VID_KEEP | VID_SUBSTRING_MATCH, 
 	  NULL, "Cisco IOS Device", "\x3e\x98\x40\x48", 4},
 
 
-	/**
+	/*
 	 * Timestep VID seen:
 	 *   - 54494d455354455020312053475720313532302033313520322e303145303133
 	 *     = 'TIMESTEP 1 SGW 1520 315 2.01E013'
@@ -248,6 +236,13 @@ static struct vid_struct _vid_tab[] = {
 
 	DEC_MD5_VID(NATT_DRAFT_IETF_IPSEC_NAT_T_IKE,"draft-ietf-ipsec-nat-t-ike")
 
+
+	/* SonicWall */
+	{ VID_SONICWALL_1, VID_KEEP, NULL, "Sonicwall 1 (TZ 170 Standard?)",
+	  "\x40\x4b\xf4\x39\x52\x2c\xa3\xf6", 8},
+	{ VID_SONICWALL_2, VID_KEEP, NULL, "Sonicwall 2 (3.1.0.12-86s?)",
+	  "\xda\x8e\x93\x78\x80\x01\x00\x00", 8},
+
 	/* misc */
 
 	
@@ -258,14 +253,16 @@ static struct vid_struct _vid_tab[] = {
 		"\xaf\xca\xd7\x13\x68\xa1\xf1\xc9\x6b\x86\x96\xfc\x77\x57\x01\x00",
 		16 },
 
-	/**
+	{ VID_MISC_IKEv2, VID_STRING|VID_KEEP, "IKEv2", "CAN-IKEv2", NULL, 0},
+
+	/*
 	 * Netscreen:
 	 * 4865617274426561745f4e6f74696679386b0100  (HeartBeat_Notify + 386b0100)
 	 */
 	{ VID_MISC_HEARTBEAT_NOTIFY, VID_STRING | VID_SUBSTRING_DUMPHEXA,
 		"HeartBeat_Notify", "HeartBeat Notify", NULL, 0 },
 
-	/**
+	/*
 	 * MacOS X
 	 */
 	{ VID_MACOSX, VID_STRING|VID_SUBSTRING_DUMPHEXA, "Mac OSX 10.x",
@@ -274,48 +271,88 @@ static struct vid_struct _vid_tab[] = {
 	DEC_MD5_VID(MISC_FRAGMENTATION, "FRAGMENTATION")
 	DEC_MD5_VID(INITIAL_CONTACT, "Vid-Initial-Contact")
 
+	/* Microsoft Windows Vista, and maybe Server 2008? */
+ 	DEC_MD5_VID(VISTA_AUTHIP,  "MS-Negotiation Discovery Capable")
+ 	DEC_MD5_VID(VISTA_AUTHIP2, "IKE CGA version 1")
+	DEC_MD5_VID(VISTA_AUTHIP3, "MS-MamieExists")
+
+	/*
+	 * strongSwan
+	 */
+	DEC_MD5_VID(STRONGSWAN_4_0_0, "strongSwan 4.0.0")
+	DEC_MD5_VID(STRONGSWAN_4_0_1, "strongSwan 4.0.1")
+	DEC_MD5_VID(STRONGSWAN_4_0_2, "strongSwan 4.0.2")
+	DEC_MD5_VID(STRONGSWAN_4_0_3, "strongSwan 4.0.3")
+	DEC_MD5_VID(STRONGSWAN_4_0_4, "strongSwan 4.0.4")
+	DEC_MD5_VID(STRONGSWAN_4_0_5, "strongSwan 4.0.5")
+	DEC_MD5_VID(STRONGSWAN_4_0_6, "strongSwan 4.0.6")
+	DEC_MD5_VID(STRONGSWAN_4_0_7, "strongSwan 4.0.7")
+	DEC_MD5_VID(STRONGSWAN_4_1_0, "strongSwan 4.1.0")
+	DEC_MD5_VID(STRONGSWAN_4_1_1, "strongSwan 4.1.1")
+	DEC_MD5_VID(STRONGSWAN_4_1_2, "strongSwan 4.1.2")
+	DEC_MD5_VID(STRONGSWAN_4_1_3, "strongSwan 4.1.3")
+	DEC_MD5_VID(STRONGSWAN_4_1_4, "strongSwan 4.1.4")
+	DEC_MD5_VID(STRONGSWAN_4_1_5, "strongSwan 4.1.5")
+	DEC_MD5_VID(STRONGSWAN_4_1_6, "strongSwan 4.1.6")
+	DEC_MD5_VID(STRONGSWAN_4_1_7, "strongSwan 4.1.7")
+	DEC_MD5_VID(STRONGSWAN_4_1_8, "strongSwan 4.1.8")
+	DEC_MD5_VID(STRONGSWAN_4_1_9, "strongSwan 4.1.9")
+	DEC_MD5_VID(STRONGSWAN_4_1_10, "strongSwan 4.1.10")
+	DEC_MD5_VID(STRONGSWAN_4_1_11, "strongSwan 4.1.11")
+	DEC_MD5_VID(STRONGSWAN_4_2_0, "strongSwan 4.2.0")
+	DEC_MD5_VID(STRONGSWAN_4_2_1, "strongSwan 4.2.1")
+	DEC_MD5_VID(STRONGSWAN_4_2_2, "strongSwan 4.2.2")
+	DEC_MD5_VID(STRONGSWAN_4_2_3, "strongSwan 4.2.3")
+
+	DEC_MD5_VID(STRONGSWAN_2_8_8, "strongSwan 2.8.8")
+	DEC_MD5_VID(STRONGSWAN_2_8_7, "strongSwan 2.8.7")
+	DEC_MD5_VID(STRONGSWAN_2_8_6, "strongSwan 2.8.6")
+	DEC_MD5_VID(STRONGSWAN_2_8_5, "strongSwan 2.8.5")
+	DEC_MD5_VID(STRONGSWAN_2_8_4, "strongSwan 2.8.4")
+	DEC_MD5_VID(STRONGSWAN_2_8_3, "strongSwan 2.8.3")
+	DEC_MD5_VID(STRONGSWAN_2_8_2, "strongSwan 2.8.2")
+	DEC_MD5_VID(STRONGSWAN_2_8_1, "strongSwan 2.8.1")
+	DEC_MD5_VID(STRONGSWAN_2_8_0, "strongSwan 2.8.0")
+	DEC_MD5_VID(STRONGSWAN_2_7_3, "strongSwan 2.7.3")
+	DEC_MD5_VID(STRONGSWAN_2_7_2, "strongSwan 2.7.2")
+	DEC_MD5_VID(STRONGSWAN_2_7_1, "strongSwan 2.7.1")
+	DEC_MD5_VID(STRONGSWAN_2_7_0, "strongSwan 2.7.0")
+	DEC_MD5_VID(STRONGSWAN_2_6_4, "strongSwan 2.6.4")
+	DEC_MD5_VID(STRONGSWAN_2_6_3, "strongSwan 2.6.3")
+	DEC_MD5_VID(STRONGSWAN_2_6_2, "strongSwan 2.6.2")
+	DEC_MD5_VID(STRONGSWAN_2_6_1, "strongSwan 2.6.1")
+	DEC_MD5_VID(STRONGSWAN_2_6_0, "strongSwan 2.6.0")
+	DEC_MD5_VID(STRONGSWAN_2_5_7, "strongSwan 2.5.7")
+	DEC_MD5_VID(STRONGSWAN_2_5_6, "strongSwan 2.5.6")
+	DEC_MD5_VID(STRONGSWAN_2_5_5, "strongSwan 2.5.5")
+	DEC_MD5_VID(STRONGSWAN_2_5_4, "strongSwan 2.5.4")
+	DEC_MD5_VID(STRONGSWAN_2_5_3, "strongSwan 2.5.3")
+	DEC_MD5_VID(STRONGSWAN_2_5_2, "strongSwan 2.5.2")
+	DEC_MD5_VID(STRONGSWAN_2_5_1, "strongSwan 2.5.1")
+	DEC_MD5_VID(STRONGSWAN_2_5_0, "strongSwan 2.5.0")
+	DEC_MD5_VID(STRONGSWAN_2_4_4, "strongSwan 2.4.4")
+	DEC_MD5_VID(STRONGSWAN_2_4_3, "strongSwan 2.4.3")
+	DEC_MD5_VID(STRONGSWAN_2_4_2, "strongSwan 2.4.2")
+	DEC_MD5_VID(STRONGSWAN_2_4_1, "strongSwan 2.4.1")
+	DEC_MD5_VID(STRONGSWAN_2_4_0, "strongSwan 2.4.0")
+	DEC_MD5_VID(STRONGSWAN_2_3_2, "strongSwan 2.3.2")
+	DEC_MD5_VID(STRONGSWAN_2_3_1, "strongSwan 2.3.1")
+	DEC_MD5_VID(STRONGSWAN_2_3_0, "strongSwan 2.3.0")
+	DEC_MD5_VID(STRONGSWAN_2_2_2, "strongSwan 2.2.2")
+	DEC_MD5_VID(STRONGSWAN_2_2_1, "strongSwan 2.2.1")
+	DEC_MD5_VID(STRONGSWAN_2_2_0, "strongSwan 2.2.0")
+
 	/**
 	 * Cisco VPN 3000
 	 */
 	{ VID_MISC_FRAGMENTATION, VID_MD5HASH | VID_SUBSTRING_DUMPHEXA,
 		"FRAGMENTATION", NULL, NULL, 0 },
 
-	/**
-	 * Windows Vista (and Longhorn? and Windows Server 2008?)
-	 */
-	DEC_MD5_VID(VISTA_AUTHIP, "MS-Negotiation Discovery Capable")
-	DEC_MD5_VID(VISTA_AUTHIP2, "IKE CGA version 1")
-	DEC_MD5_VID(VISTA_AUTHIP3, "MS-MamieExists")
-
 	/*
 	 * NCP.de
 	 */
 	{ VID_NCP, VID_KEEP, "NCP client", NULL, 
 	  "\x10\x1f\xb0\xb3\x5c\x5a\x4f\x4c\x08\xb9\x19\xf1\xcb\x97\x77\xb0", 16 },
-	
-
-	/*
-	 * Thomson 
-	 * Product Name  	SpeedTouch 608WL
-	 * Physical Address 	00-14-7F-03-AD-10
-	 * Software Release 	5.4.0.14
-	 * Board Name 		BANT-G
-	 * Serial Number 	CP0533JT3W5
-	 * Product Code 	35921810
-	 * 54686f6d736f6e20535400363038574c00352e342e302e3134
-	 * version plus keying tries/ conn number?
-	 * 54686f6d736f6e20535400363038574c00362e312e302e34
-	 * 54686f6d736f6e20535400363038574c00362e312e302e35
-	 * 54686f6d736f6e20535400363038574c00352e332e322e36
-	 * 4d1e0e136deafa34c4f3ea9f02ec7285
-	 * LENGTH : 29
-	 * VENDOR ID : Thomson ST
-	 * unknown Vendor ID payload [54686f6d736f6e20535400363038574c00352e342e302e3134]
-	 * LENGTH : 20
-	 * VENDOR ID : NAT Traversal V6
-	 * ignoring unknown Vendor ID payload [4d1e0e136deafa34c4f3ea9f02ec7285]
-	 * this is md5(draft-ietf-ipsec-nat-t-ike-06)
-	 */
 	
 
 	/* -- */
@@ -358,10 +395,10 @@ void init_vendorid(void)
 	    }
 	    else if (vid->flags & VID_MD5HASH) {
 		/** VendorID is a string to hash with MD5 **/
-		char *vidm =  malloc(MD5_DIGEST_SIZE);
-		vid->vid = vidm;
+		unsigned char *vidm =  malloc(MD5_DIGEST_SIZE);
+		vid->vid = (char *)vidm;
 		if (vidm) {
-		    unsigned const char *d = vid->data;
+		    unsigned const char *d = (unsigned const char *)vid->data;
 		    osMD5Init(&ctx);
 		    osMD5Update(&ctx, d, strlen(vid->data));
 		    osMD5Final(vidm, &ctx);
@@ -376,7 +413,7 @@ void init_vendorid(void)
 		vid->vid = vidm;
 		if (vidm) {
 		    osMD5Init(&ctx);
-		    osMD5Update(&ctx, vid->data, strlen(vid->data));
+		    osMD5Update(&ctx, (const unsigned char *)vid->data, strlen(vid->data));
 		    osMD5Final(hash, &ctx);
 		    vidm[0] = 'O';
 		    vidm[1] = 'E';
@@ -424,7 +461,7 @@ void init_vendorid(void)
  * @param st State Structure (Hopefully initialized)
  * @return void
  */
-static void handle_known_vendorid (struct msg_digest *md UNUSED
+static void handle_known_vendorid (struct msg_digest *md 
 				   , const char *vidstr
 				   , size_t len
 				   , struct vid_struct *vid
@@ -491,6 +528,11 @@ static void handle_known_vendorid (struct msg_digest *md UNUSED
 	    md->dpd = 1;
 	    vid_usefull = 1;
             break;
+
+	case VID_MISC_IKEv2:
+	    md->ikev2 = TRUE;
+	    vid_usefull = 1;
+	    break;
 
 /* We only need these when dealing with XAUTH */
 #ifdef XAUTH
@@ -610,7 +652,8 @@ void handle_vendorid (struct msg_digest *md, const char *vid, size_t len, struct
 }
 
 /**
- * Add a vendor id payload to the msg
+ * Add a vendor id payload to the msg, and modify previous payload
+ * to say NEXT_VID.
  *
  * @param np
  * @param outs PB stream
@@ -641,18 +684,41 @@ bool out_vendorid (u_int8_t np, pb_stream *outs, unsigned int vid)
 		pvid->vid, pvid->vid_len, "V_ID");
 }
 
+/**
+ * Add a vendor id payload to the msg
+ *
+ * @param np
+ * @param outs PB stream
+ * @param vid Int of VendorID to be sent (see vendor.h for the list)
+ * @return bool True if successful
+ */
+bool out_vid(u_int8_t np, pb_stream *outs, unsigned int vid)
+{
+	struct vid_struct *pvid;
+
+	if (!_vid_struct_init) {
+		init_vendorid();
+	}
+
+	for (pvid = _vid_tab; (pvid->id) && (pvid->id!=vid); pvid++);
+
+	if (pvid->id != vid) return STF_INTERNAL_ERROR; /* not found */
+	if (!pvid->vid) return STF_INTERNAL_ERROR; /* not initialized */
+
+	DBG(DBG_EMITTING,
+		DBG_log("out_vendorid(): sending [%s]", pvid->descr);
+	);
+
+	return out_generic_raw(np, &isakmp_vendor_id_desc, outs,
+		pvid->vid, pvid->vid_len, "V_ID");
+}
+
 /* OpenPGP Vendor ID needed for interoperability with PGPnet
  *
  * Note: it is a NUL-terminated ASCII string, but NUL won't go on the wire.
  */
 char pgp_vendorid[] = "OpenPGP10171";
 const int pgp_vendorid_len = sizeof(pgp_vendorid);
-
-char dpd_vendorid[] = {0xAF, 0xCA, 0xD7, 0x13, 0x68, 0xA1, 0xF1,
-          0xC9, 0x6B, 0x86, 0x96, 0xFC, 0x77, 0x57, 0x01, 0x00};
-const int dpd_vendorid_len = sizeof(dpd_vendorid);
-
-
 
 /*
  * Local Variables:

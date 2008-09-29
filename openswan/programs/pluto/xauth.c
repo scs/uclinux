@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: xauth.c,v 1.41.4.4 2007-09-05 23:02:19 paul Exp $
+ * RCSID $Id: xauth.c,v 1.44 2005/08/05 19:18:47 mcr Exp $
  *
  * This code originally written by Colubris Networks, Inc.
  * Extraction of patch and porting to 1.99 codebases by Xelerance Corporation
@@ -31,12 +31,18 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/queue.h>
-#include <crypt.h>
+#include <limits.h>
+
+#if defined(linux)
+/* is supposed to be in unistd.h, but it isn't on linux */
+#include <crypt.h> 
+#endif
 
 #include <openswan.h>
 #include <openswan/ipsec_policy.h>
 
+#include "sysdep.h"
+#include "oswconf.h"
 #include "constants.h"
 #include "oswlog.h"
 
@@ -60,13 +66,13 @@
 #include "spdb.h"
 #include "timer.h"
 #include "rnd.h"
+#include "keys.h"
 #include "ipsec_doi.h"	/* needs demux.h and state.h */
 #include "whack.h"
 
 #include "sha1.h"
 #include "md5.h"
 #include "crypto.h" /* requires sha1.h and md5.h */
-#include "paths.h"
 #include "ike_alg.h"
 
 #include "xauth.h"
@@ -79,7 +85,7 @@
 static stf_status
 modecfg_inI2(struct msg_digest *md);
 
-struct paththing pwdfile;
+char pwdfile[PATH_MAX];
 
 extern bool encrypt_message(pb_stream *pbs, struct state *st); /* forward declaration */
 
@@ -195,6 +201,18 @@ int get_internal_addresses(struct connection *con,struct internal_addr *ia)
     {
 	/** assumes IPv4, and also that the mask is ignored */
 	ia->ipaddr = con->spd.that.client.addr;
+	if (!isanyaddr(&con->modecfg_dns1)) {
+		ia->dns[0] = con->modecfg_dns1;
+	}
+	if (!isanyaddr(&con->modecfg_dns2)) {
+		ia->dns[1] = con->modecfg_dns2;
+	}
+	if (!isanyaddr(&con->modecfg_wins1)) {
+		ia->wins[0] = con->modecfg_wins1;
+	}
+	if (!isanyaddr(&con->modecfg_wins2)) {
+		ia->wins[1] = con->modecfg_wins2;
+	}
 
     }
     else
@@ -259,7 +277,7 @@ xauth_mode_cfg_hash(u_char *dest
 {
     struct hmac_ctx ctx;
 
-    hmac_init_chunk(&ctx, st->st_oakley.hasher, st->st_skeyid_a);
+    hmac_init_chunk(&ctx, st->st_oakley.prf_hasher, st->st_skeyid_a);
     hmac_update(&ctx, (const u_char *) &st->st_msgid_phase15
 		, sizeof(st->st_msgid_phase15));
     hmac_update(&ctx, start, roof-start);
@@ -280,7 +298,12 @@ xauth_mode_cfg_hash(u_char *dest
  *
  * @param st State structure
  * @param resp Type of reply (int)
- * @param rbody Body of the reply (stream)
+ * @param pb_stream rbody Body of the reply (stream)
+ * @param replytype int
+ * @param use_modecfg_addr_as_client_addr bool 
+ *         True means force the IP assigned by Mode Config to be the 
+ *         spd.that.addr.  Useful when you know the client will change his IP
+ *         to be what was assigned immediatly after authentication.
  * @param ap_id ISAMA Identifier 
  * @return stf_status STF_OK or STF_INTERNAL_ERROR
  */
@@ -288,7 +311,7 @@ stf_status modecfg_resp(struct state *st
 			,unsigned int resp
 			,pb_stream *rbody
 			,u_int16_t replytype
-			,bool hackthat
+			,bool use_modecfg_addr_as_client_addr
 			,u_int16_t ap_id)
 {
     unsigned char *r_hash_start,*r_hashval;
@@ -302,7 +325,7 @@ stf_status modecfg_resp(struct state *st
       if (!out_generic(np, &isakmp_hash_desc, rbody, &hash_pbs)) 
 	return STF_INTERNAL_ERROR; 
       r_hashval = hash_pbs.cur;	/* remember where to plant value */ 
-      if (!out_zero(st->st_oakley.hasher->hash_digest_len, &hash_pbs, "HASH")) 
+      if (!out_zero(st->st_oakley.prf_hasher->hash_digest_len, &hash_pbs, "HASH")) 
 	return STF_INTERNAL_ERROR; 
       close_output_pbs(&hash_pbs); 
       r_hash_start = (rbody)->cur;	/* hash from after HASH payload */ 
@@ -338,7 +361,7 @@ stf_status modecfg_resp(struct state *st
 	else
 		resp &= ~LELEM(INTERNAL_IP4_NBNS);
 
-	if(hackthat) {
+	if(use_modecfg_addr_as_client_addr) {
 	    if(memcmp(&st->st_connection->spd.that.client.addr
 		      ,&ia.ipaddr
 		      ,sizeof(ia.ipaddr)) != 0)
@@ -467,13 +490,12 @@ stf_status modecfg_resp(struct state *st
 stf_status modecfg_send_set(struct state *st)
 {
 	pb_stream reply,rbody;
-	char buf[256];
+	unsigned char buf[256];
 
 	/* set up reply */
 	init_pbs(&reply, buf, sizeof(buf), "ModecfgR1");
 
-	log_state_chg(st, STATE_MODE_CFG_R1);
-	st->st_state = STATE_MODE_CFG_R1;
+	change_state(st, STATE_MODE_CFG_R1);
 	/* HDR out */
 	{
 		struct isakmp_hdr hdr;
@@ -492,6 +514,14 @@ stf_status modecfg_send_set(struct state *st)
 			return STF_INTERNAL_ERROR;
 		}
 	}
+
+#ifdef SOFTREMOTE_CLIENT_WORKAROUND
+	/* see: http://popoludnica.pl/?id=10100110 */
+	/* should become a conn option */
+	/* client-side is not yet implemented for this - only works with SoftRemote clients */
+        /* SoftRemote takes the IV for XAUTH from phase2, where Openswan takes it from phase1 */
+	init_phase2_iv(st, &st->st_msgid_phase15);
+#endif
 
 #define MODECFG_SET_ITEM ( LELEM(INTERNAL_IP4_ADDRESS) | LELEM(INTERNAL_IP4_SUBNET) | LELEM(INTERNAL_IP4_NBNS) | LELEM(INTERNAL_IP4_DNS) )
 
@@ -544,7 +574,7 @@ stf_status xauth_send_request(struct state *st)
 {
     pb_stream reply;
     pb_stream rbody;
-    char buf[256];
+    unsigned char buf[256];
     u_char *r_hash_start,*r_hashval;
 
     /* set up reply */
@@ -555,8 +585,7 @@ stf_status xauth_send_request(struct state *st)
 
     /* this is the beginning of a new exchange */
     st->st_msgid_phase15 = generate_msgid(st);
-    log_state_chg(st, STATE_XAUTH_R0);
-    st->st_state = STATE_XAUTH_R0;
+    change_state(st, STATE_XAUTH_R0);
 
     /* HDR out */
     {
@@ -636,7 +665,7 @@ stf_status modecfg_send_request(struct state *st)
 {
     pb_stream reply;
     pb_stream rbody;
-    char buf[256];
+    unsigned char buf[256];
     u_char *r_hash_start,*r_hashval;
 
     /* set up reply */
@@ -646,8 +675,7 @@ stf_status modecfg_send_request(struct state *st)
 
     /* this is the beginning of a new exchange */
     st->st_msgid_phase15 = generate_msgid(st);
-    log_state_chg(st, STATE_MODE_CFG_I1);
-    st->st_state = STATE_MODE_CFG_I1;
+    change_state(st, STATE_MODE_CFG_I1);
 
     /* HDR out */
     {
@@ -730,7 +758,7 @@ stf_status xauth_send_status(struct state *st, int status)
 {
     pb_stream reply;
     pb_stream rbody;
-    char buf[256];
+    unsigned char buf[256];
     u_char *r_hash_start,*r_hashval;
 
     /* set up reply */
@@ -810,8 +838,7 @@ stf_status xauth_send_status(struct state *st, int status)
 
     send_packet(st, "XAUTH: status", TRUE);
 
-    log_state_chg(st, STATE_XAUTH_R1);
-    st->st_state = STATE_XAUTH_R1;
+    change_state(st, STATE_XAUTH_R1);
 
     return STF_OK;
 }
@@ -934,21 +961,19 @@ int do_md5_authentication(void *varg)
     char *szconnid;
     char *sztemp;
     int loc = 0;
-    size_t pwlen = strlen(ipsec_dir) + sizeof("/passwd") + 1;
+    const struct osw_conf_options *oco = osw_init_options(); 
 
-    verify_path_space(&pwdfile, pwlen, "xauth passwd file path");
+    snprintf(pwdfile, sizeof(pwdfile), "%s/passwd", oco->confddir);
 
-    snprintf(pwdfile.path, pwdfile.path_space, "%s/passwd", ipsec_dir);
-
-    fp = fopen(pwdfile.path, "r");
+    fp = fopen(pwdfile, "r");
     if( fp == (FILE *)0)
     {
         /* unable to open the password file */
-        openswan_log("XAUTH: unable to open password file (%s) for verification", pwdfile.path);
+        openswan_log("XAUTH: unable to open password file (%s) for verification", pwdfile);
         return FALSE;
     }
 
-    openswan_log("XAUTH: password file (%s) open.", pwdfile.path);
+    openswan_log("XAUTH: password file (%s) open.", pwdfile);
     /** simple stuff read in a line then go through positioning
      * szuser ,szpass and szconnid at the begining of each of the
      * memory locations of our real data and replace the ':' with '\0'
@@ -996,12 +1021,18 @@ int do_md5_authentication(void *varg)
 		    , szuser, arg->name.ptr
 		    , szpass, szconnid, arg->connname.ptr));
 
-        if ( strcasecmp(szconnid, arg->connname.ptr) == 0
-	     && strcmp( szuser, arg->name.ptr ) == 0 ) /* user correct ?*/
+        if ( strcasecmp(szconnid, (char *)arg->connname.ptr) == 0
+	     && strcmp( szuser, (char *)arg->name.ptr ) == 0 ) /* user correct ?*/
         {
 	    char *cp;
 
-	    cp = crypt( arg->password.ptr, szpass);
+#if defined(__CYGWIN32__)
+	    /* password is in the clear! */
+	    cp = (char *)arg->password.ptr;
+#else
+	    /* keep the passwords using whatever utilities we have */
+	    cp = crypt( (char *)arg->password.ptr, szpass);
+#endif	    
 
 	    if(DBGP(DBG_CRYPT))
 	    {
@@ -1055,16 +1086,15 @@ static void * do_authentication(void *varg)
         if(st->quirks.xauth_ack_msgid) {
 	  st->st_msgid_phase15 = 0;
 	}
-	pfreeany(st->st_xauth_username);
-	st->st_xauth_username = clone_str(arg->name.ptr,"XAUTH Username");
+
+	strncpy(st->st_xauth_username, (char *)arg->name.ptr, sizeof(st->st_xauth_username));
     } else
     {
 	/** Login attempt failed, display error, send XAUTH status to client
          *  and reset state to XAUTH_R0 */
         openswan_log("XAUTH: User %s: Authentication Failed: Incorrect Username or Password", arg->name.ptr);
         xauth_send_status(st,0);	
-        log_state_chg(st, STATE_XAUTH_R0);
-        st->st_state = STATE_XAUTH_R0;        
+        change_state(st, STATE_XAUTH_R0);
     }   
     
     freeanychunk(arg->password);
@@ -1126,6 +1156,10 @@ xauth_inR0(struct msg_digest *md)
     bool gotname, gotpassword;
 
     gotname = gotpassword = FALSE;
+
+    name = empty_chunk;
+    password = empty_chunk;
+    connname = empty_chunk;
 
     CHECK_QUICK_HASH(md,xauth_mode_cfg_hash(hash_val,hash_pbs->roof, md->message_pbs.roof, st)
 	, "XAUTH-HASH", "XAUTH R0");
@@ -1741,7 +1775,7 @@ stf_status xauth_client_resp(struct state *st
 			     ,u_int16_t ap_id)
 {
     unsigned char *r_hash_start,*r_hashval;
-    char xauth_username[64], xauth_password[64];
+    char xauth_username[XAUTH_USERNAME_LEN];
     struct connection *c = st->st_connection;
     
 
@@ -1754,7 +1788,7 @@ stf_status xauth_client_resp(struct state *st
       if (!out_generic(np, &isakmp_hash_desc, rbody, &hash_pbs)) 
 	return STF_INTERNAL_ERROR; 
       r_hashval = hash_pbs.cur;	/* remember where to plant value */ 
-      if (!out_zero(st->st_oakley.hasher->hash_digest_len, &hash_pbs, "HASH")) 
+      if (!out_zero(st->st_oakley.prf_hasher->hash_digest_len, &hash_pbs, "HASH")) 
 	return STF_INTERNAL_ERROR; 
       close_output_pbs(&hash_pbs); 
       r_hash_start = (rbody)->cur;	/* hash from after HASH payload */ 
@@ -1797,28 +1831,35 @@ stf_status xauth_client_resp(struct state *st
 		case XAUTH_USER_NAME:
 		    attr.isaat_af_type = attr_type | ISAKMP_ATTR_AF_TLV;
 		    out_struct(&attr, &isakmp_xauth_attribute_desc, &strattr, &attrval);
-		    if(st->st_whack_sock == -1)
-		    {
-			loglog(RC_LOG_SERIOUS, "XAUTH username requested, but no file descriptor available for prompt");
-			return STF_FAIL;
-		    }
-		    
-		    if(!whack_prompt_for(st->st_whack_sock
-					 , c->name, "Username", TRUE
-					 , xauth_username
-					 , sizeof(xauth_username)))
-		    {
-			loglog(RC_LOG_SERIOUS, "XAUTH username prompt failed.");
-			return STF_FAIL;
-		    }
-		    /* replace the first newline character with a string-terminating \0 */
-		    {
-		      char* cptr = memchr(xauth_username, '\n', sizeof(xauth_username));
-		      if (cptr)
-			*cptr = '\0';
-		    }
-		    out_raw(xauth_username, strlen(xauth_username)
-			    ,&attrval, "XAUTH username");
+
+		    if(st->st_xauth_username[0]=='\0') {
+			if(st->st_whack_sock == -1)
+			{
+			    loglog(RC_LOG_SERIOUS, "XAUTH username requested, but no file descriptor available for prompt");
+			    return STF_FAIL;
+			}
+			
+			if(!whack_prompt_for(st->st_whack_sock
+					     , c->name, "Username", TRUE
+					     , xauth_username
+					     , sizeof(xauth_username)))
+			{
+			    loglog(RC_LOG_SERIOUS, "XAUTH username prompt failed.");
+			    return STF_FAIL;
+			}
+			/* replace the first newline character with a string-terminating \0. */
+			{
+			    char* cptr = memchr(xauth_username, '\n', sizeof(xauth_username));
+			    if (cptr)
+				*cptr = '\0';
+			}
+			strncpy(st->st_xauth_username, xauth_username,
+				sizeof(st->st_xauth_username));
+		    } 
+			
+		    out_raw(st->st_xauth_username
+			    , strlen(st->st_xauth_username)
+			    , &attrval, "XAUTH username");
 		    close_output_pbs(&attrval);
 
 		    break;
@@ -1826,29 +1867,55 @@ stf_status xauth_client_resp(struct state *st
 		case XAUTH_USER_PASSWORD:
 		    attr.isaat_af_type = attr_type | ISAKMP_ATTR_AF_TLV;
 		    out_struct(&attr, &isakmp_xauth_attribute_desc, &strattr, &attrval);
-		    if(st->st_whack_sock == -1)
-		    {
-			loglog(RC_LOG_SERIOUS, "XAUTH password requested, but no file descriptor available for prompt");
-			return STF_FAIL;
-		    }
-		    
-		    if(!whack_prompt_for(st->st_whack_sock
-					 , c->name, "Password", FALSE
-					 , xauth_password
-					 , sizeof(xauth_password)))
-		    {
-			loglog(RC_LOG_SERIOUS, "XAUTH password prompt failed.");
-			return STF_FAIL;
+
+		    if(st->st_xauth_password.ptr == NULL) {
+			struct secret *s;
+
+			s = osw_get_xauthsecret(st->st_connection, st->st_xauth_username);
+			DBG(DBG_CONTROLMORE
+			    , DBG_log("looked up username=%s, got=%p", st->st_xauth_username, s));
+			if(s) {
+			    struct private_key_stuff *pks=osw_get_pks(s);
+
+			    clonetochunk(st->st_xauth_password
+					 , pks->u.preshared_secret.ptr
+					 , pks->u.preshared_secret.len
+					 , "savedxauth password");
+			}
 		    }
 
-		    /* replace the first newline character with a string-terminating \0. */
-		    {
-		      char* cptr = memchr(xauth_password, '\n', sizeof(xauth_password));
-		      if (cptr)
-			cptr = '\0';
+		    if(st->st_xauth_password.ptr == NULL) {
+			char xauth_password[64];
+
+			if(st->st_whack_sock == -1)
+			{
+			    loglog(RC_LOG_SERIOUS, "XAUTH password requested, but no file descriptor available for prompt");
+			    return STF_FAIL;
+			}
+			
+			if(!whack_prompt_for(st->st_whack_sock
+					     , c->name, "Password", FALSE
+					     , xauth_password
+					     , sizeof(xauth_password)))
+			{
+			    loglog(RC_LOG_SERIOUS, "XAUTH password prompt failed.");
+			    return STF_FAIL;
+			}
+			
+			/* replace the first newline character with a string-terminating \0. */
+			{
+			    char* cptr = memchr(xauth_password, '\n', sizeof(xauth_password));
+			    if (cptr)
+				cptr = '\0';
+			}
+			clonereplacechunk(st->st_xauth_password
+					  , xauth_password, strlen(xauth_password)
+					  , "XAUTH password");
 		    }
-		    out_raw(xauth_password, strlen(xauth_password)
-			    ,&attrval, "XAUTH password");
+		    
+		    out_raw(st->st_xauth_password.ptr
+			    , st->st_xauth_password.len
+			    , &attrval, "XAUTH password");
 		    close_output_pbs(&attrval);
 		    break;
 		    
@@ -1870,7 +1937,7 @@ stf_status xauth_client_resp(struct state *st
     }
 
     openswan_log("XAUTH: Answering XAUTH challenge with user='%s'"
-		 , xauth_username);
+		 , st->st_xauth_username);
 
     xauth_mode_cfg_hash(r_hashval, r_hash_start, rbody->cur, st);
     
@@ -1902,7 +1969,7 @@ xauth_inI0(struct msg_digest *md)
     char msgbuf[81];
     int len;
     unsigned type;
-    char *dat;
+    unsigned char *dat;
     int status = 0;
     unsigned val;
     stf_status stat;
@@ -1958,19 +2025,19 @@ xauth_inI0(struct msg_digest *md)
 			   , attrs, &strattr))
 	    {
 		/* Skip unknown */
-		int len;
+		int alen;
 		if (attr.isaat_af_type & 0x8000)
-		    len = 4;
+		    alen = 4;
 		else
-		    len = attr.isaat_lv;
+		    alen = attr.isaat_lv;
 		
-		if(len < 4)
+		if(alen < 4)
 		{
-		    openswan_log("Attribute was too short: %d", len);
+		    openswan_log("Attribute was too short: %d", alen);
 		    return STF_FAIL;
 		}
 		
-		attrs->cur += len;
+		attrs->cur += alen;
 		continue;
 	    }
 	    
@@ -2117,7 +2184,7 @@ stf_status xauth_client_ackstatus(struct state *st
       if (!out_generic(np, &isakmp_hash_desc, rbody, &hash_pbs)) 
 	return STF_INTERNAL_ERROR; 
       r_hashval = hash_pbs.cur;	/* remember where to plant value */ 
-      if (!out_zero(st->st_oakley.hasher->hash_digest_len, &hash_pbs, "HASH")) 
+      if (!out_zero(st->st_oakley.prf_hasher->hash_digest_len, &hash_pbs, "HASH")) 
 	return STF_INTERNAL_ERROR; 
       close_output_pbs(&hash_pbs); 
       r_hash_start = (rbody)->cur;	/* hash from after HASH payload */ 
@@ -2252,8 +2319,7 @@ xauth_inI1(struct msg_digest *md)
     {
 	/* oops, something seriously wrong */
 	openswan_log("did not get status attribute in xauth_inI1, looking for new challenge.");
-        log_state_chg(st, STATE_XAUTH_I0);
-	st->st_state = STATE_XAUTH_I0;
+	change_state(st, STATE_XAUTH_I0);
 	return xauth_inI0(md);
     }
 
@@ -2277,23 +2343,12 @@ xauth_inI1(struct msg_digest *md)
 
 
 /*
- * $Id: xauth.c,v 1.41.4.4 2007-09-05 23:02:19 paul Exp $
+ * $Id: xauth.c,v 1.44 2005/08/05 19:18:47 mcr Exp $
  *
  * $Log: xauth.c,v $
- * Revision 1.41.4.4  2007-09-05 23:02:19  paul
- * backport of xauth space in name patch
- * (git 05f21656f41b40f4b5bb50e6712b90193b209535)
- *
- * Revision 1.41.4.3  2005/07/26 02:11:23  ken
- * Pullin from HEAD:
- * Split Aggressive mode into ikev1_aggr.c
- * Fix NAT-T that we broke in dr7
- * Move dpd/pgp vendor id's to vendor.[ch]
- *
- * Revision 1.41.4.2  2005/07/25 19:26:34  ken
- * Pullin fixes for NAT-T from HEAD
- * Includes IMPAIR_JACOB_TWO_TWO impairment from HEAD
- * change from c->interface to st->st_interface for sending packets
+ * Revision 1.44  2005/08/05 19:18:47  mcr
+ * 	adjustments for signed issues.
+ * 	use sysdep.h.
  *
  * Revision 1.43  2005/07/22 14:05:51  mcr
  * 	fixes for -Werror warnings.

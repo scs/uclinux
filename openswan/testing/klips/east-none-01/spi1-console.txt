@@ -75,14 +75,14 @@ east:~#
  ipsec look
 east NOW
 ipsec0->eth1 mtu=16260(1500)->1500
-Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
+ROUTING TABLE
 east:~#
  route add -host 192.0.1.1 gw 192.1.2.45 dev ipsec0
 east:~#
  ipsec setup stop
 IPSEC EVENT: KLIPS device ipsec0 shut down.
 ipsec_setup: Stopping Openswan IPsec...
-ipsec_setup: stop ordered, but IPsec does not appear to be running!
+ipsec_setup: stop ordered, but IPsec appears to be already stopped!
 ipsec_setup: doing cleanup anyway...
 east:~#
  kill `cat /var/run/klogd.pid`; cat /tmp/klog.log

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 2002/07/15 05:49:50 danield Exp $
+# $Id: Makefile,v 1.1 2002-07-15 05:49:50 danield Exp $
 KLIPSDIR:= $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)/..
 
 #LIBCRYPTO:=$(KLIPSDIR)/../../../libcrypto

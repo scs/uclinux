@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.3 2004-12-18 18:13:39 mcr Exp $
+# RCSID $Id: Makefile,v 1.3 2004/12/18 18:13:39 mcr Exp $
 
 ###################################################
 # Adjust SSLDIR before make ...
@@ -34,7 +34,7 @@ include ${srcdir}../Makefile.program
 
 #
 # $Log: Makefile,v $
-# Revision 1.3  2004-12-18 18:13:39  mcr
+# Revision 1.3  2004/12/18 18:13:39  mcr
 # 	adjusted Makefiles so that ${OBJDIR} builds work.
 #
 # Revision 1.2  2004/04/10 03:36:10  mcr

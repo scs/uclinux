@@ -1,6 +1,8 @@
 #!/bin/sh
 # configuration-file reader utility
 # Copyright (C) 1999-2002  Henry Spencer.
+# Copyright (C) 2005-2007  Michael Richardson
+# Copyright (C) 2006-2008  Paul Wouters
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -11,8 +13,6 @@
 # WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
-#
-# RCSID $Id: _confread.in,v 1.81.2.5 2006-04-12 19:55:42 mcr Exp $
 #
 # Extract configuration info from /etc/ipsec.conf, repackage as assignments
 # to shell variables or tab-delimited fields.  Success or failure is reported
@@ -81,6 +81,13 @@ then
 else
 	cat $config
 fi |
+(
+	IFS=""
+	while read t
+	do
+		eval echo \"$t\"
+	done
+) |
 awk 'BEGIN {
 	type = "'"$type"'"
 	names = "'"$*"'"
@@ -132,13 +139,14 @@ awk 'BEGIN {
 
 	good = "also alsoflip type auto authby _plutodevel"
 	good = good " connaddrfamily forceencaps"
-	good = good " modecfgpull"
+	good = good " modecfgpull modecfgdns1 modecfgdns2 modecfgwins1 modecfgwins2"
 	left = " left leftsubnet leftnexthop leftupdown"
-	akey = " keyexchange auth pfs pfsgroup keylife rekey rekeymargin"
-        akey = akey " rekeyfuzz dpddelay dpdtimeout dpdaction"
+	akey = " keyexchange auth pfs keylife rekey rekeymargin rekeyfuzz"
+        akey = akey " dpddelay dpdtimeout dpdaction"
 	akey = akey " xauth"
 	akey = akey " aggrmode"
 	akey = akey " compress"
+	akey = akey " overlapip"
 	akey = akey " keyingtries ikelifetime disablearrivalcheck failureshunt ike"
 	mkey = " spibase spi esp espenckey espauthkey espreplay_window"
 	left = left " leftespenckey leftespauthkey leftahkey"
@@ -154,17 +162,19 @@ awk 'BEGIN {
 	for (i = 1; i <= n; i++)
 		goodnames["conn:" g[i]] = 1
 
-	good = "also interfaces forwardcontrol myid"
+	good = "also interfaces myid"
 	good = good " syslog klipsdebug plutodebug plutoopts plutostderrlog"
 	good = good " plutorestartoncrash"
 	good = good " dumpdir manualstart pluto"
-	good = good " protostack"
+	good = good " protostack oe"
 	good = good " plutowait prepluto postpluto nhelpers"
-	good = good " fragicmp hidetos rp_filter uniqueids"
+	good = good " fragicmp hidetos uniqueids"
 	good = good " overridemtu"
 	good = good " nocrsend strictcrlpolicy crlcheckinterval ocspuri"
 	good = good " nat_traversal keep_alive force_keepalive"
-	good = good " disable_port_floating virtual_private"	
+	good = good " disable_port_floating virtual_private force_busy"	
+	# obsoleted options, not good but not worth dying for either
+	good = good " forwardcontrol rp_filter"
 	n = split(good, g)
 	for (i = 1; i <= n; i++)
 		goodnames["config:" g[i]] = 1
@@ -514,7 +524,7 @@ END {
 		if (jam("packetdefault", "route")) {
 			output(o_parm, "type", "tunnel")
 			output(o_parm, "leftsubnet", "0.0.0.0/0")
-			output(o_parm, "leftnexthop", "%defaultroute")
+			output(o_parm, "rightnexthop", "%defaultroute")
 			output(o_parm, "right", "%opportunistic")
 			output(o_parm, "failureshunt", "passthrough")
 			output(o_parm, "keyingtries", "3")
@@ -526,12 +536,12 @@ END {
 			output(o_parm, "type", "passthrough")
 			output(o_parm, "authby", "never")
 			output(o_parm, "right", "%group")
-			output(o_parm, "leftnexthop", "%defaultroute")
+			output(o_parm, "rightnexthop", "%defaultroute")
 		}
 		if (jam("clear-or-private", "route")) {
 			output(o_parm, "type", "passthrough")
 			output(o_parm, "right", "%opportunisticgroup")
-			output(o_parm, "leftnexthop", "%defaultroute")
+			output(o_parm, "rightnexthop", "%defaultroute")
 			output(o_parm, "failureshunt", "passthrough")
 			output(o_parm, "keyingtries", "3")
 			output(o_parm, "ikelifetime", "1h")
@@ -541,7 +551,7 @@ END {
 		if (jam("private-or-clear", "route")) {
 			output(o_parm, "type", "tunnel")
 			output(o_parm, "right", "%opportunisticgroup")
-			output(o_parm, "leftnexthop", "%defaultroute")
+			output(o_parm, "rightnexthop", "%defaultroute")
 			output(o_parm, "failureshunt", "passthrough")
 			output(o_parm, "keyingtries", "3")
 			output(o_parm, "ikelifetime", "1h")
@@ -551,7 +561,7 @@ END {
 		if (jam("private", "route")) {
 			output(o_parm, "type", "tunnel")
 			output(o_parm, "right", "%opportunisticgroup")
-			output(o_parm, "leftnexthop", "%defaultroute")
+			output(o_parm, "rightnexthop", "%defaultroute")
 			output(o_parm, "failureshunt", "drop")
 			output(o_parm, "keyingtries", "3")
 			output(o_parm, "ikelifetime", "1h")
@@ -562,7 +572,7 @@ END {
 			output(o_parm, "type", "reject")
 			output(o_parm, "authby", "never")
 			output(o_parm, "right", "%group")
-			output(o_parm, "leftnexthop", "%defaultroute")
+			output(o_parm, "rightnexthop", "%defaultroute")
 		}
 	}
 	}

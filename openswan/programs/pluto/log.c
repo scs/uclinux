@@ -1,6 +1,7 @@
 /* error logging functions
  * Copyright (C) 1997 Angelos D. Keromytis.
  * Copyright (C) 1998-2001  D. Hugh Redelmeier.
+ * Copyright (C) 2008 David McCullough.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -12,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: log.c,v 1.95 2005-07-18 19:40:15 mcr Exp $
+ * RCSID $Id: log.c,v 1.99 2005/09/18 01:59:52 mcr Exp $
  */
 
 #include <stdio.h>
@@ -24,14 +25,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>	/* used only if MSG_NOSIGNAL not defined */
-#include <sys/queue.h>
 #include <libgen.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #include <openswan.h>
-#include "pfkeyv2.h"
+#include "openswan/pfkeyv2.h"
 
+#include "sysdep.h"
 #include "constants.h"
 #include "oswlog.h"
 
@@ -51,7 +52,6 @@
 #include "kernel.h"	/* needs connections.h */
 #include "whack.h"	/* needs connections.h */
 #include "timer.h"
-#include "paths.h"
 #include "kernel_alg.h"
 #include "ike_alg.h"
 #include "plutoalg.h"
@@ -68,7 +68,9 @@ static void perpeer_logclose(struct connection *c);	/* forward */
 bool
     log_to_stderr = TRUE,	/* should log go to stderr? */
     log_to_syslog = TRUE,	/* should log go to syslog? */
-    log_to_perpeer= FALSE;	/* should log go to per-IP file? */
+    log_to_perpeer= FALSE,	/* should log go to per-IP file? */
+    log_did_something=TRUE;     /* set if we wrote something recently */
+
 
 bool
     logged_txt_warning = FALSE;  /* should we complain about finding KEY? */
@@ -96,7 +98,7 @@ char debug_prefix = '|';
  */
 const char *pluto_ifn_inst = "";  
 
-/* from sys/queue.h */
+/* from sys/queue.h -> NOW private sysdep.h. */
 static CIRCLEQ_HEAD(,connection) perpeer_list;
 
 
@@ -116,7 +118,6 @@ void
 pluto_init_log(void)
 {
     set_exit_log_func(exit_log);
-    set_paths(ipsec_dir);
     if (log_to_stderr)
 	setbuf(stderr, NULL);
     if (log_to_syslog)
@@ -310,16 +311,16 @@ open_peerlog(struct connection *c)
 
 	/* copy IP address, turning : and . into / */
 	{
-	    char c, *p, *q;
+	    char ch, *p, *q;
 
 	    p = peername;
 	    q = dname;
 	    do {
-		c = *p++;
-		if (c == '.' || c == ':')
-		    c = '/';
-		*q++ = c;
-	    } while (c != '\0');
+		ch = *p++;
+		if (ch == '.' || ch == ':')
+		    ch = '/';
+		*q++ = ch;
+	    } while (ch != '\0');
 	}
 
 	lf_len = peernamelen * 2
@@ -404,7 +405,7 @@ peerlog(const char *prefix, const char *m)
 }
 
 
-void
+int
 openswan_log(const char *message, ...)
 {
     va_list args;
@@ -414,6 +415,8 @@ openswan_log(const char *message, ...)
     fmt_log(m, sizeof(m), message, args);
     va_end(args);
 
+    log_did_something=TRUE;
+
     if (log_to_stderr)
 	fprintf(stderr, "%s\n", m);
     if (log_to_syslog)
@@ -422,6 +425,8 @@ openswan_log(const char *message, ...)
 	peerlog("", m);
 
     whack_log(RC_LOG, "~%s", m);
+    
+    return 0;
 }
 
 void
@@ -434,6 +439,8 @@ loglog(int mess_no, const char *message, ...)
     fmt_log(m, sizeof(m), message, args);
     va_end(args);
 
+    log_did_something=TRUE;
+
     if (log_to_stderr)
 	fprintf(stderr, "%s\n", m);
     if (log_to_syslog)
@@ -445,7 +452,7 @@ loglog(int mess_no, const char *message, ...)
 }
 
 void
-log_errno_routine(int e, const char *message, ...)
+openswan_log_errno_routine(int e, const char *message, ...)
 {
     va_list args;
     char m[LOG_WIDTH];	/* longer messages will be truncated */
@@ -453,6 +460,8 @@ log_errno_routine(int e, const char *message, ...)
     va_start(args, message);
     fmt_log(m, sizeof(m), message, args);
     va_end(args);
+
+    log_did_something=TRUE;
 
     if (log_to_stderr)
 	fprintf(stderr, "ERROR: %s. Errno %d: %s\n", m, e, strerror(e));
@@ -477,6 +486,8 @@ exit_log(const char *message, ...)
     fmt_log(m, sizeof(m), message, args);
     va_end(args);
 
+    log_did_something=TRUE;
+
     if (log_to_stderr)
 	fprintf(stderr, "FATAL ERROR: %s\n", m);
     if (log_to_syslog)
@@ -490,7 +501,7 @@ exit_log(const char *message, ...)
 }
 
 void
-exit_log_errno_routine(int e, const char *message, ...)
+openswan_exit_log_errno_routine(int e, const char *message, ...)
 {
     va_list args;
     char m[LOG_WIDTH];	/* longer messages will be truncated */
@@ -498,6 +509,8 @@ exit_log_errno_routine(int e, const char *message, ...)
     va_start(args, message);
     fmt_log(m, sizeof(m), message, args);
     va_end(args);
+
+    log_did_something=TRUE;
 
     if (log_to_stderr)
 	fprintf(stderr, "FATAL ERROR: %s. Errno %d: %s\n", m, e, strerror(e));
@@ -588,9 +601,8 @@ whack_log(int mess_no, const char *message, ...)
 /* Debugging message support */
 
 #ifdef DEBUG
-
 void
-switch_fail(int n, const char *file_str, unsigned long line_no)
+openswan_switch_fail(int n, const char *file_str, unsigned long line_no)
 {
     char buf[30];
 
@@ -664,13 +676,14 @@ set_debugging(lset_t deb)
 {
     cur_debugging = deb;
 
-    pfkey_lib_debug = (cur_debugging&DBG_PFKEY ?
-		       PF_KEY_DEBUG_PARSE_MAX : PF_KEY_DEBUG_PARSE_NONE);
+    if(kernel_ops!=NULL && kernel_ops->set_debug!=NULL) {
+	(*kernel_ops->set_debug)(cur_debugging, DBG_log, openswan_log);
+    }
 }
 
 /* log a debugging message (prefixed by "| ") */
 
-void
+int
 DBG_log(const char *message, ...)
 {
     va_list args;
@@ -694,6 +707,8 @@ DBG_log(const char *message, ...)
 	prefix[2]='\n';
 	peerlog(prefix, m);
     }
+
+    return 0;
 }
 
 /* dump raw bytes in hex to stderr (for lack of any better destination) */
@@ -704,10 +719,10 @@ openswan_DBG_dump(const char *label, const void *p, size_t len)
 #   define DUMP_LABEL_WIDTH 20	/* arbitrary modest boundary */
 #   define DUMP_WIDTH	(4 * (1 + 4 * 3) + 1)
     char buf[DUMP_LABEL_WIDTH + DUMP_WIDTH];
-    char *bp;
+    char *bp, *bufstart;
     const unsigned char *cp = p;
 
-    bp = buf;
+    bufstart = buf;
 
     if (label != NULL && label[0] != '\0')
     {
@@ -728,7 +743,7 @@ openswan_DBG_dump(const char *label, const void *p, size_t len)
 	    }
 	    else if (llen < DUMP_LABEL_WIDTH)
 	    {
-		bp = buf + llen;
+		bufstart = buf + llen;
 	    }
 	    else
 	    {
@@ -737,6 +752,7 @@ openswan_DBG_dump(const char *label, const void *p, size_t len)
 	}
     }
 
+    bp = bufstart;
     do {
 	int i, j;
 
@@ -755,7 +771,7 @@ openswan_DBG_dump(const char *label, const void *p, size_t len)
 	}
 	*bp = '\0';
 	DBG_log("%s", buf);
-	bp = buf;
+	bp = bufstart;
     } while (len != 0);
 #   undef DUMP_LABEL_WIDTH
 #   undef DUMP_WIDTH
@@ -766,6 +782,7 @@ openswan_DBG_dump(const char *label, const void *p, size_t len)
 void
 show_status(void)
 {
+    show_kernel_interface();
     show_ifaces_status();
     show_myid_status();
     show_debug_status();
@@ -789,21 +806,6 @@ show_status(void)
     whack_log(RC_COMMENT, BLANK_FORMAT);	/* spacer */
     show_shunt_status();
 #endif
-}
-
-/* ip_str: a simple to use variant of addrtot.
- * It stores its result in a static buffer.
- * This means that newer calls overwrite the storage of older calls.
- * Note: this is not used in any of the logging functions, so their
- * callers may use it.
- */
-const char *
-ip_str(const ip_address *src)
-{
-    static char buf[ADDRTOT_BUF];
-
-    addrtot(src, 0, buf, sizeof(buf));
-    return buf;
 }
 
 /*
@@ -845,73 +847,7 @@ daily_log_event(void)
     daily_log_reset();
 }
 
-/* for paths.h */
-/*
- * decode the paths
- */
-struct pluto_paths plutopaths;
-
-void verify_path_space(struct paththing *p, size_t min, const char *why)
-{
-    if (min > p->path_space)
-    {
-	pfreeany(p->path);
-	p->path_space = min + 10;
-	p->path = alloc_bytes(p->path_space, why);
-    }
-}
-
-void set_paths(const char *basedir)
-{
-    size_t baselen = strlen(basedir) + 2;
-
-#ifndef SINGLE_CONF_DIR
-    verify_path_space(&plutopaths.acerts, baselen + sizeof("acerts"), "acert path");
-    snprintf(plutopaths.acerts.path, plutopaths.acerts.path_space, "%s/acerts", basedir);
-
-    verify_path_space(&plutopaths.cacerts, baselen + sizeof("cacerts"), "cacert path");
-    snprintf(plutopaths.cacerts.path, plutopaths.cacerts.path_space, "%s/cacerts", basedir);
-
-    verify_path_space(&plutopaths.crls, baselen + sizeof("crls"), "crls path");
-    snprintf(plutopaths.crls.path, plutopaths.crls.path_space, "%s/crls", basedir);
-
-    verify_path_space(&plutopaths.private, baselen + sizeof("private"), "private path");
-    snprintf(plutopaths.private.path, plutopaths.private.path_space, "%s/private", basedir);
-
-    verify_path_space(&plutopaths.certs, baselen + sizeof("certs"), "certs path");
-    snprintf(plutopaths.certs.path, plutopaths.certs.path_space, "%s/certs", basedir);
-
-    verify_path_space(&plutopaths.aacerts, baselen + sizeof("aacerts"), "aacerts path");
-    snprintf(plutopaths.aacerts.path, plutopaths.certs.path_space, "%s/aacerts", basedir);
-
-    verify_path_space(&plutopaths.ocspcerts, baselen + sizeof("ocspcerts"), "ocspcerts path");
-    snprintf(plutopaths.ocspcerts.path, plutopaths.certs.path_space, "%s/ocspcerts", basedir);
-#else
-    verify_path_space(&plutopaths.acerts, baselen + sizeof(""), "");
-    snprintf(plutopaths.acerts.path, plutopaths.acerts.path_space, "%s", basedir);
-
-    verify_path_space(&plutopaths.cacerts, baselen + sizeof(""), "");
-    snprintf(plutopaths.cacerts.path, plutopaths.cacerts.path_space, "%s", basedir);
-
-    verify_path_space(&plutopaths.crls, baselen + sizeof(""), "");
-    snprintf(plutopaths.crls.path, plutopaths.crls.path_space, "%s", basedir);
-
-    verify_path_space(&plutopaths.private, baselen + sizeof(""), "");
-    snprintf(plutopaths.private.path, plutopaths.private.path_space, "%s", basedir);
-
-    verify_path_space(&plutopaths.certs, baselen + sizeof(""), "");
-    snprintf(plutopaths.certs.path, plutopaths.certs.path_space, "%s", basedir);
-
-    verify_path_space(&plutopaths.aacerts, baselen + sizeof(""), "");
-    snprintf(plutopaths.aacerts.path, plutopaths.certs.path_space, "%s", basedir);
-
-    verify_path_space(&plutopaths.ocspcerts, baselen + sizeof(""), "");
-    snprintf(plutopaths.ocspcerts.path, plutopaths.certs.path_space, "%s", basedir);
-#endif
-
-}
-
-#ifdef EXTERNAL_STATE_LOGGING
+#ifdef HAVE_STATSD
 /*
  * we store runtime info for stats/status this way,
  * you may be able to do something similar using these hooks
@@ -995,12 +931,12 @@ connection_state(struct state *st, void *data)
 }
 
 void
-_log_state(struct state *st, enum state_kind state)
+log_state(struct state *st, enum state_kind state)
 {
 	char buf[1024];
 	struct log_conn_info lc;
 	struct connection *conn;
-	char *tun = NULL, *p1 = NULL, *p2 = NULL;
+	const char *tun = NULL, *p1 = NULL, *p2 = NULL;
 	enum state_kind save_state;
 
 	if (!st || !st->st_connection || !st->st_connection->name)
@@ -1021,19 +957,19 @@ _log_state(struct state *st, enum state_kind state)
 	case tun_phase15: tun = "phase15"; break;
 	case tun_phase2:  tun = "phase2";  break;
 	case tun_up:      tun = "up";      break;
-	default: break;
+	default:          tun = "unknown"; break;
 	}
 
 	switch (lc.phase1) {
-	case p1_init:     p1  = "init";    break;
-	case p1_encrypt:  p1  = "encrypt"; break;
-	case p1_auth:     p1  = "auth";    break;
-	default: break;
+	case p1_init:     p1 = "init";    break;
+	case p1_encrypt:  p1 = "encrypt"; break;
+	case p1_auth:     p1 = "auth";    break;
+	default:          p1 = "unknown"; break;
 	}
 
 	switch (lc.phase2) {
-	case p2_neg:      p2  = "neg";     break;
-	default: break;
+	case p2_neg:      p2 = "neg";     break;
+	default:          p2 = "unknown";  break;
 	}
 
 	snprintf(buf, sizeof(buf), "/bin/statsd "

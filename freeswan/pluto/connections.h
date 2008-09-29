@@ -138,6 +138,7 @@ struct connection {
     enum connection_kind kind;
     const struct iface *interface;	/* filled in iff oriented */
     enum routing_t routing;	/* level of routing in place */
+    bool initiated;
 
     so_serial_t	/* state object serial number */
 	newest_isakmp_sa,

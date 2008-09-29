@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: nethub.h,v 1.7 2003-04-02 20:25:53 mcr Exp $
+ * RCSID $Id: nethub.h,v 1.7 2003/04/02 20:25:53 mcr Exp $
  *
  * @(#) based upon uml_router from User-Mode-Linux tools package
  *
@@ -186,11 +186,11 @@ extern void close_descriptor(struct netjig_state *ns,
 
 #ifdef NETDISSECT
 #include "netdissect.h"
-
 extern struct netdissect_options gndo;
-extern int tcpdump_print;
-
 #endif
+
+extern void hexdump_block(const u_char *cp, u_int length);
+extern int tcpdump_print;
 
 #define _NETHUB_H_
 
@@ -198,7 +198,7 @@ extern int tcpdump_print;
 
 /*
  * $Log: nethub.h,v $
- * Revision 1.7  2003-04-02 20:25:53  mcr
+ * Revision 1.7  2003/04/02 20:25:53  mcr
  * 	quiet down uml_netjig unless -v or $NETJIGVERBOSE is set.
  *
  * Revision 1.6  2003/04/02 02:15:59  mcr

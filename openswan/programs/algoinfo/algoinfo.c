@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char spi_c_version[] = "RCSID $Id: algoinfo.c,v 1.1 2004-04-29 04:13:02 mcr Exp $";
+char spi_c_version[] = "RCSID $Id: algoinfo.c,v 1.1 2004/04/29 04:13:02 mcr Exp $";
 
 #include <asm/types.h>
 #include <sys/types.h>
@@ -45,9 +45,10 @@ char spi_c_version[] = "RCSID $Id: algoinfo.c,v 1.1 2004-04-29 04:13:02 mcr Exp 
 #endif
      #include <signal.h>
      #include <sys/socket.h>
-     #include <pfkeyv2.h>
-     #include <pfkey.h>
+     #include <openswan/pfkeyv2.h>
+     #include <openswan/pfkey.h>
 
+#include "socketwrapper.h"
 #include "openswan/radij.h"
 #include "openswan/ipsec_encap.h"
 #include "openswan/ipsec_xform.h"
@@ -58,6 +59,7 @@ char spi_c_version[] = "RCSID $Id: algoinfo.c,v 1.1 2004-04-29 04:13:02 mcr Exp 
 
 #include "alg_info.h"
 #include "kernel_alg.h"
+#include "osw_select.h"
 
 struct encap_msghdr *em;
 
@@ -98,7 +100,7 @@ char sa[SATOT_BUF];
 
 extern unsigned int pfkey_lib_debug; /* used by libfreeswan/pfkey_v2_build */
 int pfkey_sock;
-fd_set pfkey_socks;
+osw_fd_set pfkey_socks;
 uint32_t pfkey_seq = 0;
 enum life_severity {
 	life_soft = 0,
@@ -1085,7 +1087,7 @@ main(int argc, char *argv[])
 			program_name);
 	}
 
-	if((pfkey_sock = socket(PF_KEY, SOCK_RAW, PF_KEY_V2) ) < 0) {
+	if((pfkey_sock = safe_socket(PF_KEY, SOCK_RAW, PF_KEY_V2) ) < 0) {
 		fprintf(stderr, "%s: Trouble opening PF_KEY family socket with error: ",
 			program_name);
 		switch(errno) {
@@ -1687,7 +1689,7 @@ main(int argc, char *argv[])
 
 /*
  * $Log: algoinfo.c,v $
- * Revision 1.1  2004-04-29 04:13:02  mcr
+ * Revision 1.1  2004/04/29 04:13:02  mcr
  * 	diagnostic program for algorithm code.
  *
  * Revision 1.105  2004/04/26 05:05:04  ken

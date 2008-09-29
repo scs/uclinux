@@ -4,6 +4,9 @@ Adding User Applications to the uClinux Distribution
 D. P. Siddons
 9th Dec. 2001
 
+H. Michelfelder
+20th June 2008
+
 
 This document gives simple instructions for adding a user-written application to
 the uClinux configuration system. Entries must be added to three files, and an
@@ -21,29 +24,13 @@ user/Makefile
    This adds the directory 'foo' to the list of directories to be built. I added
    mine in alphabetical order. The order doesn't seem to matter.
   
-config/Configure.help
-   This file contains the text which is presented on request during the
-config.
-   Add a block like
-   
-   CONFIG_USER_FOO_FOO
-     This program does fooey things to your bars.
-   
-   The text must be indented two spaces, and there must be no empty lines. Lines
-   should be <70 chars long.
+user/Kconfig
+   Add lines to the file like
 
-config/config.in:
-   Add a line in the apropriate menu section (i.e. in the program group you want
-   your app to show up in during 'make config'; I used 'misc'), like 
-   
-   bool 'foo'           CONFIG_USER_FOO_FOO
-   
-   The repetition of FOO allows for directories which contain multiple
-   executables. Thus, if the user directory 'foo' contained code to make 'foo'
-   and 'bar', each gets its own config line if an additional entry is made like
-   
-   bool 'bar'           CONFIG_USER_FOO_BAR  
-   
+config USER_FOO_FOO
+    bool "foo"
+    help
+      This program does fooey things to your bars.
 
 Next, there needs to be a proper /user/foo/Makefile. The Makefile should follow
 the following template:

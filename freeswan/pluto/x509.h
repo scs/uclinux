@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: x509.h,v 1.6 2004/09/30 23:14:52 danield Exp $
+ * RCSID $Id: x509.h,v 1.6 2004-09-30 23:14:52 danield Exp $
  */
 #ifndef _X509_H
 #define _X509_H

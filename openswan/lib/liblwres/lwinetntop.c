@@ -17,10 +17,12 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char rcsid[] =
-	"$Id: lwinetntop.c,v 1.2 2004-09-20 18:00:36 mcr Exp $";
+	"$Id: lwinetntop.c,v 1.3 2005/08/05 01:18:29 mcr Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -113,7 +115,7 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size) {
 	 * to use pointer overlays.  All the world's not a VAX.
 	 */
 	char tmp[sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")], *tp;
-	struct { int base, len; } best, cur;
+	struct { int base, len; } best = { -1, 0 }, cur = { -1, 0 };
 	unsigned int words[NS_IN6ADDRSZ / NS_INT16SZ];
 	int i;
 
@@ -125,8 +127,6 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size) {
 	memset(words, '\0', sizeof(words));
 	for (i = 0; i < NS_IN6ADDRSZ; i++)
 		words[i / 2] |= (src[i] << ((1 - (i % 2)) << 3));
-	best.base = -1;
-	cur.base = -1;
 	for (i = 0; i < (NS_IN6ADDRSZ / NS_INT16SZ); i++) {
 		if (words[i] == 0) {
 			if (cur.base == -1)

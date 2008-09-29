@@ -1,5 +1,5 @@
 #
-# $Id: net.road.sh,v 1.3 2003-11-28 19:32:05 mcr Exp $
+# $Id: net.road.sh,v 1.3 2003/11/28 19:32:05 mcr Exp $
 #
 if [ -n "$UML_northpublic_CTL" ]
 then

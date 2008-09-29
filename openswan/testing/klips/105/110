@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id: 110,v 1.5 2002-04-24 07:36:14 mcr Exp $
+# RCSID $Id: 110,v 1.5 2002/04/24 07:36:14 mcr Exp $
 #
 #
 # These are setup examples for OpenBSD.  So far there are only transport
@@ -192,7 +192,7 @@ esac
 
 #
 # $Log: 110,v $
-# Revision 1.5  2002-04-24 07:36:14  mcr
+# Revision 1.5  2002/04/24 07:36:14  mcr
 # Moved from ./klips/test/105/110,v
 #
 # Revision 1.4  1999/04/06 04:54:33  rgb

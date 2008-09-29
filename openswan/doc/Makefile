@@ -25,8 +25,7 @@ b=src/manpages.html src/firewall.html src/trouble.html
 c=src/compat.html src/interop.html src/performance.html \
 	src/testing.html src/kernel.html src/adv_config.html \
 	src/install.html src/config.html \
-	src/background.html src/user_examples.html \
-	src/makecheck.html src/umltesting.html \
+	src/background.html src/user_examples.html 
 
 # background and reference material
 d=src/politics.html src/ipsec.html \
@@ -58,24 +57,23 @@ TESTINGDIR=${OPENSWANSRCDIR}/testing
 
 # where do we put HTML manpages?
 HMANDIR=manpage.d
+SAMPLEMAN=${HMANDIR}/ipsec.8.html
 
-programs: ${alldocs} manpages
+programs: ${alldocs} ${SAMPLEMAN}
 
-all: #$(howto) $(manpages) index.html
+all: #$(howto) index.html
 
 # default, build HTML only
 # dependencies build most of it
 # then we add index
-index.html: manpages ${OPENSWANSRCDIR}/doc/src/index.html
+index.html: ${SAMPLEMAN} ${OPENSWANSRCDIR}/doc/src/index.html
 	cp ${OPENSWANSRCDIR}/doc/src/index.html index.html
 
-manpages:	manp
-
-manp:	$(SCRIPTDIR)/mkhtmlman
+${SAMPLEMAN}: $(SCRIPTDIR)/mkhtmlman
 	-@$(SCRIPTDIR)/mkhtmlman $(HMANDIR) `find ${OPENSWANSRCDIR}/programs ${OPENSWANSRCDIR}/lib ${OPENSWANSRCDIR}/linux -type f -name '*.[1-8]' -print | grep -v lwres | grep -v CVS`
 
-real-all: $(howto) $(manpages) index.html
-remake: $(alldocs) $(manpages) 
+real-all: $(howto) index.html
+remake: $(alldocs) 
 
 realclean:
 	@rm -f $(howto) $(separate) toc.html index.html
@@ -84,7 +82,7 @@ realclean:
 clean:
 	@echo nothing here anymore
 
-install: ${alldocs} manpages
+install: ${alldocs} ${SAMPLEMAN}
 	@mkdir -p ${DOCDIR}
 	@$(foreach f, $(alldocs), \
 		$(INSTALL) $f ${DOCDIR} || exit 1;\

@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: server.c,v 1.109.2.4 2007-09-05 03:08:27 paul Exp $
+ * RCSID $Id: server.c,v 1.113 2005/08/27 05:51:00 paul Exp $
  */
 
 #include <stdio.h>
@@ -32,20 +32,26 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
+#include <sys/poll.h>	/* only used for forensic poll call */
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
-#include <resolv.h>
 #include <arpa/nameser.h>	/* missing from <resolv.h> on old systems */
-#include <sys/queue.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
-#include <sys/queue.h>
+
+#if defined(IP_RECVERR) && defined(MSG_ERRQUEUE)
+#  include <asm/types.h>	/* for __u8, __u32 */
+#  include <linux/errqueue.h>
+#  include <sys/uio.h>	/* struct iovec */
+#endif
 
 #include <openswan.h>
 
+#include "sysdep.h"
+#include "socketwrapper.h"
 #include "constants.h"
 #include "defs.h"
 #include "state.h"
@@ -73,13 +79,15 @@
 #include "pluto_crypt.h" /* cryptographic helper functions */
 #include "udpfromto.h"
 
-#include <pfkeyv2.h>
-#include <pfkey.h>
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
 #include "kameipsec.h"
 
 #ifdef NAT_TRAVERSAL
 #include "nat_traversal.h"
 #endif
+
+#include "osw_select.h"
 
 /*
  *  Server main loop and socket initialization routines.
@@ -90,15 +98,23 @@ static const int on = TRUE;	/* by-reference parameter; constant, we hope */
 bool no_retransmits = FALSE;
 
 /* list of interface devices */
-LIST_HEAD(,iface_dev) interface_dev;
+struct iface_list interface_dev;
 
 /* control (whack) socket */
 int ctl_fd = NULL_FD;	/* file descriptor of control (whack) socket */
-struct sockaddr_un ctl_addr = { AF_UNIX, DEFAULT_CTLBASE CTL_SUFFIX };
+struct sockaddr_un ctl_addr = { .sun_family=AF_UNIX,
+#if defined(HAS_SUN_LEN)
+				.sun_len=sizeof(struct sockaddr_un),
+#endif				
+				.sun_path  =DEFAULT_CTLBASE CTL_SUFFIX };
 
 /* info (showpolicy) socket */
 int policy_fd = NULL_FD;
-struct sockaddr_un info_addr= { AF_UNIX, DEFAULT_CTLBASE INFO_SUFFIX };
+struct sockaddr_un info_addr= { .sun_family=AF_UNIX,
+#if defined(HAS_SUN_LEN)
+				.sun_len=sizeof(struct sockaddr_un),
+#endif				
+				.sun_path  =DEFAULT_CTLBASE INFO_SUFFIX };
 
 /* Initialize the control socket.
  * Note: this is called very early, so little infrastructure is available.
@@ -113,7 +129,7 @@ init_ctl_socket(void)
     LIST_INIT(&interface_dev);
 
     delete_ctl_socket();	/* preventative medicine */
-    ctl_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    ctl_fd = safe_socket(AF_UNIX, SOCK_STREAM, 0);
     if (ctl_fd == -1)
 	failed = "create";
     else if (fcntl(ctl_fd, F_SETFD, FD_CLOEXEC) == -1)
@@ -175,7 +191,7 @@ init_info_socket(void)
     err_t failed = NULL;
 
     delete_info_socket();	/* preventative medicine */
-    info_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    info_fd = safe_socket(AF_UNIX, SOCK_STREAM, 0);
     if (info_fd == -1)
 	failed = "create";
     else if (fcntl(info_fd, F_SETFD, FD_CLOEXEC) == -1)
@@ -266,6 +282,7 @@ free_dead_ifaces(void)
 	struct iface_port **pp;
 
 	release_dead_interfaces();
+	delete_states_dead_interfaces();
 	for (pp = &interfaces; (p = *pp) != NULL; )
 	{
 	    if (p->change == IFN_DELETE)
@@ -302,237 +319,9 @@ free_ifaces(void)
     free_dead_ifaces();
 }
 
-struct raw_iface {
-    ip_address addr;
-    char name[IFNAMSIZ + 20];	/* what would be a safe size? */
-    struct raw_iface *next;
-};
+struct raw_iface *static_ifn=NULL;
 
-/* Called to handle --interface <ifname>
- * Semantics: if specified, only these (real) interfaces are considered.
- */
-static const char *pluto_ifn[10];
-static int pluto_ifn_roof = 0;
-
-bool
-use_interface(const char *rifn)
-{
-    if(pluto_ifn_inst[0]=='\0') {
-	pluto_ifn_inst = clone_str(rifn, "genifn");
-    }
-
-    if (pluto_ifn_roof >= (int)elemsof(pluto_ifn))
-    {
-	return FALSE;
-    }
-    else
-    {
-	pluto_ifn[pluto_ifn_roof++] = rifn;
-	return TRUE;
-    }
-}
-
-#ifndef IPSECDEVPREFIX
-# define IPSECDEVPREFIX "ipsec"
-#endif
-
-static struct raw_iface *
-find_raw_ifaces(void)
-{
-    int j;	/* index into buf */
-    int num;   /* number of interfaces */
-    struct ifconf ifconf;
-    struct ifreq *buf; /* for list of interfaces */
-    struct raw_iface *rifaces = NULL;
-    int master_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);    /* Get a UDP socket */
-
-    /* get list of interfaces with assigned IPv4 addresses from system */
-
-    if (master_sock == -1)
-	exit_log_errno((e, "socket() failed in find_raw_ifaces()"));
-
-    if (setsockopt(master_sock, SOL_SOCKET, SO_REUSEADDR
-    , (const void *)&on, sizeof(on)) < 0)
-	exit_log_errno((e, "setsockopt() in find_raw_ifaces()"));
-
-    /* bind the socket */
-    {
-	ip_address any;
-
-	happy(anyaddr(AF_INET, &any));
-	setportof(htons(pluto_port), &any);
-	if (bind(master_sock, sockaddrof(&any), sockaddrlenof(&any)) < 0)
-	    exit_log_errno((e, "bind() failed in find_raw_ifaces()"));
-    }
-
-    num = 100;
-    buf = NULL;
-    for (;;) {
-       /* Get local interfaces.  See netdevice(7). */
-       ifconf.ifc_len = num * sizeof(struct ifreq);
-       buf = (void *) realloc(buf, ifconf.ifc_len);
-       if (!buf)
-           exit_log_errno((e, "realloc of %d in find_raw_ifaces4()",
-                   ifconf.ifc_len));
-       memset(buf, 0, num*sizeof(struct ifreq));
-       ifconf.ifc_buf = (void *) buf;
-
-       if (ioctl(master_sock, SIOCGIFCONF, &ifconf) == -1)
-           exit_log_errno((e, "ioctl(SIOCGIFCONF) in find_raw_ifaces4()"));
-
-       /* if we got back less than we asked for, we have them all */
-       if (ifconf.ifc_len < (int)(sizeof(struct ifreq) * num))
-           break;
-
-       /* try again and ask for more this time */
-       num += 100;
-    }
-
-    /* Add an entry to rifaces for each interesting interface. */
-    for (j = 0; (j+1) * sizeof(struct ifreq) <= (size_t)ifconf.ifc_len; j++)
-    {
-	struct raw_iface ri;
-	const struct sockaddr_in *rs = (struct sockaddr_in *) &buf[j].ifr_addr;
-	struct ifreq auxinfo;
-
-	/* ignore all but AF_INET interfaces */
-	if (rs->sin_family != AF_INET)
-	    continue;	/* not interesting */
-
-	/* build a NUL-terminated copy of the rname field */
-	memcpy(ri.name, buf[j].ifr_name, IFNAMSIZ);
-	ri.name[IFNAMSIZ] = '\0';
-
-	/* ignore if our interface names were specified, and this isn't one */
-	if (pluto_ifn_roof != 0)
-	{
-	    int i;
-
-	    for (i = 0; i != pluto_ifn_roof; i++)
-		if (streq(ri.name, pluto_ifn[i]))
-		    break;
-	    if (i == pluto_ifn_roof)
-		continue;	/* not found -- skip */
-	}
-
-	/* Find out stuff about this interface.  See netdevice(7). */
-	zero(&auxinfo);	/* paranoia */
-	memcpy(auxinfo.ifr_name, buf[j].ifr_name, IFNAMSIZ);
-	if (ioctl(master_sock, SIOCGIFFLAGS, &auxinfo) == -1)
-	    exit_log_errno((e
-		, "ioctl(SIOCGIFFLAGS) for %s in find_raw_ifaces()"
-		, ri.name));
-	if (!(auxinfo.ifr_flags & IFF_UP))
-	    continue;	/* ignore an interface that isn't UP */
-        if (auxinfo.ifr_flags & IFF_SLAVE)
-            continue;   /* ignore slave interfaces; they share IPs with their master */
-
-	/* ignore unconfigured interfaces */
-	if (rs->sin_addr.s_addr == 0)
-	    continue;
-
-	happy(initaddr((const void *)&rs->sin_addr, sizeof(struct in_addr)
-	    , AF_INET, &ri.addr));
-
-	DBG(DBG_CONTROL, DBG_log("found %s with address %s"
-	    , ri.name, ip_str(&ri.addr)));
-	ri.next = rifaces;
-	rifaces = clone_thing(ri, "struct raw_iface");
-    }
-
-    close(master_sock);
-
-    if (buf)
-       free(buf);
-
-    return rifaces;
-}
-
-static struct raw_iface *
-find_raw_ifaces6_linux(void)
-{
-
-    /* Get list of interfaces with IPv6 addresses from system from /proc/net/if_inet6).
-     *
-     * Documentation of format?
-     * RTFS: linux-2.2.16/net/ipv6/addrconf.c:iface_proc_info()
-     *       linux-2.4.9-13/net/ipv6/addrconf.c:iface_proc_info()
-     *
-     * Sample from Gerhard's laptop:
-     *	00000000000000000000000000000001 01 80 10 80       lo
-     *	30490009000000000000000000010002 02 40 00 80   ipsec0
-     *	30490009000000000000000000010002 07 40 00 80     eth0
-     *	fe80000000000000025004fffefd5484 02 0a 20 80   ipsec0
-     *	fe80000000000000025004fffefd5484 07 0a 20 80     eth0
-     *
-     * Each line contains:
-     * - IPv6 address: 16 bytes, in hex, no punctuation
-     * - ifindex: 1 byte, in hex
-     * - prefix_len: 1 byte, in hex
-     * - scope (e.g. global, link local): 1 byte, in hex
-     * - flags: 1 byte, in hex
-     * - device name: string, followed by '\n'
-     */
-    struct raw_iface *rifaces = NULL;
-    static const char proc_name[] = "/proc/net/if_inet6";
-    FILE *proc_sock = fopen(proc_name, "r");
-
-    if (proc_sock == NULL)
-    {
-	DBG(DBG_CONTROL, DBG_log("could not open %s", proc_name));
-    }
-    else
-    {
-	for (;;)
-	{
-	    struct raw_iface ri;
-	    unsigned short xb[8];	/* IPv6 address as 8 16-bit chunks */
-	    char sb[8*5];	/* IPv6 address as string-with-colons */
-	    unsigned int if_idx;	/* proc field, not used */
-	    unsigned int plen;	/* proc field, not used */
-	    unsigned int scope;	/* proc field, used to exclude link-local */
-	    unsigned int dad_status;	/* proc field, not used */
-	    /* ??? I hate and distrust scanf -- DHR */
-	    int r = fscanf(proc_sock
-		, "%4hx%4hx%4hx%4hx%4hx%4hx%4hx%4hx"
-		  " %02x %02x %02x %02x %20s\n"
-		, xb+0, xb+1, xb+2, xb+3, xb+4, xb+5, xb+6, xb+7
-		, &if_idx, &plen, &scope, &dad_status, ri.name);
-
-	    /* ??? we should diagnose any problems */
-	    if (r != 13)
-		break;
-
-	    /* ignore addresses with link local scope.
-	     * From linux-2.4.9-13/include/net/ipv6.h:
-	     * IPV6_ADDR_LINKLOCAL	0x0020U
-	     * IPV6_ADDR_SCOPE_MASK	0x00f0U
-	     */
-	    if ((scope & 0x00f0U) == 0x0020U)
-		continue;
-
-	    snprintf(sb, sizeof(sb)
-		, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x"
-		, xb[0], xb[1], xb[2], xb[3], xb[4], xb[5], xb[6], xb[7]);
-
-	    happy(ttoaddr(sb, 0, AF_INET6, &ri.addr));
-
-	    if (!isunspecaddr(&ri.addr))
-	    {
-		DBG(DBG_CONTROL
-		    , DBG_log("found %s with address %s"
-			, ri.name, sb));
-		ri.next = rifaces;
-		rifaces = clone_thing(ri, "struct raw_iface");
-	    }
-	}
-	fclose(proc_sock);
-    }
-
-    return rifaces;
-}
-
-static int
+int
 create_socket(struct raw_iface *ifp, const char *v_name, int port)
 {
     int fd = socket(addrtypeof(&ifp->addr), SOCK_DGRAM, IPPROTO_UDP);
@@ -595,19 +384,18 @@ create_socket(struct raw_iface *ifp, const char *v_name, int port)
     }
 #endif
 
-#if defined(linux) && defined(KERNEL26_SUPPORT)
+#if defined(linux) && defined(NETKEY_SUPPORT)
     if (kern_interface == USE_NETKEY)
     {
 	struct sadb_x_policy policy;
 	int level, opt;
 
+	memset(&policy, 0, sizeof(struct sadb_x_policy));
 	policy.sadb_x_policy_len = sizeof(policy) / IPSEC_PFKEYv2_ALIGN;
 	policy.sadb_x_policy_exttype = SADB_X_EXT_POLICY;
 	policy.sadb_x_policy_type = IPSEC_POLICY_BYPASS;
 	policy.sadb_x_policy_dir = IPSEC_DIR_INBOUND;
-	policy.sadb_x_policy_reserved = 0;
 	policy.sadb_x_policy_id = 0;
-	policy.sadb_x_policy_reserved2 = 0;
 
 	if (addrtypeof(&ifp->addr) == AF_INET6)
 	{
@@ -651,256 +439,27 @@ create_socket(struct raw_iface *ifp, const char *v_name, int port)
     }
     setportof(htons(pluto_port), &ifp->addr);
 
+#if defined(HAVE_UDPFROMTO)
     /* we are going to use udpfromto.c, so initialize it */
     udpfromto_init(fd);
+#endif
 
     return fd;
-}
-
-static void
-process_raw_ifaces(struct raw_iface *rifaces)
-{
-    struct raw_iface *ifp;
-
-    /* Find all virtual/real interface pairs.
-     * For each real interface...
-     */
-    for (ifp = rifaces; ifp != NULL; ifp = ifp->next)
-    {
-	struct raw_iface *v = NULL;	/* matching ipsecX interface */
-	struct raw_iface fake_v;
-	bool after = FALSE; /* has vfp passed ifp on the list? */
-	bool bad = FALSE;
-	struct raw_iface *vfp;
-
-	/* ignore if virtual (ipsec*) interface */
-	if (strncmp(ifp->name, IPSECDEVPREFIX, sizeof(IPSECDEVPREFIX)-1) == 0)
-	    continue;
-
-	for (vfp = rifaces; vfp != NULL; vfp = vfp->next)
-	{
-	    if (vfp == ifp)
-	    {
-		after = TRUE;
-	    }
-	    else if (sameaddr(&ifp->addr, &vfp->addr))
-	    {
-		/* Different entries with matching IP addresses.
-		 * Many interesting cases.
-		 */
-		if (strncmp(vfp->name, IPSECDEVPREFIX, sizeof(IPSECDEVPREFIX)-1) == 0)
-		{
-		    if (v != NULL)
-		    {
-			loglog(RC_LOG_SERIOUS
-			    , "ipsec interfaces %s and %s share same address %s"
-			    , v->name, vfp->name, ip_str(&ifp->addr));
-			bad = TRUE;
-		    }
-		    else
-		    {
-			v = vfp;	/* current winner */
-		    }
-		}
-		else
-		{
-		    /* ugh: a second real interface with the same IP address
-		     * "after" allows us to avoid double reporting.
-		     */
-#if defined(linux) && defined(KERNEL26_SUPPORT)
-		    if (kern_interface == USE_NETKEY)
-		    {
-			if (after)
-			{
-			    bad = TRUE;
-			    break;
-			}
-			continue;
-		    }
-#endif
-		    if (after)
-		    {
-			loglog(RC_LOG_SERIOUS
-			    , "IP interfaces %s and %s share address %s!"
-			    , ifp->name, vfp->name, ip_str(&ifp->addr));
-		    }
-		    bad = TRUE;
-		}
-	    }
-	}
-
-	if (bad)
-	    continue;
-
-#if defined(linux) && defined(KERNEL26_SUPPORT)
-	if (kern_interface == USE_NETKEY)
-	{
-	    v = ifp;
-	    goto add_entry;
-	}
-#endif
-
-	/* what if we didn't find a virtual interface? */
-	if (v == NULL)
-	{
-	    if (kern_interface == NO_KERNEL)
-	    {
-		/* kludge for testing: invent a virtual device */
-		static const char fvp[] = "virtual";
-		fake_v = *ifp;
-		passert(sizeof(fake_v.name) > sizeof(fvp));
-		strcpy(fake_v.name, fvp);
-		addrtot(&ifp->addr, 0, fake_v.name + sizeof(fvp) - 1
-		    , sizeof(fake_v.name) - (sizeof(fvp) - 1));
-		v = &fake_v;
-	    }
-	    else
-	    {
-		DBG(DBG_CONTROL,
-			DBG_log("IP interface %s %s has no matching ipsec* interface -- ignored"
-			    , ifp->name, ip_str(&ifp->addr)));
-		continue;
-	    }
-	}
-
-	/* We've got all we need; see if this is a new thing:
-	 * search old interfaces list.
-	 */
-#if defined(linux) && defined(KERNEL26_SUPPORT)
-add_entry:
-#endif
-	{
-	    struct iface_port **p = &interfaces;
-
-	    for (;;)
-	    {
-		struct iface_port *q = *p;
-		struct iface_dev *id = NULL;
-
-		/* search is over if at end of list */
-		if (q == NULL)
-		{
-		    /* matches nothing -- create a new entry */
-		    int fd = create_socket(ifp, v->name, pluto_port);
-
-		    if (fd < 0)
-			break;
-
-#ifdef NAT_TRAVERSAL
-		    if (nat_traversal_support_non_ike && addrtypeof(&ifp->addr) == AF_INET)
-		    {
-			nat_traversal_espinudp_socket(fd, "IPv4", ESPINUDP_WITH_NON_IKE);
-		    }
-#endif
-
-		    q = alloc_thing(struct iface_port, "struct iface_port");
-		    id = alloc_thing(struct iface_dev, "struct iface_dev");
-
-		    LIST_INSERT_HEAD(&interface_dev, id, id_entry);
-
-		    q->ip_dev = id;
-		    id->id_rname = clone_str(ifp->name, "real device name");
-		    id->id_vname = clone_str(v->name, "virtual device name");
-		    id->id_count++;
-
-		    q->ip_addr = ifp->addr;
-		    q->fd = fd;
-		    q->next = interfaces;
-		    q->change = IFN_ADD;
-		    q->port = pluto_port;
-		    q->ike_float = FALSE;
-
-		    interfaces = q;
-
-		    openswan_log("adding interface %s/%s %s:%d"
-				 , q->ip_dev->id_vname
-				 , q->ip_dev->id_rname
-				 , ip_str(&q->ip_addr)
-				 , q->port);
-
-#ifdef NAT_TRAVERSAL
-		    /*
-		     * right now, we do not support NAT-T on IPv6, because
-		     * the kernel did not support it, and gave an error
-		     * it one tried to turn it on.
-		     */
-		    if (nat_traversal_support_port_floating
-			&& addrtypeof(&ifp->addr) == AF_INET)
-		    {
-			fd = create_socket(ifp, v->name, NAT_T_IKE_FLOAT_PORT);
-			if (fd < 0) 
-			    break;
-			nat_traversal_espinudp_socket(fd, "IPv4"
-						      , ESPINUDP_WITH_NON_ESP);
-			q = alloc_thing(struct iface_port, "struct iface_port");
-			q->ip_dev = id;
-			id->id_count++;
-			
-			q->ip_addr = ifp->addr;
-			setportof(htons(NAT_T_IKE_FLOAT_PORT), &q->ip_addr);
-			q->port = NAT_T_IKE_FLOAT_PORT;
-			q->fd = fd;
-			q->next = interfaces;
-			q->change = IFN_ADD;
-			q->ike_float = TRUE;
-			interfaces = q;
-			openswan_log("adding interface %s/%s %s:%d"
-				     , q->ip_dev->id_vname, q->ip_dev->id_rname
-				     , ip_str(&q->ip_addr)
-				     , q->port);
-		    }
-#endif
-		    break;
-		}
-
-		/* search over if matching old entry found */
-		if (streq(q->ip_dev->id_rname, ifp->name)
-		    && streq(q->ip_dev->id_vname, v->name)
-		    && sameaddr(&q->ip_addr, &ifp->addr))
-		{
-		    /* matches -- rejuvinate old entry */
-		    q->change = IFN_KEEP;
-#ifdef NAT_TRAVERSAL
-		    /* look for other interfaces to keep (due to NAT-T) */
-		    for (q = q->next ; q ; q = q->next) {
-			if (streq(q->ip_dev->id_rname, ifp->name)
-			    && streq(q->ip_dev->id_vname, v->name)
-			    && sameaddr(&q->ip_addr, &ifp->addr)) {
-				q->change = IFN_KEEP;
-			}
-		    }
-#endif
-		    break;
-		}
-
-		/* try again */
-		p = &q->next;
-	    } /* for (;;) */
-	}
-    }
-
-    /* delete the raw interfaces list */
-    while (rifaces != NULL)
-    {
-	struct raw_iface *t = rifaces;
-
-	rifaces = t->next;
-	pfree(t);
-    }
 }
 
 void
 find_ifaces(void)
 {
     mark_ifaces_dead();
-/* 
-    find_raw_ifaces uses SIOCGIFCONF, which returns ipv4 and ipv6,
-    except on Linux.
-*/
-    process_raw_ifaces(find_raw_ifaces());
-#if defined(linux) 
-    process_raw_ifaces(find_raw_ifaces6_linux());
+
+    if(kernel_ops->process_ifaces) {
+#if !defined(__CYGWIN32__)
+	kernel_ops->process_ifaces(find_raw_ifaces4());
+	kernel_ops->process_ifaces(find_raw_ifaces6());
 #endif
+	kernel_ops->process_ifaces(static_ifn);
+    }
+
     free_dead_ifaces();	    /* ditch remaining old entries */
 
     if (interfaces == NULL)
@@ -1006,8 +565,8 @@ call_server(void)
 
     for (;;)
     {
-	fd_set readfds;
-	fd_set writefds;
+	osw_fd_set readfds;
+	osw_fd_set writefds;
 	int ndes;
 
 	/* wait for next interesting thing */
@@ -1035,11 +594,11 @@ call_server(void)
 		reapchildren();
 	    }
 
-	    FD_ZERO(&readfds);
-	    FD_ZERO(&writefds);
-	    FD_SET(ctl_fd, &readfds);
+	    OSW_FD_ZERO(&readfds);
+	    OSW_FD_ZERO(&writefds);
+	    OSW_FD_SET(ctl_fd, &readfds);
 #ifdef IPSECPOLICY
-	    FD_SET(info_fd, &readfds);
+	    OSW_FD_SET(info_fd, &readfds);
 	    if (maxfd < info_fd)
 		maxfd = info_fd;
 #endif
@@ -1049,14 +608,14 @@ call_server(void)
 	    {
 		if (maxfd < adns_qfd)
 		    maxfd = adns_qfd;
-		FD_SET(adns_qfd, &writefds);
+		OSW_FD_SET(adns_qfd, &writefds);
 	    }
 
 	    if (adns_afd != NULL_FD)
 	    {
 		if (maxfd < adns_afd)
 		    maxfd = adns_afd;
-		FD_SET(adns_afd, &readfds);
+		OSW_FD_SET(adns_afd, &readfds);
 	    }
 
 #ifdef KLIPS
@@ -1068,8 +627,8 @@ call_server(void)
 		    kernel_ops->process_queue();
 		if (maxfd < fd)
 		    maxfd = fd;
-		passert(!FD_ISSET(fd, &readfds));
-		FD_SET(fd, &readfds);
+		passert(!OSW_FD_ISSET(fd, &readfds));
+		OSW_FD_SET(fd, &readfds);
 	    }
 #endif
 
@@ -1079,8 +638,8 @@ call_server(void)
 		{
 		    if (maxfd < ifp->fd)
 			maxfd = ifp->fd;
-		    passert(!FD_ISSET(ifp->fd, &readfds));
-		    FD_SET(ifp->fd, &readfds);
+		    passert(!OSW_FD_ISSET(ifp->fd, &readfds));
+		    OSW_FD_SET(ifp->fd, &readfds);
 		}
 	    }
 
@@ -1091,7 +650,7 @@ call_server(void)
 	    {
 		/* select without timer */
 
-		ndes = select(maxfd + 1, &readfds, &writefds, NULL, NULL);
+		ndes = osw_select(maxfd + 1, &readfds, &writefds, NULL, NULL);
 	    }
 	    else if (next_time == 0)
 	    {
@@ -1108,7 +667,7 @@ call_server(void)
 
 		tm.tv_sec = next_time;
 		tm.tv_usec = 0;
-		ndes = select(maxfd + 1, &readfds, &writefds, NULL, &tm);
+		ndes = osw_select(maxfd + 1, &readfds, &writefds, NULL, &tm);
 	    }
 
 	    if (ndes != -1)
@@ -1120,6 +679,28 @@ call_server(void)
 	    /* retry if terminated by signal */
 	}
 
+	DBG(DBG_CONTROL, DBG_log(BLANK_FORMAT));
+
+	/*
+	 * we log the time when we are about to do something so that
+	 * we know what time things happened, when not using syslog
+	 */
+	if(log_to_stderr_desired) {
+	    time_t n;
+	    
+	    static time_t lastn = 0;
+
+	    time(&n);
+
+	    if(log_did_something) { 
+		lastn=n;
+		log_did_something=FALSE;
+		if((n-lastn) > 60) {
+		    DBG_log("time is %s (%lu)", ctime(&n), (unsigned long)n);
+		}
+	    }
+	}
+		    
 	/* figure out what is interesting */
 
 	if (ndes == 0)
@@ -1129,7 +710,6 @@ call_server(void)
 	    if(!no_retransmits)
 	    {
 		DBG(DBG_CONTROL,
-		    DBG_log(BLANK_FORMAT);
 		    DBG_log("*time to handle event"));
 		
 		handle_timer_event();
@@ -1140,7 +720,7 @@ call_server(void)
 	{
 	    /* at least one file descriptor is ready */
 
-	    if (adns_qfd != NULL_FD && FD_ISSET(adns_qfd, &writefds))
+	    if (adns_qfd != NULL_FD && OSW_FD_ISSET(adns_qfd, &writefds))
 	    {
 		passert(ndes > 0);
 		send_unsent_ADNS_queries();
@@ -1148,11 +728,10 @@ call_server(void)
 		ndes--;
 	    }
 
-	    if (adns_afd != NULL_FD && FD_ISSET(adns_afd, &readfds))
+	    if (adns_afd != NULL_FD && OSW_FD_ISSET(adns_afd, &readfds))
 	    {
 		passert(ndes > 0);
 		DBG(DBG_CONTROL,
-		    DBG_log(BLANK_FORMAT);
 		    DBG_log("*received adns message"));
 		handle_adns_answer();
 		passert(GLOBALS_ARE_RESET());
@@ -1161,11 +740,10 @@ call_server(void)
 
 #ifdef KLIPS
 	    if (kern_interface != NO_KERNEL
-		&& FD_ISSET(*kernel_ops->async_fdp, &readfds))
+		&& OSW_FD_ISSET(*kernel_ops->async_fdp, &readfds))
 	    {
 		passert(ndes > 0);
 		DBG(DBG_CONTROL,
-		    DBG_log(BLANK_FORMAT);
 		    DBG_log("*received kernel message"));
 		kernel_ops->process_msg();
 		passert(GLOBALS_ARE_RESET());
@@ -1175,7 +753,7 @@ call_server(void)
 
 	    for (ifp = interfaces; ifp != NULL; ifp = ifp->next)
 	    {
-		if (FD_ISSET(ifp->fd, &readfds))
+		if (OSW_FD_ISSET(ifp->fd, &readfds))
 		{
 		    /* comm_handle will print DBG_CONTROL intro,
 		     * with more info than we have here.
@@ -1188,11 +766,10 @@ call_server(void)
 		}
 	    }
 
-	    if (FD_ISSET(ctl_fd, &readfds))
+	    if (OSW_FD_ISSET(ctl_fd, &readfds))
 	    {
 		passert(ndes > 0);
 		DBG(DBG_CONTROL,
-		    DBG_log(BLANK_FORMAT);
 		    DBG_log("*received whack message"));
 		whack_handle(ctl_fd);
 		passert(GLOBALS_ARE_RESET());
@@ -1200,11 +777,10 @@ call_server(void)
 	    }
 
 #ifdef IPSECPOLICY
-	    if (FD_ISSET(info_fd, &readfds))
+	    if (OSW_FD_ISSET(info_fd, &readfds))
 	    {
 		passert(ndes > 0);
 		DBG(DBG_CONTROL,
-		    DBG_log(BLANK_FORMAT);
 		    DBG_log("*received info message"));
 		info_handle(info_fd);
 		passert(GLOBALS_ARE_RESET());
@@ -1213,12 +789,405 @@ call_server(void)
 #endif
 
 	    /* note we process helper things last on purpose */
-	    ndes -= pluto_crypto_helper_ready(&readfds);
+	    {
+		int helpers = pluto_crypto_helper_ready(&readfds);
+		DBG(DBG_CONTROL, DBG_log("* processed %d messages from cryptographic helpers\n", helpers));
+		
+		ndes -= helpers;
+	    }
 
 	    passert(ndes == 0);
 	}
     }
 }
+
+/* Process any message on the MSG_ERRQUEUE
+ *
+ * This information is generated because of the IP_RECVERR socket option.
+ * The API is sparsely documented, and may be LINUX-only, and only on
+ * fairly recent versions at that (hence the conditional compilation).
+ *
+ * - ip(7) describes IP_RECVERR
+ * - recvmsg(2) describes MSG_ERRQUEUE
+ * - readv(2) describes iovec
+ * - cmsg(3) describes how to process auxilliary messages
+ *
+ * ??? we should link this message with one we've sent
+ * so that the diagnostic can refer to that negotiation.
+ *
+ * ??? how long can the messge be?
+ *
+ * ??? poll(2) has a very incomplete description of the POLL* events.
+ * We assume that POLLIN, POLLOUT, and POLLERR are all we need to deal with
+ * and that POLLERR will be on iff there is a MSG_ERRQUEUE message.
+ *
+ * We have to code around a couple of surprises:
+ *
+ * - Select can say that a socket is ready to read from, and
+ *   yet a read will hang.  It turns out that a message available on the
+ *   MSG_ERRQUEUE will cause select to say something is pending, but
+ *   a normal read will hang.  poll(2) can tell when a MSG_ERRQUEUE
+ *   message is pending.
+ *
+ *   This is dealt with by calling check_msg_errqueue after select
+ *   has indicated that there is something to read, but before the
+ *   read is performed.  check_msg_errqueue will return TRUE if there
+ *   is something left to read.
+ *
+ * - A write to a socket may fail because there is a pending MSG_ERRQUEUE
+ *   message, without there being anything wrong with the write.  This
+ *   makes for confusing diagnostics.
+ *
+ *   To avoid this, we call check_msg_errqueue before a write.  True,
+ *   there is a race condition (a MSG_ERRQUEUE message might arrive
+ *   between the check and the write), but we should eliminate many
+ *   of the problematic events.  To narrow the window, the poll(2)
+ *   will await until an event happens (in the case or a write,
+ *   POLLOUT; this should be benign for POLLIN).
+ */
+
+#if defined(IP_RECVERR) && defined(MSG_ERRQUEUE)
+bool
+check_msg_errqueue(const struct iface_port *ifp, short interest)
+{
+    struct pollfd pfd;
+
+    pfd.fd = ifp->fd;
+    pfd.events = interest | POLLPRI | POLLOUT;
+
+    while (pfd.revents = 0
+    , poll(&pfd, 1, -1) > 0 && (pfd.revents & POLLERR))
+    {
+	u_int8_t buffer[3000];	/* hope that this is big enough */
+	union
+	{
+	    struct sockaddr sa;
+	    struct sockaddr_in sa_in4;
+	    struct sockaddr_in6 sa_in6;
+	} from;
+
+	ssize_t packet_len;
+
+	struct msghdr emh;
+	struct iovec eiov;
+	union {
+	    /* force alignment (not documented as necessary) */
+	    struct cmsghdr ecms;
+
+	    /* how much space is enough? */
+	    unsigned char space[256];
+	} ecms_buf;
+
+	struct cmsghdr *cm;
+	char fromstr[sizeof(" for message to  port 65536") + INET6_ADDRSTRLEN];
+	struct state *sender = NULL;
+
+	zero(&from.sa);
+
+	emh.msg_name = &from.sa;	/* ??? filled in? */
+	emh.msg_namelen = sizeof(from);
+	emh.msg_iov = &eiov;
+	emh.msg_iovlen = 1;
+	emh.msg_control = &ecms_buf;
+	emh.msg_controllen = sizeof(ecms_buf);
+	emh.msg_flags = 0;
+
+	eiov.iov_base = buffer;	/* see readv(2) */
+	eiov.iov_len = sizeof(buffer);
+
+	packet_len = recvmsg(ifp->fd, &emh, MSG_ERRQUEUE);
+
+	if (packet_len == -1)
+	{
+	    log_errno((e, "recvmsg(,, MSG_ERRQUEUE) on %s failed in comm_handle"
+		, ifp->ip_dev->id_rname));
+	    break;
+	}
+	else if (packet_len == sizeof(buffer))
+	{
+	    openswan_log("MSG_ERRQUEUE message longer than %lu bytes; truncated"
+		, (unsigned long) sizeof(buffer));
+	}
+	else
+	{
+	    sender = find_sender((size_t) packet_len, buffer);
+	}
+
+	DBG_cond_dump(DBG_ALL, "rejected packet:\n", buffer, packet_len);
+	DBG_cond_dump(DBG_ALL, "control:\n", emh.msg_control, emh.msg_controllen);
+	/* ??? Andi Kleen <ak@suse.de> and misc documentation
+	 * suggests that name will have the original destination
+	 * of the packet.  We seem to see msg_namelen == 0.
+	 * Andi says that this is a kernel bug and has fixed it.
+	 * Perhaps in 2.2.18/2.4.0.
+	 */
+	passert(emh.msg_name == &from.sa);
+	DBG_cond_dump(DBG_ALL, "name:\n", emh.msg_name
+	    , emh.msg_namelen);
+
+	fromstr[0] = '\0';	/* usual case :-( */
+	switch (from.sa.sa_family)
+	{
+	char as[INET6_ADDRSTRLEN];
+
+	case AF_INET:
+	    if (emh.msg_namelen == sizeof(struct sockaddr_in))
+		snprintf(fromstr, sizeof(fromstr)
+		, " for message to %s port %u"
+		    , inet_ntop(from.sa.sa_family
+		    , &from.sa_in4.sin_addr, as, sizeof(as))
+		    , ntohs(from.sa_in4.sin_port));
+	    break;
+	case AF_INET6:
+	    if (emh.msg_namelen == sizeof(struct sockaddr_in6))
+		snprintf(fromstr, sizeof(fromstr)
+		    , " for message to %s port %u"
+		    , inet_ntop(from.sa.sa_family
+		    , &from.sa_in6.sin6_addr, as, sizeof(as))
+		    , ntohs(from.sa_in6.sin6_port));
+	    break;
+	}
+
+	for (cm = CMSG_FIRSTHDR(&emh)
+		 ; cm != NULL
+		 ; cm = CMSG_NXTHDR(&emh,cm))
+	{
+	    if (cm->cmsg_level == SOL_IP
+		&& cm->cmsg_type == IP_RECVERR)	{
+		/* ip(7) and recvmsg(2) specify:
+		 * ee_origin is SO_EE_ORIGIN_ICMP for ICMP
+		 *  or SO_EE_ORIGIN_LOCAL for locally generated errors.
+		 * ee_type and ee_code are from the ICMP header.
+		 * ee_info is the discovered MTU for EMSGSIZE errors
+		 * ee_data is not used.
+		 *
+		 * ??? recvmsg(2) says "SOCK_EE_OFFENDER" but
+		 * means "SO_EE_OFFENDER".  The OFFENDER is really
+		 * the router that complained.  As such, the port
+		 * is meaningless.
+		 */
+
+		/* ??? cmsg(3) claims that CMSG_DATA returns
+		 * void *, but RFC 2292 and /usr/include/bits/socket.h
+		 * say unsigned char *.  The manual is being fixed.
+		 */
+		struct sock_extended_err *ee = (void *)CMSG_DATA(cm);
+		const char *offstr = "unspecified";
+		char offstrspace[INET6_ADDRSTRLEN];
+		char orname[50];
+
+		if (cm->cmsg_len > CMSG_LEN(sizeof(struct sock_extended_err)))
+		{
+		    const struct sockaddr *offender = SO_EE_OFFENDER(ee);
+
+		    switch (offender->sa_family)
+		    {
+		    case AF_INET:
+			offstr = inet_ntop(offender->sa_family
+			    , &((const struct sockaddr_in *)offender)->sin_addr
+			    , offstrspace, sizeof(offstrspace));
+			break;
+		    case AF_INET6:
+			offstr = inet_ntop(offender->sa_family
+			    , &((const struct sockaddr_in6 *)offender)->sin6_addr
+			    , offstrspace, sizeof(offstrspace));
+			break;
+		    default:
+			offstr = "unknown";
+			break;
+		    }
+		}
+
+		switch (ee->ee_origin)
+		{
+		case SO_EE_ORIGIN_NONE:
+		    snprintf(orname, sizeof(orname), "none");
+		    break;
+		case SO_EE_ORIGIN_LOCAL:
+		    snprintf(orname, sizeof(orname), "local");
+		    break;
+		case SO_EE_ORIGIN_ICMP:
+		    snprintf(orname, sizeof(orname)
+			, "ICMP type %d code %d (not authenticated)"
+			, ee->ee_type, ee->ee_code
+			);
+		    break;
+		case SO_EE_ORIGIN_ICMP6:
+		    snprintf(orname, sizeof(orname)
+			, "ICMP6 type %d code %d (not authenticated)"
+			, ee->ee_type, ee->ee_code
+			);
+		    break;
+		default:
+		    snprintf(orname, sizeof(orname), "invalid origin %lu"
+			, (unsigned long) ee->ee_origin);
+		    break;
+		}
+
+		{
+		    struct state *old_state = cur_state;
+
+		    cur_state = sender;
+
+		    /* note dirty trick to suppress ~ at start of format
+		     * if we know what state to blame.
+		     */
+#ifdef NAT_TRAVERSAL
+		    if ((packet_len == 1) && (buffer[0] = 0xff)
+#ifdef DEBUG
+			&& ((cur_debugging & DBG_NATT) == 0)
+#endif
+			) {
+			    /* don't log NAT-T keepalive related errors unless NATT debug is
+			     * enabled
+			     */
+		    }
+		    else
+#endif
+		    openswan_log((sender != NULL) + "~"
+			"ERROR: asynchronous network error report on %s (sport=%d)"
+			"%s"
+			", complainant %s"
+			": %s"
+			" [errno %lu, origin %s"
+			/* ", pad %d, info %ld" */
+			/* ", data %ld" */
+			"]"
+			, ifp->ip_dev->id_rname
+				 , ifp->port
+			, fromstr
+			, offstr
+			, strerror(ee->ee_errno)
+			, (unsigned long) ee->ee_errno
+			, orname
+			/* , ee->ee_pad, (unsigned long)ee->ee_info */
+			/* , (unsigned long)ee->ee_data */
+			);
+		    cur_state = old_state;
+		}
+	    }
+	    else if (cm->cmsg_level == SOL_IP
+		     && cm->cmsg_type == IP_PKTINFO) {
+	    }
+	    else
+	    {
+		/* .cmsg_len is a kernel_size_t(!), but the value
+		 * certainly ought to fit in an unsigned long.
+		 */
+		openswan_log("unknown cmsg: level %d, type %d, len %lu"
+		    , cm->cmsg_level, cm->cmsg_type
+		    , (unsigned long) cm->cmsg_len);
+	    }
+	}
+    }
+    return (pfd.revents & interest) != 0;
+}
+#endif /* defined(IP_RECVERR) && defined(MSG_ERRQUEUE) */
+
+bool
+send_packet(struct state *st, const char *where, bool verbose)
+{
+    bool err;
+    u_int8_t ike_pkt[MAX_OUTPUT_UDP_SIZE];
+    u_int8_t *ptr;
+    unsigned long len;
+    ssize_t wlen;
+
+    if ((st->st_interface->ike_float == TRUE) && (st->st_tpacket.len != 1)) {
+	if ((unsigned long) st->st_tpacket.len >
+	    (MAX_OUTPUT_UDP_SIZE-sizeof(u_int32_t))) {
+	    DBG_log("send_packet(): really too big");
+	    return FALSE;
+	}
+	ptr = ike_pkt;
+	/** Add Non-ESP marker **/
+	memset(ike_pkt, 0, sizeof(u_int32_t));
+	memcpy(ike_pkt + sizeof(u_int32_t), st->st_tpacket.ptr,
+	       (unsigned long)st->st_tpacket.len);
+	len = (unsigned long) st->st_tpacket.len + sizeof(u_int32_t);
+    }
+    else {
+	ptr = st->st_tpacket.ptr;
+	len = (unsigned long) st->st_tpacket.len;
+    }
+
+    DBG(DBG_CONTROL|DBG_RAW
+	, DBG_log("sending %lu bytes for %s through %s:%d to %s:%u (using #%lu)"
+		  , (unsigned long) st->st_tpacket.len
+		  , where
+		  , st->st_interface->ip_dev->id_rname
+		  , st->st_interface->port
+		  , ip_str(&st->st_remoteaddr)
+		  , st->st_remoteport
+		  , st->st_serialno));
+    DBG(DBG_RAW
+	, DBG_dump(NULL, ptr, len));
+
+    setportof(htons(st->st_remoteport), &st->st_remoteaddr);
+
+#if defined(IP_RECVERR) && defined(MSG_ERRQUEUE)
+    (void) check_msg_errqueue(st->st_interface, POLLOUT);
+#endif /* defined(IP_RECVERR) && defined(MSG_ERRQUEUE) */
+
+#if 0
+    wlen = sendfromto(st->st_interface->fd
+		      , ptr
+		      , len, 0
+		      , sockaddrof(&st->st_remoteaddr)
+		      , sockaddrlenof(&st->st_remoteaddr)
+		      , sockaddrof(&st->st_localaddr)
+		      , sockaddrlenof(&st->st_localaddr));
+#else
+    wlen = sendto(st->st_interface->fd
+		  , ptr
+		  , len, 0
+		  , sockaddrof(&st->st_remoteaddr)
+		  , sockaddrlenof(&st->st_remoteaddr));
+
+#ifdef DEBUG
+    if(DBGP(IMPAIR_JACOB_TWO_TWO)) {
+	/* sleep for half a second, and second another packet */
+	usleep(500000);
+
+	DBG_log("JACOB 2-2: resending %lu bytes for %s through %s:%d to %s:%u:"
+		, (unsigned long) st->st_tpacket.len
+		, where
+		, st->st_interface->ip_dev->id_rname
+		, st->st_interface->port
+		, ip_str(&st->st_remoteaddr)
+		, st->st_remoteport);
+#endif
+
+	wlen = sendto(st->st_interface->fd
+		      , ptr
+		      , len, 0
+		      , sockaddrof(&st->st_remoteaddr)
+		      , sockaddrlenof(&st->st_remoteaddr));
+    }
+
+	
+#endif
+    err = (wlen != (ssize_t)len);
+
+    if (err)
+    {
+        /* do not log NAT-T Keep Alive packets */
+        if (!verbose)
+	    return FALSE; 
+	log_errno((e, "sendto on %s to %s:%u failed in %s"
+		   , st->st_interface->ip_dev->id_rname
+		   , ip_str(&st->st_remoteaddr)
+		   , st->st_remoteport
+		   , where));
+	return FALSE;
+    }
+    else
+    {
+	return TRUE;
+    }
+}
+
+
 
 /*
  * Local Variables:

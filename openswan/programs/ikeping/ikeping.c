@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ikeping.c,v 1.13.2.2 2007-04-25 17:43:36 paul Exp $
+ * RCSID $Id: ikeping.c,v 1.13 2005/07/08 02:56:38 paul Exp $
  */
 
 #include <stdio.h>
@@ -32,7 +32,8 @@
 #include <poll.h>
 
 #include <openswan.h>
-#include "pfkeyv2.h"
+#include "socketwrapper.h"
+#include "openswan/pfkeyv2.h"
 
 #include "constants.h"
 #include "packet.h"
@@ -397,7 +398,7 @@ main(int argc, char **argv)
       }
   }
 
-  s=socket(pfamily, SOCK_DGRAM, IPPROTO_UDP);
+  s=safe_socket(pfamily, SOCK_DGRAM, IPPROTO_UDP);
   if(s < 0) {
     perror("socket");
     exit(3);
@@ -405,6 +406,7 @@ main(int argc, char **argv)
 
   switch(afamily) {
   case AF_INET:
+	  laddr.u.v4.sin_family= AF_INET;
 	  laddr.u.v4.sin_port = htons(lport);
 	  if(bind(s, (struct sockaddr *)&laddr.u.v4, sizeof(laddr.u.v4)) < 0) {
 		  perror("v4 bind");
@@ -413,6 +415,7 @@ main(int argc, char **argv)
 	  break;
 	  
   case AF_INET6:
+	  laddr.u.v6.sin6_family= AF_INET6;
 	  laddr.u.v6.sin6_port = htons(lport);
 	  if(bind(s, (struct sockaddr *)&laddr.u.v6, sizeof(laddr.u.v6)) < 0) {
 		  perror("v6 bind");
@@ -505,11 +508,12 @@ main(int argc, char **argv)
 	  }
   }
 
-  printf("%d packets sent, %d packets received. %d%% packet loss\n",
-  numSenders,
-  numReceived,
-  numSenders > 0 ? 100-numReceived*100/numSenders : 0);
-  exit(0);
+   printf("%d packets sent, %d packets received. %d%% packet loss\n",
+	  numSenders, 
+	  numReceived,
+	  numSenders > 0 ? 100-numReceived*100/numSenders : 0);
+
+   exit(0);
 }
 
 /*

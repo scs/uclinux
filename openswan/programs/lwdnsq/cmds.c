@@ -36,7 +36,7 @@
 #include <lwres/netdb.h>
 #include <lwres/async.h>
 
-
+#include "osw_select.h"
 #include "lwdnsq.h"
 
 static void cmd_not_implemented(dnskey_glob *gs, const char *what)
@@ -100,9 +100,9 @@ again:
 	timeout.tv_sec = lwres_async_timeout(ctx);
 	sock = lwres_async_fd(ctx);
 
-	FD_ZERO(&readfds);
-	FD_SET(sock, &readfds);
-	ret2 = select(sock + 1, &readfds, NULL, NULL, &timeout);
+	OSW_FD_ZERO(&readfds);
+	OSW_FD_SET(sock, &readfds);
+	ret2 = osw_select(sock + 1, &readfds, NULL, NULL, &timeout);
 	
 	/*
 	 * What happened with select?
@@ -310,10 +310,6 @@ void lookup_aaaa(dnskey_glob *gs,
 	
 /*
  * $Log: cmds.c,v $
- * Revision 1.13.22.1  2006-08-16 17:29:11  mcr
- * back ported #public to 2.4 branch for luck in tracking down loop in
- * lwdnsq. Added some loop checking code as well.
- *
  * Revision 1.13  2003/12/04 23:17:56  mcr
  * 	added "key4" command.
  *

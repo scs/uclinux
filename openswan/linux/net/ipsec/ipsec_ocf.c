@@ -41,13 +41,24 @@
 #include "openswan/ipsec_esp.h"
 #include "openswan/ipsec_ah.h"
 
-#include <pfkeyv2.h>
-#include <pfkey.h>
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
 
 #include "ipsec_ocf.h"
 
 extern int debug_pfkey;
 extern int debug_rcv;
+
+int ipsec_ocf_crid = (CRYPTOCAP_F_HARDWARE|CRYPTOCAP_F_SOFTWARE);
+#if 0 /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) */
+/*
+ * allow users to force us to a particular OCF driver
+ */
+char *ipsec_ocf_driver = NULL;
+module_parm(ipsec_ocf_driver, charp, 0644);
+MODULE_PARM_DESC(ipsec_ocf_driver,
+	"Driver name (ie., cryptosoft), hw, sw, both (default both)");
+#endif
 
 /*
  * Tuning parameters,  the settings below appear best for
@@ -191,11 +202,11 @@ ipsec_ocf_sa_init(struct ipsec_sa *ipsp, int authalg, int encalg)
 
 	if (authalg && encalg) {
 		crie.cri_next = &cria;
-		error = crypto_newsession(&ipsp->ocf_cryptoid, &crie, 0);
+		error = crypto_newsession(&ipsp->ocf_cryptoid, &crie, ipsec_ocf_crid);
 	} else if (encalg) {
-		error = crypto_newsession(&ipsp->ocf_cryptoid, &crie, 0);
+		error = crypto_newsession(&ipsp->ocf_cryptoid, &crie, ipsec_ocf_crid);
 	} else if (authalg) {
-		error = crypto_newsession(&ipsp->ocf_cryptoid, &cria, 0);
+		error = crypto_newsession(&ipsp->ocf_cryptoid, &cria, ipsec_ocf_crid);
 	} else {
 		KLIPS_PRINT(debug_pfkey, "klips_debug:ipsec_ocf_sa_init: "
 				"no authalg or encalg\n");
@@ -261,6 +272,16 @@ ipsec_ocf_rcv_cb(struct cryptop *crp)
 
 	irs->state = IPSEC_RSM_DONE; /* assume it went badly */
 	if (crp->crp_etype) {
+		if (crp->crp_etype == EAGAIN) {
+			/* Session has been migrated. Store the new session id and retry */
+			KLIPS_PRINT(debug_rcv,
+				"klips_debug:ipsec_ocf_rcv_cb: crypto session migrated\n");
+			irs->ipsp->ocf_cryptoid = crp->crp_sid;
+			/* resubmit request */
+			if (crypto_dispatch(crp) == 0)
+				return 0;
+			/* resubmit failed */
+		}
 		KLIPS_PRINT(debug_rcv, "klips_debug:ipsec_ocf_rcv_cb: "
 				"error in processing 0x%x\n", crp->crp_etype);
 	} else {
@@ -330,6 +351,7 @@ ipsec_ocf_rcv(struct ipsec_rcv_state *irs)
 		if (!crda->crd_alg) {
 			KLIPS_PRINT(debug_rcv, "klips_debug:ipsec_ocf_rcv: "
 					"bad auth alg 0x%x\n", ipsp->ips_authalg);
+			crypto_freereq(crp);
 			return IPSEC_RCV_BADPROTO;
 		}
 
@@ -342,6 +364,11 @@ ipsec_ocf_rcv(struct ipsec_rcv_state *irs)
 		crda->crd_key          = ipsp->ips_key_a;
 		crda->crd_klen         = ipsp->ips_key_bits_a;
 		crda->crd_inject       = irs->authenticator - irs->skb->data;
+
+		/* OCF needs cri_mlen initialized in order to properly migrate the
+		 * session to another driver */
+		crda->crd_mlen = 12;
+
 		/* Copy the authenticator to check aganinst later */
 		memcpy(irs->hash, irs->authenticator, 12);
 
@@ -363,11 +390,29 @@ ipsec_ocf_rcv(struct ipsec_rcv_state *irs)
 			crda->crd_skip     =
 				((unsigned char *) irs->protostuff.espstuff.espp) -
 							irs->skb->data;
-			/* clear the authenticator to be sure */
-			/* FIXME: don't do this as some drivers actually check this data */
-			/* need to work out a cleaner way to ensure we do not see */
-			/* the old value from the packet later */
-			//memset(irs->authenticator, 0, 12);
+			/*
+			 * It would be nice to clear the authenticator here
+			 * to be sure we do not see it again later when checking.
+			 * We cannot.  Some HW actually expects to check the in-data
+			 * hash and and flag an error if it is incorrect.
+			 *
+			 * What we do to allow this is to pass in the current in-data
+			 * value.  Your OCF driver must ensure that it fails a request
+			 * for hash+decrypt with an invalid hash value, or returns the
+			 * computed in-data hash as requested.
+			 *
+			 * If your driver does not check the in-data hash but just
+			 * computes it value,  you must ensure that it does not return
+			 * the original in-data hash by accident.  It must invalidate the
+			 * in-data hash itself to force an auth check error.
+			 *
+			 * All existing drivers that do not care about the current
+			 * in-data hash do this by clearing the in-data hash before
+			 * processing, either directly or via their implementation.
+			 */
+#if 0
+			memset(irs->authenticator, 0, 12);
+#endif
 		}
 	}
 
@@ -376,6 +421,7 @@ ipsec_ocf_rcv(struct ipsec_rcv_state *irs)
 		if (!crde->crd_alg) {
 			KLIPS_PRINT(debug_rcv, "klips_debug:ipsec_ocf_rcv: "
 					"bad enc alg 0x%x\n", ipsp->ips_encalg);
+			crypto_freereq(crp);
 			return IPSEC_RCV_BADPROTO;
 		}
 
@@ -402,8 +448,17 @@ ipsec_ocf_rcv(struct ipsec_rcv_state *irs)
 	crp->crp_callback = ipsec_ocf_rcv_cb;
 	crp->crp_sid = ipsp->ocf_cryptoid;
 	crp->crp_opaque = (caddr_t) irs;
-	if (crypto_dispatch(crp))
+  rcv_migrate:
+	if (crypto_dispatch(crp)){
+		crypto_freereq(crp);
 		return IPSEC_RCV_REALLYBAD;
+	}
+	if (crp->crp_etype == EAGAIN) {
+		/* Session has been migrated. Store the new session id and retry */
+		ipsp->ocf_cryptoid = crp->crp_sid;
+		goto rcv_migrate;
+	}
+
 	return(IPSEC_RCV_PENDING);
 }
 
@@ -441,8 +496,19 @@ ipsec_ocf_xmit_cb(struct cryptop *crp)
 
 	ixs->state = IPSEC_XSM_DONE; /* assume bad xmit */
 	if (crp->crp_etype) {
-		KLIPS_PRINT(debug_tunnel & DB_TN_XMIT, "klips_debug:ipsec_ocf_xmit_cb: "
-				"error in processing 0x%x\n", crp->crp_etype);
+		if (crp->crp_etype == EAGAIN) {
+			/* Session has been migrated. Store the new session id and retry */
+			KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
+				"klips_debug:ipsec_ocf_xmit_cb: crypto session migrated\n");
+			ixs->ipsp->ocf_cryptoid = crp->crp_sid;
+			/* resubmit request */
+			if (crypto_dispatch(crp) == 0)
+				return 0;
+			/* resubmit failed */
+		}
+		KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
+			"klips_debug:ipsec_ocf_xmit_cb: error in processing 0x%x\n",
+			crp->crp_etype);
 	} else {
 		if (!ixs->ipsp->ips_encalg) {
 			/* AH post processing, put back fields we had to zero */
@@ -506,6 +572,7 @@ ipsec_ocf_xmit(struct ipsec_xmit_state *ixs)
 		if (!crda->crd_alg) {
 			KLIPS_PRINT(debug_tunnel&DB_TN_XMIT, "klips_debug:ipsec_ocf_xmit: "
 					"bad auth alg 0x%x\n", ipsp->ips_authalg);
+			crypto_freereq(crp);
 			return IPSEC_RCV_BADPROTO;
 		}
 		if (!crde) { /* assume AH processing */
@@ -529,6 +596,11 @@ ipsec_ocf_xmit(struct ipsec_xmit_state *ixs)
 			crda->crd_inject   = ixs->len - ixs->authlen;
 			crda->crd_len      = ixs->len - ixs->iphlen - ixs->authlen;
 		}
+
+		/* OCF needs cri_mlen initialized in order to properly migrate
+		 * the session to another driver */
+		crda->crd_mlen = 12;
+
 		crda->crd_key    = ipsp->ips_key_a;
 		crda->crd_klen   = ipsp->ips_key_bits_a;
 	}
@@ -539,6 +611,7 @@ ipsec_ocf_xmit(struct ipsec_xmit_state *ixs)
 		if (!crde->crd_alg) {
 			KLIPS_PRINT(debug_tunnel&DB_TN_XMIT, "klips_debug:ipsec_ocf_xmit: "
 					"bad enc alg 0x%x\n", ipsp->ips_encalg);
+			crypto_freereq(crp);
 			return IPSEC_RCV_BADPROTO;
 		}
 		crde->crd_flags  = CRD_F_ENCRYPT;
@@ -563,8 +636,17 @@ ipsec_ocf_xmit(struct ipsec_xmit_state *ixs)
 	crp->crp_callback = ipsec_ocf_xmit_cb;
 	crp->crp_sid = ipsp->ocf_cryptoid;
 	crp->crp_opaque = (caddr_t) ixs;
-	if (crypto_dispatch(crp))
+  xmit_migrate:
+	if (crypto_dispatch(crp)){
+		crypto_freereq(crp);
 		return IPSEC_XMIT_ERRMEMALLOC;
+	}
+	if (crp->crp_etype == EAGAIN) { 
+		/* Session has been migrated. Store the new session id */
+		ipsp->ocf_cryptoid = crp->crp_sid;
+		goto xmit_migrate;
+	}
+
 	return(IPSEC_XMIT_PENDING);
 }
 
@@ -665,7 +747,7 @@ ipsec_ocf_check_alg(struct ipsec_alg_supported *s)
 	cri.cri_klen     = s->ias_keyminbits;
 	cri.cri_key      = "0123456789abcdefghijklmnopqrstuvwxyz";
 
-	if (crypto_newsession(&cryptoid, &cri, 0)) {
+	if (crypto_newsession(&cryptoid, &cri, ipsec_ocf_crid)) {
 		KLIPS_PRINT(debug_pfkey, "klips_debug:ipsec_ocf:%s not supported\n",
 				s->ias_name);
 		return 0;

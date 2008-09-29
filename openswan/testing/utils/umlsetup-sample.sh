@@ -30,6 +30,15 @@ KERNPOOL=$UMLPREFIX/kernel/linux-2.4.19/linux
 # set this to false.
 NATTPATCH=true
 
+# if you want a kernel that supports the BTNS IPsec API
+#   see draft-ietf-btns-capi-xx.txt
+# this requires your kernel to be rebuilt.
+NGPATCH=true
+
+# if you also have a copy of the L2TP IPsec API patch, you can
+# set this to true as well
+NGUDPPATCH=false
+
 # NONINTPATCH is a patch that comes from Redhat kernels. It permits
 # "make oldconfig" to complete without interacting with the user.
 # I think that 2.6. kernels have this. This patch is optional, if you
@@ -84,6 +93,32 @@ OPENSWANHOSTS='east west japan road north'
 
 # we always use OBJ directories for UML builds.
 USE_OBJDIR=true export USE_OBJDIR
+
+#
+# OTHER THINGS YOU CAN SET, but problem shouldn't.
+#
+
+# UML_xxx_KERNEL
+#  If set, then the kernel for UML named "xxx" (lower case) will be set
+#  to this value rather than to UMLPOOL/swanXX/linux. This permits you to
+#  easily test against other kernels.
+#
+#UML_east_KERNEL=/path/to/kernel
+#
+# If you set UML_plain26_KERNEL or UML_swan26_KERNEL to a value, then that
+# kernel will be used instead of building a local kernel. If you are doing
+# only user-space work, you can avoid all kernel builds this way.
+#
+
+# UML_extra_DIRS
+#
+#UML_extra_DIRS="/mara2/sandboxes/l2tpd /mara1/git/iproute2 /mara7/tcpdump/tcpdump"
+# this will cause the make uml system to go into each directory and run:
+#   make DESTDIR=$UMLPOOL/host/root install
+#
+# This permits you to include additional software in the UML root easily.
+
+
 
 # comment this out to signify that you've customized this script
 echo "please create a umlsetup.sh" ; exit 99

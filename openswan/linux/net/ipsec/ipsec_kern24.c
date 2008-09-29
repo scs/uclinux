@@ -17,7 +17,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * $Id: ipsec_kern24.c,v 1.2 2005-05-20 03:19:18 mcr Exp $
+ * $Id: ipsec_kern24.c,v 1.2 2005/05/20 03:19:18 mcr Exp $
  *
  */
 

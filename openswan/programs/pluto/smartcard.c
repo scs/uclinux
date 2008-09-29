@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: smartcard.c,v 1.6.16.2 2007-05-25 14:53:28 paul Exp $
+ * RCSID $Id: smartcard.c,v 1.6 2004/09/22 15:47:07 paul Exp $
  */
 
 #include <stdio.h>
@@ -381,7 +381,7 @@ scx_sign_hash(smartcard_t *sc UNUSED
     sc_pkcs15_hex_string_to_id(sc->id, &id);
 
     /* get private key by id */
-    r = sc_pkcs15_find_prkey_by_id_usage(p15card, &id, SC_PKCS15_PRKEY_USAGE_SIGN | SC_PKCS15_PRKEY_USAGE_SIGNRECOVER, &key);
+    r = sc_pkcs15_find_prkey_by_id(p15card, &id, &key);
 
     if (r < 0)
     {
@@ -548,16 +548,23 @@ scx_free(smartcard_t *sc)
  "  the record is freed when the counter reaches zero
  */
 void
-scx_release(smartcard_t *sc)
+scx_release(smartcard_t *sc, bool pthlock)
 {
     if (sc != NULL && --sc->count == 0)
     {
 	smartcard_t **pp = &smartcards;
 	while (*pp != sc)
 	    pp = &(*pp)->next;
-	lock_certs_and_keys("scx_release");
-        *pp = sc->next;
-	unlock_certs_and_keys("scx_release");
+	if(pthlock)
+	{
+	    lock_certs_and_keys("scx_release");
+	    *pp = sc->next;
+	    unlock_certs_and_keys("scx_release");
+	}
+	else
+	{
+	    *pp = sc->next;
+	}
 	release_cert(sc->last_cert);
 	scx_free(sc);
     }

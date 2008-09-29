@@ -1,5 +1,5 @@
 #
-# $Id: net.sunset.sh,v 1.3 2002-06-18 19:12:32 mcr Exp $
+# $Id: net.sunset.sh,v 1.3 2002/06/18 19:12:32 mcr Exp $
 #
 if [ -n "$UML_west_CTL" ]
 then

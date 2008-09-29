@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: contents.awk,v 1.1 2001-01-29 01:18:07 sandy Exp $
+# RCSID $Id: contents.awk,v 1.1 2001/01/29 01:18:07 sandy Exp $
 BEGIN	{
 	# initialise indent counter
 	indent = 0

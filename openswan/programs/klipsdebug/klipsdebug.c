@@ -15,7 +15,7 @@
  * for more details.
  */
 
-char klipsdebug_c_version[] = "RCSID $Id: klipsdebug.c,v 1.57.2.1 2005-08-18 14:04:51 ken Exp $";
+char klipsdebug_c_version[] = "RCSID $Id: klipsdebug.c,v 1.58 2005/08/18 14:04:39 ken Exp $";
 
 
 #include <sys/types.h>
@@ -26,6 +26,8 @@ char klipsdebug_c_version[] = "RCSID $Id: klipsdebug.c,v 1.57.2.1 2005-08-18 14:
 #include <stdlib.h> /* system(), strtoul() */
 #include <sys/stat.h> /* open() */
 #include <fcntl.h> /* open() */
+#include <stdio.h>
+#include <getopt.h>
 
 #include <sys/socket.h>
 
@@ -42,9 +44,11 @@ char klipsdebug_c_version[] = "RCSID $Id: klipsdebug.c,v 1.57.2.1 2005-08-18 14:
 
 /* permanently turn it on since netlink support has been disabled */
 #include <signal.h>
-#include <pfkeyv2.h>
-#include <pfkey.h>
+#include <openswan/pfkeyv2.h>
+#include <openswan/pfkey.h>
 
+#include "socketwrapper.h"
+#include "oswlog.h"
 #include "openswan/radij.h"
 #include "openswan/ipsec_encap.h"
 #ifndef CONFIG_KLIPS_DEBUG
@@ -55,11 +59,13 @@ char klipsdebug_c_version[] = "RCSID $Id: klipsdebug.c,v 1.57.2.1 2005-08-18 14:
 #include <stdio.h>
 #include <getopt.h>
 
+#include "osw_select.h"
+#include "oswlog.h"
 __u32 bigbuf[1024];
 char *program_name;
 
 int pfkey_sock;
-fd_set pfkey_socks;
+osw_fd_set pfkey_socks;
 uint32_t pfkey_seq = 0;
 
 char copyright[] =
@@ -117,7 +123,7 @@ main(int argc, char **argv)
 	int em_db_rj, em_db_es, em_db_ah, em_db_rx, em_db_ky;
 	int em_db_gz, em_db_vb;
 
-	struct sadb_ext *extensions[SADB_EXT_MAX + 1];
+	struct sadb_ext *extensions[K_SADB_EXT_MAX + 1];
 	struct sadb_msg *pfkey_msg;
 	
 	em_db_tn=em_db_nl=em_db_xf=em_db_er=em_db_sp=0;
@@ -280,7 +286,7 @@ main(int argc, char **argv)
 		usage(program_name);
 	}
 
-	if((pfkey_sock = socket(PF_KEY, SOCK_RAW, PF_KEY_V2) ) < 0) {
+	if((pfkey_sock = safe_socket(PF_KEY, SOCK_RAW, PF_KEY_V2) ) < 0) {
 		fprintf(stderr, "%s: Trouble opening PF_KEY family socket with error: ",
 			program_name);
 		switch(errno) {
@@ -440,7 +446,7 @@ main(int argc, char **argv)
 }
 /*
  * $Log: klipsdebug.c,v $
- * Revision 1.57.2.1  2005-08-18 14:04:51  ken
+ * Revision 1.58  2005/08/18 14:04:39  ken
  * Patch from mt@suse.de to avoid GCC warnings with system() calls
  *
  * Revision 1.57  2005/07/08 02:56:38  paul

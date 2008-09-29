@@ -1,12 +1,25 @@
 #!/bin/sh
 
 #
-# $Id: functions.sh,v 1.124.2.2 2005-11-17 03:43:46 ken Exp $
+# $Id: functions.sh,v 1.131 2005/11/16 21:31:50 mcr Exp $
 #
+
+KLIPS_MODULE=${KLIPS_MODULE-}
+TESTHOST=${TESTHOST-}
+NETJIGVERBOSE=${NETJIGVERBOSE-}
+THREEEIGHT=${THREEEIGHT-}
+TCPDUMPFLAGS=${TCPDUMPFLAGS-}
+WESTHOST=${WESTHOST-}
+EASTHOST=${EASTHOST-}
+TEST_GOAL_ITEM=${TEST_GOAL_ITEM-0}
+TEST_PROB_REPORT=${TEST_PROB_REPORT-0}
+TEST_EXPLOIT_URL=${TEST_EXPLOIT_URL-http://www.openswan.org/vuln/}
+MAKE=${MAKE-make}
 
 preptest() {
     local testdir="$1"
     local testtype="$2"
+    local createobjdir="$3"
 
     if [ ! -r "$testdir/testparams.sh" ]
     then
@@ -14,10 +27,14 @@ preptest() {
 	exit 1
     fi
 
+    createobjdir=${createobjdir-false}
+
     # make sure no results survive from a past run
     if [ ! -z "$testdir" ] ; then
-	rm -rf "$testdir/OUTPUT"${KLIPS_MODULE}
-	mkdir -p "$testdir/OUTPUT"${KLIPS_MODULE}
+        if $createobjdir; then
+	    rm -rf "$testdir/OUTPUT"${KLIPS_MODULE}
+	    mkdir -p "$testdir/OUTPUT"${KLIPS_MODULE}
+	fi
     fi
 
     cd $testdir
@@ -31,7 +48,7 @@ preptest() {
     fi
 
     # get rid of any pluto core files.
-    if [ -z "$XHOST_LIST" ]
+    if [ -z "${XHOST_LIST-}" ]
     then
 	XHOST_LIST="EAST WEST JAPAN"
     fi
@@ -59,7 +76,7 @@ lookforcore() {
 	fi
 
 	# get rid of any pluto core files.
-	if [ -z "$XHOST_LIST" ]
+	if [ -z "${XHOST_LIST-}" ]
 	then
 	    XHOST_LIST="EAST WEST JAPAN"
 	fi
@@ -81,7 +98,7 @@ lookforcore() {
 
 
 verboseecho() {
-    if [ -n "${NETJIGVERBOSE}" ]
+    if [ -n "${NETJIGVERBOSE-}" ]
     then
 	echo $@
     fi
@@ -96,6 +113,7 @@ consolediff() {
     ref=$3
 
     cleanups="cat $output "
+    success=${success-true}
 
     for fixup in `echo $REF_CONSOLE_FIXUPS`
     do
@@ -105,6 +123,14 @@ consolediff() {
 		*.sed) cleanups="$cleanups | sed -f $FIXUPDIR/$fixup";;
 		*.pl)  cleanups="$cleanups | perl $FIXUPDIR/$fixup";;
 		*.awk) cleanups="$cleanups | awk -f $FIXUPDIR/$fixup";;
+		    *) echo Unknown fixup type: $fixup;;
+            esac
+	elif [ -f $FIXUPDIR2/$fixup ]
+	then
+	    case $fixup in
+		*.sed) cleanups="$cleanups | sed -f $FIXUPDIR2/$fixup";;
+		*.pl)  cleanups="$cleanups | perl $FIXUPDIR2/$fixup";;
+		*.awk) cleanups="$cleanups | awk -f $FIXUPDIR2/$fixup";;
 		    *) echo Unknown fixup type: $fixup;;
             esac
 	else
@@ -137,104 +163,104 @@ consolediff() {
 }
 
 compat_variables() {
-    if [ -z "$REF_CONSOLE_OUTPUT" ] && [ -n "$REFCONSOLEOUTPUT" ]
+    if [ -z "${REF_CONSOLE_OUTPUT-}" ] && [ -n "${REFCONSOLEOUTPUT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: REFCONSOLEOUTPUT
 	exit 1
 	REF_CONSOLE_OUTPUT=$REFCONSOLEOUTPUT
     fi
 
-    if [ -z "$REF_CONSOLE_FIXUPS" ] && [ -n "$REFCONSOLEFIXUPS" ]
+    if [ -z "${REF_CONSOLE_FIXUPS-}" ] && [ -n "${REFCONSOLEFIXUPS-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: REFCONSOLEFIXUPS
 	exit 1
 	REF_CONSOLE_FIXUPS=$REFCONSOLEFIXUPS
     fi
 
-    if [ -z "$REF_PUB_OUTPUT" ] && [ -n "$REFPUBOUTPUT" ]
+    if [ -z "${REF_PUB_OUTPUT-}" ] && [ -n "${REFPUBOUTPUT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: REFPUBOUTPUT
 	exit 1
 	REF_PUB_OUTPUT=$REFPUBOUTPUT
     fi
 
-    if [ -z "$REF_PRIV_OUTPUT" ] && [ -n "$REFPRIVOUTPUT" ]
+    if [ -z "${REF_PRIV_OUTPUT-}" ] && [ -n "${REFPRIVOUTPUT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: REFPRIVOUTPUT
 	exit 1
 	REF_PRIV_OUTPUT=$REFPRIVOUTPUT
     fi
 
-    if [ -z "$PRIV_INPUT" ] && [ -n "$PRIVINPUT" ]
+    if [ -z "${PRIV_INPUT-}" ] && [ -n "${PRIVINPUT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: PRIVINPUT
 	exit 1
 	PRIV_INPUT=$PRIVINPUT
     fi
 
-    if [ -z "$PUB_INPUT" ] && [ -n "$PUBINPUT" ]
+    if [ -z "${PUB_INPUT-}" ] && [ -n "${PUBINPUT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: PUBINPUT
 	exit 1
 	PUB_INPUT=$PUBINPUT
     fi
 
-    if [ -z "$INIT_SCRIPT" ] && [ -n "$SCRIPT" ]
+    if [ -z "${INIT_SCRIPT-}" ] && [ -n "${SCRIPT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: SCRIPT
 	exit 1
 	INIT_SCRIPT=$SCRIPT
     fi
 
-    if [ -z "$EAST_RUN_SCRIPT" ] && [ -n "$RUN_EAST_SCRIPT" ]
+    if [ -z "${EAST_RUN_SCRIPT-}" ] && [ -n "${RUN_EAST_SCRIPT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: RUN_EAST_SCRIPT
 	exit 1
 	EAST_RUN_SCRIPT=$RUN_EAST_SCRIPT
     fi
-    if [ -z "$WEST_RUN_SCRIPT" ] && [ -n "$RUN_WEST_SCRIPT" ]
+    if [ -z "${WEST_RUN_SCRIPT-}" ] && [ -n "${RUN_WEST_SCRIPT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: RUN_WEST_SCRIPT
 	exit 1
 	WEST_RUN_SCRIPT=$RUN_WEST_SCRIPT
     fi
 
-    if [ -z "$EAST_FINAL_SCRIPT" ] && [ -n "$FINAL_EAST_SCRIPT" ]
+    if [ -z "${EAST_FINAL_SCRIPT-}" ] && [ -n "${FINAL_EAST_SCRIPT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: FINAL_EAST_SCRIPT
 	exit 1
 	EAST_FINAL_SCRIPT=$FINAL_EAST_SCRIPT
     fi
-    if [ -z "$WEST_FINAL_SCRIPT" ] && [ -n "$FINAL_WEST_SCRIPT" ]
+    if [ -z "${WEST_FINAL_SCRIPT-}" ] && [ -n "${FINAL_WEST_SCRIPT-}" ]
     then
-	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES
+	echo PLEASE FIX UP TEST CASE FOR COMPAT VARIABLES: FINAL_WEST_SCRIPT
 	exit 1
 	WEST_FINAL_SCRIPT=$FINAL_WEST_SCRIPT
     fi
 
     # make up variables for 2.6
-    if [ -z "$REF26_CONSOLE_OUTPUT" ] && [ -n "$REF_CONSOLE_OUTPUT" ]
+    if [ -z "${REF26_CONSOLE_OUTPUT-}" ] && [ -n "${REF_CONSOLE_OUTPUT-}" ]
     then
 	REF26_CONSOLE_OUTPUT=$REF_CONSOLE_OUTPUT
     fi
 
     # make up variables for 2.6
-    if [ -z "$REF26_EAST_CONSOLE_OUTPUT" ] && [ -n "$REF_EAST_CONSOLE_OUTPUT" ]
+    if [ -z "${REF26_EAST_CONSOLE_OUTPUT-}" ] && [ -n "${REF_EAST_CONSOLE_OUTPUT-}" ]
     then
 	REF26_EAST_CONSOLE_OUTPUT=$REF_EAST_CONSOLE_OUTPUT
     fi
     # make up variables for 2.6
-    if [ -z "$REF26_WEST_CONSOLE_OUTPUT" ] && [ -n "$REF_WEST_CONSOLE_OUTPUT" ]
+    if [ -z "${REF26_WEST_CONSOLE_OUTPUT-}" ] && [ -n "${REF_WEST_CONSOLE_OUTPUT-}" ]
     then
 	REF26_WEST_CONSOLE_OUTPUT=$REF_WEST_CONSOLE_OUTPUT
     fi
     # make up variables for 2.6
-    if [ -z "$REF26_NORTH_CONSOLE_OUTPUT" ] && [ -n "$REF_NORTH_CONSOLE_OUTPUT" ]
+    if [ -z "${REF26_NORTH_CONSOLE_OUTPUT-}" ] && [ -n "${REF_NORTH_CONSOLE_OUTPUT-}" ]
     then
 	REF26_NORTH_CONSOLE_OUTPUT=$REF_NORTH_CONSOLE_OUTPUT
     fi
     # make up variables for 2.6
-    if [ -z "$REF26_ROAD_CONSOLE_OUTPUT" ] && [ -n "$REF_ROAD_CONSOLE_OUTPUT" ]
+    if [ -z "${REF26_ROAD_CONSOLE_OUTPUT-}" ] && [ -n "${REF_ROAD_CONSOLE_OUTPUT-}" ]
     then
 	REF26_ROAD_CONSOLE_OUTPUT=$REF_ROAD_CONSOLE_OUTPUT
     fi
@@ -251,7 +277,18 @@ prerunsetup() {
 	REPORT_NAME=${TESTNAME}${KLIPS_MODULE}
     else
 	HOST_START=${HOST_START-$POOLSPACE/$TESTHOST/start.sh}
-	EAST_START=${EAST_START-$POOLSPACE/$EASTHOST/start.sh}
+	if [ -n "$EAST_NETKEY" ] 
+	 then
+	  EAST_START=${EAST_START-$POOLSPACE/$EASTHOST/start-netkey.sh}
+	else 
+	  EAST_START=${EAST_START-$POOLSPACE/$EASTHOST/start.sh}
+	fi
+	if [ -n "$WEST_NETKEY" ] 
+	 then
+	  WEST_START=${WEST_START-$POOLSPACE/$WESTHOST/start-netkey.sh}
+	else 
+	  WEST_START=${WEST_START-$POOLSPACE/$WESTHOST/start.sh}
+	fi
 	WEST_START=${WEST_START-$POOLSPACE/$WESTHOST/start.sh}
 	REPORT_NAME=${TESTNAME}
     fi
@@ -267,7 +304,7 @@ prerunsetup() {
 
 setup_additional_hosts() {
 
-    if [ -n "${ADDITIONAL_HOSTS}" ]
+    if [ -n "${ADDITIONAL_HOSTS-}" ]
     then
         SEP=""
 	HOSTLIST=""
@@ -280,7 +317,6 @@ setup_additional_hosts() {
 	echo "-H ${HOSTLIST}"
     fi
 }
-
 
 #
 # use this function to run some script on each reference output script.
@@ -308,17 +344,17 @@ foreach_ref_console() {
 		    then
 			    . $i/testparams.sh
 			    compat_variables;
-			    if [ -n "$REF_CONSOLE_OUTPUT" ]
+			    if [ -n "${REF_CONSOLE_OUTPUT-}" ]
 			    then
 				echo $script $i "" $REF_CONSOLE_OUTPUT
 				$script $i "" $REF_CONSOLE_OUTPUT
 			    fi
-			    if [ -n "$REF_EAST_CONSOLE_OUTPUT" ]
+			    if [ -n "${REF_EAST_CONSOLE_OUTPUT-}" ]
 			    then
 				echo $script $i east $REF_EAST_CONSOLE_OUTPUT
 				$script $i east $REF_EAST_CONSOLE_OUTPUT
 			    fi
-			    if [ -n "$REF_WEST_CONSOLE_OUTPUT" ]
+			    if [ -n "${REF_WEST_CONSOLE_OUTPUT-}" ]
 			    then
 				echo $script $i west $REF_WEST_CONSOLE_OUTPUT
 				$script $i west $REF_WEST_CONSOLE_OUTPUT
@@ -332,7 +368,7 @@ roguekill() {
     REPORT_NAME="$1"
     local rogue_sighted=""
 
-    if [ -n "$REGRESSRESULTS" ]
+    if [ -n "${REGRESSRESULTS-}" ]
     then
 	rm -f $REGRESSRESULTS/$REPORT_NAME/roguelist.txt
 	mkdir -p $REGRESSRESULTS/$REPORT_NAME
@@ -357,7 +393,7 @@ roguekill() {
 	    if [ ! -r $pdir/environ ] || strings $pdir/environ | grep "^UML_BRAND=$UML_BRAND"'$' >/dev/null
 	    then
 		echo "${sig}ING ROGUE UML: $badpid `tr '\000' ' ' <$pdir/cmdline`"
-		if [ -n "$REGRESSRESULTS" ]
+		if [ -n "${REGRESSRESULTS-}" ]
 		then
 		   echo "UML pid $pdir went ROGUE" >>$REGRESSRESULTS/$REPORT_NAME/roguelist.txt
 		fi
@@ -404,7 +440,7 @@ roguekill() {
 # See testing/utils/regress-nightly.sh and regress-stage2.sh for code
 # that sets up $REGRESSRESULTS.
 #
-# usage: recordresults testname testtype status REPORTNAME
+# usage: recordresults testname testtype status REPORTNAME copybadresults
 #
 recordresults() {
     local testname="$1"
@@ -418,10 +454,12 @@ recordresults() {
 	copybadresults=true
     fi
 
+    ECHO=${ECHO-echo}
+
     export REGRESSRESULTS
     roguekill $REPORT_NAME
 
-    if [ -n "$REGRESSRESULTS" ]
+    if [ -n "${REGRESSRESULTS-}" ]
     then
 	rm -rf $REGRESSRESULTS/$REPORT_NAME
 	mkdir -p $REGRESSRESULTS/$REPORT_NAME
@@ -458,7 +496,7 @@ recordresults() {
 	    *)	success=false;;
 	esac
 
-	echo "Recording "'"'"$success: $status"'"'" to $REGRESSRESULTS/$REPORT_NAME/status"
+	${ECHO} "Recording "'"'"$success: $status"'"'" to $REGRESSRESULTS/$REPORT_NAME/status"
 	echo "$success: $status" >$REGRESSRESULTS/$REPORT_NAME/status
 	echo console=$console >>$REGRESSRESULTS/$REPORT_NAME/status
 	echo packet=$packet   >>$REGRESSRESULTS/$REPORT_NAME/status
@@ -538,7 +576,7 @@ pcap_filter() {
 	FILTER="$FILTER | sed -f $FIXUPDIR/tcpdump-three-eight.sed"
     fi
 
-    if [ -n "$OUTPUT" ]
+    if [ -n "${OUTPUT-}" ]
     then
 	rm -f OUTPUT${KLIPS_MODULE}/${OUTPUT}.txt
 	verboseecho $TCPDUMP -n -t $TCPDUMPFLAGS '|' "$FILTER" '>' OUTPUT${KLIPS_MODULE}/${OUTPUT}.txt
@@ -554,8 +592,6 @@ pcap_filter() {
 	fi
     fi
 }
-
-
 
 # netjigtest - invoke a single UML with input/output setup for KLIPS
 #              testing.
@@ -574,40 +610,42 @@ netjigtest() {
 
     NJARGS=''
 
-    if [ -n "$PRIV_INPUT" ]
+    export_variables
+
+    if [ -n "${PRIV_INPUT-}" ]
     then
 	NJARGS="$NJARGS -p $PRIV_INPUT"
     fi
 
-    if [ -n "$PUB_INPUT" ]
+    if [ -n "${PUB_INPUT-}" ]
     then
 	NJARGS="$NJARGS -P $PUB_INPUT"
     fi
 
     case $KERNVER in
-	26) if [ -n "$REF26_CONSOLE_OUTPUT" ]
+	26) if [ -n "${REF26_CONSOLE_OUTPUT-}" ]
 	    then
 	        NJARGS="$NJARGS -c OUTPUT${KLIPS_MODULE}/26console.txt"
 	    fi;;
-	*) if [ -n "$REF_CONSOLE_OUTPUT" ]
+	*) if [ -n "${REF_CONSOLE_OUTPUT-}" ]
 	   then
 	        NJARGS="$NJARGS -c OUTPUT${KLIPS_MODULE}/console.txt"
            fi;;
     esac
 
-    if [ -n "$REF_PRIV_OUTPUT" ]
+    if [ -n "${REF_PRIV_OUTPUT-}" ]
     then
 	PRIVOUTPUT=`basename $REF_PRIV_OUTPUT .txt `
 	NJARGS="$NJARGS -r OUTPUT${KLIPS_MODULE}/$PRIVOUTPUT.pcap"
     fi
 
-    if [ -n "$REF_PUB_OUTPUT" ]
+    if [ -n "${REF_PUB_OUTPUT-}" ]
     then
 	PUBOUTPUT=`basename $REF_PUB_OUTPUT .txt`
 	NJARGS="$NJARGS -R OUTPUT${KLIPS_MODULE}/$PUBOUTPUT.pcap"
     fi
 
-    if [ -n "$NETJIGARGS" ]
+    if [ -n "${NETJIGARGS-}" ]
     then
 	NJARGS="$NJARGS $NETJIGARGS"
     fi
@@ -617,12 +655,12 @@ netjigtest() {
 	NJARGS="$NJARGS -a"
     fi
 
-    if [ -n "${RUN_SCRIPT}" ]
+    if [ -n "${RUN_SCRIPT-}" ]
     then
 	NJARGS="$NJARGS -s ${RUN_SCRIPT}"
     fi
 
-    if [ -n "${FINAL_SCRIPT}" ]
+    if [ -n "${FINAL_SCRIPT-}" ]
     then
 	NJARGS="$NJARGS -I ${FINAL_SCRIPT}"
     fi
@@ -646,11 +684,11 @@ netjigtest() {
     pcap_filter public  "$REF_PUB_OUTPUT"  "$PUBOUTPUT"  "$REF_PUB_FILTER"
 
     case $KERNVER in
-	26) if [ -n "$REF26_CONSOLE_OUTPUT" ]
+	26) if [ -n "${REF26_CONSOLE_OUTPUT-}" ]
 	    then
 		consolediff "26" OUTPUT${KLIPS_MODULE}/26console.txt $REF26_CONSOLE_OUTPUT
 	    fi;;
-	*) if [ -n "$REF_CONSOLE_OUTPUT" ]
+	*) if [ -n "${REF_CONSOLE_OUTPUT-}" ]
 	   then
 	        consolediff "" OUTPUT${KLIPS_MODULE}/console.txt $REF_CONSOLE_OUTPUT
            fi;;
@@ -679,7 +717,7 @@ klipstest() {
     ( preptest $testdir klipstest && netjigtest )
     stat=$?
 
-    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE}
+    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE} ""
 }
 
 ###################################
@@ -695,18 +733,18 @@ do_ctl_test() {
 
     NJARGS=""
 
-    if [ -n "${FINAL_SCRIPT}" ]
+    if [ -n "${FINAL_SCRIPT-}" ]
     then
 	NJARGS="$NJARGS -I ${FINAL_SCRIPT}"
     fi
 
-    if [ -n "$REF_CONSOLE_OUTPUT" ]
+    if [ -n "${REF_CONSOLE_OUTPUT-}" ]
     then
 	rm -f OUTPUT${KLIPS_MODULE}/console.txt
 	NJARGS="$NJARGS -c OUTPUT${KLIPS_MODULE}/console.txt"
     fi
 
-    if [ "X${NEEDS_DNS}" = "Xtrue" ]
+    if [ "X${NEEDS_DNS-}" = "Xtrue" ]
     then
 	NJARGS="$NJARGS -D $POOLSPACE/nic/start.sh"
     fi
@@ -718,7 +756,7 @@ do_ctl_test() {
     eval $cmd
 
 
-    if [ -n "$REF_CONSOLE_OUTPUT" ]
+    if [ -n "${REF_CONSOLE_OUTPUT-}" ]
     then
 	consolediff "" OUTPUT${KLIPS_MODULE}/console.txt $REF_CONSOLE_OUTPUT
     fi
@@ -741,7 +779,7 @@ ctltest() {
     ( preptest $testdir ctltest && do_ctl_test )
     stat=$?
 
-    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE}
+    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE} ""
 }
 
 skiptest() {
@@ -750,7 +788,7 @@ skiptest() {
 
     export TEST_PURPOSE=regress
 
-    UML_BRAND=0 recordresults $testdir "$testexpect" skipped $testdir${KLIPS_MODULE}
+    UML_BRAND=0 recordresults $testdir "$testexpect" skipped $testdir${KLIPS_MODULE} ""
 }
 
 ###################################
@@ -772,30 +810,30 @@ do_make_install_test() {
 
     prerunsetup
 
-    if [ -n "$INSTALL_FLAGS" ]
+    if [ -n "${INSTALL_FLAGS-}" ]
     then
 	$MAKE_INSTALL_TEST_DEBUG && echo make --no-print-directory DESTDIR=$instdir $INSTALL_FLAGS
 	(cd $OPENSWANSRCDIR && eval make OPENSWANSRCDIR=`pwd` --no-print-directory DESTDIR=$instdir $INSTALL_FLAGS ) >OUTPUT${KLIPS_MODULE}/install1.txt 2>&1 || exit 1
     fi
 
-    if [ -n "$POSTINSTALL_SCRIPT" ]
+    if [ -n "${POSTINSTALL_SCRIPT-}" ]
     then
 	$POSTINSTALL_SCRIPT $OPENSWANSRCDIR $instdir || exit 1
     fi
 
-    if [ -n "$INSTALL2_FLAGS" ]
+    if [ -n "${INSTALL2_FLAGS-}" ]
     then
 	$MAKE_INSTALL_TEST_DEBUG && echo make --no-print-directory DESTDIR=$instdir $INSTALL2_FLAGS
 	(cd $OPENSWANSRCDIR && eval make OPENSWANSRCDIR=`pwd` --no-print-directory DESTDIR=$instdir $INSTALL2_FLAGS ) >OUTPUT${KLIPS_MODULE}/install2.txt 2>&1 || exit 1
     fi
 
-    if [ -n "$UNINSTALL_FLAGS" ]
+    if [ -n "${UNINSTALL_FLAGS-}" ]
     then
 	$MAKE_INSTALL_TEST_DEBUG && echo make --no-print-directory DESTDIR=$instdir $UNINSTALL_FLAGS
 	(cd $OPENSWANSRCDIR && eval make OPENSWANSRCDIR=`pwd` --no-print-directory DESTDIR=$instdir $UNINSTALL_FLAGS ) >OUTPUT${KLIPS_MODULE}/uninstall.txt 2>&1 || exit 1
     fi
 
-    if [ -n "$REF_MAKE_DOC_OUTPUT" ]
+    if [ -n "${REF_MAKE_DOC_OUTPUT-}" ]
     then
       rm -f OUTPUT${KLIPS_MODULE}/$REF_MAKE_DOC_OUTPUT.txt
 
@@ -809,7 +847,7 @@ do_make_install_test() {
       fi
     fi
 
-    if [ -n "$REF_FIND_f_l_OUTPUT" ]
+    if [ -n "${REF_FIND_f_l_OUTPUT-}" ]
     then
       rm -f OUTPUT${KLIPS_MODULE}/$REF_FIND_f_l_OUTPUT
 
@@ -824,7 +862,7 @@ do_make_install_test() {
     fi
 
 
-    if [ -n "$REF_FILE_CONTENTS" ]
+    if [ -n "${REF_FILE_CONTENTS-}" ]
     then
       cat $REF_FILE_CONTENTS | while read reffile samplefile
       do
@@ -844,7 +882,6 @@ do_make_install_test() {
     esac
 }
 
-
 # test entry point:
 mkinsttest() {
     testdir=$1
@@ -858,7 +895,7 @@ mkinsttest() {
     ( preptest $testdir mkinsttest && do_make_install_test )
     stat=$?
 
-    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE}
+    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE} ""
 }
 
 ###################################
@@ -899,7 +936,7 @@ do_rpm_install_test() {
     successfile=OUTPUT${KLIPS_MODULE}/success
     echo "$success" >$successfile
 
-    if [ -n "$REF_RPM_CONTENTS" ]
+    if [ -n "${REF_RPM_CONTENTS-}" ]
     then
       cat $REF_RPM_CONTENTS | while read rpmfile rpmcontents
       do
@@ -952,7 +989,7 @@ rpm_build_install_test() {
 	stat='missing parts'
     fi
 
-    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE}
+    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE} ""
 }
 
 ###################################
@@ -973,14 +1010,14 @@ do_ipkg_install_test() {
     prerunsetup
 
     KERNEL_SOURCE=`eval echo $KERNEL_SOURCE`
-    if [ -z "$KERNEL_SOURCE" ]
+    if [ -z "${KERNEL_SOURCE-}" ]
     then
 	echo "Test must define \$KERNEL_SOURCE ($KERNEL_SOURCE)"
 	success='missing $KERNEL_SOURCE'
 	exit 99
     fi
 
-    if [ -z "$OMIT_BUILD" ]
+    if [ -z "${OMIT_BUILD-}" ]
     then
 	echo "Building with kernel source $KERNEL_SOURCE";
 
@@ -994,7 +1031,7 @@ do_ipkg_install_test() {
     successfile=OUTPUT${KLIPS_MODULE}/success
     echo "$success" >$successfile
 
-    if [ -n "$REF_IPKG_CONTENTS" ]
+    if [ -n "${REF_IPKG_CONTENTS-}" ]
     then
       cat $REF_IPKG_CONTENTS | while read ipkgfile ipkgcontents
       do
@@ -1029,7 +1066,6 @@ do_ipkg_install_test() {
 }
 
 
-
 # test entry point:
 ipkg_build_install_test() {
     testdir=$1
@@ -1048,9 +1084,8 @@ ipkg_build_install_test() {
 	stat='missing parts'
     fi
 
-    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE}
+    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE} ""
 }
-
 
 
 
@@ -1060,23 +1095,22 @@ ipkg_build_install_test() {
 #
 ###################################
 
-# test entry point:
-libtest() {
+complibtest() {
     testobj=$1
-    testexpect=$2
-    testsrc=$testobj.c
+    testsrc=$2
 
     CC=${CC-cc}
 
-    echo '**** make libtest RUNNING' $testsrc '****'
+    ECHO=${ECHO-echo}
 
     symbol=`echo $testobj | tr 'a-z' 'A-Z'`_MAIN
 
     unset FILE
+    SRCDIR=${SRCDIR-./}
 
-    if [ -f ./$testsrc ] 
+    if [ -f ${SRCDIR}$testsrc ] 
     then
-	FILE=./$testsrc
+	FILE=${SRCDIR}$testsrc
     elif [ -f ${OPENSWANSRCDIR}/lib/libopenwan/$testsrc ]
     then
 	FILE=${OPENSWANSRCDIR}/lib/libopenswan/$testsrc
@@ -1097,30 +1131,58 @@ libtest() {
         FILE=${OPENSWANSRCDIR}/linux/net/ipsec/$testsrc
     fi
 
-    #echo "LOOKING for " ./FLAGS.$testobj
+    eval $(cd ${OPENSWANSRCDIR} && OPENSWANSRCDIR=$(pwd) ${MAKE} --no-print-directory env )
 
     EXTRAFLAGS=
     EXTRALIBS=
-    if [ -f ./FLAGS.$testobj ]
+    UNITTESTARGS=-r
+
+    if [ -f ${SRCDIR}FLAGS ]; then 
+        ${ECHO} "   "Sourcing ${SRCDIR}FLAGS
+	source ${SRCDIR}FLAGS
+    fi
+     	
+    if [ -f ${SRCDIR}FLAGS.$testobj ]
     then
-	source ./FLAGS.$testobj
+        ${ECHO} "   "Sourcing ${SRCDIR}FLAGS.$testobj
+	source ${SRCDIR}FLAGS.$testobj
     fi
 
     stat=99
-    if [ -n "$FILE" -a -r "$FILE" ]
+    if [ -n "${FILE-}" -a -r "${FILE-}" ]
     then
-	    echo ${CC} -g -o $testobj -D$symbol ${EXTRAFLAGS} -I${OPENSWANSRCDIR}/linux/include -I${OPENSWANSRCDIR} -I${OPENSWANSRCDIR}/include ${FILE} ${OPENSWANLIB} ${EXTRALIBS}
-	    ${CC} -g -o $testobj -D$symbol ${EXTRAFLAGS} -I${OPENSWANSRCDIR}/linux/include -I${OPENSWANSRCDIR} -I${OPENSWANSRCDIR}/include ${FILE} ${OPENSWANLIB} ${EXTRALIBS}
+	    ${ECHO} "   "CC -g -o $testobj -D$symbol ${FILE} ${OPENSWANLIB} 
+	    ${CC} -g -o $testobj -D$symbol ${MOREFLAGS} ${PORTINCLUDE} ${EXTRAFLAGS} -I${OPENSWANSRCDIR}/linux/include -I${OPENSWANSRCDIR} -I${OPENSWANSRCDIR}/include ${FILE} ${OPENSWANLIB} ${EXTRALIBS}
 	    rm -rf lib-$testobj/OUTPUT
 	    mkdir -p lib-$testobj/OUTPUT
+    fi
+}
 
+# test entry point:
+libtest() {
+    testobj=$1
+    testexpect=$2
+    testsrc=$testobj.c
+
+    ECHO=${ECHO-echo}
+
+    ${ECHO} '**** make libtest COMPILING' $testsrc '****'
+    complibtest $testobj $testsrc
+
+    stat=99
+    if [ -n "${FILE-}" -a -r "${FILE-}" ]
+    then
 	    export TEST_PURPOSE=regress
 
-	    echo Running $testobj
-	    ( ulimit -c unlimited; cd lib-$testobj && ../$testobj -r >OUTPUT${KLIPS_MODULE}/$testobj.txt 2>&1 )
+	    echo "file ../$testobj" >lib-$testobj/.gdbinit
+	    echo "set args "${UNITTESTARGS} >>lib-$testobj/.gdbinit
+
+	    ${ECHO} "   "Running $testobj
+	    ( ulimit -c unlimited; cd lib-$testobj && eval ../$testobj ${UNITTESTARGS} >OUTPUT${KLIPS_MODULE}/$testobj.txt 2>&1 )
+
 
 	    stat=$?
-	    echo Exit code $stat
+	    ${ECHO} "   "Exit code $stat
 	    if [ $stat -gt 128 ]
 	    then
 		stat="$stat core"
@@ -1129,18 +1191,65 @@ libtest() {
 		then
 		    if diff -N -u -w -b -B lib-$testobj/OUTPUT${KLIPS_MODULE}/$testobj.txt OUTPUT.$testobj.txt > lib-$testobj/OUTPUT${KLIPS_MODULE}/$testobj.output.diff
 		    then
-			echo "output matched"
+			${ECHO} "   ""output matched"
 			stat="0"
 		    else
-			echo "output differed"
+			${ECHO} "   ""output differed"
 			stat="1"
 		    fi
 		fi
             fi
     fi
 
-    TEST_PURPOSE=regress  UML_BRAND=0 recordresults lib-$testobj "$testexpect" $stat lib-$testobj
+    TEST_PURPOSE=regress  UML_BRAND=0 recordresults lib-$testobj "$testexpect" "$stat" lib-$testobj
 }
+
+# test entry point:
+multilibtest() {
+    testobj=$1
+    testexpect=$2
+    testsrc=$testobj.c
+
+    ECHO=${ECHO-echo}
+
+    ${ECHO} '**** make multilibtest COMPILING' $testsrc '****'
+    complibtest $testobj $testsrc
+
+    stat=99
+    if [ -n "${FILE-}" -a -r "${FILE-}" ]
+    then
+	    export TEST_PURPOSE=regress
+
+	    echo "file ../$testobj" >lib-$testobj/.gdbinit
+	    echo "set args "${UNITTESTARGS} >>lib-$testobj/.gdbinit
+
+	    ${ECHO} Multilib running lib-$testobj/testlist.sh for $testobj ${UNITTESTARGS}
+	    ( ulimit -c unlimited; cd lib-$testobj && ./testlist.sh >OUTPUT${KLIPS_MODULE}/$testobj.txt 2>&1 )
+
+	    stat=$?
+	    ${ECHO} Exit code $stat
+	    if [ $stat -gt 128 ]
+	    then
+		stat="$stat core"
+	    else
+		if [ -r OUTPUT.$testobj.txt ]
+		then
+		    if diff -N -u -w -b -B OUTPUT.$testobj.txt lib-$testobj/OUTPUT${KLIPS_MODULE}/$testobj.txt > lib-$testobj/OUTPUT${KLIPS_MODULE}/$testobj.output.diff
+		    then
+			${ECHO} "output matched"
+			stat="0"
+		    else
+			echo "$testobj: output differed"
+			stat="1"
+		    fi
+		fi
+            fi
+    fi
+
+    TEST_PURPOSE=regress  UML_BRAND=0 recordresults lib-$testobj "$testexpect" "$stat" lib-$testobj false
+}
+
+
 
 ###################################
 #
@@ -1165,6 +1274,8 @@ libtest() {
 #
 #  Some additional options to control the network emulator
 #    ARPREPLY=--arpreply         - if ARPs should be answered
+#  -> obsoleted by NETWORK_ARPREPLY=true
+#
 
 # test entry point:
 umlplutotest() {
@@ -1178,7 +1289,7 @@ umlplutotest() {
       preptest $testdir umlplutotest && do_umlX_test )
     stat=$?
 
-    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE}
+    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE} ""
 }
 
 ###################################
@@ -1272,7 +1383,7 @@ kernel_patch_test() {
 	stat='missing parts'
     fi
 
-    recordresults $testdir "$testexpect" "$stat" $testdir
+    recordresults $testdir "$testexpect" "$stat" $testdir ""
 }
 
 ###################################
@@ -1427,9 +1538,56 @@ module_compile() {
 	stat='missing parts'
     fi
 
-    recordresults $testdir "$testexpect" "$stat" $testdir false
+    recordresults $testdir "$testexpect" "$stat" $testdir false 
 }
 
+export_variables() {
+    # Xhost script takes things from the environment.
+    for host in $XHOST_LIST
+    do
+       verboseecho "Processing exports for $host"
+       verboseecho
+       lhost=`echo $host | tr 'A-Z' 'a-z'`
+
+       local startvar
+       startvar=${host}_START
+       if [ -z "${!startvar-}" ]
+       then
+            local startdir
+	    local starthost
+	    starthost=${host}HOST
+	    startdir=$POOLSPACE/${!starthost}
+	    if [ -n "${KLIPS_MODULE-}" ]
+	    then
+		eval ${host}_START=$startdir/startmodule.sh
+	    else
+	        eval ${host}_START=$startdir/start.sh
+            fi
+       fi
+       export ${host}_START
+
+       eval "REF${KERNVER}_${host}_CONSOLE_RAW=OUTPUT${KLIPS_MODULE}/${KERNVER}${lhost}console.txt"
+       export REF${KERNVER}_${host}_CONSOLE_RAW
+       export ${host}_INIT_SCRIPT
+       export ${host}_RUN_SCRIPT
+       export ${host}_RUN2_SCRIPT
+       export ${host}_RUN3_SCRIPT
+       export ${host}_RUN4_SCRIPT
+       export ${host}_RUN5_SCRIPT
+       export ${host}_FINAL_SCRIPT
+    done
+
+    for net in NORTH SOUTH NORTHPUBLIC SOUTHPUBLIC EAST WEST PUBLIC ADMIN PRIVATE
+    do
+	export ${net}_PLAY
+	export ${net}_REC
+	export ${net}_ARPREPLY
+    done
+
+    export NORTH_PLAY
+    export SOUTH_PLAY
+    export XHOST_LIST
+}
 
 ###################################
 #
@@ -1451,108 +1609,59 @@ do_umlX_test() {
 
     EXP2_ARGS=''
 
-    if [ -n "$EAST_INPUT" ]
+    export_variables
+
+    if [ -n "${EAST_INPUT-}" ]
     then
 	EAST_PLAY=$EAST_INPUT export EAST_PLAY
     fi
 
-    if [ -n "$WEST_INPUT" ]
+    if [ -n "${WEST_INPUT-}" ]
     then
 	WEST_PLAY=$WEST_INPUT export WEST_PLAY
     fi
-    export NORTH_PLAY
-    export SOUTH_PLAY
 
-    if [ -n "$PUB_INPUT" ]
+    if [ -n "${PUB_INPUT-}" ]
     then
 	EXP2_ARGS="$EXP2_ARGS -p $PUB_INPUT"
     fi
 
-    if [ -z "$XHOST_LIST" ]
+    if [ -z "${XHOST_LIST-}" ]
     then
 	XHOST_LIST="EAST WEST JAPAN"
     fi
 
-    export XHOST_LIST
-
-    # Xhost script takes things from the environment.
-    for host in $XHOST_LIST
-    do
-       verboseecho "Processing exports for $host"
-       verboseecho
-       lhost=`echo $host | tr 'A-Z' 'a-z'`
-
-       local startvar
-       startvar=${host}_START
-       if [ -z "${!startvar}" ]
-       then
-            local startdir
-	    local starthost
-	    starthost=${host}HOST
-	    startdir=$POOLSPACE/${!starthost}
-	    if [ -n "$KLIPS_MODULE" ]
-	    then
-		eval ${host}_START=$startdir/startmodule.sh
-	    else
-	        eval ${host}_START=$startdir/start.sh
-            fi
-       fi
-       export ${host}_START
-
-       eval "REF${KERNVER}_${host}_CONSOLE_RAW=OUTPUT${KLIPS_MODULE}/${KERNVER}${lhost}console.txt"
-       export REF${KERNVER}_${host}_CONSOLE_RAW
-       export ${host}_INIT_SCRIPT
-       export ${host}_RUN_SCRIPT
-       export ${host}_RUN2_SCRIPT
-       export ${host}_RUN3_SCRIPT
-       export ${host}_RUN4_SCRIPT
-       export ${host}_RUN5_SCRIPT
-       export ${host}_FINAL_SCRIPT
-    done
-
-    for net in NORTH SOUTH NORTHPUBLIC SOUTHPUBLIC EAST WEST PUBLIC ADMIN
-    do
-	export ${net}_PLAY
-	export ${net}_REC
-	export ${net}_ARPREPLY
-    done
-
-    if [ -n "$REF_EAST_OUTPUT" ]
+    if [ -n "${REF_EAST_OUTPUT-}" ]
     then
 	EASTOUTPUT=`basename $REF_EAST_OUTPUT .txt `
 	EXP2_ARGS="$EXP2_ARGS -E OUTPUT${KLIPS_MODULE}/$EASTOUTPUT.pcap"
     fi
 
-    if [ -n "$REF_WEST_OUTPUT" ]
+    if [ -n "${REF_WEST_OUTPUT-}" ]
     then
 	WESTOUTPUT=`basename $REF_WEST_OUTPUT .txt `
 	EXP2_ARGS="$EXP2_ARGS -W OUTPUT${KLIPS_MODULE}/$WESTOUTPUT.pcap"
     fi
 
-    if [ -n "$REF_NORTH_OUTPUT" ]
+    if [ -n "${REF_NORTH_OUTPUT-}" ]
     then
 	NORTHOUTPUT=`basename $REF_NORTH_OUTPUT .txt `
 	NORTH_REC=OUTPUT${KLIPS_MODULE}/$EASTOUTPUT.pcap export NORTH_REC
     fi
 
-    if [ -n "$REF_SOUTH_OUTPUT" ]
+    if [ -n "${REF_SOUTH_OUTPUT-}" ]
     then
 	SOUTHOUTPUT=`basename $REF_SOUTH_OUTPUT .txt `
 	SOUTH_REC=OUTPUT${KLIPS_MODULE}/$WESTOUTPUT.pcap export SOUTH_REC
     fi
 
-    if [ -n "$REF_PUB_OUTPUT" ]
+    if [ -n "${REF_PUB_OUTPUT-}" ]
     then
 	PUBOUTPUT=`basename $REF_PUB_OUTPUT .txt`
 	EXP2_ARGS="$EXP2_ARGS -P OUTPUT${KLIPS_MODULE}/$PUBOUTPUT.pcap"
     fi
 
-    if [ "X$ARPREPLY" = "X--arpreply" ]
-    then
-	EXP2_ARGS="$EXP2_ARGS -a"
-    fi
-
-    if [ -n "$NETJIG_EXTRA" ]
+    if [ -n "${NETJIG_EXTRA-}" ]
     then
 	EXP2_ARGS="$EXP2_ARGS -N $NETJIG_EXTRA"
     fi
@@ -1567,9 +1676,9 @@ do_umlX_test() {
     $NETJIGDEBUG && echo $cmd
     eval $cmd
 
-    pcap_filter west   "$REF_WEST_OUTPUT" "$WESTOUTPUT" "$REF_WEST_FILTER"
-    pcap_filter east   "$REF_EAST_OUTPUT" "$EASTOUTPUT" "$REF_EAST_FILTER"
-    pcap_filter public "$REF_PUB_OUTPUT"  "$PUBOUTPUT"  "$REF_PUB_FILTER"
+    pcap_filter west   "${REF_WEST_OUTPUT-}" "$WESTOUTPUT" "${REF_WEST_FILTER-}"
+    pcap_filter east   "${REF_EAST_OUTPUT-}" "$EASTOUTPUT" "${REF_EAST_FILTER-}"
+    pcap_filter public "${REF_PUB_OUTPUT-}"  "$PUBOUTPUT"  "${REF_PUB_FILTER-}"
 
     for host in $XHOST_LIST
     do
@@ -1577,7 +1686,7 @@ do_umlX_test() {
        consoleref=REF${KERNVER}_${host}_CONSOLE_OUTPUT
        lhost=`echo $host | tr 'A-Z' 'a-z'`
 
-	if [ -n "${!consoleref}" ]
+	if [ -n "${!consoleref-}" ]
 	then
 	    consolediff ${KERNVER}$lhost OUTPUT${KLIPS_MODULE}/${KERNVER}${lhost}console.txt ${!consoleref}
 	fi
@@ -1601,183 +1710,213 @@ umlXhost() {
     ( preptest $testdir umlXhost && do_umlX_test )
     stat=$?
 
-    recordresults $testdir "$testexpect" "$stat" $testdir
+    recordresults $testdir "$testexpect" "$stat" $testdir ""
 }
 
+
+###################################
 #
-# $Id: functions.sh,v 1.124.2.2 2005-11-17 03:43:46 ken Exp $
+#  test type: buildtest
 #
-# $Log: functions.sh,v $
-# Revision 1.124.2.2  2005-11-17 03:43:46  ken
-# Remove CVS commit errors
+#  does an alternate build with another set of options and/or
+#  a different kind of compiler
 #
-# Revision 1.124.2.1  2005/11/17 01:44:13  mcr
-# 	pullup of code from git tree.
+###################################
+
+do_build_test() {
+
+    rm -rf OUTPUT${KLIPS_MODULE}/root
+    mkdir -p OUTPUT${KLIPS_MODULE}/root
+
+    # locale affects sort order.
+    LC_ALL=C export LC_ALL
+
+    success=true
+    instdir=`cd OUTPUT${KLIPS_MODULE}/root && pwd`
+
+    prerunsetup
+
+    if [ -n "${INSTALL_FLAGS-}" ]
+    then
+	$MAKE_INSTALL_TEST_DEBUG && echo make --no-print-directory DESTDIR=$instdir $INSTALL_FLAGS
+	(cd $OPENSWANSRCDIR && eval make OPENSWANSRCDIR=`pwd` --no-print-directory DESTDIR=$instdir $INSTALL_FLAGS ) >OUTPUT${KLIPS_MODULE}/install1.txt 2>&1 || exit 1
+    fi
+
+    if [ -n "${POSTINSTALL_SCRIPT-}" ]
+    then
+	$POSTINSTALL_SCRIPT $OPENSWANSRCDIR $instdir || exit 1
+    fi
+
+    if [ -n "${INSTALL2_FLAGS-}" ]
+    then
+	$MAKE_INSTALL_TEST_DEBUG && echo make --no-print-directory DESTDIR=$instdir $INSTALL2_FLAGS
+	(cd $OPENSWANSRCDIR && eval make OPENSWANSRCDIR=`pwd` --no-print-directory DESTDIR=$instdir $INSTALL2_FLAGS ) >OUTPUT${KLIPS_MODULE}/install2.txt 2>&1 || exit 1
+    fi
+
+    if [ -n "${UNINSTALL_FLAGS-}" ]
+    then
+	$MAKE_INSTALL_TEST_DEBUG && echo make --no-print-directory DESTDIR=$instdir $UNINSTALL_FLAGS
+	(cd $OPENSWANSRCDIR && eval make OPENSWANSRCDIR=`pwd` --no-print-directory DESTDIR=$instdir $UNINSTALL_FLAGS ) >OUTPUT${KLIPS_MODULE}/uninstall.txt 2>&1 || exit 1
+    fi
+
+    if [ -n "${REF_MAKE_DOC_OUTPUT-}" ]
+    then
+      rm -f OUTPUT${KLIPS_MODULE}/$REF_MAKE_DOC_OUTPUT.txt
+
+      (cd $OPENSWANSRCDIR/doc && eval make OPENSWANSRCDIR=$OPENSWANSRCDIR clean --no-print-directory && eval make OPENSWANSRCDIR=$OPENSWANSRCDIR --no-print-directory ) | sort >OUTPUT${KLIPS_MODULE}/$REF_MAKE_DOC_OUTPUT.txt
+      if diff -u -w -b -B $REF_MAKE_DOC_OUTPUT.txt OUTPUT${KLIPS_MODULE}/$REF_MAKE_DOC_OUTPUT.txt >OUTPUT${KLIPS_MODULE}/$REF_MAKE_DOC_OUTPUT.diff
+      then
+	 echo "make doc output matched"
+      else
+	 echo "make doc output differed"
+	 success=false
+      fi
+    fi
+
+    if [ -n "${REF_FIND_f_l_OUTPUT-}" ]
+    then
+      rm -f OUTPUT${KLIPS_MODULE}/$REF_FIND_f_l_OUTPUT
+
+      (cd OUTPUT${KLIPS_MODULE}/root && find . \( -type f -or -type l \) -print ) | sort >OUTPUT${KLIPS_MODULE}/$REF_FIND_f_l_OUTPUT.txt
+      if diff -u -w -b -B $REF_FIND_f_l_OUTPUT.txt OUTPUT${KLIPS_MODULE}/$REF_FIND_f_l_OUTPUT.txt >OUTPUT${KLIPS_MODULE}/$REF_FIND_f_l_OUTPUT.diff
+      then
+	 echo "Install list file list matched"
+      else
+	 echo "Install list file list differed"
+	 success=false
+      fi
+    fi
+
+
+    if [ -n "${REF_FILE_CONTENTS-}" ]
+    then
+      cat $REF_FILE_CONTENTS | while read reffile samplefile
+      do
+	if diff -u -w -b -B $reffile $instdir/$samplefile >OUTPUT${KLIPS_MODULE}/$reffile.diff
+	then
+	    echo "Reffile $samplefile matched"
+	else
+	    echo "Reffile $samplefile differed"
+	    success=false
+	fi
+      done
+    fi
+
+    case "$success" in
+    true)	exit 0 ;;
+    *)		exit 1 ;;
+    esac
+}
+
+
+# test entry point:
+buildtest() {
+    testdir=$1
+    testexpect=$2
+
+    echo '**** Make BUILD RUNNING' $testdir${KLIPS_MODULE} '****'
+
+    OPENSWANSRCDIR=`cd $OPENSWANSRCDIR && pwd` export OPENSWANSRCDIR
+
+    export UML_BRAND="$$"
+    ( preptest $testdir buildtest && do_build_test )
+    stat=$?
+
+    recordresults $testdir "$testexpect" "$stat" $testdir${KLIPS_MODULE} false
+}
+
+###################################
 #
-# Revision 1.124  2005/07/09 15:40:30  mcr
-# 	make tests that need compat variables abort.
+#  test type: unittest
 #
-# Revision 1.123  2005/05/12 03:11:41  mcr
-# 	permit *_START to be set from testparams.sh for
-# 	east-1des-01 use.
+# testparams.sh should specify a script to be run as $TESTSCRIPT
+#          REF_CONSOLE_OUTPUT= name of reference output
+#    
+# The script will be started with:
+#          ROOTDIR=    set to root of source code.
+#          OBJDIRTOP=  set to location of object files
+# 
 #
-# Revision 1.122  2005/04/21 02:51:13  mcr
-# 	do not copy results for module test (it's a whole kernel!)
-# 	store kernel console output in console26.txt.
+# testparams.sh should set PROGRAMS= to a list of subdirs of programs/
+#                that must be built before using the test. This allows
+#                additional modules to be built.
 #
-# Revision 1.121  2005/03/20 23:18:46  mcr
-# 	make sure to export KERNVER to netjig.tcl.
+# If there is a Makefile in the subdir, it will be invoked as
+# "make checkprograms". It will have the above variables as well,
+# and make get the build environment with 
+#    include ${ROOTDIR}/programs/Makefile.program
 #
-# Revision 1.120  2005/03/13 19:15:02  mcr
-# 	make sure to record libtest diff output result.
+# The stdout of the script will be set to an output file, which will then
+# be sanitized using the normal set of fixup scripts.
+#          
 #
-# Revision 1.119  2005/01/24 01:12:12  mcr
-# 	adjusted include directories and library definitions so
-# 	that test cases continue to compile.
-#
-# Revision 1.118  2004/12/30 07:07:14  mcr
-# 	when marking which test is running, make sure to include -module
-#
-# Revision 1.117  2004/11/09 18:36:35  ken
-# rpm -> ipkg
-#
-# Revision 1.116  2004/11/09 18:30:24  ken
-# Add functions for ipkg_build_install_test
-#
-# Revision 1.115  2004/10/20 01:43:58  mcr
-# 	redirected stderr to capture file as well.
-#
-# Revision 1.114  2004/10/19 22:10:54  mcr
-# 	capture and compare the output as well.
-#
-# Revision 1.113  2004/10/17 17:37:45  mcr
-# 	run library tests in the subdir (so core will go there),
-# 	and make sure that core dumps are enabled.
-#
-# Revision 1.112  2004/10/16 22:53:22  mcr
-# 	added EXTRAFLAGS and EXTRALIBS variable to library test
-# 	process, and provide FLAGS.testobj file to configure
-# 	test case.
-#
-# Revision 1.111  2004/09/21 01:20:09  mcr
-# 	support per-kernel console output
-#
-# Revision 1.110  2004/09/13 02:26:48  mcr
-# 	use appropriate console comparison file.
-#
-# Revision 1.109  2004/08/22 04:59:59  mcr
-# 	fix up module compile test to work with 2.6.
-# 	added post-build complicated check.
-#
-# Revision 1.108  2004/05/19 14:53:31  mcr
-# 	call summarize results just before each test case.
-#
-# Revision 1.107  2004/04/16 19:57:29  mcr
-# 	if THREEEIGHT is set to true, then do not run the
-# 	three-eight filter.
-#
-# Revision 1.106  2004/04/09 18:30:05  mcr
-# 	look in all sorts of places for the library code.
-#
-# Revision 1.105  2004/04/04 03:57:58  ken
-# Change order of options to ps, as newer versions are more strict about order
-#
-# Revision 1.104  2004/04/03 19:44:52  ken
-# FREESWANSRCDIR -> OPENSWANSRCDIR (patch by folken)
-#
-# Revision 1.103  2004/02/16 04:13:37  mcr
-# 	use new NETWORK_ARPREPLY= to decide how/when to answer arp
-# 	requests.
-#
-# Revision 1.102  2004/02/03 20:14:39  mcr
-# 	networks are now managed as a list rather than explicitely.
-#
-# Revision 1.101  2003/11/25 00:22:53  mcr
-# 	have skiptest make up a fake TEST_PURPOSE, so there are
-# 	no complaints from regressrecord.
-#
-# Revision 1.100  2003/11/05 07:38:30  dhr
-#
-# make functions.sh more robust
-#
-# Revision 1.99  2003/11/05 04:35:56  dhr
-#
-# clarify shell variable export command
-#
-# Revision 1.98  2003/10/31 02:43:33  mcr
-# 	pull up of port-selector tests
-#
-# Revision 1.97  2003/10/29 20:52:37  dhr
-#
-# functions.sh: silence grep; add "rogue" to status if rogue was found
-#
-# Revision 1.96  2003/10/28 03:03:33  dhr
-#
-# Refine testing scripts:
-# - put timeout and eof handlers in each expect script
-# - kill more rogue processes: even those with unreadable(!) /proc entries
-# - improve reporting of skipped tests
-# - make "recordresults" do more, simplifying every caller
-# - speed up UML shutdown by using "halt -p -r" (requires many reference log updates)
-#
-# Revision 1.95  2003/10/21 15:08:03  dhr
-#
-# - show more raw detail within braces of testing report
-# - make functions.sh clearer
-# - silence the "kill" commands in function.sh that probe for successful killing
-#
-# Revision 1.94  2003/10/16 03:14:56  dhr
-#
-# Many minor improvements to functions.sh:
-# - add quotes for good shell hygiene
-# - try harder to kill rogue UML processes
-# - use "case" to analyze $success (``if $success'' fails whe $success is "missing")
-# The use of $success is still disorganized and confusing.  With some work
-# it could be used to produce better diagnostics.
-#
-# Revision 1.93  2003/10/16 02:56:47  dhr
-#
-# clean up whitespace
-#
-# Revision 1.92  2003/10/15 15:31:57  dhr
-#
-# functions.sh: let recordresults survive a testparams.sh that exits
-#
-# Revision 1.91  2003/10/14 22:07:09  dhr
-#
-# functions.sh: let recordresults survive a missing testparams.sh
-#
-# Revision 1.90  2003/10/14 14:23:29  dhr
-#
-# Fix some problems with "make check" (testing/utils/functions.sh):
-# - Make sure that each "source" or "." command uses a pathname with a slash.
-#   Otherwise the $PATH will be used.
-# - Fix the TEST_PURPOSE analysis: source testparams.sh in recordresults.
-#   Note when TEST_PURPOSE isn't understood.
-# - remove redundant "rm -rf" commands
-#
-# Revision 1.89  2003/10/01 16:13:56  dhr
-#
-# Make the -modules hack in testing/klips/dotests.sh actually work:
-# add ${KLIPS_MODULE} to almost every path with OUTPUT that didn't already have it.
-#
-# Revision 1.88.2.1  2003/10/29 02:09:56  mcr
-# 	set test purpose to REGRESS for library tests.
-#
-# Revision 1.88  2003/08/21 22:38:06  mcr
-# 	sense of test was wrong for MODULE_DEFCONFIG
-#
-# Revision 1.87  2003/08/21 22:35:11  mcr
-# 	if we didn't specify a MODULE_DEFCONFIG, then use /dev/null
-#
-# Revision 1.86  2003/08/18 16:32:48  mcr
-# 	export 3,4,5 RUN script variables.
-#
-# Revision 1.85  2003/05/21 14:10:31  mcr
-# 	look for core files produced by pluto, and save them to the
-# 	OUTPUT directory, changing failure state to "core".
-#
-# Revision 1.84  2003/05/03 23:26:02  mcr
-# 	added RCS Ids.
-#
-#
+###################################
+
+do_unittest() {
+
+    export ROOTDIR=${OPENSWANSRCDIR}
+    eval `(cd $ROOTDIR; make --no-print-directory env )`
+    failnum=1
+
+    if [ ! -x "$TESTSCRIPT" ]; then echo "TESTSCRIPT=$TESTSCRIPT is not executable"; exit 41; fi
+
+    echo "BUILDING DEPENDANCIES"
+    (cd ${ROOTDIR}/programs;
+     for program in ${PROGRAMS}
+     do
+	if [ -d $program ]; then (cd $program && make programs checkprograms ); fi
+     done)
+
+    echo "BUILDING TEST CASE"
+    # if there is a makefile, run it and bail if fails
+    if [ -f Makefile ]; then
+	if make checkprograms; then
+	    :
+	else
+	    exit 1;
+	fi
+    fi
+
+    # make sure we get all core dumps!
+    ulimit -c unlimited
+    export OBJDIRTOP
+
+    OUTDIR=${OBJDIRTOP}/testing/${TESTSUBDIR}/${TESTNAME}
+    mkdir -p ${OUTDIR}
+    rm -f OUTPUT; ln -f -s ${OUTDIR} OUTPUT
+
+    echo "RUNNING $TESTSCRIPT"
+    ./$TESTSCRIPT >${OUTDIR}/console.txt
+    echo "DONE    $TESTSCRIPT"
+
+    stat=$?
+    echo Exit code $stat
+    if [ $stat -gt 128 ]
+    then
+	stat="$stat core"
+    else
+        consolediff "" OUTPUT/console.txt $REF_CONSOLE_OUTPUT
+	case "$success" in
+	true)	exit 0 ;;
+	*)	exit $failnum ;;
+	esac
+    fi
+}
+
+unittest() {
+    testcase=$1
+    testexpect=$2
+
+    echo '**** make unittest RUNNING '$testcase' ****'
+
+    echo Running $testobj
+    ( preptest $testcase unittest false && do_unittest )
+    stat=$?
+
+    TEST_PURPOSE=regress recordresults $testcase "$testexpect" "$stat" $testcase false
+}
+
+
+
+
+

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context.c,v 1.4 2004-12-02 06:16:19 mcr Exp $ */
+/* $Id: context.c,v 1.5 2005/08/05 01:18:29 mcr Exp $ */
 
 #include <config.h>
 
@@ -26,6 +26,11 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+#include <isc/ipv6.h>
 #include <lwres/lwres.h>
 #include <lwres/net.h>
 #include <lwres/platform.h>
@@ -34,6 +39,8 @@
 #include <sys/select.h>
 #endif
 
+#include "osw_select.h"
+#include "socketwrapper.h"
 #include "context_p.h"
 #include "assert_p.h"
 
@@ -232,7 +239,7 @@ context_connect(lwres_context_t *ctx) {
 	} else
 		return (LWRES_R_IOERROR);
 
-	s = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
+	s = safe_socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 	if (s < 0)
 		return (LWRES_R_IOERROR);
 
@@ -343,7 +350,7 @@ lwres_context_sendrecv(lwres_context_t *ctx,
 {
 	lwres_result_t result;
 	int ret2;
-	fd_set readfds;
+	osw_fd_set readfds;
 	struct timeval timeout;
 
 	/*
@@ -361,9 +368,9 @@ lwres_context_sendrecv(lwres_context_t *ctx,
 	if (result != LWRES_R_SUCCESS)
 		return (result);
  again:
-	FD_ZERO(&readfds);
-	FD_SET(ctx->sock, &readfds);
-	ret2 = select(ctx->sock + 1, &readfds, NULL, NULL, &timeout);
+	OSW_FD_ZERO(&readfds);
+	OSW_FD_SET(ctx->sock, &readfds);
+	ret2 = osw_select(ctx->sock + 1, &readfds, NULL, NULL, &timeout);
 	
 	/*
 	 * What happened with select?

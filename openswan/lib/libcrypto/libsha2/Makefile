@@ -1,26 +1,14 @@
-CFLAGS=-O3 -fomit-frame-pointer -I../include $(EXTRA_CFLAGS)
+OPENSWANSRCDIR?=$(shell cd ../../..; pwd)
+srcdir?=./
 
-LIBOBJ := hmac_sha2.o sha2.o
+include ${OPENSWANSRCDIR}/Makefile.inc
+include ${OPENSWANSRCDIR}/Makefile.ver
 
-BLIB := libsha2.a
+OBJS := hmac_sha2.o sha2.o
 
-.S.o:
-	$(CC) $(AFLAGS) -c $< -o $@
+ONEFILE=sha2.c
+LIBRARY=crypto/libsha2
+LIB=libsha2.a
+INCLUDES+=-I${srcdir}../include
 
-$(BLIB): $(LIBOBJ)
-	/bin/rm -f $(BLIB)
-	ar cr $(BLIB) $(LIBOBJ)
-	-if test -s /bin/ranlib; then /bin/ranlib $(BLIB); \
-	else if test -s /usr/bin/ranlib; then /usr/bin/ranlib $(BLIB); \
-	else exit 0; fi; fi
-
-programs: $(BLIB)
-
-install:
-	@exit 0
-
-test: test_main.o $(BLIB)
-	$(CC) -o $@ $^ 
-
-clean:
-	rm -f *.[oa] core $(TARGET) test
+include ${srcdir}../../Makefile.library

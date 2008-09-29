@@ -12,19 +12,18 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.21.6.1 2006-10-27 14:47:07 paul Exp $
+# RCSID $Id: Makefile,v 1.22 2005/07/29 21:52:52 mcr Exp $
 
 OPENSWANSRCDIR?=$(shell cd ..; pwd)
 srcdir?=${OPENSWANSRCDIR}/programs/
 
 include ${OPENSWANSRCDIR}/Makefile.inc
 
-SUBDIRS=spi eroute spigrp tncfg klipsdebug pf_key proc pluto 
-SUBDIRS+=_confread _copyright _include _keycensor _plutoload _plutorun
-SUBDIRS+=_realsetup _secretcensor _startklips _updown _updown_x509
-SUBDIRS+=auto barf verify ipsec look manual newhostkey ranbits secrets
-SUBDIRS+=rsasigkey setup showdefaults showhostkey calcgoo mailkey
-SUBDIRS+=ikeping examples livetest
+SUBDIRS=
+
+ifeq ($(USE_KLIPS),true)
+SUBDIRS+=spi eroute spigrp tncfg klipsdebug pf_key
+endif
 
 ifeq ($(USE_LWRES),true)
 SUBDIRS+=lwdnsq
@@ -32,6 +31,26 @@ endif
 
 ifeq ($(USE_IPSECPOLICY),true)
 SUBDIRS+=showpolicy
+endif
+
+ifeq ($(USE_BSDKAME),true)
+SUBDIRS+=_realsetup.bsd _updown.bsdkame
+endif
+
+SUBDIRS+=proc pluto addconn 
+SUBDIRS+=_confread _copyright _include _keycensor _plutoload _plutorun
+SUBDIRS+=_realsetup _secretcensor _startklips _updown _updown.klips _updown.mast
+SUBDIRS+=auto barf verify ipsec look newhostkey ranbits secrets
+SUBDIRS+=rsasigkey setup showdefaults showhostkey 
+SUBDIRS+=ikeping examples livetest
+ifeq ($(USE_KLIPS),true)
+SUBDIRS+= _startklips _updown.klips 
+endif
+ifeq ($(USE_MAST),true)
+SUBDIRS+= _updown.mast 
+endif
+ifeq ($(USE_NETKEY),true)
+SUBDIRS+= _startnetkey _updown.netkey
 endif
 
 def:

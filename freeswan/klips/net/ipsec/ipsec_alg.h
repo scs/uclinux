@@ -3,7 +3,7 @@
  *
  * Author: JuanJo Ciarlante <jjo-ipsec@mendoza.gov.ar>
  *
- * $Id: ipsec_alg.h,v 1.2 2004/05/11 00:38:42 danield Exp $
+ * $Id: ipsec_alg.h,v 1.2 2004-05-11 00:38:42 danield Exp $
  *
  */
 /*

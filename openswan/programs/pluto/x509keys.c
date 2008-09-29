@@ -15,7 +15,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: x509keys.c,v 1.5 2005-06-14 22:38:06 mcr Exp $
+ * RCSID $Id: x509keys.c,v 1.6 2005/08/05 19:18:47 mcr Exp $
  */
 
 #include <stdlib.h>
@@ -29,8 +29,7 @@
 #include <openswan.h>
 #include <openswan/ipsec_policy.h>
 
-#include <sys/queue.h>
-
+#include "sysdep.h"
 #include "constants.h"
 #include "oswlog.h"
 
@@ -55,14 +54,15 @@
 #include "ocsp.h"
 #include "pkcs.h"
 #include "x509more.h"
-#include "paths.h"
 
 /* extract id and public key from x.509 certificate and
  * insert it into a pubkeyrec
  */
 void
-add_x509_public_key(x509cert_t *cert , time_t until
-    , enum dns_auth_level dns_auth_level)
+add_x509_public_key(struct id *keyid
+		    , x509cert_t *cert
+		    , time_t until
+		    , enum dns_auth_level dns_auth_level)
 {
     generalName_t *gn;
     struct pubkey *pk;
@@ -79,8 +79,8 @@ add_x509_public_key(x509cert_t *cert , time_t until
     pk->dns_auth_level = dns_auth_level;
     pk->until_time = until;
     pk->issuer = cert->issuer;
-    delete_public_keys(&pk->id, pk->alg);
-    install_public_key(pk, &pubkeys);
+    delete_public_keys(&pluto_pubkeys, &pk->id, pk->alg);
+    install_public_key(pk, &pluto_pubkeys);
 
     gn = cert->subjectAltName;
 
@@ -96,10 +96,23 @@ add_x509_public_key(x509cert_t *cert , time_t until
 	    pk->dns_auth_level = dns_auth_level;
 	    pk->until_time = until;
 	    pk->issuer = cert->issuer;
-	    delete_public_keys(&pk->id, pk->alg);
-	    install_public_key(pk, &pubkeys);
+	    delete_public_keys(&pluto_pubkeys, &pk->id, pk->alg);
+	    install_public_key(pk, &pluto_pubkeys);
 	}
 	gn = gn->next;
+    }
+
+    if(keyid != NULL &&
+       keyid->kind != ID_DER_ASN1_DN &&
+       keyid->kind != ID_DER_ASN1_GN) {
+	pk = allocate_RSA_public_key(c);
+	pk->id = *keyid;
+	
+	pk->dns_auth_level = dns_auth_level;
+	pk->until_time = until;
+	pk->issuer = cert->issuer;
+	delete_public_keys(&pluto_pubkeys, &pk->id, pk->alg);
+	install_public_key(pk, &pluto_pubkeys);
     }
 }
 
@@ -115,8 +128,8 @@ remove_x509_public_key(/*const*/ x509cert_t *cert)
     struct pubkey *revoked_pk;
 
     revoked_pk = allocate_RSA_public_key(c);
-    p          = pubkeys;
-    pp         = &pubkeys;
+    p          = pluto_pubkeys;
+    pp         = &pluto_pubkeys;
 
     while(p != NULL)
    {
@@ -153,32 +166,32 @@ decode_cert(struct msg_digest *md)
 	blob.len = pbs_left(&p->pbs);
 	if (cert->isacert_type == CERT_X509_SIGNATURE)
 	{
-	    x509cert_t cert = empty_x509cert;
-	    if (parse_x509cert(blob, 0, &cert))
+	    x509cert_t cert2 = empty_x509cert;
+	    if (parse_x509cert(blob, 0, &cert2))
 	    {
-		if (verify_x509cert(&cert, strict_crl_policy, &valid_until))
+		if (verify_x509cert(&cert2, strict_crl_policy, &valid_until))
 		{
 		    DBG(DBG_X509 | DBG_PARSING,
 			DBG_log("Public key validated")
 		    )
-		    add_x509_public_key(&cert, valid_until, DAL_SIGNED);
+			add_x509_public_key(NULL, &cert2, valid_until, DAL_SIGNED);
 		}
 		else
 		{
 		    plog("X.509 certificate rejected");
 		}
-		free_generalNames(cert.subjectAltName, FALSE);
-		free_generalNames(cert.crlDistributionPoints, FALSE);
+		free_generalNames(cert2.subjectAltName, FALSE);
+		free_generalNames(cert2.crlDistributionPoints, FALSE);
 	    }
 	    else
 		plog("Syntax error in X.509 certificate");
 	}
 	else if (cert->isacert_type == CERT_PKCS7_WRAPPED_X509)
 	{
-	    x509cert_t *cert = NULL;
+	    x509cert_t *cert2 = NULL;
 
-	    if (parse_pkcs7_cert(blob, &cert))
-		store_x509certs(&cert, strict_crl_policy);
+	    if (parse_pkcs7_cert(blob, &cert2))
+		store_x509certs(&cert2, strict_crl_policy);
 	    else
 		plog("Syntax error in PKCS#7 wrapped X.509 certificates");
 	}
@@ -190,6 +203,62 @@ decode_cert(struct msg_digest *md)
 	}
     }
 }
+
+/* Decode IKEV2 CERT Payload */
+
+void
+ikev2_decode_cert(struct msg_digest *md)
+{
+    struct payload_digest *p;
+
+    for (p = md->chain[ISAKMP_NEXT_v2CERT]; p != NULL; p = p->next)
+    {
+	struct ikev2_cert *const v2cert = &p->payload.v2cert;
+	chunk_t blob;
+	time_t valid_until;
+	blob.ptr = p->pbs.cur;
+	blob.len = pbs_left(&p->pbs);
+	if (v2cert->isac_enc == CERT_X509_SIGNATURE)
+	{
+	    x509cert_t cert2 = empty_x509cert;
+	    if (parse_x509cert(blob, 0, &cert2))
+	    {
+		if (verify_x509cert(&cert2, strict_crl_policy, &valid_until))
+		{
+		    DBG(DBG_X509 | DBG_PARSING,
+			DBG_log("Public key validated")
+		    )
+			add_x509_public_key(NULL, &cert2, valid_until, DAL_SIGNED);
+		}
+		else
+		{
+		    plog("X.509 certificate rejected");
+		}
+		free_generalNames(cert2.subjectAltName, FALSE);
+		free_generalNames(cert2.crlDistributionPoints, FALSE);
+	    }
+	    else
+		plog("Syntax error in X.509 certificate");
+	}
+	else if (v2cert->isac_enc == CERT_PKCS7_WRAPPED_X509)
+	{
+	    x509cert_t *cert2 = NULL;
+
+	    if (parse_pkcs7_cert(blob, &cert2))
+		store_x509certs(&cert2, strict_crl_policy);
+	    else
+		plog("Syntax error in PKCS#7 wrapped X.509 certificates");
+	}
+	else
+	{
+	    loglog(RC_LOG_SERIOUS, "ignoring %s certificate payload",
+		   enum_show(&ikev2_cert_type_names, v2cert->isac_enc));
+	    DBG_cond_dump_chunk(DBG_PARSING, "CERT:\n", blob);
+	}
+    }
+}
+
+
 
 /*
  * Decode the CR payload of Phase 1.
@@ -239,6 +308,54 @@ decode_cr(struct msg_digest *md, generalName_t **requested_ca)
     }
 }
 
+/*
+ * Decode the IKEv2 CR payload of Phase 1.
+ */
+void
+ikev2_decode_cr(struct msg_digest *md, generalName_t **requested_ca)
+{
+    struct payload_digest *p;
+
+    for (p = md->chain[ISAKMP_NEXT_v2CERTREQ]; p != NULL; p = p->next)
+    {
+	struct ikev2_certreq *const cr = &p->payload.v2certreq;
+	chunk_t ca_name;
+	
+	ca_name.len = pbs_left(&p->pbs);
+	ca_name.ptr = (ca_name.len > 0)? p->pbs.cur : NULL;
+
+	DBG_cond_dump_chunk(DBG_PARSING, "CR", ca_name);
+
+	if (cr->isacertreq_enc == CERT_X509_SIGNATURE)
+	{
+	    char buf[IDTOA_BUF];
+
+	    if (ca_name.len > 0)
+	    {
+		generalName_t *gn;
+		
+		if (!is_asn1(ca_name))
+		    continue;
+
+		gn = alloc_thing(generalName_t, "generalName");
+		clonetochunk(ca_name, ca_name.ptr,ca_name.len, "ca name");
+		gn->kind = GN_DIRECTORY_NAME;
+		gn->name = ca_name;
+		gn->next = *requested_ca;
+		*requested_ca = gn;
+	    }
+
+	    DBG(DBG_PARSING | DBG_CONTROL,
+		dntoa_or_null(buf, IDTOA_BUF, ca_name, "%any");
+		DBG_log("requested CA: '%s'", buf);
+	    )
+	}
+	else
+	    loglog(RC_LOG_SERIOUS, "ignoring %s certificate request payload",
+		   enum_show(&ikev2_cert_type_names, cr->isacertreq_enc));
+    }
+}
+
 bool
 build_and_ship_CR(u_int8_t type, chunk_t ca, pb_stream *outs, u_int8_t np)
 {
@@ -262,10 +379,32 @@ build_and_ship_CR(u_int8_t type, chunk_t ca, pb_stream *outs, u_int8_t np)
 }
 
 bool
+ikev2_build_and_ship_CR(u_int8_t type, chunk_t ca, pb_stream *outs, u_int8_t np)
+{
+    pb_stream cr_pbs;
+    struct ikev2_certreq  cr_hd;
+    cr_hd.isacertreq_critical =  ISAKMP_PAYLOAD_NONCRITICAL;
+    cr_hd.isacertreq_np= np;
+    cr_hd.isacertreq_enc = type;
+
+    /* build CR header */
+    if (!out_struct(&cr_hd, &ikev2_certificate_req_desc, outs, &cr_pbs))
+	return FALSE;
+
+    if (ca.ptr != NULL)
+    {
+	/* build CR body containing the distinguished name of the CA */
+	if (!out_chunk(ca, &cr_pbs, "CA"))
+	    return FALSE;
+    }
+    close_output_pbs(&cr_pbs);
+    return TRUE;
+}
+bool
 collect_rw_ca_candidates(struct msg_digest *md, generalName_t **top)
 {
     struct connection *d = find_host_connection(&md->iface->ip_addr
-	, pluto_port, (ip_address*)NULL, md->sender_port);
+	, pluto_port, (ip_address*)NULL, md->sender_port, LEMPTY);
 
     for (; d != NULL; d = d->hp_next)
     {

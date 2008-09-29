@@ -1,8 +1,9 @@
 #ifndef _OPENSWAN_KVERSIONS_H
 /*
- * header file for FreeS/WAN library functions
+ * header file for Openswan library functions
  * Copyright (C) 1998, 1999, 2000  Henry Spencer.
  * Copyright (C) 1999, 2000, 2001  Richard Guy Briggs
+ * Copyright (C) 2003 - 2008  Paul Wouters <paul@xelerance.com>
  * 
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Library General Public License as published by
@@ -14,7 +15,6 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id: ipsec_kversion.h,v 1.15.2.17 2007-10-31 19:57:40 paul Exp $
  */
 #define	_OPENSWAN_KVERSIONS_H	/* seen it, no need to see it again */
 
@@ -30,69 +30,59 @@
  */
 #include <linux/version.h>
 #ifndef KERNEL_VERSION
-#define KERNEL_VERSION(x,y,z) (((x)<<16)+((y)<<8)+(z))
+# define KERNEL_VERSION(x,y,z) (((x)<<16)+((y)<<8)+(z))
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0)
-#define HEADER_CACHE_BIND_21
-#error "KLIPS is no longer supported on Linux 2.0. Sorry"
+# define HEADER_CACHE_BIND_21
+# error "KLIPS is no longer supported on Linux 2.0. Sorry"
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,1,0)
-#define SPINLOCK
-#define PROC_FS_21
-#define NETLINK_SOCK
-#define NET_21
+# define SPINLOCK
+# define PROC_FS_21
+# define NETLINK_SOCK
+# define NET_21
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,19)
-#define net_device_stats enet_statistics
+# define net_device_stats enet_statistics
 #endif                                                                         
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
-#define SPINLOCK_23
-#define NETDEV_23
-#  ifndef CONFIG_IP_ALIAS
+# define SPINLOCK_23
+# define NETDEV_23
+# ifndef CONFIG_IP_ALIAS
 #  define CONFIG_IP_ALIAS
-#  endif
-#include <linux/socket.h>
-#include <linux/skbuff.h>
-#include <linux/netlink.h>
-#  ifdef NETLINK_XFRM
-#  define NETDEV_25
-#  endif
+# endif
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,25)
-#define PROC_FS_2325
-#undef  PROC_FS_21
+# define PROC_FS_2325
+# undef  PROC_FS_21
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,30)
-#define PROC_NO_DUMMY
+# define PROC_NO_DUMMY
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,35)
-#define SKB_COPY_EXPAND
+# define SKB_COPY_EXPAND
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,37)
-#define IP_SELECT_IDENT
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,50)) && defined(CONFIG_NETFILTER)
-#define SKB_RESET_NFCT
+# define IP_SELECT_IDENT
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,2)
-#define IP_SELECT_IDENT_NEW
+# define IP_SELECT_IDENT_NEW
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4)
-#define IPH_is_SKB_PULLED
-#define SKB_COW_NEW
-#define PROTO_HANDLER_SINGLE_PARM
-#define IP_FRAGMENT_LINEARIZE 1
+# define IPH_is_SKB_PULLED
+# define SKB_COW_NEW
+# define PROTO_HANDLER_SINGLE_PARM
+# define IP_FRAGMENT_LINEARIZE 1
 #else /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4) */
 #  ifdef REDHAT_BOGOSITY
 #  define IP_SELECT_IDENT_NEW
@@ -103,90 +93,259 @@
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4) */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,9)
-#define MALLOC_SLAB
-#define LINUX_KERNEL_HAS_SNPRINTF
+# define MALLOC_SLAB
+# define LINUX_KERNEL_HAS_SNPRINTF
 #endif                                                                         
 
+/* API changes are documented at: http://lwn.net/Articles/2.6-kernel-api/ */
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-#define HAVE_NETDEV_PRINTK 1
-#define NET_26
+# define HAVE_NETDEV_PRINTK 1
+# define NET_26
+# define NETDEV_25
+# define NEED_SPINLOCK_TYPES
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
-#define NEED_INET_PROTOCOL
+# define NEED_INET_PROTOCOL
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,12)
-#define HAVE_SOCK_ZAPPED
-#define NET_26_12_SKALLOC
+# define HAVE_SOCK_ZAPPED
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+#  define NET_26_24_SKALLOC
+# else
+#  define NET_26_12_SKALLOC
+# endif
+#endif
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
-#define HAVE_SOCK_SECURITY
+/* see <linux/security.h> */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)) && defined(CONFIG_NETFILTER_DEBUG)
+# define HAVE_SOCK_SECURITY
 /* skb->nf_debug disappared completely in 2.6.13 */
-#define HAVE_SKB_NF_DEBUG
+# define ipsec_nf_debug_reset(skb)	((skb)->nf_debug = 0)
+#else
+# define ipsec_nf_debug_reset(skb)
 #endif
 
-#define SYSCTL_IPSEC_DEFAULT_TTL sysctl_ip_default_ttl                      
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-/* skb->stamp changed to skb->tstamp in 2.6.14 */
-#define HAVE_TSTAMP
-#define HAVE_INET_SK_SPORT
-#undef  SYSCTL_IPSEC_DEFAULT_TTL
-#define SYSCTL_IPSEC_DEFAULT_TTL IPSEC_DEFAULT_TTL
+/* how to reset an skb we are reusing after encrpytion/decryption etc */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
+# define ipsec_nf_reset(skb)	nf_reset((skb))
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,50) && defined(CONFIG_NETFILTER)
+# define ipsec_nf_reset(skb)	do { \
+									nf_conntrack_put((skb)->nfct); \
+									(skb)->nfct=NULL; \
+									ipsec_nf_debug_reset(skb); \
+								} while(0)
 #else
-#define HAVE_SKB_LIST
+# define ipsec_nf_reset(skb)	/**/
+#endif
+
+/* skb->stamp changed to skb->tstamp in 2.6.14 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+# define HAVE_TSTAMP
+# define HAVE_INET_SK_SPORT
+#else
+# define HAVE_SKB_LIST 
+#endif
+
+/* it seems 2.6.14 accidentally removed sysctl_ip_default_ttl */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+# define SYSCTL_IPSEC_DEFAULT_TTL IPSEC_DEFAULT_TTL
+#else
+# define SYSCTL_IPSEC_DEFAULT_TTL sysctl_ip_default_ttl                      
+#endif
+
+/*
+   The obsolete MODULE_PARM() macro is gone forevermore [in 2.6.17+]
+    It was introduced in 2.6.0
+   Zero-filled memory can now be allocated from slab caches with
+    kmem_cache_zalloc(). There is also a new slab debugging option
+    to produce a /proc/slab_allocators file with detailed allocation
+    information.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+# ifndef module_param
+# define module_param(a,b,c)  MODULE_PARM(#a,"i")
+# endif
+/* note below is only true for our current calls to module_param_array */
+# define module_param_array(a,b,c,d)  MODULE_PARM(#a,"1-2i")
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
-#define HAVE_NEW_SKB_LINEARIZE
+/*
+   The skb_linearize() function has been reworked, and no longer has a
+    GFP flags argument. There is also a new skb_linearize_cow() function
+    which ensures that the resulting SKB is writable.
+   Network drivers should no longer manipulate the xmit_lock  spinlock
+    in the net_device structure; instead, the following new functions
+    should be used:
+     int netif_tx_lock(struct net_device *dev);
+     int netif_tx_lock_bh(struct net_device *dev);
+     void netif_tx_unlock(struct net_device *dev);
+     void netif_tx_unlock_bh(struct net_device *dev);
+     int netif_tx_trylock(struct net_device *dev);
+   A number of crypto API changes have been merged, the biggest being
+    a change to most algorithm-specific functions to take a pointer to
+    the crypto_tfm structure, rather than the old "context" pointer. This
+    change was necessary to support parameterized algorithms.
+*/
+
+# define HAVE_NEW_SKB_LINEARIZE
+#endif
+
+/* this is the best we can do to detect XEN, which makes
+ * patches to linux/skbuff.h, making it look like 2.6.18 version 
+ */
+#ifdef CONFIG_XEN
+# define HAVE_NEW_SKB_LINEARIZE
+#endif
+
+/* And the same for SuSe kernels who have it before it got into the
+ * linus kernel.
+ */
+#ifdef SLE_VERSION_CODE
+# if SLE_VERSION_CODE >= 655616
+#  define HAVE_NEW_SKB_LINEARIZE
+# else
+#  warning "A Suse kernel was detected, but we are unsure if it requires HAVE_NEW_SKB_LINEARIZE"
+# endif
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
-#define VOID_SOCK_UNREGISTER
+# define VOID_SOCK_UNREGISTER
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 /* skb->nfmark changed to skb->mark in 2.6.20 */
-#define nfmark mark
+# define nfmark mark
+#else
+# define HAVE_KMEM_CACHE_T
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
-/* need to include ip.h early, no longer pick it up in skbuff.h */
-#include <linux/ip.h>
-#  define HAVE_KERNEL_TSTAMP
-/* type of sock.sk_stamp changed from timeval to ktime  */
-#  define grab_socket_timeval(tv, sock)  { (tv) = ktime_to_timeval((sock).sk_stamp); }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
+/*
+   Significant changes have been made to the crypto support interface.
+   The sysctl code has been heavily reworked, leading to a number of
+    internal API changes. 
+*/
+# define ipsec_register_sysctl_table(a,b) register_sysctl_table(a)
+# define CTL_TABLE_PARENT
 #else
-#  define grab_socket_timeval(tv, sock)  { (tv) = (sock).sk_stamp; }
+# define ipsec_register_sysctl_table(a,b) register_sysctl_table(a,b)
+#endif
+ 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
+/*
+   The eth_type_trans() function now sets the skb->dev field, consistent
+    with how similar functions for other link types operate. As a result,
+    many Ethernet drivers have been changed to remove the (now) redundant
+    assignment.
+   The header fields in the sk_buff structure have been renamed
+    and are no longer unions. Networking code and drivers can
+    now just use skb->transport_header, skb->network_header, and
+    skb->skb_mac_header. There are new functions for finding specific
+    headers within packets: tcp_hdr(), udp_hdr(), ipip_hdr(), and
+    ipipv6_hdr().
+   The crypto API has a new set of functions for use with asynchronous
+    block ciphers. There is also a new cryptd kernel thread which can
+    run any synchronous cipher in an asynchronous mode.
+   A new macro has been added to make the creation of slab caches easier:
+    struct kmem_cache KMEM_CACHE(struct-type, flags);
+    The result is the creation of a cache holding objects of the given
+     struct_type, named after that type, and with the additional slab
+     flags (if any). 
+*/
+
+/* need to include ip.h early, no longer pick it up in skbuff.h */
+# include <linux/ip.h>
+# define HAVE_KERNEL_TSTAMP
+/* type of sock.sk_stamp changed from timeval to ktime  */
+# define grab_socket_timeval(tv, sock)  { (tv) = ktime_to_timeval((sock).sk_stamp); }
+#else
+# define grab_socket_timeval(tv, sock)  { (tv) = (sock).sk_stamp; }
 /* internals of struct skbuff changed */
-#  define        HAVE_DEV_NEXT
-#  define ip_hdr(skb)  ((skb)->nh.iph)
-#  define skb_tail_pointer(skb)  ((skb)->tail)
-#  define skb_end_pointer(skb)  ((skb)->end)
-#  define skb_network_header(skb)  ((skb)->nh.raw)
-#  define skb_set_network_header(skb,off)  ((skb)->nh.raw = (skb)->data + (off))
-#  define tcp_hdr(skb)  ((skb)->h.th)
-#  define udp_hdr(skb)  ((skb)->h.uh)
-#  define skb_transport_header(skb)  ((skb)->h.raw)
-#  define skb_set_transport_header(skb,off)  ((skb)->h.raw = (skb)->data + (off))
-#  define skb_mac_header(skb)  ((skb)->mac.raw)
-#  define skb_set_mac_header(skb,off)  ((skb)->mac.raw = (skb)->data + (off))
+# define        HAVE_DEV_NEXT
+# define ip_hdr(skb)  ((skb)->nh.iph)
+# define skb_tail_pointer(skb)  ((skb)->tail)
+# define skb_end_pointer(skb)  ((skb)->end)
+# define skb_network_header(skb)  ((skb)->nh.raw)
+# define skb_set_network_header(skb,off)  ((skb)->nh.raw = (skb)->data + (off))
+# define tcp_hdr(skb)  ((skb)->h.th)
+# define udp_hdr(skb)  ((skb)->h.uh)
+# define skb_transport_header(skb)  ((skb)->h.raw)
+# define skb_set_transport_header(skb,off)  ((skb)->h.raw = (skb)->data + (off))
+# define skb_mac_header(skb)  ((skb)->mac.raw)
+# define skb_set_mac_header(skb,off)  ((skb)->mac.raw = (skb)->data + (off))
 #endif
 /* turn a pointer into an offset for above macros */
 #define ipsec_skb_offset(skb, ptr) (((unsigned char *)(ptr)) - (skb)->data)
 
-#ifdef NET_21
-#  include <linux/in6.h>
-#else
-     /* old kernel in.h has some IPv6 stuff, but not quite enough */
-#  define	s6_addr16	s6_addr
-#  define	AF_INET6	10
-#  define uint8_t __u8
-#  define uint16_t __u16 
-#  define uint32_t __u32 
-#  define uint64_t __u64 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
+/* 
+ * The macro got introduced in 2,6,22 but it does not work properly, and
+ * still uses the old number of arguments. 
+ */
+ /*
+    The destructor argument has been removed from kmem_cache_create(), as
+    destructors are no longer supported. All in-kernel callers have been
+    updated
+  */
+# define HAVE_KMEM_CACHE_MACRO
+
+/* Try using the new kernel encaps hook for nat-t, instead of udp.c */
+# ifdef NOT_YET_FINISHED
+#  define HAVE_UDP_ENCAP_CONVERT
+# endif
+
 #endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+/*
+ * We can switch on earlier kernels, but from here on we have no choice
+ * but to abandon the old style proc_net and use seq_file
+ * The hard_header() method has been removed from struct net_device;
+    it has been replaced by a per-protocol header_ops structure pointer. 
+
+   The prototype for slab constructor callbacks has changed to:
+    void (*ctor)(struct kmem_cache *cache, void *object);
+   The unused flags argument has been removed and the order of the other
+    two arguments has been reversed to match other slab functions. 
+ */
+# define HAVE_PROC_DIR_ENTRY
+# define        PROC_NET        init_net.proc_net
+
+# define __ipsec_dev_get(x) __dev_get_by_name(&init_net, x)
+# define ipsec_dev_get(x) dev_get_by_name(&init_net, x)
+#else
+
+# define        PROC_NET        proc_net
+
+# define ipsec_dev_get(x) __dev_get_by_name(x)
+# define __ipsec_dev_get(x) __dev_get_by_name(x)
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+# define ip_chk_addr(a) inet_addr_type(&init_net, a)
+
+# define l_inet_addr_type(a)	inet_addr_type(&init_net, a)
+
+#else
+# define ip_chk_addr inet_addr_type
+
+#define l_inet_addr_type	inet_addr_type
+
+#endif
+
+#ifndef NETDEV_TX_BUSY
+# ifdef NETDEV_XMIT_CN
+#  define NETDEV_TX_BUSY NETDEV_XMIT_CN
+# else
+#  define NETDEV_TX_BUSY 1
+# endif
+#endif
+
 
 #ifdef NET_21
 # define ipsec_kfree_skb(a) kfree_skb(a)
@@ -195,22 +354,6 @@
 #endif /* NET_21 */
 
 #ifdef NETDEV_23
-#if 0
-#ifndef NETDEV_25
-#define device net_device
-#endif
-#endif
-# define ipsec_dev_get dev_get_by_name
-# define __ipsec_dev_get __dev_get_by_name
-# define ipsec_dev_put(x) dev_put(x)
-# define __ipsec_dev_put(x) __dev_put(x)
-# define ipsec_dev_hold(x) dev_hold(x)
-#else /* NETDEV_23 */
-# define ipsec_dev_get dev_get
-# define __ipsec_dev_put(x) 
-# define ipsec_dev_put(x)
-# define ipsec_dev_hold(x) 
-#endif /* NETDEV_23 */
 
 #ifndef SPINLOCK
 #  include <linux/bios32.h>
@@ -267,135 +410,34 @@
 	printk(sevlevel "%s: " format , netdev->name , ## arg)
 #endif
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0) 
-#include "openswan/ipsec_kern24.h"
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+#define	PROC_NET	init_net.proc_net
+#define	PROC_EOF_DATA
 #else
-#error "kernels before 2.4 are not supported at this time"
-#endif
+#define	PROC_NET	proc_net
 #endif
 
+#ifdef NET_21
+# include <linux/in6.h>
+#else
+     /* old kernel in.h has some IPv6 stuff, but not quite enough */
+# define	s6_addr16	s6_addr
+# define	AF_INET6	10
+# define uint8_t __u8
+# define uint16_t __u16 
+# define uint32_t __u32 
+# define uint64_t __u64 
+#endif
+
+#if __KERNEL__
+# if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,0)
+#  if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0) 
+#   include "openswan/ipsec_kern24.h"
+#  else
+#   error "kernels before 2.4 are not supported at this time"
+#  endif
+# endif
+#endif
 
 #endif /* _OPENSWAN_KVERSIONS_H */
 
-/*
- * $Log: ipsec_kversion.h,v $
- * Revision 1.15.2.17  2007-10-31 19:57:40  paul
- * type of sock.sk_stamp changed from timeval to ktime [dhr]
- *
- * Revision 1.15.2.16  2007-10-30 22:17:02  paul
- * Move the define for ktime_to_timeval() from "not 2.6.22" to "< 2.6.16",
- * where it belongs.
- *
- * Revision 1.15.2.15  2007-10-30 21:44:00  paul
- * added a backport definition for define skb_end_pointer [dhr]
- *
- * Revision 1.15.2.14  2007-10-28 00:26:03  paul
- * Start of fix for 2.6.22+ kernels and skb_tail_pointer()
- *
- * Revision 1.15.2.13  2007/09/05 02:28:27  paul
- * Patch by David McCullough for 2.6.22 compatibility (HAVE_KERNEL_TSTAMP,
- * HAVE_DEV_NEXT and other header surgery)
- *
- * Revision 1.15.2.12  2007/08/10 01:40:49  paul
- * Fix for sock_unregister for 2.6.19 by Sergeil
- *
- * Revision 1.15.2.11  2007/02/20 03:53:16  paul
- * Added comment, made layout consistent with other checks.
- *
- * Revision 1.15.2.10  2007/02/16 19:08:12  paul
- * Fix for compiling on 2.6.20 (nfmark is now called mark in sk_buff)
- *
- * Revision 1.15.2.9  2006/07/29 05:00:40  paul
- * Added HAVE_NEW_SKB_LINEARIZE for 2.6.18+ kernels where skb_linearize
- * only takes 1 argument.
- *
- * Revision 1.15.2.8  2006/05/01 14:31:52  mcr
- * FREESWAN->OPENSWAN in #ifdef.
- *
- * Revision 1.15.2.7  2006/01/11 02:02:59  mcr
- * updated patches and DEFAULT_TTL code to work
- *
- * Revision 1.15.2.6  2006/01/03 19:25:02  ken
- * Remove duplicated #ifdef for TTL fix - bad patch
- *
- * Revision 1.15.2.5  2006/01/03 18:06:33  ken
- * Fix for missing sysctl default ttl
- *
- * Revision 1.15.2.4  2005/11/27 21:40:14  paul
- * Pull down TTL fixes from head. this fixes "Unknown symbol sysctl_ip_default_ttl"
- * in for klips as module.
- *
- * Revision 1.15.2.3  2005/11/22 04:11:52  ken
- * Backport fixes for 2.6.14 kernels from HEAD
- *
- * Revision 1.15.2.2  2005/09/01 01:57:19  paul
- * michael's fixes for 2.6.13 from head
- *
- * Revision 1.15.2.1  2005/08/27 23:13:48  paul
- * Fix for:
- * 7 weeks ago:  	[NET]: Remove unused security member in sk_buff
- * changeset 4280: 	328ea53f5fee
- * parent 4279:	beb0afb0e3f8
- * author: 	Thomas Graf <tgraf@suug.ch>
- * date: 	Tue Jul 5 21:12:44 2005
- * files: 	include/linux/skbuff.h include/linux/tc_ematch/tc_em_meta.h net/core/skbuff.c net/ipv4/ip_output.c net/ipv6/ip6_output.c net/sched/em_meta.c
- *
- * This should fix compilation on 2.6.13(rc) kernels
- *
- * Revision 1.15  2005/07/19 20:02:15  mcr
- * 	sk_alloc() interface change.
- *
- * Revision 1.14  2005/07/08 16:20:05  mcr
- * 	fix for 2.6.12 disapperance of sk_zapped field -> sock_flags.
- *
- * Revision 1.13  2005/05/20 03:19:18  mcr
- * 	modifications for use on 2.4.30 kernel, with backported
- * 	printk_ratelimit(). all warnings removed.
- *
- * Revision 1.12  2005/04/13 22:46:21  mcr
- * 	note that KLIPS does not work on Linux 2.0.
- *
- * Revision 1.11  2004/09/13 02:22:26  mcr
- * 	#define inet_protocol if necessary.
- *
- * Revision 1.10  2004/08/03 18:17:15  mcr
- * 	in 2.6, use "net_device" instead of #define device->net_device.
- * 	this probably breaks 2.0 compiles.
- *
- * Revision 1.9  2004/04/05 19:55:05  mcr
- * Moved from linux/include/freeswan/ipsec_kversion.h,v
- *
- * Revision 1.8  2003/12/13 19:10:16  mcr
- * 	refactored rcv and xmit code - same as FS 2.05.
- *
- * Revision 1.7  2003/07/31 22:48:08  mcr
- * 	derive NET25-ness from presence of NETLINK_XFRM macro.
- *
- * Revision 1.6  2003/06/24 20:22:32  mcr
- * 	added new global: ipsecdevices[] so that we can keep track of
- * 	the ipsecX devices. They will be referenced with dev_hold(),
- * 	so 2.2 may need this as well.
- *
- * Revision 1.5  2003/04/03 17:38:09  rgb
- * Centralised ipsec_kfree_skb and ipsec_dev_{get,put}.
- *
- * Revision 1.4  2002/04/24 07:36:46  mcr
- * Moved from ./klips/net/ipsec/ipsec_kversion.h,v
- *
- * Revision 1.3  2002/04/12 03:21:17  mcr
- * 	three parameter version of ip_select_ident appears first
- * 	in 2.4.2 (RH7.1) not 2.4.4.
- *
- * Revision 1.2  2002/03/08 21:35:22  rgb
- * Defined LINUX_KERNEL_HAS_SNPRINTF to shut up compiler warnings after
- * 2.4.9.  (Andreas Piesk).
- *
- * Revision 1.1  2002/01/29 02:11:42  mcr
- * 	removal of kversions.h - sources that needed it now use ipsec_param.h.
- * 	updating of IPv6 structures to match latest in6.h version.
- * 	removed dead code from freeswan.h that also duplicated kversions.h
- * 	code.
- *
- *
- */

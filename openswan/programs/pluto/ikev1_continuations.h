@@ -1,10 +1,9 @@
+#ifndef _IKEv1_CONTINUATIONS_H
+#define _IKEv1_CONTINUATIONS_H
 /*
  * continuations used
  */
-struct ke_continuation {
-    struct pluto_crypto_req_cont ke_pcrc;
-    struct msg_digest           *md;
-};
+#include "ike_continuations.h"
 
 struct qke_continuation {
     struct pluto_crypto_req_cont qke_pcrc;
@@ -13,12 +12,6 @@ struct qke_continuation {
     so_serial_t                  replacing;
     struct msg_digest           *md;            /* used in responder */
 };
-
-struct dh_continuation {
-    struct pluto_crypto_req_cont dh_pcrc;
-    struct state                *st;            /* need to use abstract # */
-};
-
 
 typedef stf_status initiator_function(int whack_sock
 				      , struct connection *c
@@ -37,3 +30,4 @@ typedef stf_status initiator_function(int whack_sock
 
 #define RETURN_STF_FAILURE(f) RETURN_STF_FAILURE2(f, NULL)
 
+#endif /* _IKEv1_CONTINUATIONS */

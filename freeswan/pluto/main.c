@@ -476,7 +476,7 @@ main(int argc, char **argv)
 
     /* If not suppressed, do daemon fork */
 
-#ifndef EMBED
+#ifndef __uClinux__
     if (fork_desired)
     {
 	{
@@ -530,6 +530,12 @@ main(int argc, char **argv)
     else
 #endif
     {
+#ifdef __uClinux__
+	if (fork_desired)
+	{
+	    setpgrp();
+	}
+#endif
 	/* no daemon fork: we have to fill in lock file */
 	(void) fill_lock(lockfd, getpid());
 	fprintf(stdout, "Pluto initialized\n");

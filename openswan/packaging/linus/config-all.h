@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
  * License for more details.
  *
- * RCSID $Id: config-all.h,v 1.11.6.4 2006-10-11 18:14:33 paul Exp $
+ * RCSID $Id: config-all.h,v 1.11.6.1 2005/11/17 22:37:20 paul Exp $
  */
 #define	_CONFIG_ALL_H_	/* seen it, no need to see it again */
 
@@ -64,20 +64,23 @@
 #define CONFIG_KLIPS_ENC_AES 1
 #endif
 
-#ifndef CONFIG_KLIPS_ENC_NULL
-#define CONFIG_KLIPS_ENC_NULL 0
-#endif
-
 /* off by default for now */
 #ifndef CONFIG_KLIPS_ENC_CRYPTOAPI
 #define CONFIG_KLIPS_ENC_CRYPTOAPI 0
 #endif
 
 #define CONFIG_KLIPS_ALG_CRYPTOAPI #error
-#define CONFIG_IPSEC_ALG_AES #error
+#define CONFIG_KLIPS_ALG_AES #error
 
-#ifndef CONFIG_IPSEC_ALG_AES_MAC
-#define CONFIG_IPSEC_ALG_AES_MAC 1
+#if 0
+/* off by default requiers kernel patch */
+#ifndef CONFIG_KLIPS_OCF
+#define CONFIG_KLIPS_OCF 0
+#endif
+#endif
+
+#ifndef CONFIG_KLIPS_ALG_AES_MAC
+#define CONFIG_KLIPS_ALG_AES_MAC 1
 #endif
 
 #ifndef CONFIG_KLIPS_REGRESS

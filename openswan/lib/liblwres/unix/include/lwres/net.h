@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.2 2004-09-20 18:00:56 mcr Exp $ */
+/* $Id: net.h,v 1.2 2004/09/20 18:00:56 mcr Exp $ */
 
 #ifndef LWRES_NET_H
 #define LWRES_NET_H 1

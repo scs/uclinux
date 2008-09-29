@@ -42,7 +42,7 @@
 /*	Low freeswan header coupling	*/
 #include "openswan/ipsec_xform.h"
 #include "openswan/ipsec_alg.h"
-#include "crypto/des.h"
+#include "klips-crypto/des.h"
 #include "openswan/ipsec_alg_3des.h"
 
 #define AES_CONTEXT_T aes_context
@@ -53,9 +53,9 @@ static int excl_3des=0;
 #if defined(CONFIG_KLIPS_ENC_3DES_MODULE)
 MODULE_AUTHOR("Michael Richardson <mcr@xelerance.com>");
 #ifdef module_param
-module_param(debug_3des,int,0600)
-module_param(test_des,int,0600)
-module_param(excl_des,int,0600)
+module_param(debug_3des, int, 0664);
+module_param(test_des, int, 0664);
+module_param(excl_des, int, 0664);
 #else
 MODULE_PARM(debug_3des, "i");
 MODULE_PARM(test_des, "i");
@@ -90,7 +90,7 @@ static int _3des_set_key(struct ipsec_alg_enc *alg,
 
 static int _3des_cbc_encrypt(struct ipsec_alg_enc *alg,
 			     __u8 * key_e,
-			     __u8 * in,
+			     const __u8 * in,
 			     int ilen, const __u8 * iv,
 			     int encrypt)
 {
@@ -100,7 +100,7 @@ static int _3des_cbc_encrypt(struct ipsec_alg_enc *alg,
 	memcpy(&miv, iv, sizeof(miv));
 
 	if (debug_3des > 0)
-		printk(KERN_DEBUG "klips_debug:_aes_cbc_encrypt:"
+		printk(KERN_DEBUG "klips_debug:_3des_cbc_encrypt:"
 				"key_e=%p in=%p ilen=%d iv=%p encrypt=%d\n",
 				key_e, in, ilen, iv, encrypt);
 
@@ -122,6 +122,7 @@ static struct ipsec_alg_enc ipsec_alg_3DES = {
 			ixt_support: {
 			  ias_exttype:	  IPSEC_ALG_TYPE_ENCRYPT,
 			  ias_id: 	  ESP_3DES,
+			  //ias_ivlen:      64,
 			  ias_keyminbits: ESP_3DES_KEY_SZ*8,
 			  ias_keymaxbits: ESP_3DES_KEY_SZ*8,
 		},
@@ -155,7 +156,7 @@ IPSEC_ALG_MODULE_INIT_STATIC( ipsec_3des_init )
 				ipsec_alg_3DES.ixt_common.ixt_support.ias_exttype,
 				ipsec_alg_3DES.ixt_common.ixt_support.ias_id, 
 				test_3des);
-		printk("ipsec_aes_init(alg_type=%d alg_id=%d): test_ret=%d\n", 
+		printk("ipsec_3des_init(alg_type=%d alg_id=%d): test_ret=%d\n", 
 				ipsec_alg_3DES.ixt_common.ixt_support.ias_exttype, 
 				ipsec_alg_3DES.ixt_common.ixt_support.ias_id, 
 				test_ret);

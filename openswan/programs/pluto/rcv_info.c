@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: rcv_info.c,v 1.8.24.1 2005-07-26 02:11:23 ken Exp $
+ * RCSID $Id: rcv_info.c,v 1.10 2005/08/05 19:13:47 mcr Exp $
  */
 
 #include <stdio.h>
@@ -19,6 +19,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -26,10 +27,10 @@
 #include <arpa/inet.h>
 #include <resolv.h>
 #include <arpa/nameser.h>	/* missing from <resolv.h> on old systems */
-#include <sys/queue.h>
 
 #include <openswan.h>
 
+#include "sysdep.h"
 #include "constants.h"
 #include "defs.h"
 #include "id.h"
@@ -151,7 +152,7 @@ info_lookuphostpair(struct ipsec_policy_cmd_query *ipcq)
     if (p2st->st_ah.present)
     {
 	ipcq->strength = IPSEC_PRIVACY_INTEGRAL;
-	ipcq->auth_detail = p2st->st_esp.attrs.auth;
+	ipcq->auth_detail = p2st->st_esp.attrs.transattrs.integ_hash;
     }
 
     if (p2st->st_esp.present)
@@ -160,7 +161,7 @@ info_lookuphostpair(struct ipsec_policy_cmd_query *ipcq)
 	 * XXX-mcr Please do not shout at me about relative strengths
 	 *         here. I'm not a cryptographer. I just diddle bits.
 	 */
-	switch (p2st->st_esp.attrs.transid)
+	switch (p2st->st_esp.attrs.transattrs.encrypt)
 	{
 	case ESP_NULL:
 	    /* actually, do not change it if we set it from AH */
@@ -192,11 +193,11 @@ info_lookuphostpair(struct ipsec_policy_cmd_query *ipcq)
 	    ipcq->bandwidth = IPSEC_QOS_FTP;
 	    break;
 	}
-	ipcq->esp_detail = p2st->st_esp.attrs.transid;
+	ipcq->esp_detail = p2st->st_esp.attrs.transattrs.encrypt;
     }
 
     if (p2st->st_ipcomp.present)
-	ipcq->comp_detail = p2st->st_esp.attrs.transid;
+	ipcq->comp_detail = p2st->st_esp.attrs.transattrs.encrypt;
 
     /* now! the credentails that were used */
     /* for the moment we only have 1 credential, the DNS name,
@@ -252,7 +253,7 @@ info_lookuphostpair(struct ipsec_policy_cmd_query *ipcq)
 	{
 	    strncat(ipcq->credentials[0].ii_credential.ipsec_dns_signed.dns_sig
 		, p1st->st_peer_pubkey->dns_sig
-		, sizeof(ipcq->credentials[0].ii_credential.ipsec_dns_signed.dns_sig));
+		, sizeof(ipcq->credentials[0].ii_credential.ipsec_dns_signed.dns_sig) - strlen(ipcq->credentials[0].ii_credential.ipsec_dns_signed.dns_sig -1));
 	}
 	break;
 
@@ -276,14 +277,15 @@ void
 info_handle(int infoctlfd)
 {
 	struct sockaddr_un info_client_addr;
-	int info_addr_len = sizeof(info_client_addr);
+	unsigned int info_addr_len = sizeof(info_client_addr);
 	/* Note: actual value in n should fit in int.  To print, cast to int. */
 	int infofd;
 	err_t err;
 	struct ipsec_policy_cmd_query ipcq;
+	unsigned long fcntl_arg;
 
 	infofd = accept(infoctlfd, (struct sockaddr *)&info_client_addr
-	    , &info_addr_len);
+			, &info_addr_len);
 
 	if (infofd < 0)
 	{
@@ -299,6 +301,13 @@ info_handle(int infoctlfd)
 	    close(infofd);
 	    return;
 	}
+
+	/*
+	 * set CLOEXEC it to suppress selenux avc denials on exec
+	 */
+	fcntl_arg = fcntl(infofd, F_GETFD);
+	fcntl_arg |= FD_CLOEXEC;
+	fcntl(infofd, F_SETFD, fcntl_arg);
 
 	switch (ipcq.head.ipm_msg_type)
 	{

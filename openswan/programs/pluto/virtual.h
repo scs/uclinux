@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: virtual.h,v 1.2 2004-05-08 11:05:38 ken Exp $
+ * RCSID $Id: virtual.h,v 1.2 2004/05/08 11:05:38 ken Exp $
  */
 
 #ifndef _VIRTUAL_IP_H
@@ -24,7 +24,8 @@ extern struct virtual_t *create_virtual(const struct connection *c,
 
 extern bool is_virtual_end(const struct end *that);
 extern bool is_virtual_connection(const struct connection *c);
-extern bool is_virtual_net_allowed(const struct connection *c,
+extern bool is_virtual_sr(const struct spd_route *sr);
+extern err_t is_virtual_net_allowed(const struct connection *c,
     const ip_subnet *peer_net, const ip_address *his_addr);
 
 #endif /* _VIRTUAL_IP_H */

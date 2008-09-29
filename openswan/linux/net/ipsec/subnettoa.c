@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id: subnettoa.c,v 1.11 2004-07-10 07:48:37 mcr Exp $
+ * RCSID $Id: subnettoa.c,v 1.11 2004/07/10 07:48:37 mcr Exp $
  */
 #include "openswan.h"
 

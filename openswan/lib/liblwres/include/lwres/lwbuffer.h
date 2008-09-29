@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwbuffer.h,v 1.2 2004-09-20 18:00:42 mcr Exp $ */
+/* $Id: lwbuffer.h,v 1.2 2004/09/20 18:00:42 mcr Exp $ */
 
 #ifndef LWRES_LWBUFFER_H
 #define LWRES_LWBUFFER_H 1

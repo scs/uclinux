@@ -458,7 +458,7 @@ pfkey_address_process(struct sadb_ext *pfkey_ext, struct pfkey_extracted_data* e
 				    s->sa_family);
 			SENDERR(EPFNOSUPPORT);
 		}
-		(unsigned int)(*sap) = ((struct sockaddr_in*)s)->sin_addr.s_addr;
+		*(struct in_addr *)sap = ((struct sockaddr_in *)s)->sin_addr;
 #ifdef CONFIG_IPSEC_DEBUG
 		if(extr->eroute) {
 			char buf1[64], buf2[64];

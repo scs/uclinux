@@ -14,7 +14,7 @@ REF_WEST_FILTER=../../klips/fixups/no-arp-pcap2.pl
 REF_PUB_OUTPUT=publicnet-east-sunset-ping.txt
 REF_PUB_FILTER=../../klips/fixups/no-arp-pcap2.pl
 
-THREEEIGHT=true
+#THREEEIGHT=true
 
 REF_EAST_CONSOLE_OUTPUT=east-console.txt
 REF26_EAST_CONSOLE_OUTPUT=east-console.txt
@@ -28,6 +28,7 @@ REF_CONSOLE_FIXUPS="$REF_CONSOLE_FIXUPS east-prompt-splitline.pl"
 REF_CONSOLE_FIXUPS="$REF_CONSOLE_FIXUPS klips-debug-sanitize.sed"
 REF_CONSOLE_FIXUPS="$REF_CONSOLE_FIXUPS ipsec-setup-sanitize.sed"
 REF_CONSOLE_FIXUPS="$REF_CONSOLE_FIXUPS host-ping-sanitize.sed"
+REF_CONSOLE_FIXUPS="$REF_CONSOLE_FIXUPS private-key-sanitize.sed"
 
 EAST_INIT_SCRIPT=eastinit.sh
 WEST_INIT_SCRIPT=westinit.sh

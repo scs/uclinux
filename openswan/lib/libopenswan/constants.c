@@ -11,7 +11,6 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: constants.c,v 1.11.2.2 2007-10-28 07:00:22 paul Exp $
  */
 
 /*
@@ -34,14 +33,22 @@
 
 /* version */
 
-static const char *const version_name[] = {
-	"ISAKMP Version 1.0",
+static const char *const version_name_1[] = {
+	"ISAKMP Version 1.0 (rfc2407)",
+};
+static const char *const version_name_2[] = {
+	"IKEv2 version 2.0 (rfc4306)",
 };
 
-enum_names version_names =
+enum_names version_names_1 =
     { ISAKMP_MAJOR_VERSION<<ISA_MAJ_SHIFT | ISAKMP_MINOR_VERSION,
 	ISAKMP_MAJOR_VERSION<<ISA_MAJ_SHIFT | ISAKMP_MINOR_VERSION,
-	version_name, NULL };
+	version_name_1, NULL };
+
+enum_names version_names =
+    { IKEv2_MAJOR_VERSION<<ISA_MAJ_SHIFT | IKEv2_MINOR_VERSION,
+	IKEv2_MAJOR_VERSION<<ISA_MAJ_SHIFT | IKEv2_MINOR_VERSION,
+	version_name_2, &version_names_1 };
 
 /* Domain of Interpretation */
 
@@ -73,8 +80,8 @@ const char *const debug_bit_names[] = {
 	"nattraversal",
 	"x509",               /* 12 */
 	"dpd",
-	"res14",
-	"res15",
+	"oppoinfo",           /* 14 */
+	"whackwatch",
 	"res16",
 	"res17",
 	"res18",
@@ -83,11 +90,12 @@ const char *const debug_bit_names[] = {
 	"private",            /* 20 */
 
 	"impair-delay-adns-key-answer", /* 21 */
-	"impair-delay-adns-txt-answer",
-	"impair-bust-mi2",
-	"impair-bust-mr2",
-	"impair-sa-creation",
-	"impair-die-oninfo",
+	"impair-delay-adns-txt-answer", /* 22 */
+	"impair-bust-mi2",   /* 23 */
+	"impair-bust-mr2",   /* 24 */
+	"impair-sa-creation", /* 25 */
+	"impair-die-oninfo",  /* 26 */
+	"impair-jacob-two-two",  /* 27 */
 
 	NULL
     };
@@ -123,7 +131,7 @@ const char *const payload_name[] = {
 	"ISAKMP_NEXT_D",
 	"ISAKMP_NEXT_VID",
 	"ISAKMP_NEXT_MODECFG",  /* 14 */
-	"ISAKMP_NEXT_15",
+	"ISAKMP_NEXT_NAT-D",
 	"ISAKMP_NEXT_16",
 	"ISAKMP_NEXT_17",
 	"ISAKMP_NEXT_18",
@@ -133,12 +141,39 @@ const char *const payload_name[] = {
 	NULL
     };
 
-const char *const payload_name_nat_d[] = { "ISAKMP_NEXT_NAT-D",
-	"ISAKMP_NEXT_NAT-OA", NULL };
+const char *const payload_names_ikev2[] = {
+    "ISAKMP_NEXT_v2SA",            /* 33 */
+    "ISAKMP_NEXT_v2KE",
+    "ISAKMP_NEXT_v2IDi",
+    "ISAKMP_NEXT_v2IDr",
+    "ISAKMP_NEXT_v2CERT",  
+    "ISAKMP_NEXT_v2CERTREQ",
+    "ISAKMP_NEXT_v2AUTH",
+    "ISAKMP_NEXT_v2Ni",
+    "ISAKMP_NEXT_v2N",
+    "ISAKMP_NEXT_v2D",
+    "ISAKMP_NEXT_v2V",
+    "ISAKMP_NEXT_v2TSi",
+    "ISAKMP_NEXT_v2TSr",
+    "ISAKMP_NEXT_v2E",
+    "ISAKMP_NEXT_v2CP",
+    "ISAKMP_NEXT_v2EAP",
+    NULL
+};
+
+const char *const payload_name_nat_d[] = {
+    "ISAKMP_NEXT_NAT-D",
+    "ISAKMP_NEXT_NAT-OA",
+    NULL
+};
+
 static enum_names payload_names_nat_d =
-	{ ISAKMP_NEXT_NATD_DRAFTS, ISAKMP_NEXT_NATOA_DRAFTS, payload_name_nat_d, NULL };
+{ ISAKMP_NEXT_NATD_DRAFTS, ISAKMP_NEXT_NATOA_DRAFTS, payload_name_nat_d, NULL };
+static enum_names payload_names_ikev2_d =
+{ ISAKMP_NEXT_v2SA, ISAKMP_NEXT_v2EAP, payload_names_ikev2, &payload_names_nat_d };
+
 enum_names payload_names =
-    { ISAKMP_NEXT_NONE, ISAKMP_NEXT_NATOA_RFC, payload_name, &payload_names_nat_d };
+{ ISAKMP_NEXT_NONE, ISAKMP_NEXT_NATOA_RFC, payload_name, &payload_names_ikev2_d };
 
 
 /* Exchange types (note: two discontinuous ranges) */
@@ -156,19 +191,26 @@ static const char *const exchange_name[] = {
 static const char *const exchange_name2[] = {
 	"ISAKMP_XCHG_QUICK",
 	"ISAKMP_XCHG_NGRP",
-	"ISAKMP_XCHG_ACK_INFO",
+	"ISAKMP_v2_SA_INIT",
+	"ISAKMP_v2_AUTH",
+	"ISAKMP_v2_CHILD_SA",
+	"ISAKMP_v2_INFORMATIONAL",
     };
 
 static enum_names exchange_desc2 =
-    { ISAKMP_XCHG_QUICK, ISAKMP_XCHG_ACK_INFO, exchange_name2, NULL };
+    { ISAKMP_XCHG_QUICK, ISAKMP_v2_INFORMATIONAL, exchange_name2, NULL };
 
 enum_names exchange_names =
     { ISAKMP_XCHG_NONE, ISAKMP_XCHG_MODE_CFG, exchange_name, &exchange_desc2 };
 /* Flag BITS */
 const char *const flag_bit_names[] = {
-	"ISAKMP_FLAG_ENCRYPTION",
-	"ISAKMP_FLAG_COMMIT",
-	NULL
+    "ISAKMP_FLAG_ENCRYPTION",         /* bit 0 */
+    "ISAKMP_FLAG_COMMIT",             /* bit 1 */
+    "bit 2",                          /* bit 2 */
+    "ISAKMP_FLAG_INIT",               /* bit 3 */
+    "ISAKMP_FLAG_VERSION",            /* bit 4 */
+    "ISAKMP_FLAG_RESPONSE",           /* bit 5 */
+    NULL
     };
 
 /* Situation BITS definition for IPsec DOI */
@@ -183,6 +225,7 @@ const char *const sit_bit_names[] = {
 /* Protocol IDs (RFC 2407 "IPsec DOI" section 4.4.1) */
 
 static const char *const protocol_name[] = {
+    	"PROTO_RESERVED",
 	"PROTO_ISAKMP",
 	"PROTO_IPSEC_AH",
 	"PROTO_IPSEC_ESP",
@@ -190,7 +233,21 @@ static const char *const protocol_name[] = {
     };
 
 enum_names protocol_names =
-    { PROTO_ISAKMP, PROTO_IPCOMP, protocol_name, NULL };
+    { PROTO_RESERVED, PROTO_IPCOMP, protocol_name, NULL };
+
+static const char *const ikev2_protocol_name[] = {
+    	"PROTO_v2_RESERVED"
+	"PROTO_v2_IKE",
+	"PROTO_v2_AH",
+	"PROTO_v2_ESP",
+    };
+
+enum_names ikev2_protocol_names =
+    { 0, PROTO_IPSEC_ESP, ikev2_protocol_name, NULL };
+
+
+
+
 
 /* IPsec ISAKMP transform values */
 
@@ -229,7 +286,18 @@ static const char *const esp_transform_name[] = {
 	"ESP_DES_IV32",
 	"ESP_RC4",
 	"ESP_NULL",
-	"ESP_AES"
+	"ESP_AES",
+	"ESP_AES_CTR",
+	"ESP_AES_CCM_A",
+	"ESP_AES_CCM_B",
+	"ESP_AES_CCM_C",
+	"ESP_UNASSIGNED_ID17",
+	"ESP_AES_GCM_A",
+	"ESP_AES_GCM_B",
+	"ESP_AES_GCM_C",
+	"ESP_SEED_CBC",
+	"ESP_CAMELLIA",
+
 };
 
 /*
@@ -238,7 +306,7 @@ static const char *const esp_transform_name[] = {
  */
 static const char *const esp_transform_name_high[] = {
 	/* id=248 */	"ESP_ID248","ESP_MARS","ESP_RC6","ESP_ID251",
-	/* id=252 */	"ESP_SERPENT", "ESP_TWOFISH", "ESP_CAMELLIA", "ESP_ID255",
+	/* id=252 */	"ESP_SERPENT", "ESP_TWOFISH", "ESP_ID254", "ESP_ID255",
 	/* id=256 */	"ESP_ID256"
     };
 
@@ -246,7 +314,7 @@ enum_names esp_transformid_names_high =
     { 248, 256, esp_transform_name_high, NULL };
 
 enum_names esp_transformid_names =
-    { ESP_DES_IV64, ESP_AES, esp_transform_name, &esp_transformid_names_high };
+    { ESP_DES_IV64, ESP_CAMELLIA, esp_transform_name, &esp_transformid_names_high };
 
 /* IPCOMP transform values */
 
@@ -297,6 +365,34 @@ static const char *const cert_type_name[] = {
 
 enum_names cert_type_names =
     { CERT_NONE, CERT_X509_ATTRIBUTE, cert_type_name, NULL };
+
+/* Certificate type values RFC 4306 3.6 */
+/* TBD AA don't know how to add v2 sepecific ones, now it is mix of v1 & v2 */
+ 
+static const char *const ikev2_cert_type_name[] = {
+        "CERT_RESERVED",
+        "CERT_PKCS7_WRAPPED_X509",
+        "CERT_PGP",
+        "CERT_DNS_SIGNED_KEY",
+	"CERT_X509_SIGNATURE",
+	"CERT_UNUSED", /* 5 is missing did IETF drop it ? it was in IKEv1 RFC2408 */
+	"CERT_KERBEROS_TOKENS",
+	"CERT_CRL",
+	"CERT_ARL",
+	"CERT_SPKI",
+	"CERT_X509_ATTRIBUTE",
+	"CERT_RAW_RSA",
+	"CERT_X509_CERT_URL",
+	"CERT_X509_BUNDLE_URL", /* 13 */
+
+	/* AA How do I add thse ?
+	   RESERVED to IANA                  14 - 200
+           PRIVATE USE                      201 - 255
+	*/
+};
+
+enum_names ikev2_cert_type_names =
+    { CERT_NONE, CERT_RAW_RSA, ikev2_cert_type_name, NULL };
 
 /*
  * certificate request payload policy
@@ -379,6 +475,7 @@ enum_names *oakley_attr_val_descs[] = {
 	NULL,			/* OAKLEY_FIELD_SIZE */
 	NULL,			/* OAKLEY_GROUP_ORDER */
     };
+const unsigned int oakley_attr_val_descs_size = elemsof(oakley_attr_val_descs);
 
 /* IPsec DOI attributes (RFC 2407 "IPsec DOI" section 4.5) */
 
@@ -427,6 +524,7 @@ enum_names *ipsec_attr_val_descs[] = {
 	NULL,			/* COMPRESS_DICT_SIZE */
 	NULL,			/* COMPRESS_PRIVATE_ALG */
     };
+const unsigned int ipsec_attr_val_descs_size=elemsof(ipsec_attr_val_descs);
 
 /* SA Lifetime Type attribute */
 
@@ -460,7 +558,7 @@ enum_names enc_mode_names =
 /* Auth Algorithm attribute */
 
 static const char *const auth_alg_name[] = {
-	"unspecified AUTH_ALGORITHM",
+	"AUTH_ALGORITHM_NONE", /* our own value, not standard */
 	"AUTH_ALGORITHM_HMAC_MD5",
 	"AUTH_ALGORITHM_HMAC_SHA1",
 	"AUTH_ALGORITHM_DES_MAC",
@@ -470,19 +568,11 @@ static const char *const auth_alg_name[] = {
 	"AUTH_ALGORITHM_HMAC_SHA2_512",
 	"AUTH_ALGORITHM_HMAC_RIPEMD",
 	"AUTH_ALGORITHM_AES_CBC",
-	"AUTH_ALGORITHM_ID10",
-	"AUTH_ALGORITHM_ID11",
-	"AUTH_ALGORITHM_ID12",
-	"AUTH_ALGORITHM_ID13",
-	"AUTH_ALGORITHM_ID14",
-	"AUTH_ALGORITHM_ID15",
     };
 
 enum_names
     auth_alg_names =
-	{ AUTH_ALGORITHM_HMAC_MD5, 15 /* AUTH_ALGORITHM_HMAC_RIPEMD */, auth_alg_name + 1, NULL },
-    extended_auth_alg_names =
-	{ AUTH_ALGORITHM_NONE, AUTH_ALGORITHM_KPDK, auth_alg_name, NULL };
+	{ AUTH_ALGORITHM_NONE, AUTH_ALGORITHM_AES_CBC , auth_alg_name, NULL };
 
 /* From draft-beaulieu-ike-xauth */
 const char *const xauth_attr_name[] = {
@@ -655,6 +745,16 @@ enum_names oakley_auth_names =
     { XAUTHInitPreShared, XAUTHRespRSARevisedEncryption
 	, oakley_auth_name3, &oakley_auth_names2 };
 
+/* ikev2 auth methods */
+static const char *const ikev2_auth_strings[]={
+	"v2_AUTH_RSA",
+	"v2_AUTH_SHARED",
+	"v2_AUTH_DSA",
+};
+enum_names ikev2_auth_names =
+{ v2_AUTH_RSA, v2_AUTH_DSA, ikev2_auth_strings, NULL};
+
+
 /* Oakley Group Description attribute */
 
 static const char *const oakley_group_name[] = {
@@ -744,7 +844,7 @@ static const char *const notification_dpd_name[] = {
 
 enum_names notification_dpd_names =
     { R_U_THERE, R_U_THERE_ACK,
-        notification_dpd_name, NULL };
+      notification_dpd_name, NULL };
 
 enum_names notification_names =
     { INVALID_PAYLOAD_TYPE, UNEQUAL_PAYLOAD_LENGTHS,
@@ -758,6 +858,69 @@ enum_names ipsec_notification_names =
     { IPSEC_RESPONDER_LIFETIME, IPSEC_INITIAL_CONTACT,
 	ipsec_notification_name, &notification_status_names };
 
+static const char *const ikev2_notify_name_16384[] = {
+	   "v2N_INITIAL_CONTACT",
+	   "v2N_SET_WINDOW_SIZE", 
+	   "v2N_ADDITIONAL_TS_POSSIBLE",
+	   "v2N_IPCOMP_SUPPORTED",
+	   "v2N_NAT_DETECTION_SOURCE_IP",
+	   "v2N_NAT_DETECTION_DESTINATION_IP",
+	   "v2N_COOKIE",
+	   "v2N_USE_TRANSPORT_MODE",
+	   "v2N_HTTP_CERT_LOOKUP_SUPPORTED",
+	   "v2N_REKEY_SA",
+	   "v2N_ESP_TFC_PADDING_NOT_SUPPORTED",
+	   "v2N_NON_FIRST_FRAGMENTS_ALSO",
+ 	}; 
+
+static const char *const ikev2_notify_name[] = {
+	   "v2N_RESERVED",
+	   "v2N_UNSUPPORTED_CRITICAL_PAYLOAD",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_INVALID_IKE_SPI",
+	   "v2N_INVALID_MAJOR_VERSION",
+	   "v2N_UNUSED",
+	   "v2N_INVALID_SYNTAX",
+	   "v2N_UNUSED",
+	   "v2N_INVALID_MESSAGE_ID",
+	   "v2N_UNUSED",
+	   "v2N_INVALID_SPI",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_NO_PROPOSAL_CHOSEN",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_INVALID_KE_PAYLOAD",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_AUTHENTICATION_FAILED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_UNUSED",
+	   "v2N_SINGLE_PAIR_REQUIRED",
+	   "v2N_NO_ADDITIONAL_SAS",
+	   "v2N_INTERNAL_ADDRESS_FAILURE",
+	   "v2N_FAILED_CP_REQUIRED",
+	   "v2N_TS_UNACCEPTABLE",
+	   "v2N_INVALID_SELECTORS",
+ 	}; 
+
+enum_names ikev2_notify_names_16384 = 
+    { INITIAL_CONTACT, NON_FIRST_FRAGMENTS_ALSO, ikev2_notify_name_16384, NULL};
+
+enum_names ikev2_notify_names = 
+    { 0, INVALID_SELECTORS, ikev2_notify_name, &ikev2_notify_names_16384};
 /* MODECFG */
 /*
  * From draft-dukes-ike-mode-cfg
@@ -773,6 +936,124 @@ const char *const attr_msg_type_name[] = {
 
 enum_names attr_msg_type_names =
     { 0 , ISAKMP_CFG_ACK, attr_msg_type_name , NULL };
+
+/*
+ * IKEv2 CRITICAL BYTE "enum"
+ */
+const char *const critical_name[]=    { "Payload-Critical", NULL };
+const char *const no_critical_name[]= { "Payload-Non-Critical", NULL };
+enum_names no_crit_names ={ ISAKMP_PAYLOAD_NONCRITICAL,
+			    ISAKMP_PAYLOAD_NONCRITICAL,
+			    no_critical_name, NULL};
+enum_names critical_names = 
+{ ISAKMP_PAYLOAD_CRITICAL, ISAKMP_PAYLOAD_CRITICAL,
+  critical_name, &no_crit_names};
+
+/* Transform-type Encryption */
+const char *const trans_type_encr_name[]={
+    "des-iv64",
+    "des",
+    "3des",
+    "rc5",
+    "idea",
+    "cast",
+    "blowfish",
+    "3idea",
+    "des-iv32",
+    "res10",
+    "null",
+    "aes-cbc",
+    "aes-ctr",
+};
+enum_names trans_type_encr_names =
+{ IKEv2_ENCR_DES_IV64, IKEv2_ENCR_AES_CTR, trans_type_encr_name, NULL};
+
+/* Transform-type PRF */
+const char *const trans_type_prf_name[]={
+    "prf-hmac-md5",
+    "prf-hmac-sha1",
+    "prf-hmac-tiger",
+    "prf-hmac-aes128-xcbc",
+    /* RFC 4868 Section 4 */
+    "prf-hmac-sha2-256",
+    "prf-hmac-sha2-384",
+    "prf-hmac-sha2-512",
+};
+enum_names trans_type_prf_names =
+{ IKEv2_PRF_HMAC_MD5, IKEv2_PRF_HMAC_SHA2_512, trans_type_prf_name, NULL};
+
+/* Transform-type Integrity */
+const char *const trans_type_integ_name[]={
+    "auth-none",
+    "auth-hmac-md5-96",
+    "auth-hmac-sha1-96",
+    "auth-des-mac",
+    "auth-kpdk-md5",
+    "auth-aes-xcbc-96",
+};
+enum_names trans_type_integ_names =
+{ IKEv2_AUTH_NONE, IKEv2_AUTH_AES_XCBC_96, trans_type_integ_name, NULL};
+
+/* Transform-type Integrity */
+const char *const trans_type_esn_name[]={
+    "esn-disabled",
+    "esn-enabled",
+};
+enum_names trans_type_esn_names =
+{ IKEv2_ESN_DISABLED, IKEv2_ESN_ENABLED, trans_type_esn_name, NULL};
+
+/* Transform Type */
+const char *const trans_type_name[]={
+    "trans-type-encr",
+    "trans-type-prf",
+    "trans-type-integ",
+    "trans-type-dh",
+    "trans-type-esn"
+};
+enum_names trans_type_names =
+{ IKEv2_TRANS_TYPE_ENCR, IKEv2_TRANS_TYPE_ESN, trans_type_name, NULL};
+
+/* for each IKEv2 transform attribute,which enum_names describes its values? */
+enum_names *ikev2_transid_val_descs[] = {
+    NULL,
+    &trans_type_encr_names, /* 1 */
+    &trans_type_prf_names,  /* 2 */
+    &trans_type_integ_names, /* 3 */
+    &oakley_group_names,    /* 4 */
+    &trans_type_esn_names,  /* 5 */
+};
+const unsigned int ikev2_transid_val_descs_size = elemsof(ikev2_transid_val_descs);
+
+/* Transform Attributes */
+const char *const ikev2_trans_attr_name[]={
+    "KEY_LENGTH",
+};
+
+enum_names ikev2_trans_attr_descs = {
+    IKEv2_KEY_LENGTH + ISAKMP_ATTR_AF_TV,
+    IKEv2_KEY_LENGTH + ISAKMP_ATTR_AF_TV,
+    ikev2_trans_attr_name, NULL };
+
+/* for each IKEv2 attribute, which enum_names describes its values? */
+enum_names *ikev2_trans_attr_val_descs[] = {
+	NULL,			/* 0 */
+	NULL,			/* 1 */
+	NULL,			/* 2 */
+	NULL,			/* 3 */
+	NULL,			/* 4 */
+	NULL,			/* 5 */
+	NULL,			/* 6 */
+	NULL,			/* 7 */
+	NULL,			/* 8 */
+	NULL,			/* 9 */
+	NULL,			/* 10 */
+	NULL,			/* 11 */
+	NULL,			/* 12 */
+	NULL,			/* 13 */
+	&ikev2_trans_attr_descs,/* KEY_LENGTH */
+    };
+const unsigned int ikev2_trans_attr_val_descs_size=elemsof(ikev2_trans_attr_val_descs);
+
 
 /* socket address family info */
 
@@ -878,10 +1159,12 @@ static const char *const rr_type_name[] = {
 	NULL
     };
 
-enum_names rr_type_names = { T_A, T_NAPTR, rr_type_name, NULL };
+enum_names rr_type_names = { ns_t_a, ns_t_naptr, rr_type_name, NULL };
 
 /* Query type values which do not appear in resource records */
 static const char *const rr_qtype_name[] = {
+    "T_TKEY",           /* 249 transaction key */
+    "TSIG",             /* 250 transaction signature */
 	"T_IXFR",	/* 251 incremental zone transfer */
 	"T_AXFR",	/* 252 transfer zone of authority */
 	"T_MAILB",	/* 253 transfer mailbox records */
@@ -890,24 +1173,26 @@ static const char *const rr_qtype_name[] = {
 	NULL
     };
 
-enum_names rr_qtype_names = { T_IXFR, T_ANY, rr_qtype_name, &rr_type_names };
+enum_names rr_qtype_names = { ns_t_tkey, ns_t_any
+			      , rr_qtype_name, &rr_type_names };
 
 static const char *const rr_class_name[] = {
 	"C_IN",	/* 1 the arpa internet */
 	NULL
     };
 
-enum_names rr_class_names = { C_IN, C_IN, rr_class_name, NULL };
+enum_names rr_class_names = { ns_c_in, ns_c_in, rr_class_name, NULL };
 
 static const char *const ppk_name[] = {
   "PPK_PSK",
   "PPK_DSS",
   "PPK_RSA",
   "PPK_PIN",
+  "PPK_XAUTH",
   NULL
 };
 
-enum_names ppk_names = { PPK_PSK, PPK_PIN, ppk_name, NULL };
+enum_names ppk_names = { PPK_PSK, PPK_XAUTH, ppk_name, NULL };
 
 /*
  * NAT-Traversal defines for nat_traveral type from nat_traversal.h
@@ -918,7 +1203,7 @@ const char *const natt_type_bitnames[] = {
   "draft-ietf-ipsec-nat-t-ike-02/03",
   "draft-ietf-ipsec-nat-t-ike-05",
   "draft-ietf-ipsec-nat-t-ike (MacOS X)", 
-  "RFC 3947 (NAT-Traversal)",		/* 3 */
+  "RFC 3947 (NAT-Traversal)",		/* 4 */
   "4",   "5",   "6",   "7", 
   "8",   "9",   "10",  "11",
   "12",  "13",  "14",  "15",
@@ -943,6 +1228,7 @@ struct keyword_enum_value kw_host_values[]={
     { "%opportunisticgroup", KH_OPPOGROUP },
     { "%oppogroup",     KH_OPPOGROUP },  
     { "%group",         KH_GROUP },
+    { "%hostname",      KH_IPHOSTNAME },  /* makes no sense on input */
 };
 
 struct keyword_enum_values kw_host_list=

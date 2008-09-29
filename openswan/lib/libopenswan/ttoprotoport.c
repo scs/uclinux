@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ttoprotoport.c,v 1.5 2004-06-09 00:41:09 mcr Exp $
+ * RCSID $Id: ttoprotoport.c,v 1.5 2004/06/09 00:41:09 mcr Exp $
  */
 
 #include "internal.h"
