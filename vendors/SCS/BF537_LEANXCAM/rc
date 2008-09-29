@@ -18,15 +18,13 @@ mkdir /var/tmp /var/log /var/run /var/lock
 ln -sfn /dev/mtd1 /uboot
 ln -sfn /dev/mtd2 /env_uboot
 ln -sfn /dev/mtd3 /env_uboot_r
-ln -sfn /dev/mtd4 /env_board
-ln -sfn /dev/mtd5 /env_user
-ln -sfn /dev/mtd6 /linux
-ln -sfn /dev/mtd7 /calib
+ln -sfn /dev/mtd4 /linux
+ln -sfn /dev/mtd5 /calib
 
 # Mount the application flash to /app
 echo "Mounting Application Flash..."
 mkdir /app
-mount -t jffs2 /dev/mtdblock8 /app
+mount -t jffs2 /dev/mtdblock6 /app
 
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
@@ -34,16 +32,17 @@ insmod /lib/modules/`uname -r`/bfdma.ko
 # Configure network interface based on /env_board and /env/user info
 
 
-# Detect first-time-boot if not valid board config available
-boardenv
-if test $? -ne 0
+# Detect first-time-boot if not valid u-boot environment available
+
+if test "`fw_printenv | grep ethaddr`" = ""
 then
+	echo "No config\n\n"
 	ifconfig eth0 down
 	ifconfig eth0 hw ether 00:20:e3:23:00:00
 	ifconfig eth0 192.168.11.10
 	route add -net default gw 192.168.11.1
 	ifconfig eth0 up
-	tftp 172.18.1.76 -gr runinit.sh -l /home/runinit.sh
+	tftp 192.168.11.2 -g -r runinit.sh -l /home/runinit.sh
 
 	if test -e /home/runinit.sh
 	then
@@ -52,20 +51,12 @@ then
 	       ./runinit.sh &
 	       cd /
 	fi
-
 else
 	ifconfig eth0 down
-	if test -e /env_board
-	then
-		ifconfig eth0 hw ether `boardenv | grep "^MAC" | awk '{print $2}'`
-	fi
-
-	if test -e /env_user
-	then
-		ifconfig eth0 `grep "^IP" /env_user | awk '{print $2}'`
-		route add -net default gw `grep "^GW" /env_user | awk '{print $2}'`  
-		echo export TFTPIP=`grep "^TFTPIP" /env_user | awk '{print $2}'` > /etc/oscarrc 
-	fi
+	ifconfig eth0 hw ether `fw_printenv | grep "ethaddr" | sed -e s/ethaddr=//g`
+	ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
+	route add -net default gw `fw_printenv | grep "gatewayip=" | sed -e s/gatewayip=//g`
+	echo ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
 	ifconfig eth0 up
 fi
 
