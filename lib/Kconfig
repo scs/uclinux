@@ -10,6 +10,14 @@ menu "Library Configuration"
 
 comment "Force build (normally built when required)"
 
+config LIB_BITVECTOR
+	bool "Build bit vector"
+	default n
+	help
+	  BitVector support.
+	  Only enable this if you want to force the library to be built.
+	  The Config will make sure this library is built if it is needed.
+
 config LIB_FLEX
 	bool "Build flex"
 	default n
@@ -25,22 +33,6 @@ config LIB_LIBIBERTY
 config LIB_POPT
 	bool "Build libpopt"
 	default n
-
-config LIB_LIBAES
-	bool "Build libAES"
-	default n
-	help
-	  AES library.
-	  Only enable this if you want to force the library to be built.
-	  The Config will make sure this library is built if it is needed.
-
-config LIB_LIBDES
-	bool "Build libDES"
-	default n
-	help
-	  DESLite library.
-	  Only enable this if you want to force the library to be built.
-	  The Config will make sure this library is built if it is needed.
 
 config LIB_LIBSSL
 	bool "Build libSSL"

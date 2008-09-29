@@ -120,9 +120,6 @@ config LIB_OPENOBEX
 config LIB_ORTP
 	bool "Build ortp"
 
-config LIB_OSIP2
-	bool "Build osip2"
-
 config LIB_POPT
 	bool "Build popt"
 
