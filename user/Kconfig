@@ -2857,6 +2857,7 @@ config USER_FROB_LED_FROB_LED
 	help
 	  Utility to send commands to the ledman driver.
 
+if DISABLED_FOR_BLACKFIN_SYSTEMS
 config USER_GDB_GDBREPLAY
 	bool "gdbreplay"
 	help
@@ -2881,6 +2882,7 @@ config USER_GDB_HOST
 	bool "gdb (host)"
 	help
 	  The host-side gdb which can connect to the gdbserver on the target.
+endif
 
 config USER_GDBSERVER_GDBREPLAY
 	bool "gdbreplay (old)"
