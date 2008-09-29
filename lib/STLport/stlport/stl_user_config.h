@@ -286,6 +286,7 @@
 /*
 #define _STLP_DONT_USE_SHORT_STRING_OPTIM 1
 */
+#define _STLP_DONT_USE_SHORT_STRING_OPTIM 1
 
 /*
  * In theory a string implementation is not force to append a terminating character

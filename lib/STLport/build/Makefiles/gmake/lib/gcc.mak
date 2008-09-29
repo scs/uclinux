@@ -71,7 +71,7 @@ ifeq ($(OSNAME),linux)
 START_OBJ := $(shell for o in crt{i,beginS}.o; do ${CXX} -print-file-name=$$o; done)
 #START_A_OBJ := $(shell for o in crt{i,beginT}.o; do ${CXX} -print-file-name=$$o; done)
 END_OBJ := $(shell for o in crt{endS,n}.o; do ${CXX} -print-file-name=$$o; done)
-STDLIBS := -Wl,--whole-archive -lsupc++ -Wl,--no-whole-archive -lgcc_s -lpthread -lc -lm
+STDLIBS := -Wl,--whole-archive -lsupc++ -Wl,--no-whole-archive -lpthread -lc -lm
 endif
 ifeq ($(OSNAME),openbsd)
 START_OBJ := $(shell for o in crtbeginS.o; do ${CXX} -print-file-name=$$o; done)

@@ -38,29 +38,14 @@ int pam_open_session(pam_handle_t *pamh, int flags)
 		memset(buf,'\0',MAX_PAM_STATS_BUF_SIZE);
 
 		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
-				"statsd incr pam_failed_%s %s", usr, pamh->service_name);
-		
-		if (system(buf) == -1) {
-			pam_syslog(pamh, LOG_INFO, "%s failed", buf);
-		}
-		
-		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
-				"statsd push pam_last_failure_%s %s \"%s\" 0",
-				usr, pamh->service_name, pam_strerror(pamh, retval));
-		
-		if (system(buf) == -1) {
-			pam_syslog(pamh, LOG_INFO, "%s failed", buf);
-		}
-		
-		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
-				"statsd incr pam_users %s", usr);
-		
-		if (system(buf) == -1) {
-			pam_syslog(pamh, LOG_INFO, "%s - failed", buf);
-		}
-		
-		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
-				"statsd incr pam_services %s", pamh->service_name);
+				"statsd -a incr pam_failed_%s %s \\;"
+				         " push pam_last_failure_%s %s \"%s\" 0 \\;"
+				         " incr pam_users %s \\;"
+				         " incr pam_services %s",
+				usr, pamh->service_name,
+				usr, pamh->service_name, pam_strerror(pamh, retval),
+				usr,
+				pamh->service_name);
 		
 		if (system(buf) == -1) {
 			pam_syslog(pamh, LOG_INFO, "%s - failed", buf);
@@ -102,30 +87,14 @@ int pam_close_session(pam_handle_t *pamh, int flags)
 		memset(buf,'\0',MAX_PAM_STATS_BUF_SIZE);
 
 		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
-				"statsd incr pam_failed_%s %s",
-				usr, pamh->service_name);
-		
-		if (system(buf) == -1) {
-			pam_syslog(pamh, LOG_INFO, "%s failed", buf);
-		}
-		
-		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
-				"statsd push pam_last_failure_%s %s \"%s\" 0",
-				usr, pamh->service_name, pam_strerror(pamh, retval));
-		
-		if (system(buf) == -1) {
-			pam_syslog(pamh, LOG_INFO, "%s failed", buf);
-		}
-		
-		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
-				"statsd incr pam_users %s", usr);
-		
-		if (system(buf) == -1) {
-			pam_syslog(pamh, LOG_INFO, "%s - failed", buf);
-		}
-		
-		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
-				"statsd incr pam_services %s", pamh->service_name);
+				"statsd -a incr pam_failed_%s %s \\;"
+				         " push pam_last_failure_%s %s \"%s\" 0 \\;"
+				         " incr pam_users %s\\;"
+				         " incr pam_services %s",
+				usr, pamh->service_name,
+				usr, pamh->service_name, pam_strerror(pamh, retval),
+				usr,
+				pamh->service_name);
 		
 		if (system(buf) == -1) {
 			pam_syslog(pamh, LOG_INFO, "%s - failed", buf);

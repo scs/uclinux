@@ -4,7 +4,7 @@ AC_INIT
 
 AC_CANONICAL_SYSTEM
 
-AM_INIT_AUTOMAKE(libnfnetlink, 0.0.14)
+AM_INIT_AUTOMAKE(libnfnetlink, 0.0.30)
 
 AC_PROG_CC
 AC_EXEEXT
@@ -22,4 +22,4 @@ dnl--------------------------------
 
 
 dnl Output the makefile
-AC_OUTPUT(Makefile src/Makefile include/Makefile include/libnfnetlink/Makefile)
+AC_OUTPUT(Makefile src/Makefile include/Makefile include/libnfnetlink/Makefile utils/Makefile libnfnetlink.pc)

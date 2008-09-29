@@ -13,7 +13,7 @@ clean:
 
 romfs:
 	$(ROMFSINST) -e CONFIG_LIB_STLPORT_SHARED \
-		lib/libstdc++.so.4.6 /lib/libstdc++.so.4.6; \
+		lib/libstdc++.so.5.0.0 /lib/libstdc++.so.5.0.0; \
 	$(ROMFSINST) -e CONFIG_LIB_STLPORT_SHARED -s \
-		/lib/libstdc++.so.4.6 /lib/libstdc++.so; \
+		libstdc++.so.5.0.0 /lib/libstdc++.so.5.0; \
 

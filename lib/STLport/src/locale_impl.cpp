@@ -655,6 +655,10 @@ void _Locale_impl::make_classic_locale() {
 void _Locale_impl::free_classic_locale() {
   _Locale_impl *classic = _Stl_classic_locale->_M_impl;
 
+  /* Bug in compiler?  This should never happen, but does for oprofile. */
+  if (!classic)
+	  return;
+
   classic->facets_vec[collate<char>::id._M_index]->~facet();
   classic->facets_vec[ctype<char>::id._M_index]->~facet();
 #  ifndef _STLP_NO_MBSTATE_T

@@ -19,7 +19,7 @@ build/build: makefile
 clean:
 	rm -rf build
 
-INST_MODULES := pam_deny.so pam_permit.so pam_limits.so pam_unix.so pam_nologin.so pam_rootok.so pam_warn.so pam_tally.so
+INST_MODULES := pam_deny.so pam_permit.so pam_limits.so pam_nologin.so pam_rootok.so pam_warn.so pam_tally.so pam_echo.so
 romfs:
 	$(ROMFSINST) build/libpamc/.libs/libpamc.so.0.81.0 /lib/libpamc.so.0.81.0
 	$(ROMFSINST) -s libpamc.so.0.81.0 /lib/libpamc.so.0

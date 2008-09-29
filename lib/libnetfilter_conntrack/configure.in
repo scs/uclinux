@@ -4,7 +4,7 @@ AC_INIT
 
 AC_CANONICAL_SYSTEM
 
-AM_INIT_AUTOMAKE(libnetfilter_conntrack, 0.0.30)
+AM_INIT_AUTOMAKE(libnetfilter_conntrack, 0.0.81)
 
 AC_PROG_CC
 AM_PROG_LIBTOOL
@@ -18,8 +18,11 @@ case $target in
 *) AC_MSG_ERROR([Linux only, dude!]);;
 esac
 
-AC_CHECK_LIB([nfnetlink], [nfnl_listen])
-AC_CHECK_HEADER([libnfnetlink/linux_nfnetlink.h], [AC_MSG_RESULT([found])], [AC_MSG_ERROR([libnfnetlink 0.0.12 or later needed])])
+dnl Dependencies
+LIBNFNETLINK_REQUIRED=0.0.25
+
+PKG_CHECK_MODULES(LIBNFNETLINK, libnfnetlink >= $LIBNFNETLINK_REQUIRED,,
+	AC_MSG_ERROR(Cannot find libnfnetlink >= $LIBNFNETLINK_REQUIRED))
 
 AC_CHECK_HEADERS(arpa/inet.h)
 dnl Check for inet_ntop
@@ -61,7 +64,11 @@ if test ! -z "$libdir"; then
 	CFLAGS="$CFLAGS -DLIBNETFILTER_CONNTRACK_DIR=$MODULE_DIR"
 fi
 
+CFLAGS="$CFLAGS $LIBNFNETLINK_CFLAGS"
+LIBNFCONNTRACK_LIBS="$LIBNFNETLINK_LIBS"
+
+AC_SUBST(LIBNFCONNTRACK_LIBS)
 
 dnl Output the makefile
-AC_OUTPUT(Makefile src/Makefile include/Makefile utils/Makefile include/libnetfilter_conntrack/Makefile l3extensions/Makefile extensions/Makefile)
+AC_OUTPUT(Makefile src/Makefile include/Makefile utils/Makefile include/libnetfilter_conntrack/Makefile l3extensions/Makefile extensions/Makefile src/conntrack/Makefile src/expect/Makefile libnetfilter_conntrack.pc)
 

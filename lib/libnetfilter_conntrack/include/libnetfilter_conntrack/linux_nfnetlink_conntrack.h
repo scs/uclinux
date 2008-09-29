@@ -2,6 +2,10 @@
 #define _IPCONNTRACK_NETLINK_H
 #include <libnfnetlink/linux_nfnetlink.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum cntl_msg_types {
 	IPCTNL_MSG_CT_NEW,
 	IPCTNL_MSG_CT_GET,
@@ -27,13 +31,15 @@ enum ctattr_type {
 	CTA_STATUS,
 	CTA_PROTOINFO,
 	CTA_HELP,
-	CTA_NAT,
+	CTA_NAT_SRC,
+#define CTA_NAT	CTA_NAT_SRC	/* backwards compatibility */
 	CTA_TIMEOUT,
 	CTA_MARK,
 	CTA_COUNTERS_ORIG,
 	CTA_COUNTERS_REPLY,
 	CTA_USE,
 	CTA_ID,
+	CTA_NAT_DST,
 	__CTA_MAX
 };
 #define CTA_MAX (__CTA_MAX - 1)
@@ -120,6 +126,7 @@ enum ctattr_expect {
 	CTA_EXPECT_TIMEOUT,
 	CTA_EXPECT_ID,
 	CTA_EXPECT_HELP_NAME,
+	CTA_EXPECT_QUEUENR,
 	__CTA_EXPECT_MAX
 };
 #define CTA_EXPECT_MAX (__CTA_EXPECT_MAX - 1)
@@ -131,6 +138,8 @@ enum ctattr_help {
 };
 #define CTA_HELP_MAX (__CTA_HELP_MAX - 1)
 
-#define CTA_HELP_MAXNAMESIZE	32
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _IPCONNTRACK_NETLINK_H */

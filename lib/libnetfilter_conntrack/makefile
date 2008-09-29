@@ -1,5 +1,5 @@
 CONFOPTS = --prefix=
-VERSION = 0.0.30
+VERSION = 0.0.81
 
 all: build/build
 	$(MAKE) -C build

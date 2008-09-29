@@ -37,3 +37,4 @@ ifdef STLP_BUILD_BOOST_PATH
 INCLUDES += -I$(STLP_BUILD_BOOST_PATH)
 endif
 
+LDSEARCH      += -L$(ROOTDIR)/uClibc/lib

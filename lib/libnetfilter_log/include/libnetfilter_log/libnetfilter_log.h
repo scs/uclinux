@@ -25,6 +25,7 @@ typedef int nflog_callback(struct nflog_g_handle *gh, struct nfgenmsg *nfmsg,
 
 
 extern struct nflog_handle *nflog_open(void);
+extern struct nflog_handle *nflog_open_nfnl(struct nfnl_handle *nfnlh);
 extern int nflog_close(struct nflog_handle *h);
 
 extern int nflog_bind_pf(struct nflog_handle *h, u_int16_t pf);
@@ -37,6 +38,7 @@ extern int nflog_unbind_group(struct nflog_g_handle *gh);
 extern int nflog_set_mode(struct nflog_g_handle *gh,
 			  u_int8_t mode, unsigned int len);
 extern int nflog_set_timeout(struct nflog_g_handle *gh, u_int32_t timeout);
+extern int nflog_set_flags(struct nflog_g_handle *gh, u_int16_t flags);
 extern int nflog_set_qthresh(struct nflog_g_handle *gh, u_int32_t qthresh);
 extern int nflog_set_nlbufsiz(struct nflog_g_handle *gh, u_int32_t nlbufsiz);
 
@@ -56,5 +58,7 @@ extern struct nfulnl_msg_packet_hw *nflog_get_packet_hw(struct nflog_data *nfad)
 extern int nflog_get_payload(struct nflog_data *nfad, char **data);
 extern char *nflog_get_prefix(struct nflog_data *nfad);
 extern int nflog_get_uid(struct nflog_data *nfad, u_int32_t *uid);
+extern int nflog_get_seq(struct nflog_data *nfad, u_int32_t *seq);
+extern int nflog_get_seq_global(struct nflog_data *nfad, u_int32_t *seq);
 
 #endif	/* __LIBNETFILTER_LOG_H */

@@ -8,6 +8,10 @@
 #ifndef _LIBNETFILTER_CONNTRACK_IPV6_H_
 #define _LIBNETFILTER_CONNTRACK_IPV6_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum ipv6_flags {
 	IPV6_ORIG_SRC_BIT = 0,
 	IPV6_ORIG_SRC = (1 << IPV6_ORIG_SRC_BIT),
@@ -25,5 +29,9 @@ enum ipv6_flags {
 
 	IPV6_REPL = (IPV6_REPL_SRC | IPV6_REPL_DST)
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

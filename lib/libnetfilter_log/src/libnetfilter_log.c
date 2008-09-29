@@ -33,7 +33,8 @@
 
 struct nflog_handle
 {
-	struct nfnl_handle nfnlh;
+	struct nfnl_handle *nfnlh;
+	struct nfnl_subsys_handle *nfnlssh;
 	struct nflog_g_handle *gh_list;
 };
 
@@ -94,7 +95,7 @@ static struct nflog_g_handle *find_gh(struct nflog_handle *h, u_int16_t group)
 static int __nflog_rcv_cmd(struct nlmsghdr *nlh, struct nfattr *nfa[],
 			    void *data)
 {
-	struct nflog_handle *h = data;
+	/* struct nflog_handle *h = data; */
 
 	/* FIXME: implement this */
 	return 0;
@@ -110,13 +111,13 @@ __build_send_cfg_msg(struct nflog_handle *h, u_int8_t command,
 	struct nfulnl_msg_config_cmd cmd;
 	struct nlmsghdr *nmh = (struct nlmsghdr *) buf;
 
-	nfnl_fill_hdr(&h->nfnlh, nmh, 0, pf, queuenum,
+	nfnl_fill_hdr(h->nfnlssh, nmh, 0, pf, queuenum,
 		      NFULNL_MSG_CONFIG, NLM_F_REQUEST|NLM_F_ACK);
 
 	cmd.command = command;
 	nfnl_addattr_l(nmh, sizeof(buf), NFULA_CFG_CMD, &cmd, sizeof(cmd));
 
-	return nfnl_talk(&h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
+	return nfnl_talk(h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
 }
 
 static int __nflog_rcv_pkt(struct nlmsghdr *nlh, struct nfattr *nfa[],
@@ -152,7 +153,7 @@ static struct nfnl_callback pkt_cb = {
 
 struct nfnl_handle *nflog_nfnlh(struct nflog_handle *h)
 {
-	return &h->nfnlh;
+	return h->nfnlh;
 }
 
 int nflog_fd(struct nflog_handle *h)
@@ -160,7 +161,7 @@ int nflog_fd(struct nflog_handle *h)
 	return nfnl_fd(nflog_nfnlh(h));
 }
 
-struct nflog_handle *nflog_open(void)
+struct nflog_handle *nflog_open_nfnl(struct nfnl_handle *nfnlh)
 {
 	struct nflog_handle *h;
 	int err;
@@ -170,21 +171,23 @@ struct nflog_handle *nflog_open(void)
 		return NULL;
 
 	memset(h, 0, sizeof(*h));
+	h->nfnlh = nfnlh;
 
-	err = nfnl_open(&h->nfnlh, NFNL_SUBSYS_ULOG, NFULNL_MSG_MAX, 0);
-	if (err < 0) {
-		nflog_errno = err;
+	h->nfnlssh = nfnl_subsys_open(h->nfnlh, NFNL_SUBSYS_ULOG, 
+				      NFULNL_MSG_MAX, 0);
+	if (!h->nfnlssh) {
+		/* FIXME: nflog_errno */
 		goto out_free;
 	}
 
 	cmd_cb.data = h;
-	err = nfnl_callback_register(&h->nfnlh, NFULNL_MSG_CONFIG, &cmd_cb);
+	err = nfnl_callback_register(h->nfnlssh, NFULNL_MSG_CONFIG, &cmd_cb);
 	if (err < 0) {
 		nflog_errno = err;
 		goto out_close;
 	}
 	pkt_cb.data = h;
-	err = nfnl_callback_register(&h->nfnlh, NFULNL_MSG_PACKET, &pkt_cb);
+	err = nfnl_callback_register(h->nfnlssh, NFULNL_MSG_PACKET, &pkt_cb);
 	if (err < 0) {
 		nflog_errno = err;
 		goto out_close;
@@ -192,10 +195,28 @@ struct nflog_handle *nflog_open(void)
 
 	return h;
 out_close:
-	nfnl_close(&h->nfnlh);
+	nfnl_close(h->nfnlh);
 out_free:
 	free(h);
 	return NULL;
+}
+
+struct nflog_handle *nflog_open(void)
+{
+	struct nfnl_handle *nfnlh;
+	struct nflog_handle *lh;
+
+	nfnlh = nfnl_open();
+	if (!nfnlh) {
+		/* FIXME: nflog_errno */
+		return NULL;
+	}
+
+	lh = nflog_open_nfnl(nfnlh);
+	if (!lh)
+		nfnl_close(nfnlh);
+
+	return lh;
 }
 
 int nflog_callback_register(struct nflog_g_handle *gh, nflog_callback *cb,
@@ -209,12 +230,12 @@ int nflog_callback_register(struct nflog_g_handle *gh, nflog_callback *cb,
 
 int nflog_handle_packet(struct nflog_handle *h, char *buf, int len)
 {
-	return nfnl_handle_packet(&h->nfnlh, buf, len);
+	return nfnl_handle_packet(h->nfnlh, buf, len);
 }
 
 int nflog_close(struct nflog_handle *h)
 {
-	return nfnl_close(&h->nfnlh);
+	return nfnl_close(h->nfnlh);
 }
 
 /* bind nf_queue from a specific protocol family */
@@ -275,7 +296,7 @@ int nflog_set_mode(struct nflog_g_handle *gh,
 	struct nfulnl_msg_config_mode params;
 	struct nlmsghdr *nmh = (struct nlmsghdr *) buf;
 
-	nfnl_fill_hdr(&gh->h->nfnlh, nmh, 0, AF_UNSPEC, gh->id,
+	nfnl_fill_hdr(gh->h->nfnlssh, nmh, 0, AF_UNSPEC, gh->id,
 		      NFULNL_MSG_CONFIG, NLM_F_REQUEST|NLM_F_ACK);
 
 	params.copy_range = htonl(range);	/* copy_range is short */
@@ -283,7 +304,7 @@ int nflog_set_mode(struct nflog_g_handle *gh,
 	nfnl_addattr_l(nmh, sizeof(buf), NFULA_CFG_MODE, &params,
 		       sizeof(params));
 
-	return nfnl_talk(&gh->h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
+	return nfnl_talk(gh->h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
 }
 
 int nflog_set_timeout(struct nflog_g_handle *gh, u_int32_t timeout)
@@ -291,12 +312,12 @@ int nflog_set_timeout(struct nflog_g_handle *gh, u_int32_t timeout)
 	char buf[NFNL_HEADER_LEN+NFA_LENGTH(sizeof(u_int32_t))];
 	struct nlmsghdr *nmh = (struct nlmsghdr *) buf;
 
-	nfnl_fill_hdr(&gh->h->nfnlh, nmh, 0, AF_UNSPEC, gh->id,
+	nfnl_fill_hdr(gh->h->nfnlssh, nmh, 0, AF_UNSPEC, gh->id,
 		      NFULNL_MSG_CONFIG, NLM_F_REQUEST|NLM_F_ACK);
 
 	nfnl_addattr32(nmh, sizeof(buf), NFULA_CFG_TIMEOUT, htonl(timeout));
 
-	return nfnl_talk(&gh->h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
+	return nfnl_talk(gh->h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
 }
 
 int nflog_set_qthresh(struct nflog_g_handle *gh, u_int32_t qthresh)
@@ -304,12 +325,12 @@ int nflog_set_qthresh(struct nflog_g_handle *gh, u_int32_t qthresh)
 	char buf[NFNL_HEADER_LEN+NFA_LENGTH(sizeof(u_int32_t))];
 	struct nlmsghdr *nmh = (struct nlmsghdr *) buf;
 
-	nfnl_fill_hdr(&gh->h->nfnlh, nmh, 0, AF_UNSPEC, gh->id,
+	nfnl_fill_hdr(gh->h->nfnlssh, nmh, 0, AF_UNSPEC, gh->id,
 		      NFULNL_MSG_CONFIG, NLM_F_REQUEST|NLM_F_ACK);
 
 	nfnl_addattr32(nmh, sizeof(buf), NFULA_CFG_QTHRESH, htonl(qthresh));
 
-	return nfnl_talk(&gh->h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
+	return nfnl_talk(gh->h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
 }
 
 int nflog_set_nlbufsiz(struct nflog_g_handle *gh, u_int32_t nlbufsiz)
@@ -318,18 +339,31 @@ int nflog_set_nlbufsiz(struct nflog_g_handle *gh, u_int32_t nlbufsiz)
 	struct nlmsghdr *nmh = (struct nlmsghdr *) buf;
 	int status;
 
-	nfnl_fill_hdr(&gh->h->nfnlh, nmh, 0, AF_UNSPEC, gh->id,
+	nfnl_fill_hdr(gh->h->nfnlssh, nmh, 0, AF_UNSPEC, gh->id,
 		      NFULNL_MSG_CONFIG, NLM_F_REQUEST|NLM_F_ACK);
 
 	nfnl_addattr32(nmh, sizeof(buf), NFULA_CFG_NLBUFSIZ, htonl(nlbufsiz));
 
-	status = nfnl_talk(&gh->h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
+	status = nfnl_talk(gh->h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
 
 	/* we try to have space for at least 10 messages in the socket buffer */
 	if (status >= 0)
-		nfnl_rcvbufsiz(&gh->h->nfnlh, 10*nlbufsiz);
+		nfnl_rcvbufsiz(gh->h->nfnlh, 10*nlbufsiz);
 
 	return status;
+}
+
+int nflog_set_flags(struct nflog_g_handle *gh, u_int16_t flags)
+{
+	char buf[NFNL_HEADER_LEN+NFA_LENGTH(sizeof(u_int16_t))];
+	struct nlmsghdr *nmh = (struct nlmsghdr *) buf;
+
+	nfnl_fill_hdr(gh->h->nfnlssh, nmh, 0, AF_UNSPEC, gh->id,
+		      NFULNL_MSG_CONFIG, NLM_F_REQUEST|NLM_F_ACK);
+
+	nfnl_addattr16(nmh, sizeof(buf), NFULA_CFG_FLAGS, htons(flags));
+
+	return nfnl_talk(gh->h->nfnlh, nmh, 0, 0, NULL, NULL, NULL);
 }
 
 
@@ -408,3 +442,20 @@ int nflog_get_uid(struct nflog_data *nfad, u_int32_t *uid)
 	return 0;
 }
 
+int nflog_get_seq(struct nflog_data *nfad, u_int32_t *seq)
+{
+	if (!nfnl_attr_present(nfad->nfa, NFULA_SEQ))
+		return -1;
+
+	*seq = ntohl(nfnl_get_data(nfad->nfa, NFULA_SEQ, u_int32_t));
+	return 0;
+}
+
+int nflog_get_seq_global(struct nflog_data *nfad, u_int32_t *seq)
+{
+	if (!nfnl_attr_present(nfad->nfa, NFULA_SEQ_GLOBAL))
+		return -1;
+
+	*seq = ntohl(nfnl_get_data(nfad->nfa, NFULA_SEQ_GLOBAL, u_int32_t));
+	return 0;
+}

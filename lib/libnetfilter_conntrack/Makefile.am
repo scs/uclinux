@@ -3,11 +3,13 @@ include $(top_srcdir)/Make_global.am
 AUTOMAKE_OPTIONS = foreign dist-bzip2 1.6
 
 SUBDIRS	= include src l3extensions extensions utils
-LINKOPTS = -lnfnetlink
 
 man_MANS = #nfnetlink_conntrack.3 nfnetlink_conntrack.7
 
-EXTRA_DIST = Make_global.am debian
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libnetfilter_conntrack.pc
+
+EXTRA_DIST = Make_global.am
 dist-hook:
 	rm -rf `find $(distdir)/debian -name .svn`
 

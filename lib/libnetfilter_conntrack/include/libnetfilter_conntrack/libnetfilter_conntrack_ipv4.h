@@ -8,6 +8,10 @@
 #ifndef _LIBNETFILTER_CONNTRACK_IPV4_H_
 #define _LIBNETFILTER_CONNTRACK_IPV4_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum ipv4_flags {
 	IPV4_ORIG_SRC_BIT = 0,
 	IPV4_ORIG_SRC = (1 << IPV4_ORIG_SRC_BIT),
@@ -25,5 +29,9 @@ enum ipv4_flags {
 
 	IPV4_REPL = (IPV4_REPL_SRC | IPV4_REPL_DST)
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
