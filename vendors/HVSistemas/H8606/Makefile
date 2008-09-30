@@ -55,11 +55,14 @@ endif
 DEVICE_TABLE = device_table.txt
 endif
 
+MKFS_JFFS2_FLAGS = -l --pad=0x640000
+
 # these targets can be found in AnalogDevices/vendor.mak
 image::
 	mkdir -p $(IMAGEDIR)
 	rm -rf $(IMAGEDIR)/*
 
+	
 	$(MAKE) image.rootfs.all
 	$(MAKE) image.kernel.all
 	$(MAKE) image.uimage.all
