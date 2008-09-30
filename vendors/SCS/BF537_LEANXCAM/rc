@@ -15,21 +15,19 @@ fi
 mkdir /var/tmp /var/log /var/run /var/lock
 
 # Create meaningful soft links for /dev/mtd* 
-ln -sfn /dev/mtd1 /uboot
-ln -sfn /dev/mtd2 /env_uboot
-ln -sfn /dev/mtd3 /env_uboot_r
-ln -sfn /dev/mtd4 /linux
-ln -sfn /dev/mtd5 /calib
+ln -sfn /dev/mtd1 /dev/uboot
+ln -sfn /dev/mtd2 /dev/env_uboot
+ln -sfn /dev/mtd3 /dev/env_uboot_r
+ln -sfn /dev/mtd4 /dev/linux
+ln -sfn /dev/mtd5 /dev/calib
 
-# Mount the application flash to /app
+# Mount the application flash to /dev/app
 echo "Mounting Application Flash..."
-mkdir /app
-mount -t jffs2 /dev/mtdblock6 /app
+mkdir /dev/app
+mount -t jffs2 /dev/mtdblock6 /dev/app
 
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
-
-# Configure network interface based on /env_board and /env/user info
 
 
 # Detect first-time-boot if not valid u-boot environment available
@@ -75,9 +73,9 @@ echo "Starting Webserver"
 boa -f /etc/boa.conf&
 
 #launch user specific application script
-if test -e /app/runapp.sh
+if test -e /dev/app/runapp.sh
 then
-       cd app
+       cd /dev/app
        ./runapp.sh &
        cd /
 fi
