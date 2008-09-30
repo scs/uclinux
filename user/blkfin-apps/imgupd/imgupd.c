@@ -39,8 +39,6 @@ int main(int argc, char** argv)
   {
 	  sServerIp = argv[2];
   } else {
-/*	  strcpy(sServerIpBuf, STR(SERVER_IP));
-	  sServerIp = sServerIpBuf;*/
 	sServerIp = getenv("TFTPIP");
   }
   
