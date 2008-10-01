@@ -8,11 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define TEMP_FILE_LOCATION "/tmp/"
-#define U_BOOT_PARTITION "/uboot"
-#define LINUX_PARTITION "/linux"
-#define CALIBRATION_PARTITION "/calib"
+#define U_BOOT_PARTITION "/dev/uboot"
+#define LINUX_PARTITION "/dev/linux"
+#define CALIBRATION_PARTITION "/dev/calib"
 
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
@@ -22,8 +23,10 @@ int main(int argc, char** argv)
   void * pBuf;
   char sTemp[1024];
   char * sImgName;
-  char sServerIpBuf[64];
+  char sTempFileLocation[256];
   char *sServerIp;
+  int bLocalFile = 0;
+
 
   int ret = -1;
   unsigned int * pWrd;
@@ -37,23 +40,38 @@ int main(int argc, char** argv)
   sImgName = argv[1];
   if(argc == 3)
   {
-	  sServerIp = argv[2];
+    /* If the IP address is supplied as an argument, use this one. */
+    sServerIp = argv[2];
   } else {
-	sServerIp = getenv("TFTPIP");
+    /* Check if the file already exists locally. If so, use it instead of TFTPing it
+       from remote.*/
+    if(access(sImgName, R_OK) == 0)
+      {
+	printf("Using local copy \"%s\".\n", sImgName);
+	bLocalFile = 1;
+	sTempFileLocation[0] = '\0';
+      }
+    /* Otherwise get the server ip from U-Boot environment variables. */
+    sServerIp = "`fw_printenv | grep \"serverip=\" | sed -e s/serverip=//g`";
   }
-  
-  printf("Transferring %s from %s over tftp.\n", sImgName, sServerIp);
-  sprintf(sTemp, "tftp %s -g -l %s%s -r %s\n", sServerIp, TEMP_FILE_LOCATION, sImgName, sImgName);
-  printf("%s\n", sTemp);
-  ret = system(sTemp);
-  if(ret != 0)
+
+  if(!bLocalFile)
     {
-      printf("Transfer failed! Aborting...\n");
-      return -1;
+      strcpy(sTempFileLocation, TEMP_FILE_LOCATION);
+
+      printf("Transferring %s over tftp...\n", sImgName);
+      sprintf(sTemp, "tftp %s -g -l %s%s -r %s\n", sServerIp, sTempFileLocation, sImgName, sImgName);
+      printf("%s\n", sTemp);
+      ret = system(sTemp);
+      if(ret != 0)
+	{
+	  printf("Transfer failed! Aborting...\n");
+	  return -1;
+	}
     }
 
   printf("Analyzing file header of \"%s\".\n", sImgName);
-  sprintf(sTemp, "%s%s", TEMP_FILE_LOCATION, sImgName);
+  sprintf(sTemp, "%s%s", sTempFileLocation, sImgName);
   pF = fopen(sTemp, "rb");
   if(!pF)
   {
@@ -97,7 +115,10 @@ int main(int argc, char** argv)
       break;
    }
  cleanup:
-   sprintf(sTemp, "rm %s%s\n", TEMP_FILE_LOCATION, sImgName);
-   system(sTemp);
+  if(!bLocalFile)
+    {
+      sprintf(sTemp, "rm %s%s\n", sTempFileLocation, sImgName);
+      system(sTemp);
+    }
    return ret;
 }
