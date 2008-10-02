@@ -92,21 +92,21 @@ int main(int argc, char** argv)
     case 0xFFA00000:
       printf("Magic word of U-Boot image found\n");
       printf("Copying to %s...\n", U_BOOT_PARTITION);
-      sprintf(sTemp, "cp %s%s %s\n", TEMP_FILE_LOCATION, sImgName, U_BOOT_PARTITION); 
+      sprintf(sTemp, "cp %s%s %s\n", sTempFileLocation, sImgName, U_BOOT_PARTITION); 
       ret = system(sTemp);
       goto cleanup;
       break;
     case 0x56190527:
       printf("Magic word of OS image found!\n");
       printf("Copying to %s...\n", LINUX_PARTITION);
-      sprintf(sTemp, "cp %s%s %s\n", TEMP_FILE_LOCATION, sImgName, LINUX_PARTITION); 
+      sprintf(sTemp, "cp %s%s %s\n", sTempFileLocation, sImgName, LINUX_PARTITION); 
       ret = system(sTemp);
       goto cleanup;
       break;
     case 0x012345678:
       printf("Magic word of Sensor Calibration image found!\n");
       printf("Copying to %s...\n", CALIBRATION_PARTITION);
-      sprintf(sTemp, "cp %s%s %s\n", TEMP_FILE_LOCATION, sImgName, CALIBRATION_PARTITION);
+      sprintf(sTemp, "cp %s%s %s\n", sTempFileLocation, sImgName, CALIBRATION_PARTITION);
       ret = system(sTemp);
       goto cleanup;
     default:
