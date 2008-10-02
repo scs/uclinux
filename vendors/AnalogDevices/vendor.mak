@@ -92,14 +92,22 @@ endif
 endif
 
 .PHONY: image.rootfs.jffs2 image.rootfs.jffs2.force
-MKFS_JFFS2_FLAGS ?= -l
+MKFS_JFFS2_FLAGS ?= -l -p
 image.rootfs.jffs2.force:
 	$(MKFS_JFFS2) $(MKFS_JFFS2_FLAGS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(IMAGE_ROMFS_BASE).jffs2
 ifeq ($(CONFIG_JFFS2_FS),y)
 image.rootfs.jffs2: image.rootfs.jffs2.force
 endif
 
-.PHONY: image.rootfs.romfs image.rootfs.romfs.force
+.PHONY: image.rootfs-summary.jffs2 image.rootfs-summary.jffs2.force
+MTD_SUMTOOL_FLAGS ?= -l -p
+image.rootfs-summary.jffs2.force:
+	$(MTD_SUMTOOL) $(MTD_SUMTOOL_FLAGS) -i $(IMAGE_ROMFS_BASE).jffs2 -o $(IMAGE_ROMFS_BASE)-summary.jffs2
+ifeq ($(CONFIG_JFFS2_SUMMARY),y)
+image.rootfs-summary.jffs2: image.rootfs-summary.jffs2.force 
+endif
+
+.PHONY: image.rootfs.romfs image.rootfs.romfs.force 
 MKFS_ROMFS_FLAGS ?=
 image.rootfs.romfs.force:
 	set -e ; \
@@ -132,6 +140,7 @@ image.rootfs.all: \
 	image.rootfs.ext2 \
 	image.rootfs.initramfs \
 	image.rootfs.jffs2 \
+	image.rootfs-summary.jffs2 \
 	image.rootfs.romfs \
 	image.rootfs.yaffs \
 	image.rootfs.yaffs2
