@@ -23,6 +23,7 @@ BUILDTARGETS-m :=
 BUILDTARGETS-y :=
 BUILDTARGETS-$(CONFIG_JFFS_FS)  += mkfs.jffs
 BUILDTARGETS-$(CONFIG_JFFS2_FS) += mkfs.jffs2
+BUILDTARGETS-$(CONFIG_JFFS2_SUMMARY) += sumtool
 BUILDTARGETS = $(BUILDTARGETS-m) $(BUILDTARGETS-y)
 
 MAKE_MTD = $(MAKE) -C $(VER) WITHOUT_XATTR=1
@@ -34,7 +35,7 @@ all:
 
 clean:
 	rm -rf build-$(VER)*
-	rm -f mkfs.jffs mkfs.jffs2
+	rm -f mkfs.jffs mkfs.jffs2 sumtool
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASE        build-$(VER)/flash_erase /bin/flash_erase
