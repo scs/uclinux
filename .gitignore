@@ -2,7 +2,6 @@
 .config
 .oldconfig
 /config.arch
-/linux-2.6.x
 /images
 /romfs
 /staging/usr
