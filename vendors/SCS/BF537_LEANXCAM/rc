@@ -73,7 +73,7 @@ echo "Starting Webserver"
 boa -f /etc/boa.conf&
 
 #launch user specific application script
-if test -e /dev/app/runapp.sh
+if test -e /mnt/app/runapp.sh
 then
        cd /mnt/app
        ./runapp.sh &
