@@ -1,0 +1,13 @@
+#! /usr/bin/env bash
+# This script is used to generate a binary to release.
+
+if [ "$1" == "leanXcam" ]; then
+	make SCS/BF537_LEANXCAM_config || exit $?
+elif [ "$1" == "indXcam" ]; then
+	exit 1 # do not use, mockup!
+	make SCS/BF537_INDXCAM_config || exit $?
+else
+	exit 1
+fi
+
+make || exit $?
