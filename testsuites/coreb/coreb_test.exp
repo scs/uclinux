@@ -38,7 +38,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "insmod /usr/coreb/dualcore_test.ko\r"
+send "modprobe dualcore_test\r"
 while 1 {
    expect {
       -re "Dual core test module inserted: set testarg = \\\[1\].*feb1fffc.*$kernel_prompt" {
@@ -67,6 +67,7 @@ while 1 {
    }
 }
 
+sleep 3
 set timeout 5
 incr case_num
 send "corebld /usr/coreb/test_cpp\r"
@@ -108,7 +109,7 @@ while 1 {
 }
 
 incr case_num
-send "rmmod dualcore_test\r"
+send "modprobe -r dualcore_test\r"
 while 1 {
    expect {
       -re "Dual core test module removed: testarg = \\\[12\]*" {
@@ -150,7 +151,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "insmod /usr/coreb/dualcore_test.ko\r"
+send "modprobe dualcore_test\r"
 while 1 {
    expect {
       -re "Dual core test module inserted: set testarg = \\\[1\].*feb1fffc.*$kernel_prompt" {
@@ -179,6 +180,7 @@ while 1 {
    }
 }
 
+sleep 3
 set timeout 5
 incr case_num
 send "corebld /usr/coreb/test_c\r"
@@ -220,7 +222,7 @@ while 1 {
 }
 
 incr case_num
-send "rmmod dualcore_test\r"
+send "modprobe -r dualcore_test\r"
 while 1 {
    expect {
       -re "Dual core test module removed: testarg = \\\[2\]*" {

@@ -23,7 +23,7 @@ spawn make config
 #tee "Begin the interactive process of configuration"
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
@@ -41,10 +41,6 @@ while 1 {
 
         -re "Enable Core B reset support.*BF561_COREB_RESET.*\\\[.*]" {
             send "y\r"
-        }
-
-        -re "Dual Core Test Module.*DUAL_CORE_TEST_MODULE.*\\\[.*]" {
-            send "m\r"
         }
 
         -re "BF561 Core B support tools.*USER_BF561_COREBLD.*\\\[.*]" {
