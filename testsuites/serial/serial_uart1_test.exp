@@ -11,6 +11,7 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
+
 step "Start kermit."
 source ../spawn_kermit.exp
 
@@ -21,7 +22,11 @@ source ../reboot_kernel.exp
 send_log "\nStarting test for Serial UART 1...\n"
 
 set ttyBFdev /dev/ttyBF1
-set file a
+set ttydev $ttyUSBdev
+set target_file aaa
+set host_file bbb
+set save_file ccc
+
 
 set argc [llength $argv]
 if { $argc > 0 } {
@@ -33,6 +38,12 @@ send_log "Start $TITLE\r"
 send_log "*********************************\r"
 
 set case_num 0
+set target_id $spawn_id
+###
+### Case 1 is sending file from  host to target.
+### Catted file would have "\r\n" as line end, while on target unix file only use "\n" as line terminator,
+### so use igncr to set target tty device not to add "\n" sign.
+###
 
 incr case_num
 set timeout 5
@@ -40,7 +51,17 @@ set timeout 5
 send "\r"
 expect -re  $kernel_prompt
 
-send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate \r"
+send -s "cat /proc/kallsyms > $save_file \r"
+while 1 {
+        expect {
+                -re  "$kernel_prompt" { break  }
+                timeout {
+                     send_user "Failed to save file.\n"
+                     exit }
+        }
+}
+
+send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate -icrnl igncr \r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -49,7 +70,7 @@ while 1 {
                      exit }
         }
 }
-send -s "cat $ttyBFdev  \r"
+send -s "cat $ttyBFdev > $target_file \r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" {
@@ -59,24 +80,35 @@ while 1 {
         }
 }
 
-set target_id $spawn_id
 
 spawn /bin/sh
 set host_sh_id $spawn_id
 expect  -re  $sh_prompt
 
-send -s "stty -F $ttyUSBdev ispeed $baud_rate ospeed $baud_rate -icrnl \r"
+send -s "rcp root@$targetip:/$save_file . \r"
 while 1 {
         expect {
                 -re  "$sh_prompt" { break  }
                 timeout {
-                     send_user "Failed to set uart speed.\n"
+                     send_user "Failed to rcp $target_file to host.\n"
                      exit }
         }
 }
 
 while 1 {
-send -s "echo $STRDATA > $ttyUSBdev  \r"
+send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate \r"
+expect {
+        -re  "$sh_prompt" {
+          break }
+         timeout {
+          puts " set $ttydev failed...\n"
+          break
+         }
+}
+}
+set timeout 60
+while 1 {
+send -s " cat $save_file > $ttydev  \r"
 expect {
         -re  "$sh_prompt" { 
           break }
@@ -88,28 +120,69 @@ expect {
 }
 
 set spawn_id $target_id
-send "\r"
+
+sleep 3
 while 1 {
 expect {
-        "$STRDATA" {
-          case_pass $case_num
-          send "\3"
-          expect -re "$kernel_prompt"
-          send_log "Echoed char get on host ." 
+        -re  "$kernel_prompt" {
+          puts "Fail to wait.\n"
           break }
-          timeout {
-          send "\3"
-          expect -re "$kernel_prompt"
-          case_fail $case_num
+         timeout {
+          puts "\nStill wait.\n"
           break
          }
 }
 }
 
+send "\3"
+send "\r"
+while 1 {
+expect {
+        -re "$kernel_prompt" {
+          send_log "Catted file is got on target.\n" 
+          break }
+          timeout {
+          case_fail $case_num
+         }
+}
+}
+
+set timeout 60
+send -s "diff -u $save_file $target_file \r"
+while 1 {
+expect {
+         -re "\\\+\\\+\\\+" {
+                         expect -re  "$kernel_prompt"
+                         send_log "\nTwo files diffs.\n "
+                         case_fail $case_num
+                         break
+                          }
+          "differ"
+                      {
+                         send_log "Two files diffs!\n"
+                         case_fail $case_num
+                         break
+                        }
+
+          timeout
+                      {
+                         expect -re  "$kernel_prompt"
+                         send_log "Success case.\n"
+                         case_pass $case_num
+                         break
+                        }
+         }
+}
+######################################################################
+###
+### Case 2 is sending file from target to host.
+### Here use igncr to host tty device not to add "\n" sign.
+###
+
 incr case_num
 
 set spawn_id $target_id
-send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate \r"
+send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate  \r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -123,7 +196,7 @@ sleep 3
 send "ls\r"
 expect -re  "$sh_prompt"
 
-send -s "stty -F $ttyUSBdev ispeed $baud_rate ospeed $baud_rate -icrnl \r"
+send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate -icrnl  igncr\r"
 while 1 {
         expect {
                 -re  "$sh_prompt" { break  }
@@ -134,7 +207,7 @@ while 1 {
 }
 
 while 1 {
-send -s "cat $ttyUSBdev > $file \r"
+send -s "cat $ttydev > $host_file \r"
 expect {
         -re  "$sh_prompt" {
           puts "Fail to cat on host.\n"
@@ -147,9 +220,9 @@ expect {
 }
 
 set spawn_id $target_id
-set timeout 10
+set timeout 100
 while 1 {
-send -s "cat /etc/boa.conf > $ttyBFdev \r"
+send -s "cat $save_file > $ttyBFdev \r"
         expect {
               -re  "$kernel_prompt" {
                       break }
@@ -182,73 +255,49 @@ expect {
          }
 }
 }
-send -s "cat $file \r"
+#send -s "cat $host_file \r"
+#while 1 {
+#expect {
+#       -re  "$sh_prompt" {
+#         break}
+#        timeout {
+#         puts "Failed to cat file.\n"}
+#}
+#}
+set timeout 50
+send -s "diff -u $save_file $host_file \r"
 while 1 {
 expect {
-       -re  "$sh_prompt" {
-         break}
-        timeout {
-         puts "Failed to cat file.\n"}
-}
-}
-send -s "dos2unix $file \r"
-while 1 {
-expect {
-       "converting file" {
-          puts "convert file.\n"
-         break}
-        timeout {
-         puts "Failed to convert file.\n"}
-}
-}
-expect {
-       -re  "$sh_prompt" {
-          puts "finish dos2unix.\n"
-        }
-}
-
-send -s "rcp root@$targetip:/etc/boa.conf . \r"
-while 1 {
-expect {
-       -re  "$sh_prompt" {
-         puts "Copy file.\n"
-         break}
-        timeout {
-         puts "Failed to copy file.\n"}
-}
-}
-
-send -s "diff -u $file boa.conf \r"
-while 1 {
-expect {
-          -re "\\\+\\\+\\\+.*\[\r\n]$sh_prompt" {
-                         puts "\nTwo files diffs.\n $expect_out(0,string)\n"
+         -re "\\\+\\\+\\\+" {
+                         expect -re  "$sh_prompt"
+                         send_log "\nTwo files diffs.\n "
                          case_fail $case_num
-                         }
-          -re  "$sh_prompt" 
-                      {
-                        puts "Success case.\n"
-                        case_pass $case_num
-                        break
-                        }   
+                         break
+                          }
           "differ"
                       {
-                         puts "Two files diffs!\n"
+                         send_log "Two files diffs!\n"
                          case_fail $case_num
+                         break
                         }
 
-          timeout 
+          timeout
                       {
-                         puts "Fail to diff.\n"
-                         case_fail $case_num
-                        }   
+                         expect -re  "$sh_prompt"
+                         send_log "Success case.\n"
+                         case_pass $case_num
+                         break
+                        }
          }
 }
+###
+### Case 3 is to check if it can use ttyBF1 as default console to boot up kernel.
+###
 
 step "Convert the console to ttyBF1."
 
 set spawn_id $target_id
-set console [file tail /dev/ttyBF1]
+set console [file tail $ttyBFdev]
 append bootargs_param7 " console=$console"
 set bootargs             $bootargs_param7
 source ../reboot_kernel.exp
@@ -274,12 +323,10 @@ incr case_num
         }
     }
 
-set ttydev $ttyUSBdev
 step "Start kermit."
 source ../spawn_kermit.exp
 set timeout 20
 
-    send -s "\r"
     expect -re "$kernel_prompt"
     send -s "ls\r"
     while 1 {

@@ -359,6 +359,8 @@ spawn  /bin/sh
 set telnet_id $spawn_id
 expect  -re  $sh_prompt
 
+### This case is sending file from  host to target.
+
 send -s "telnet $targetip\r"
 while 1 {
         expect {
@@ -378,7 +380,7 @@ while 1 {
         }
 }
 
-send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate \r"
+send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate -icrnl igncr\r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -413,7 +415,7 @@ while 1 {
 }
 
 while 1 {
-send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate -icrnl\r"
+send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate \r"
 expect {
         -re  "$sh_prompt" {
           break }
@@ -470,13 +472,13 @@ expect {
          -re "\\\+\\\+\\\+" {
                          expect -re  "$kernel_prompt"
                          send_log "\nTwo files diffs.\n "
-                        # case_fail $case_num
+                         case_fail $case_num
                          break
                           }
           "differ"
                       {
                          send_log "Two files diffs!\n"
-                        # case_fail $case_num
+                         case_fail $case_num
                          break
                         }
 
@@ -490,7 +492,9 @@ expect {
          }
 }
 ######################################################################
+### This case is sending file from  target to host.
 
+incr case_num
 set spawn_id $telnet_id
 send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate \r"
 while 1 {
@@ -507,7 +511,7 @@ sleep 3
 send "ls\r"
 expect -re  "$sh_prompt"
 
-send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate -icrnl \r"
+send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate -icrnl igncr \r"
 while 1 {
         expect {
                 -re  "$sh_prompt" { break  }
@@ -563,6 +567,7 @@ send -s "\3"
 while 1 {
 expect {
         -re  "$sh_prompt" {
+          send_log "Catted file is got on host.\n" 
           break }
          timeout {
           puts "Failed to come out.\n"
@@ -579,22 +584,6 @@ expect {
 #         puts "Failed to cat file.\n"}
 #}
 #}
-
-send -s "dos2unix $host_file \r"
-while 1 {
-expect {
-       "converting file" {
-          puts "convert file.\n"
-         break}
-        timeout {
-         puts "Failed to convert file.\n"}
-}
-}
-expect {
-       -re  "$sh_prompt" {
-          puts "finish dos2unix.\n"
-        }
-}
 
 set timeout 60
 send -s "diff -u $host_file $save_file \r"
