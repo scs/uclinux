@@ -7,6 +7,9 @@ else
 	pretend=false
 fi
 
+MAKE=${MAKE:-make}
+LOG_DIR="LOG"
+
 arches="$@"
 if [ -z "$arches" ] ; then
 	all_arches=$(
@@ -20,7 +23,7 @@ if [ -z "$arches" ] ; then
 			makefile="vendors/config/${arch}/config.arch"
 			export ROOTDIR=$PWD
 			echo -e "e:\\n\\t@echo \$(${var})\\ninclude ${makefile}" | \
-				make --no-print-directory -s -f - 2>/dev/null
+				${MAKE} --no-print-directory -s -f - 2>/dev/null
 		)
 		if [ -n "$CROSS_COMPILE" ] ; then
 			if ${CROSS_COMPILE}gcc -v 2>/dev/null 1>&2 ; then
@@ -36,6 +39,7 @@ if [ -z "$arches" ] ; then
 	echo
 fi
 
+mkdir -p "${LOG_DIR}"
 PASS=""
 FAIL=""
 for arch in ${arches} ; do
@@ -48,12 +52,20 @@ for arch in ${arches} ; do
 	echo
 
 	for board in ${list} ; do
-		echo "#### BUILDING BOARD: ${board}"
-		if ${pretend} || ${MAKE:-make} ${board}_default ; then
+		log="${LOG_DIR}/$(echo "${board}" | sed s:/:_:g).log"
+		rm -f "${log}"{,.FAIL}
+		printf "#### BUILDING BOARD: ${board}: "
+		if ${pretend} || ${MAKE} ${board}_default > "${log}" 2>&1 ; then
+			echo PASS
 			PASS="${PASS} ${board}"
 		else
+			echo FAIL
 			FAIL="${FAIL} ${board}"
+			printf "\n\nSingle target ...\n\n" >> "${log}"
+			${MAKE} single >> "${log}" 2>&1
+			${MAKE} single > "${log}".FAIL 2>&1
 		fi
+		svn st > "${log}".svn
 	done
 done
 
