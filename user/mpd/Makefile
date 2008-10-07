@@ -1,4 +1,4 @@
-VER = mpd-0.13.1
+VER = mpd-0.13.2
 
 CONF_OPTS = \
 	$(call USE_ENABLE,LIB_LIBAO,ao) \

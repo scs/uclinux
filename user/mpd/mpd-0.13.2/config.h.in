@@ -1,0 +1,195 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define to enable ALSA support */
+#undef HAVE_ALSA
+
+/* Define to play with ao */
+#undef HAVE_AO
+
+/* Define for audiofile support */
+#undef HAVE_AUDIOFILE
+
+/* Define to enable Avahi Zeroconf support */
+#undef HAVE_AVAHI
+
+/* Define to enable Bonjour Zeroconf support */
+#undef HAVE_BONJOUR
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the `dlopen' function. */
+#undef HAVE_DLOPEN
+
+/* Define to 1 if `dontUpSampleImplicitSBR' is member of
+   `faacDecConfiguration'. */
+#undef HAVE_FAACDECCONFIGURATION_DONTUPSAMPLEIMPLICITSBR
+
+/* Define to 1 if `downMatrix' is member of `faacDecConfiguration'. */
+#undef HAVE_FAACDECCONFIGURATION_DOWNMATRIX
+
+/* Define to 1 if `samplerate' is member of `faacDecFrameInfo'. */
+#undef HAVE_FAACDECFRAMEINFO_SAMPLERATE
+
+/* Define to use FAAD2 for AAC decoding */
+#undef HAVE_FAAD
+
+/* Define if FAAD2 uses buflen in function calls */
+#undef HAVE_FAAD_BUFLEN_FUNCS
+
+/* Define for FLAC support */
+#undef HAVE_FLAC
+
+/* Define to use iconv */
+#undef HAVE_ICONV
+
+/* Define to use id3tag */
+#undef HAVE_ID3TAG
+
+/* Define to 1 if you have the <id3tag.h> header file. */
+#undef HAVE_ID3TAG_H
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define if IPv6 support present */
+#undef HAVE_IPV6
+
+/* Define to enable JACK support */
+#undef HAVE_JACK
+
+/* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
+#undef HAVE_LANGINFO_CODESET
+
+/* Define to 1 if you have the `asound' library (-lasound). */
+#undef HAVE_LIBASOUND
+
+/* Define to 1 if you have the `FLAC' library (-lFLAC). */
+#undef HAVE_LIBFLAC
+
+/* Define to enable libsamplerate */
+#undef HAVE_LIBSAMPLERATE
+
+/* Define if locale.h is present */
+#undef HAVE_LOCALE
+
+/* Define to use libmad */
+#undef HAVE_MAD
+
+/* Define to 1 if you have the <mad.h> header file. */
+#undef HAVE_MAD_H
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define for mikmod support */
+#undef HAVE_MIKMOD
+
+/* Define to 1 if the system has the type `mp4AudioSpecificConfig'. */
+#undef HAVE_MP4AUDIOSPECIFICCONFIG
+
+/* Define to use libmpcdec for MPC decoding */
+#undef HAVE_MPCDEC
+
+/* Define to enable Hauppauge Media MVP support */
+#undef HAVE_MVP
+
+/* Define for OggFLAC support */
+#undef HAVE_OGGFLAC
+
+/* Define for Ogg Vorbis support */
+#undef HAVE_OGGVORBIS
+
+/* Define to enable OSS */
+#undef HAVE_OSS
+
+/* Define for compiling OS X support */
+#undef HAVE_OSX
+
+/* Define to enable PulseAudio support */
+#undef HAVE_PULSE
+
+/* Define to 1 if you have the `setenv' function. */
+#undef HAVE_SETENV
+
+/* Define to enable libshout support */
+#undef HAVE_SHOUT
+
+/* Define to 1 if you have the <shout/shout.h> header file. */
+#undef HAVE_SHOUT_SHOUT_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define if sys/inttypes.h present */
+#undef HAVE_SYS_INTTYPES_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to use tremor (libvorbisidec) for ogg support */
+#undef HAVE_TREMOR
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to enable Zeroconf support */
+#undef HAVE_ZEROCONF
+
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+#undef NO_MINUS_C_MINUS_O
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* The mpd protocol version */
+#undef PROTOCOL_VERSION
+
+/* The size of `int', as computed by sizeof. */
+#undef SIZEOF_INT
+
+/* The size of `long', as computed by sizeof. */
+#undef SIZEOF_LONG
+
+/* The size of `long long', as computed by sizeof. */
+#undef SIZEOF_LONG_LONG
+
+/* The size of `short', as computed by sizeof. */
+#undef SIZEOF_SHORT
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Version number of package */
+#undef VERSION
+
+/* Define to 1 if your processor stores words with the most significant byte
+   first (like Motorola and SPARC, unlike Intel and VAX). */
+#undef WORDS_BIGENDIAN
