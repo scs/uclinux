@@ -40,7 +40,7 @@ echo "comment \"Select the Vendor you wish to target\""
 echo
 echo "choice"
 echo "	prompt \"Vendor\""
-echo "	default DEFAULTS_SECURECOMPUTING"
+echo "	default DEFAULTS_ANALOGDEVICES"
 echo
 
 pfile=/tmp/products.$$
