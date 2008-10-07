@@ -35,6 +35,6 @@ romfs:
 	$(ROMFSINST) -d -M hs_conv.ko blkfindrvs/hs_conv.ko
 
 clean:
-	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD clean
+	$(MAKE_KERNEL) clean
 
 .PHONY: all module romfs clean
