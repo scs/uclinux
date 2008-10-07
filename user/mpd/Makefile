@@ -10,7 +10,7 @@ CONF_OPTS = \
 	--disable-pulse \
 	--disable-oggvorbis \
 	--disable-oggflac \
-	$(call USE_ENABLE,LIB_FLAC,flac) \
+	$(call USE_ENABLE,LIB_FLAC,flac=$(STAGEDIR)) \
 	$(call USE_ENABLE,LIB_LIBMAD,mp3) \
 	$(call USE_ENABLE,LIB_FAAD2,aac) \
 	--disable-audiofile \
