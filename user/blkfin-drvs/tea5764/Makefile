@@ -15,7 +15,7 @@ endif
 
 obj-m := tea5764.o
 
-CFLAGS += -Wall -g -O2
+EXTRA_CFLAGS += -Wall -g -O2
 
 all: module
 

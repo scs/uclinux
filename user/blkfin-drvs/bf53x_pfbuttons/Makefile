@@ -15,7 +15,7 @@ endif
 
 obj-m := bf53x_pfbuttons.o
 
-CFLAGS += -Wall -g -O2
+EXTRA_CFLAGS += -Wall -g -O2
 
 all: module
 
