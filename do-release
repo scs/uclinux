@@ -5,4 +5,4 @@ find . -name ".gitignore" -or -name ".cdtproject" -or -name ".project" -or -name
 	rm -f "$i"
 done
 
-rm -f do-build do-release
+rm -f do-build do-release prune_dirs
