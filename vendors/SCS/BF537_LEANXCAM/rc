@@ -34,36 +34,36 @@ insmod /lib/modules/`uname -r`/bfdma.ko
 
 if test "`fw_printenv | grep ethaddr`" = ""
 then
-	echo -e "Fist-time-boot: ethaddr not yet defined in u-boot variables.\n"
+	echo ">>> Fist-time-boot: ethaddr not yet defined in u-boot variables. <<<"
 	ifconfig eth0 down
 	ifconfig eth0 hw ether 00:20:e3:23:00:00
-	if test -e /mnt/app/.config
+	if test -e /mnt/app/config
 	then
-		echo -e "Use settings from config file instead default.\n"
+		echo "Use settings from config file instead default."
 		# Use IP, GATEWAYIP, SERVERIP from configuration file. 
 		# Usefull for uclinux/uboot migration.
-		ipaddr=`grep "^IP" /mnt/app/.config | awk '{print $2}'`
-		gatewayip=`grep "^GATEWAYIP" /mnt/app/.config | awk '{print $2}'`
-		serverip=`grep "^SERVERIP" /mnt/app/.config | awk '{print $2}'`
+		ipaddr=`grep "^IP" /mnt/app/config | awk '{print $2}'`
+		gatewayip=`grep "^GATEWAYIP" /mnt/app/config | awk '{print $2}'`
+		serverip=`grep "^SERVERIP" /mnt/app/config | awk '{print $2}'`
 	fi
 
 	if test -z $ipaddr
 	then
 		ipaddr=192.168.11.10
 	else
-		echo -e "Use IP from config file: " $ipaddr "\n"
+		echo "Use IP from config file: " $ipaddr
 	fi
         if test -z $gatewayip
         then
                 gatewayip=192.168.11.1
         else
-                echo -e "Use GATEWAYIP from config file: " $gatewayip "\n"
+                echo "Use GATEWAYIP from config file: " $gatewayip
         fi
         if test -z $serverip
         then
                 serverip=192.168.11.2
         else
-                echo -e "Use SERVERIP from config file: " $serverip "\n"i
+                echo "Use SERVERIP from config file: " $serverip
         fi
 
 	ifconfig eth0 $ipaddr
