@@ -1,0 +1,144 @@
+#!/usr/bin/expect
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+    expect {
+        -re "Vendor/Product Selection.* (\[0-9]+). AnalogDevices.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+################################################################################
+
+        -re "Power Management support.*PM.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Kernel support for FDPIC ELF binaries.*BINFMT_ELF_FDPIC.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Enable ZFLAT support.*BINFMT_ZFLAT.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Watchdog Timer Support.*WATCHDOG.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Real Time Clock.*RTC_CLASS.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send "N\r"
+        }
+#######################################################################################
+
+        -re "Build ncurses.*LIB_NCURSES.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "boa.*USER_BOA_SRC_BOA.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "dhrystone.*USER_DHRYSTONE_DHRYSTONE.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "whetstone.*USER_WHETSTONE_WHETSTONE.*\\\[.*]" {
+            send "N\r"
+        }
+
+
+        -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "TWI LCD test program.*USER_BLACKFIN_TWILCDTEST.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "netperf test tool.*USER_NETPERF_TEST.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "strace.*USER_STRACE_STRACE.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "jpegview.*USER_JPEGVIEW_JPEGVIEW.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "ftp.*USER_FTP_FTP_FTP.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "mp3play.*USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "vplay.*USER_VPLAY_VPLAY.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "vrec.*USER_VPLAY_VREC.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "gdbserver.*USER_GDB.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Install ELF shared libraries.*INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
+            send  "N\r"
+        }
+
+        -re "Install FLAT shared libraries.*INSTALL_FLAT_SHARED_LIBS.*\\\[.*]" {
+            send  "N\r"
+        }
+
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}

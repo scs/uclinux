@@ -13,6 +13,9 @@ source  make_default_config.exp
 
 # Following make specific configuration for this case.
 
+cd $uclinux_path/testsuites
+source  make_mtd_config.exp
+
 cd $uclinux_path
 set timeout 300
 set baud_rate_done_flag 0
@@ -37,14 +40,6 @@ while 1 {
             send "Y\r"
         }
 
-        -re "YAFFS2 file system support.*YAFFS_FS.*\\\[.*]" {
-            send -s "Y\r"
-        }
-
-        -re "Direct char device access to MTD devices.*MTD_CHAR.*\\\[.*]" {
-            send -s "Y\r"
-        }
-
         -re "NAND Device Support.*MTD_NAND.*\\\[.*]" {
             send -s "Y\r"
         }
@@ -58,7 +53,15 @@ while 1 {
              } else {
                         send -s "\r"
              }
+        }
 
+       -re "NAND Flash device for BF537 STAMP board.*MTD_NAND_BFIN.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                        send -s "M\r"
+
+             } else {
+                        send -s "\r"
+             }
         }
 
         -re "Blackfin 527/536/537 on-chip mac support.*BFIN_MAC.*\\\[.*]" {
@@ -73,18 +76,17 @@ while 1 {
 
         }
 
+        -re "Support for generic platform NAND driver.*MTD_NAND_PLATFORM.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
         -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
             send -s "N\r"
         }
 
-        -re "mtd-utils.*USER_MTDUTILS.*\\\[.*]" {
+        -re "YAFFS2 file system support.*YAFFS_FS.*\\\[.*]" {
             send -s "Y\r"
         }
-
-        -re "eraseall.*USER_MTDUTILS_ERASEALL.*\\\[.*]" {
-            send -s "Y\r"
-        }
-
 
         "\\\(*) \\\[*]" {
             sleep .01

@@ -6,11 +6,6 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
 set HAVE_JFFS2_IMAGE 1
-set spi_board_type NORMAL
-
-if { $argc >= 2} {
-set spi_board_type [lindex $argv 1]
-}
 
 cd $uclinux_path/testsuites
 
@@ -19,6 +14,15 @@ step "Make config."
 source  make_default_config.exp
 
 # Following make specific configuration for this case.
+
+cd $uclinux_path/testsuites
+source  make_mtd_config.exp
+
+cd $uclinux_path/testsuites
+source  make_cut_fs_config.exp
+
+cd $uclinux_path/testsuites/jffs2
+source  make_spi_config.exp
 
 cd $uclinux_path
 set timeout 300
@@ -49,87 +53,8 @@ while 1 {
             send "Y\r"
         }
 
-        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Memory Technology Device .*MTD.* support.*MTD.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "MTD partitioning support.*MTD_PARTITIONS.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Direct char device access to MTD devices.*MTD_CHAR.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Caching block device access to MTD devices.*MTD_BLOCK.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Detect non-CFI AMD/JEDEC-compatible flash chips.*MTD_JEDECPROBE.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Flash chip driver advanced configuration options.*MTD_CFI_ADV_OPTIONS.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Specific CFI Flash geometry selection.*MTD_CFI_GEOMETRY.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Support 16-bit buswidth.*MTD_MAP_BANK_WIDTH_2.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Support 4-chip flash interleave.*MTD_CFI_I4.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Support for ST .*Advanced Architecture.* flash chips.*MTD_CFI_STAA.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Support for RAM chips in bus mapping.*MTD_RAM.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Support for ROM chips in bus mapping.*MTD_ROM.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Support non-linear mappings of flash chips.*MTD_COMPLEX_MAPPINGS.*\\\[.*]" {
-            send "Y\r"
-        }
-
         -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
             send "N\r"
-        }
-
-        -re "Support for AT45xxx DataFlash.*MTD_DATAFLASH.*\\\[.*]" {
-            if { $spi_board_type == "df" } {
-                send "Y\r"
-            } else {
-                send "N\r"
-            }
-        }
-        -re "Support most SPI Flash chips.*MTD_M25P80.*\\\[.*]" {
-            if { $spi_board_type == "NORMAL" } {
-                send "Y\r"
-            } else {
-                send "N\r"
-            }
-        }
-
-       -re "Use FAST_READ OPCode allowing SPI CLK <= 50MHz.*M25PXX_USE_FAST_READ.*\\\[.*]" {
-            if { $spi_board_type == "NORMAL" } {
-                send "Y\r"
-            } else {
-                send "N\r"
-            }
         }
 
         -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {
@@ -139,77 +64,8 @@ while 1 {
         -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
             send "Y\r"
         }
-
-        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "Sound card support.*SOUND.*\\\[.*]" {
-            send "N\r"
-        }
-###################################################################################
-###################################################################################
-
-        -re "mtd-utils.*USER_MTDUTILS.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "eraseall.*USER_MTDUTILS_ERASEALL.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "mkfs.jff2.*USER_MTDUTILS_MKFSJFFS2.*\\\[.*]" {
-            send "Y\r"
-        }
-
-#Default to select it, no other choice
-#        -re "Build libZ.*LIB_ZLIB.*\\\[.*]" {
-#            send "N\r"
-#        }
-#        -re "Build libpng.*LIB_LIBPNG.*\\\[.*]" {
-#            send "N\r"
-#        }
-#        -re "Build libjpeg.*LIB_LIBJPEG.*\\\[.*]" {
-#            send "N\r"
-#        }
-
-        -re "Build ncurses.*LIB_NCURSES.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "boa.*USER_BOA_SRC_BOA.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "dhrystone.*USER_DHRYSTONE_DHRYSTONE.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "whetstone.*USER_WHETSTONE_WHETSTONE.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "TWI LCD test program.*USER_BLACKFIN_TWILCDTEST.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "netperf test tool.*USER_NETPERF_TEST.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "strace.*USER_STRACE_STRACE.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "jpegview.*USER_JPEGVIEW_JPEGVIEW.*\\\[.*]" {
-            send "N\r"
-        }
-
-        "\\\(*) \\\[*]" {
+        
+         "\\\(*) \\\[*]" {
             sleep .01
             send "\r"
         }

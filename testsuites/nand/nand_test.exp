@@ -25,24 +25,6 @@ if { $board_type == "BF537-STAMP" } {
 incr case_num
 set timeout 5
 
-send -s "modprobe mtdchar\r"
-while 1 {
-    expect {
-        -re ">" {
-                case_pass $case_num
-                break;
-        }
-
-        timeout {
-                case_fail $case_num
-		exit
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-
 send -s "modprobe bfin_nand\r"
 while 1 {
     expect {
@@ -50,6 +32,11 @@ while 1 {
 		expect ">"
                 case_pass $case_num
                 break;
+        }
+
+        "No | error" {
+                case_fail $case_num
+                exit
         }
 
         timeout {
@@ -315,6 +302,58 @@ while 1 {
                 break
         }
     }
+}
+expect  -re $kernel_prompt
+
+if { $board_type == "BF537-STAMP" } {
+incr case_num
+set timeout 5
+
+send -s "rmmod bfin_nand\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+                expect ">"
+                case_pass $case_num
+                break;
+        }
+
+        "No | error" {
+                case_fail $case_num
+                exit
+        }
+
+        timeout {
+                case_fail $case_num
+                exit
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+
+send -s "modprobe bfin_nand\r"
+while 1 {
+    expect {
+        -re "NAND device.*Creating .* MTD partitions" {
+                expect ">"
+                case_pass $case_num
+                break;
+        }
+
+        "No | error" {
+                case_fail $case_num
+                exit
+        }
+
+        timeout {
+                case_fail $case_num
+                exit
+        }
+    }
+}
+
 }
 
 send_log "\n"

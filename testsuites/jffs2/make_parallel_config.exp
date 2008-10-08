@@ -1,0 +1,99 @@
+#!/usr/bin/expect
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+    expect {
+        -re "Vendor/Product Selection.* (\[0-9]+). AnalogDevices.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+       -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Detect flash chips by Common Flash Interface \\\(CFI\\\) probe \\\(MTD_CFI\\\).*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        -re "Support for AMD/Fujitsu flash chips \\\(MTD_CFI_AMDSTD\\\).*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Support for Intel/Sharp flash chips.*MTD_CFI_INTELEXT.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        -re "Support for RAM chips in bus mapping.*MTD_RAM.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        -re "Support for ROM chips in bus mapping.*MTD_ROM.*\\\[.*]" {
+            send -s "Y\r"
+        }
+##############################################################################
+
+        -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        -re "Physical start address of flash mapping.*MTD_PHYSMAP_START.*\\\[.*]" {
+            send -s "\r"
+        }
+
+        -re "Physical length of flash mapping.*MTD_PHYSMAP_LEN.*\\\[.*]" {
+            send -s "\r"
+        }
+
+        -re "Bank width in octets.*MTD_PHYSMAP_BANKWIDTH.*\\\[.*]" {
+            send -s "\r"
+        }
+##############################################################################
+
+        -re "Blackfin BF561 EZKIT Flash Chip Support \\\(MTD_EZKIT561\\\).*\\\[.*]" {
+            if { $board_type == "BF561-EZKIT" } {
+                send -s "Y\r"
+            } else {
+                send -s "N\r"
+            }
+        }
+
+        -re "Blackfin BF533-STAMP Flash Chip Support.*MTD_BFIN_ASYNC.*\\\[.*]" {
+            if { $board_type == "BF533-STAMP" } {
+                send -s "Y\r"
+            } else {
+                send -s "N\r"
+            }
+        }
+
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
