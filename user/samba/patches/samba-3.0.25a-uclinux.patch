@@ -62,11 +62,12 @@
  }	
 --- samba-3.0.25a/source/client/smbmount.c
 +++ samba-3.0.25a/source/client/smbmount.c
-@@ -21,6 +21,7 @@
+@@ -21,6 +21,8 @@
  #include "includes.h"
  
  #include <mntent.h>
 +#define __kernel_key_t __smb_____kernel_key_t
++#define _LINUX_TIME_H
  #include <asm/types.h>
  #include <linux/smb_fs.h>
  
@@ -217,12 +218,13 @@
  	load_case_tables();
 --- samba-3.0.25a/source/client/smbumount.c
 +++ samba-3.0.25a/source/client/smbumount.c
-@@ -10,7 +10,7 @@
+@@ -10,7 +10,8 @@
  #include "includes.h"
  
  #include <mntent.h>
 -
 +#define __kernel_key_t __smb_____kernel_key_t
++#define _LINUX_TIME_H
  #include <asm/types.h>
  #include <asm/posix_types.h>
  #include <linux/smb.h>

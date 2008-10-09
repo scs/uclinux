@@ -22,6 +22,7 @@
 
 #include <mntent.h>
 #define __kernel_key_t __smb_____kernel_key_t
+#define _LINUX_TIME_H
 #include <asm/types.h>
 #include <linux/smb_fs.h>
 
