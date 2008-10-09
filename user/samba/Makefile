@@ -8,4 +8,5 @@ clean:
 	$(MAKE) -C $(VER)/source clean
 romfs:
 	$(MAKE) -C $(VER)/source romfs
+	mkdir -p $(ROMFSDIR)/etc/config
 	echo "[global]" > $(ROMFSDIR)/etc/config/smb.conf
