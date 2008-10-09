@@ -1,4 +1,4 @@
-VER = live.2008.02.08
+VER = live.2008.10.07
 
 all: $(VER)/Makefile
 	$(MAKE) -C $(VER)
