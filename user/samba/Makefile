@@ -1,9 +1,11 @@
+VER = samba-3.0.25a
+
 FLTFLAGS = -s 0x8000
 
 all:
-	$(MAKE) -C source
+	$(MAKE) -C $(VER)/source
 clean:
-	$(MAKE) -C source clean
+	$(MAKE) -C $(VER)/source clean
 romfs:
-	$(MAKE) -C source romfs
+	$(MAKE) -C $(VER)/source romfs
 	echo "[global]" > $(ROMFSDIR)/etc/config/smb.conf
