@@ -1,0 +1,1636 @@
+#ifndef __NVIDIA_REGS_H__
+#define __NVIDIA_REGS_H__
+
+
+/* PMC */
+#define PMC              0x00000000
+
+
+
+/* PBUS */
+#define PBUS             0x00001000
+
+
+
+/* PFIFO */
+#define PFIFO            0x00002000
+
+#define PFIFO_DELAY_0                        0x00002040
+#define   PFIFO_DELAY_0_WAIT_RETRY_MSK                 0x000003FF
+
+#define PFIFO_DMA_TIMESLICE                  0x00002044
+#define   PFIFO_DMA_TIMESLICE_SELECT_MSK               0x0001FFFF
+#define   PFIFO_DMA_TIMESLICE_SELECT_1                 0x00000000
+#define   PFIFO_DMA_TIMESLICE_SELECT_16K               0x00003FFF
+#define   PFIFO_DMA_TIMESLICE_SELECT_32K               0x00007FFF
+#define   PFIFO_DMA_TIMESLICE_SELECT_64K               0x0000FFFF
+#define   PFIFO_DMA_TIMESLICE_SELECT_128K              0x0001FFFF
+#define   PFIFO_DMA_TIMESLICE_TIMEOUT_DISABLED         0x00000000
+#define   PFIFO_DMA_TIMESLICE_TIMEOUT_ENABLED          0x01000000
+
+#define PFIFO_PIO_TIMESLICE                  0x00002048
+#define   PFIFO_PIO_TIMESLICE_SELECT_MSK               0x0001FFFF
+#define   PFIFO_PIO_TIMESLICE_SELECT_1                 0x00000000
+#define   PFIFO_PIO_TIMESLICE_SELECT_16K               0x00003FFF
+#define   PFIFO_PIO_TIMESLICE_SELECT_32K               0x00007FFF
+#define   PFIFO_PIO_TIMESLICE_SELECT_64K               0x0000FFFF
+#define   PFIFO_PIO_TIMESLICE_SELECT_128K              0x0001FFFF
+#define   PFIFO_PIO_TIMESLICE_TIMEOUT_DISABLED         0x00000000
+#define   PFIFO_PIO_TIMESLICE_TIMEOUT_ENABLED          0x01000000
+
+#define PFIFO_TIMESLICE                      0x0000204C
+#define   PFIFO_TIMESLICE_TIMER_MSK                    0x0003FFFF
+
+#define PFIFO_NEXT_CHANNEL                   0x00002050
+#define   PFIFO_NEXT_CHANNEL_CHID_MSK                  0x0000001F
+#define   PFIFO_NEXT_CHANNEL_MODE_PIO                  0x00000000
+#define   PFIFO_NEXT_CHANNEL_MODE_DMA                  0x00000100
+#define   PFIFO_NEXT_CHANNEL_SWITCH_NOT_PENDING        0x00000000
+#define   PFIFO_NEXT_CHANNEL_SWITCH_PENDING            0x00001000
+
+#define PFIFO_DEBUG_0                        0x00002080
+#define   PFIFO_DEBUG_0_CACHE_ERROR0_NOT_PENDING       0x00000000
+#define   PFIFO_DEBUG_0_CACHE_ERROR0_PENDING           0x00000001
+#define   PFIFO_DEBUG_0_CACHE_ERROR1_NOT_PENDING       0x00000000
+#define   PFIFO_DEBUG_0_CACHE_ERROR1_PENDING           0x00000010
+
+#define PFIFO_INTR                           0x00002100
+#define   PFIFO_INTR_RESET                             0xFFFFFFFF
+#define   PFIFO_INTR_CACHE_ERROR_NOT_PENDING           0x00000000
+#define   PFIFO_INTR_CACHE_ERROR_PENDING               0x00000001
+#define   PFIFO_INTR_CACHE_ERROR_RESET                 0x00000001
+#define   PFIFO_INTR_RUNOUT_NOT_PENDING                0x00000000
+#define   PFIFO_INTR_RUNOUT_PENDING                    0x00000010
+#define   PFIFO_INTR_RUNOUT_RESET                      0x00000010
+#define   PFIFO_INTR_RUNOUT_OVERFLOW_NOT_PENDING       0x00000000
+#define   PFIFO_INTR_RUNOUT_OVERFLOW_PENDING           0x00000100
+#define   PFIFO_INTR_RUNOUT_OVERFLOW_RESET             0x00000100
+#define   PFIFO_INTR_DMA_PUSHER_NOT_PENDING            0x00000000
+#define   PFIFO_INTR_DMA_PUSHER_PENDING                0x00001000
+#define   PFIFO_INTR_DMA_PUSHER_RESET                  0x00001000
+#define   PFIFO_INTR_DMA_PT_NOT_PENDING                0x00000000
+#define   PFIFO_INTR_DMA_PT_PENDING                    0x00010000
+#define   PFIFO_INTR_DMA_PT_RESET                      0x00010000
+#define   PFIFO_INTR_SEMAPHORE_NOT_PENDING             0x00000000
+#define   PFIFO_INTR_SEMAPHORE_PENDING                 0x00100000
+#define   PFIFO_INTR_SEMAPHORE_RESET                   0x00100000
+#define   PFIFO_INTR_ACQUIRE_TIMEOUT_NOT_PENDING       0x00000000
+#define   PFIFO_INTR_ACQUIRE_TIMEOUT_PENDING           0x01000000
+#define   PFIFO_INTR_ACQUIRE_TIMEOUT_RESET             0x01000000
+
+#define PFIFO_INTR_EN                        0x00002140
+#define   PFIFO_INTR_EN_DISABLED                       0x00000000
+#define   PFIFO_INTR_EN_CACHE_ERROR_DISABLED           0x00000000
+#define   PFIFO_INTR_EN_CACHE_ERROR_ENABLED            0x00000001
+#define   PFIFO_INTR_EN_RUNOUT_DISABLED                0x00000000
+#define   PFIFO_INTR_EN_RUNOUT_ENABLED                 0x00000010
+#define   PFIFO_INTR_EN_RUNOUT_OVERFLOW_DISABLED       0x00000000
+#define   PFIFO_INTR_EN_RUNOUT_OVERFLOW_ENABLED        0x00000100
+#define   PFIFO_INTR_EN_DMA_PUSHER_DISABLED            0x00000000
+#define   PFIFO_INTR_EN_DMA_PUSHER_ENABLED             0x00001000
+#define   PFIFO_INTR_EN_DMA_PT_DISABLED                0x00000000
+#define   PFIFO_INTR_EN_DMA_PT_ENABLED                 0x00010000
+#define   PFIFO_INTR_EN_SEMAPHORE_DISABLED             0x00000000
+#define   PFIFO_INTR_EN_SEMAPHORE_ENABLED              0x00100000
+#define   PFIFO_INTR_EN_ACQUIRE_TIMEOUT_DISABLED       0x00000000
+#define   PFIFO_INTR_EN_ACQUIRE_TIMEOUT_ENABLED        0x01000000
+
+#define PFIFO_RAMHT                          0x00002210
+#define   PFIFO_RAMHT_BASE_ADDRESS_MSK                 0x000001F0
+#define   PFIFO_RAMHT_SIZE_4K	                         0x00000000
+#define   PFIFO_RAMHT_SIZE_8K	                         0x00010000
+#define   PFIFO_RAMHT_SIZE_16K                         0x00020000
+#define   PFIFO_RAMHT_SIZE_32K                         0x00030000
+#define   PFIFO_RAMHT_SEARCH_16                        0x00000000
+#define   PFIFO_RAMHT_SEARCH_32                        0x01000000
+#define   PFIFO_RAMHT_SEARCH_64                        0x02000000
+#define   PFIFO_RAMHT_SEARCH_128                       0x03000000
+
+#define PFIFO_RAMFC                          0x00002214
+#define   PFIFO_RAMFC_BASE_ADDRESS_MSK                 0x000001F8
+
+#define PFIFO_RAMRO	                         0x00002218
+#define   PFIFO_RAMRO_BASE_ADDRESS_MSK                 0x000001FE
+#define   PFIFO_RAMRO_BASE_ADDRESS_11800               0x00000118
+#define   PFIFO_RAMRO_BASE_ADDRESS_11400               0x00000114
+#define   PFIFO_RAMRO_BASE_ADDRESS_11200               0x00000112
+#define   PFIFO_RAMRO_BASE_ADDRESS_12000               0x00000120
+#define   PFIFO_RAMRO_SIZE_512                         0x00000000
+#define   PFIFO_RAMRO_SIZE_8K                          0x00010000
+
+#define PFIFO_CACHES                         0x00002500
+#define   PFIFO_CACHES_REASSIGN_DISABLED               0x00000000
+#define   PFIFO_CACHES_REASSIGN_ENABLED                0x00000001
+#define   PFIFO_CACHES_DMA_SUSPEND_IDLE                0x00000000
+#define   PFIFO_CACHES_DMA_SUSPEND_BUSY                0x00000010
+
+#define PFIFO_MODE                           0x00002504
+#define   PFIFO_MODE_CHANNEL_0_PIO                     0x00000000
+#define   PFIFO_MODE_CHANNEL_0_DMA                     0x00000001
+#define   PFIFO_MODE_CHANNEL_1_PIO                     0x00000000
+#define   PFIFO_MODE_CHANNEL_1_DMA	                    0x00000002
+#define   PFIFO_MODE_CHANNEL_2_PIO                     0x00000000
+#define   PFIFO_MODE_CHANNEL_2_DMA                     0x00000004
+#define   PFIFO_MODE_CHANNEL_3_PIO	                    0x00000000
+#define   PFIFO_MODE_CHANNEL_3_DMA                     0x00000008
+#define   PFIFO_MODE_CHANNEL_4_PIO	                    0x00000000
+#define   PFIFO_MODE_CHANNEL_4_DMA	                    0x00000010
+#define   PFIFO_MODE_CHANNEL_5_PIO                     0x00000000
+#define   PFIFO_MODE_CHANNEL_5_DMA                     0x00000020
+#define   PFIFO_MODE_CHANNEL_6_PIO                     0x00000000
+#define   PFIFO_MODE_CHANNEL_6_DMA	                    0x00000040
+#define   PFIFO_MODE_CHANNEL_7_PIO                     0x00000000
+#define   PFIFO_MODE_CHANNEL_7_DMA                     0x00000080
+
+#define PFIFO_DMA                            0x00002508
+#define   PFIFO_DMA_CHANNEL_0_NOT_PENDING              0x00000000
+#define   PFIFO_DMA_CHANNEL_0_PENDING                  0x00000001
+#define   PFIFO_DMA_CHANNEL_1_NOT_PENDING              0x00000000
+#define   PFIFO_DMA_CHANNEL_1_PENDING                  0x00000002
+#define   PFIFO_DMA_CHANNEL_2_NOT_PENDING              0x00000000
+#define   PFIFO_DMA_CHANNEL_2_PENDING                  0x00000004
+#define   PFIFO_DMA_CHANNEL_3_NOT_PENDING              0x00000000
+#define   PFIFO_DMA_CHANNEL_3_PENDING                  0x00000008
+#define   PFIFO_DMA_CHANNEL_4_NOT_PENDING              0x00000000
+#define   PFIFO_DMA_CHANNEL_4_PENDING                  0x00000010
+#define   PFIFO_DMA_CHANNEL_5_NOT_PENDING              0x00000000
+#define   PFIFO_DMA_CHANNEL_5_PENDING                  0x00000020
+#define   PFIFO_DMA_CHANNEL_6_NOT_PENDING              0x00000000
+#define   PFIFO_DMA_CHANNEL_6_PENDING                  0x00000040
+#define   PFIFO_DMA_CHANNEL_7_NOT_PENDING              0x00000000
+#define   PFIFO_DMA_CHANNEL_7_PENDING                  0x00000080
+
+#define PFIFO_SIZE                           0x0000250C
+#define   PFIFO_SIZE_CHANNEL_0_124_BYTES               0x00000000
+#define   PFIFO_SIZE_CHANNEL_0_512_BYTES               0x00000001
+#define   PFIFO_SIZE_CHANNEL_1_124_BYTES               0x00000000
+#define   PFIFO_SIZE_CHANNEL_1_512_BYTES               0x00000002
+#define   PFIFO_SIZE_CHANNEL_2_124_BYTES               0x00000000
+#define   PFIFO_SIZE_CHANNEL_2_512_BYTES               0x00000004
+#define   PFIFO_SIZE_CHANNEL_3_124_BYTES               0x00000000
+#define   PFIFO_SIZE_CHANNEL_3_512_BYTES               0x00000008
+#define   PFIFO_SIZE_CHANNEL_4_124_BYTES               0x00000000
+#define   PFIFO_SIZE_CHANNEL_4_512_BYTES               0x00000010
+#define   PFIFO_SIZE_CHANNEL_5_124_BYTES               0x00000000
+#define   PFIFO_SIZE_CHANNEL_5_512_BYTES               0x00000020
+#define   PFIFO_SIZE_CHANNEL_6_124_BYTES               0x00000000
+#define   PFIFO_SIZE_CHANNEL_6_512_BYTES               0x00000040
+#define   PFIFO_SIZE_CHANNEL_7_124_BYTES               0x00000000
+#define   PFIFO_SIZE_CHANNEL_7_512_BYTES               0x00000080
+
+#define PFIFO_CACHE0_PUSH0                   0x00003000
+#define   PFIFO_CACHE0_PUSH0_ACCESS_DISABLED	          0x00000000
+#define   PFIFO_CACHE0_PUSH0_ACCESS_ENABLED            0x00000001
+
+#define PFIFO_CACHE1_PUSH0                   0x00003200
+#define   PFIFO_CACHE1_PUSH0_ACCESS_DISABLED	          0x00000000
+#define   PFIFO_CACHE1_PUSH0_ACCESS_ENABLED            0x00000001
+
+#define PFIFO_CACHE0_PUSH1                   0x00003004
+#define   PFIFO_CACHE0_PUSH1_CHID_MSK                  0x0000001F
+
+#define PFIFO_CACHE1_PUSH1                   0x00003204
+#define   PFIFO_CACHE1_PUSH1_CHID_MSK                  0x0000001F
+#define   PFIFO_CACHE1_PUSH1_MODE_PIO                  0x00000000
+#define   PFIFO_CACHE1_PUSH1_MODE_DMA                  0x00000100
+
+#define PFIFO_CACHE1_DMA_PUSH                0x00003220
+#define   PFIFO_CACHE1_DMA_PUSH_ACCESS_DISABLED        0x00000000
+#define   PFIFO_CACHE1_DMA_PUSH_ACCESS_ENABLED         0x00000001
+#define   PFIFO_CACHE1_DMA_PUSH_STATE_IDLE             0x00000000
+#define   PFIFO_CACHE1_DMA_PUSH_STATE_BUSY             0x00000010
+#define   PFIFO_CACHE1_DMA_PUSH_BUFFER_NOT_EMPTY       0x00000000
+#define   PFIFO_CACHE1_DMA_PUSH_BUFFER_EMPTY           0x00000100
+#define   PFIFO_CACHE1_DMA_PUSH_STATUS_RUNNING         0x00000000
+#define   PFIFO_CACHE1_DMA_PUSH_STATUS_SUSPENDED       0x00001000
+
+#define PFIFO_CACHE1_DMA_FETCH               0x00003224
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_8_BYTES          0x00000000
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_16_BYTES         0x00000008
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_24_BYTES         0x00000010
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_32_BYTES         0x00000018
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_40_BYTES         0x00000020
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_48_BYTES         0x00000028
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_56_BYTES         0x00000030
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_64_BYTES         0x00000038
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_72_BYTES         0x00000040
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_80_BYTES         0x00000048
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_88_BYTES         0x00000050
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_96_BYTES         0x00000058
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_104_BYTES        0x00000060
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_112_BYTES        0x00000068
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_120_BYTES        0x00000070
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES        0x00000078
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_136_BYTES        0x00000080
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_144_BYTES        0x00000088
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_152_BYTES        0x00000090
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_160_BYTES        0x00000098
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_168_BYTES        0x000000A0
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_176_BYTES        0x000000A8
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_184_BYTES        0x000000B0
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_192_BYTES        0x000000B8
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_200_BYTES        0x000000C0
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_208_BYTES        0x000000C8
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_216_BYTES        0x000000D0
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_224_BYTES        0x000000D8
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_232_BYTES        0x000000E0
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_240_BYTES        0x000000E8
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_248_BYTES        0x000000F0
+#define   PFIFO_CACHE1_DMA_FETCH_TRIG_256_BYTES        0x000000F8
+#define   PFIFO_CACHE1_DMA_FETCH_SIZE_32_BYTES         0x00000000
+#define   PFIFO_CACHE1_DMA_FETCH_SIZE_64_BYTES         0x00002000
+#define   PFIFO_CACHE1_DMA_FETCH_SIZE_96_BYTES         0x00004000
+#define   PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES        0x00006000
+#define   PFIFO_CACHE1_DMA_FETCH_SIZE_160_BYTES        0x00008000
+#define   PFIFO_CACHE1_DMA_FETCH_SIZE_192_BYTES        0x0000A000
+#define   PFIFO_CACHE1_DMA_FETCH_SIZE_224_BYTES        0x0000C000
+#define   PFIFO_CACHE1_DMA_FETCH_SIZE_256_BYTES        0x0000E000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_0            0x00000000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_1            0x00010000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_2            0x00020000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_3            0x00030000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_4            0x00040000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_5            0x00050000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_6            0x00060000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_7            0x00070000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8            0x00080000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_9            0x00090000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_10           0x000A0000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_11           0x000B0000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_12	          0x000C0000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_13	          0x000D0000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_14	          0x000E0000
+#define   PFIFO_CACHE1_DMA_FETCH_MAX_REQS_15           0x000F0000
+#define   PFIFO_CACHE1_LITTLE_ENDIAN                   0x00000000
+#define   PFIFO_CACHE1_BIG_ENDIAN                      0x80000000
+
+#define PFIFO_CACHE1_DMA_PUT                 0x00003240
+
+#define PFIFO_CACHE1_DMA_GET                 0x00003244
+
+#define PFIFO_CACHE1_REF	                    0x00003248
+
+#define PFIFO_CACHE1_DMA_SUBROUTINE          0x0000324C
+#define   PFIFO_CACHE1_DMA_SUBROUTINE_OFFSET_MSK       0x1FFFFFFC
+#define   PFIFO_CACHE1_DMA_SUBROUTINE_STATE_INACTIVE   0x00000000
+#define   PFIFO_CACHE1_DMA_SUBROUTINE_STATE_ACTIVE     0x00000001
+
+#define PFIFO_CACHE1_DMA_DCOUNT              0x000032A0
+#define   PFIFO_CACHE1_DMA_DCOUNT_VALUE_MSK            0x00001FFC
+
+#define PFIFO_CACHE1_DMA_GET_JMP_SHADOW      0x000032A4
+
+#define PFIFO_CACHE1_DMA_RSVD_SHADOW         0x000032A8
+
+#define PFIFO_CACHE1_DMA_DATA_SHADOW         0x000032AC
+
+#define PFIFO_CACHE1_DMA_STATE               0x00003228
+#define   PFIFO_CACHE1_DMA_STATE_METHOD_TYPE_INC       0x00000000
+#define   PFIFO_CACHE1_DMA_STATE_METHOD_TYPE_NON_INC   0x00000001
+#define   PFIFO_CACHE1_DMA_STATE_METHOD_MSK            0x00001FFC
+#define   PFIFO_CACHE1_DMA_STATE_SUBCHANNEL            0x0000E000
+#define   PFIFO_CACHE1_DMA_STATE_METHOD_COUNT_MSK      0x1FFC0000
+#define   PFIFO_CACHE1_DMA_STATE_ERROR_NONE            0x00000000
+#define   PFIFO_CACHE1_DMA_STATE_ERROR_CALL            0x20000000
+#define   PFIFO_CACHE1_DMA_STATE_ERROR_NON_CACHE       0x40000000
+#define   PFIFO_CACHE1_DMA_STATE_ERROR_RETURN          0x60000000
+#define   PFIFO_CACHE1_DMA_STATE_ERROR_RESERVED_CMD    0x80000000
+#define   PFIFO_CACHE1_DMA_STATE_ERROR_PROTECTION	     0xC0000000
+
+#define PFIFO_CACHE1_DMA_INSTANCE            0x0000322C
+
+#define PFIFO_CACHE1_DMA_CTL                 0x00003230
+#define   PFIFO_CACHE1_DMA_CTL_ADJUST_MSK              0x00000FFC
+#define   PFIFO_CACHE1_DMA_CTL_PAGE_TABLE_PRESENT 	0x00001000
+#define   PFIFO_CACHE1_DMA_CTL_PAGE_ENTRY_LINEAR       0x00002000
+#define   PFIFO_CACHE1_DMA_CTL_TARGET_NODE_NVM         0x00000000
+#define   PFIFO_CACHE1_DMA_CTL_TARGET_NODE_PCI         0x00020000
+#define   PFIFO_CACHE1_DMA_CTL_TARGET_NODE_AGP         0x00030000
+#define   PFIFO_CACHE1_DMA_CTL_AT_INFO_INVALID         0x00000000
+#define   PFIFO_CACHE1_DMA_CTL_AT_INFO_VALID           0x80000000
+
+#define PFIFO_CACHE1_DMA_LIMIT               0x00003234
+
+#define PFIFO_CACHE1_DMA_TLB_TAG             0x00003238
+#define   PFIFO_CACHE1_DMA_TLB_TAG_ADDRESS_MSK         0x1FFFF000
+#define   PFIFO_CACHE1_DMA_TLB_TAG_STATE_INVALID       0x00000000
+#define   PFIFO_CACHE1_DMA_TLB_TAG_STATE_VALID         0x00000001
+
+#define PFIFO_CACHE1_DMA_TLB_PTE             0x0000323C
+#define   PFIFO_CACHE1_DMA_TLB_PTE_ADDRESS_MSK         0xFFFFF000
+
+#define PFIFO_CACHE0_PULL0                   0x00003050
+#define   PFIFO_CACHE0_PULL0_ACCESS_DISABLED	          0x00000000
+#define   PFIFO_CACHE0_PULL0_ACCESS_ENABLED            0x00000001
+#define   PFIFO_CACHE0_PULL0_HASH_SUCCEEDED            0x00000000
+#define   PFIFO_CACHE0_PULL0_HASH_FAILED               0x00000010
+#define   PFIFO_CACHE0_PULL0_DEVICE_HARDWARE	          0x00000000
+#define   PFIFO_CACHE0_PULL0_DEVICE_SOFTWARE	          0x00000100
+#define   PFIFO_CACHE0_PULL0_HASH_STATE_IDLE	          0x00000000
+#define   PFIFO_CACHE0_PULL0_HASH_STATE_BUSY	          0x00001000
+
+#define PFIFO_CACHE1_PULL0                   0x00003250
+#define   PFIFO_CACHE1_PULL0_ACCESS_DISABLED	          0x00000000
+#define   PFIFO_CACHE1_PULL0_ACCESS_ENABLED            0x00000001
+#define   PFIFO_CACHE1_PULL0_HASH_SUCCEEDED            0x00000000
+#define   PFIFO_CACHE1_PULL0_HASH_FAILED               0x00000010
+#define   PFIFO_CACHE1_PULL0_DEVICE_HARDWARE	          0x00000000
+#define   PFIFO_CACHE1_PULL0_DEVICE_SOFTWARE           0x00000100
+#define   PFIFO_CACHE1_PULL0_HASH_STATE_IDLE           0x00000000
+#define   PFIFO_CACHE1_PULL0_HASH_STATE_BUSY           0x00001000
+#define   PFIFO_CACHE1_PULL0_ACQUIRE_STATE_IDLE        0x00000000
+#define   PFIFO_CACHE1_PULL0_ACQUIRE_STATE_BUSY        0x00010000
+#define   PFIFO_CACHE1_PULL0_SEMAPHORE_NO_ERROR        0x00000000
+#define   PFIFO_CACHE1_PULL0_SEMAPHORE_BAD_ARG         0x00100000
+#define   PFIFO_CACHE1_PULL0_SEMAPHORE_ISTATE          0x00200000
+
+#define PFIFO_CACHE0_PULL1                   0x00003054
+#define   PFIFO_CACHE0_PULL1_ENGINE_SW                 0x00000000
+#define   PFIFO_CACHE0_PULL1_ENGINE_GRAPHICS	          0x00000001
+#define   PFIFO_CACHE0_PULL1_ENGINE_DVD	               0x00000002
+
+#define PFIFO_CACHE1_PULL1                   0x00003254
+#define   PFIFO_CACHE1_PULL1_ENGINE_SW                 0x00000000
+#define   PFIFO_CACHE1_PULL1_ENGINE_GRAPHICS	          0x00000001
+#define   PFIFO_CACHE1_PULL1_ENGINE_DVD	               0x00000002
+
+#define PFIFO_CACHE1_PULL1_ACQUIRE           0x00000010
+#define   PFIFO_CACHE1_PULL1_ACQUIRE_INACTIVE          0x00000000
+#define   PFIFO_CACHE1_PULL1_ACQUIRE_ACTIVE            0x00000010
+
+#define PFIFO_CACHE1_PULL1_SEM_TARGET_NODE   0x00030000
+#define   PFIFO_CACHE1_PULL1_SEM_TARGET_NODE_NVM       0x00000000
+#define   PFIFO_CACHE1_PULL1_SEM_TARGET_NODE_PCI       0x00020000
+#define   PFIFO_CACHE1_PULL1_SEM_TARGET_NODE_AGP       0x00030000
+
+#define PFIFO_CACHE0_HASH                    0x00003058
+#define   PFIFO_CACHE0_HASH_INSTANCE_MSK               0x0000FFFF
+
+#define PFIFO_CACHE1_HASH                    0x00003258
+#define   PFIFO_CACHE1_HASH_INSTANCE_MSK               0x0000FFFF
+
+#define PFIFO_CACHE1_ACQUIRE_0               0x00003260
+
+#define PFIFO_CACHE1_ACQUIRE_1               0x00003264
+
+#define PFIFO_CACHE1_ACQUIRE_2               0x00003268
+
+#define PFIFO_CACHE1_SEMAPHORE               0x0000326C
+#define   PFIFO_CACHE1_SEMAPHORE_CTXDMA_INVALID        0x00000000
+#define   PFIFO_CACHE1_SEMAPHORE_CTXDMA_VALID          0x00000001
+#define   PFIFO_CACHE1_SEMAPHORE_OFFSET_MSK            0x00000FFC
+#define   PFIFO_CACHE1_SEMAPHORE_PAGE_ADDRESS_MSK      0xFFFFF000
+
+#define PFIFO_CACHE0_STATUS                  0x00003014
+#define   PFIFO_CACHE0_STATUS_LOW_MARK_NOT_EMPTY       0x00000000
+#define   PFIFO_CACHE0_STATUS_LOW_MARK_EMPTY	          0x00000010
+#define   PFIFO_CACHE0_STATUS_HIGH_MARK_NOT_FULL       0x00000000
+#define   PFIFO_CACHE0_STATUS_HIGH_MARK_FULL           0x00000100
+
+#define PFIFO_CACHE1_STATUS                  0x00003214
+#define   PFIFO_CACHE1_STATUS_LOW_MARK_NOT_EMPTY       0x00000000
+#define   PFIFO_CACHE1_STATUS_LOW_MARK_EMPTY           0x00000010
+#define   PFIFO_CACHE1_STATUS_HIGH_MARK_NOT_FULL       0x00000000
+#define   PFIFO_CACHE1_STATUS_HIGH_MARK_FULL           0x00000100
+
+#define PFIFO_CACHE1_STATUS1                 0x00003218
+#define   PFIFO_CACHE1_STATUS1_RANOUT_FALSE            0x00000000
+#define   PFIFO_CACHE1_STATUS1_RANOUT_TRUE             0x00000001
+
+#define PFIFO_CACHE0_PUT	                    0x00003010
+
+#define PFIFO_CACHE1_PUT	                    0x00003210
+
+#define PFIFO_CACHE0_GET                     0x00003070
+
+#define PFIFO_CACHE1_GET					0x00003270
+
+#define PFIFO_CACHE0_ENGINE                  0x00003080
+#define   PFIFO_CACHE0_ENGINE_0_SW                     0x00000000
+#define   PFIFO_CACHE0_ENGINE_0_GRAPHICS               0x00000001
+#define   PFIFO_CACHE0_ENGINE_0_DVD                    0x00000002
+#define   PFIFO_CACHE0_ENGINE_1_SW	                    0x00000000
+#define   PFIFO_CACHE0_ENGINE_1_GRAPHICS               0x00000010
+#define   PFIFO_CACHE0_ENGINE_1_DVD                    0x00000020
+#define   PFIFO_CACHE0_ENGINE_2_SW	                    0x00000000
+#define   PFIFO_CACHE0_ENGINE_2_GRAPHICS               0x00000100
+#define   PFIFO_CACHE0_ENGINE_2_DVD                    0x00000200
+#define   PFIFO_CACHE0_ENGINE_3_SW                     0x00000000
+#define   PFIFO_CACHE0_ENGINE_3_GRAPHICS               0x00001000
+#define   PFIFO_CACHE0_ENGINE_3_DVD                    0x00002000
+#define   PFIFO_CACHE0_ENGINE_4_SW                     0x00000000
+#define   PFIFO_CACHE0_ENGINE_4_GRAPHICS               0x00010000
+#define   PFIFO_CACHE0_ENGINE_4_DVD                    0x00020000
+#define   PFIFO_CACHE0_ENGINE_5_SW                     0x00000000
+#define   PFIFO_CACHE0_ENGINE_5_GRAPHICS               0x00100000
+#define   PFIFO_CACHE0_ENGINE_5_DVD                    0x00200000
+#define   PFIFO_CACHE0_ENGINE_6_SW                     0x00000000
+#define   PFIFO_CACHE0_ENGINE_6_GRAPHICS               0x01000000
+#define   PFIFO_CACHE0_ENGINE_6_DVD                    0x02000000
+#define   PFIFO_CACHE0_ENGINE_7_SW                     0x00000000
+#define   PFIFO_CACHE0_ENGINE_7_GRAPHICS               0x10000000
+#define   PFIFO_CACHE0_ENGINE_7_DVD                    0x20000000
+
+#define PFIFO_CACHE1_ENGINE                  0x00003280
+#define   PFIFO_CACHE1_ENGINE_0_SW	                    0x00000000
+#define   PFIFO_CACHE1_ENGINE_0_GRAPHICS               0x00000001
+#define   PFIFO_CACHE1_ENGINE_0_DVD                    0x00000002
+#define   PFIFO_CACHE1_ENGINE_1_SW	                    0x00000000
+#define   PFIFO_CACHE1_ENGINE_1_GRAPHICS               0x00000010
+#define   PFIFO_CACHE1_ENGINE_1_DVD                    0x00000020
+#define   PFIFO_CACHE1_ENGINE_2_SW	                    0x00000000
+#define   PFIFO_CACHE1_ENGINE_2_GRAPHICS               0x00000100
+#define   PFIFO_CACHE1_ENGINE_2_DVD                    0x00000200
+#define   PFIFO_CACHE1_ENGINE_3_SW                     0x00000000
+#define   PFIFO_CACHE1_ENGINE_3_GRAPHICS               0x00001000
+#define   PFIFO_CACHE1_ENGINE_3_DVD                    0x00002000
+#define   PFIFO_CACHE1_ENGINE_4_SW                     0x00000000
+#define   PFIFO_CACHE1_ENGINE_4_GRAPHICS               0x00010000
+#define   PFIFO_CACHE1_ENGINE_4_DVD                    0x00020000
+#define   PFIFO_CACHE1_ENGINE_5_SW                     0x00000000
+#define   PFIFO_CACHE1_ENGINE_5_GRAPHICS               0x00100000
+#define   PFIFO_CACHE1_ENGINE_5_DVD                    0x00200000
+#define   PFIFO_CACHE1_ENGINE_6_SW	                    0x00000000
+#define   PFIFO_CACHE1_ENGINE_6_GRAPHICS               0x01000000
+#define   PFIFO_CACHE1_ENGINE_6_DVD                    0x02000000
+#define   PFIFO_CACHE1_ENGINE_7_SW                     0x00000000
+#define   PFIFO_CACHE1_ENGINE_7_GRAPHICS               0x10000000
+#define   PFIFO_CACHE1_ENGINE_7_DVD                    0x20000000
+
+#define PFIFO_CACHE0_METHOD                  0x00003100
+#define   PFIFO_CACHE0_METHOD_ADDRESS_MSK              0x00001FFC
+#define   PFIFO_CACHE0_METHOD_SUBCHANNEL_MSK	          0x0000E000
+
+#define PFIFO_CACHE1_METHOD                  0x00003800
+#define   PFIFO_CACHE1_METHOD_ADDRESS_MSK              0x00001FFC
+#define   PFIFO_CACHE1_METHOD_SUBCHANNEL_MSK	          0x0000E000
+
+#define PFIFO_CACHE1_METHOD_ALIAS            0x00003C00
+
+#define PFIFO_CACHE0_DATA                    0x00003104
+
+#define PFIFO_CACHE1_DATA                    0x00003804
+
+#define PFIFO_CACHE1_DATA_ALIAS              0x00003C04
+
+#define PFIFO_DEVICE                         0x00002800
+#define   PFIFO_DEVICE_CHID_MSK                        0x0000001F
+#define   PFIFO_DEVICE_SWITCH	                         0x01000000
+#define   PFIFO_DEVICE_SWITCH_UNAVAILABLE              0x00000000
+#define   PFIFO_DEVICE_SWITCH_AVAILABLE                0x01000000
+
+#define PFIFO_RUNOUT_STATUS                  0x00002400
+#define   PFIFO_RUNOUT_STATUS_RANOUT_FALSE             0x00000000
+#define   PFIFO_RUNOUT_STATUS_RANOUT_TRUE              0x00000001
+#define   PFIFO_RUNOUT_STATUS_LOW_MARK_NOT_EMPTY       0x00000000
+#define   PFIFO_RUNOUT_STATUS_LOW_MARK_EMPTY           0x00000010
+#define   PFIFO_RUNOUT_STATUS_HIGH_MARK_NOT_FULL       0x00000000
+#define   PFIFO_RUNOUT_STATUS_HIGH_MARK_FULL           0x00000100
+
+#define PFIFO_RUNOUT_PUT	                    0x00002410
+#define   PFIFO_RUNOUT_PUT_ADDRES_MSK                  0x00001FF8
+
+#define PFIFO_RUNOUT_GET                     0x00002420
+#define   PFIFO_RUNOUT_GET_ADDRESS_MSK                 0x00003FF8
+
+
+
+/* PVIDEO */
+#define PVIDEO           0x00008000
+
+#define PVIDEO_DEBUG_0                       0x00008080
+#define   PVIDEO_DEBUG_0_HLF_RATE_ROW_RD_DISABLED      0x00000000
+#define   PVIDEO_DEBUG_0_HLF_RATE_ROW_RD_ENABLED       0x00000001
+#define   PVIDEO_DEBUG_0_LIMIT_CHECK_DISABLED          0x00000000
+#define   PVIDEO_DEBUG_0_LIMIT_CHECK_ENABLED           0x00000010
+#define   PVIDEO_DEBUG_0_HUE_FOLD_DISABLED             0x00000000
+#define   PVIDEO_DEBUG_0_HUE_FOLD_ENABLED              0x00000100
+
+#define PVIDEO_DEBUG_1                       0x00008084
+#define   PVIDEO_DEBUG_1_REQ_DELAY_MSK                 0x000007FF
+#define   PVIDEO_DEBUG_1_REQ_DELAY_DEFAULT             0x00000064
+#define   PVIDEO_DEBUG_1_REQ_DELAY_INIT                0x00000050
+
+#define PVIDEO_DEBUG_2                       0x00008088
+#define   PVIDEO_DEBUG_2_BURST1_MSK                    0x000007E0
+#define   PVIDEO_DEBUG_2_BURST1_DEFAULT                0x00000100
+#define   PVIDEO_DEBUG_2_BURST1_INIT                   0x00000200
+#define   PVIDEO_DEBUG_2_BURST2_MSK                    0x07E00000
+#define   PVIDEO_DEBUG_2_BURST2_DEFAULT                0x02000000
+
+#define PVIDEO_DEBUG_3                       0x0000808C
+#define   PVIDEO_DEBUG_3_WATER_MARK1_MSK               0x000007F0
+#define   PVIDEO_DEBUG_3_WATER_MARK1_DEFAULT           0x000004B0
+#define   PVIDEO_DEBUG_3_WATER_MARK1_INIT              0x00000400
+#define   PVIDEO_DEBUG_3_WATER_MARK2_MSK               0x07F00000
+#define   PVIDEO_DEBUG_3_WATER_MARK2_DEFAULT           0x03B00000
+#define   PVIDEO_DEBUG_3_WATER_MARK2_INIT              0x04000000
+
+#define PVIDEO_DEBUG_4                       0x00008090
+#define   PVIDEO_DEBUG_4_V_COEFF_B_MSK                 0x00FFFFE0
+#define   PVIDEO_DEBUG_4_V_COEFF_B_DEFAULT             0x0016A0A0
+#define   PVIDEO_DEBUG_4_V_COEFF_B_ALWAYS              0x00000000
+#define   PVIDEO_DEBUG_4_V_COEFF_B_NEVER               0x00FFFFE0
+
+#define PVIDEO_DEBUG_5                       0x00008094
+#define   PVIDEO_DEBUG_5_H_L_COEFF_D_MSK               0x003FFFF0
+#define   PVIDEO_DEBUG_5_H_L_COEFF_D_DEFAULT           0x00188160
+#define   PVIDEO_DEBUG_5_H_L_COEFF_D_ALWAYS            0x00000000
+#define   PVIDEO_DEBUG_5_H_L_COEFF_D_NEVER             0x003FFFF0
+
+#define PVIDEO_DEBUG_6                       0x00008098
+#define   PVIDEO_DEBUG_6_H_L_COEFF_C_MSK               0x003FFFF0
+#define   PVIDEO_DEBUG_6_H_L_COEFF_C_DEFAULT           0x0012C730
+#define   PVIDEO_DEBUG_6_H_L_COEFF_C_ALWAYS            0x00000000
+#define   PVIDEO_DEBUG_6_H_L_COEFF_C_NEVER             0x003FFFF0
+
+#define PVIDEO_DEBUG_7                       0x0000809C
+#define   PVIDEO_DEBUG_7_H_L_COEFF_B_MSK               0x003FFFF0
+#define   PVIDEO_DEBUG_7_H_L_COEFF_B_DEFAULT	          0x00000000
+#define   PVIDEO_DEBUG_7_H_L_COEFF_B_ALWAYS            0x00000000
+#define   PVIDEO_DEBUG_7_H_L_COEFF_B_NEVER             0x003FFFF0
+
+#define PVIDEO_DEBUG_8                       0x000080A0
+#define   PVIDEO_DEBUG_8_PIPE_FILL_MSK                 0x000007F0
+#define   PVIDEO_DEBUG_8_PIPE_FILL_DEFAULT             0x000000B0
+
+#define PVIDEO_DEBUG_9                       0x000080A4
+#define   PVIDEO_DEBUG_9_FIFO_A_UNDERFLOW_FALSE        0x00000000
+#define   PVIDEO_DEBUG_9_FIFO_A_UNDERFLOW_TRUE         0x00000001
+#define   PVIDEO_DEBUG_9_FIFO_A_UNDERFLOW_RESET        0x00000001
+#define   PVIDEO_DEBUG_9_FIFO_A_OVERFLOW_FALSE         0x00000000
+#define   PVIDEO_DEBUG_9_FIFO_A_OVERFLOW_TRUE	     0x00000010
+#define   PVIDEO_DEBUG_9_FIFO_A_OVERFLOW_RESET         0x00000010
+#define   PVIDEO_DEBUG_9_FIFO_B_UNDERFLOW_FALSE        0x00000000
+#define   PVIDEO_DEBUG_9_FIFO_B_UNDERFLOW_TRUE         0x00000100
+#define   PVIDEO_DEBUG_9_FIFO_B_UNDERFLOW_RESET        0x00000100
+#define   PVIDEO_DEBUG_9_FIFO_B_OVERFLOW_FALSE         0x00000000
+#define   PVIDEO_DEBUG_9_FIFO_B_OVERFLOW_TRUE          0x00001000
+#define   PVIDEO_DEBUG_9_FIFO_B_OVERFLOW_RESET         0x00001000
+
+#define PVIDEO_DEBUG_10                      0x000080A8
+#define   PVIDEO_DEBUG_10_SCREEN_LINE_MSK              0x00001FFF
+#define   PVIDEO_DEBUG_10_SCREEN_LINE_FIRST            0x00000000
+#define   PVIDEO_DEBUG_10_SCAN_COUNT_MSK               0x001F0000
+#define   PVIDEO_DEBUG_10_SCAN_COUNT_FIRST             0x00000000
+#define   PVIDEO_DEBUG_10_SCAN_COUNT_OVERFLOW          0x00100000
+#define   PVIDEO_DEBUG_10_SCANNING_NEITHER             0x00000000
+#define   PVIDEO_DEBUG_10_SCANNING_BUFFER_0            0x02000000
+#define   PVIDEO_DEBUG_10_SCANNING_BUFFER_1            0x03000000
+
+#define PVIDEO_INTR                          0x00008100
+#define   PVIDEO_INTR_BUFFER_0_NOT_PENDING             0x00000000
+#define   PVIDEO_INTR_BUFFER_0_PENDING                 0x00000001
+#define   PVIDEO_INTR_BUFFER_0_RESET                   0x00000001
+#define   PVIDEO_INTR_BUFFER_1_NOT_PENDING             0x00000000
+#define   PVIDEO_INTR_BUFFER_1_PENDING                 0x00000010
+#define   PVIDEO_INTR_BUFFER_1_RESET                   0x00000010
+
+#define PVIDEO_INTR_REASON                   0x00008104
+#define   PVIDEO_INTR_REASON_BUFFER_0_NOTIFICATION     0x00000000
+#define   PVIDEO_INTR_REASON_BUFFER_0_PROTECTION_FAULT 0x00000001
+#define   PVIDEO_INTR_REASON_BUFFER_1_NOTIFICATION     0x00000000
+#define   PVIDEO_INTR_REASON_BUFFER_1_PROTECTION_FAULT 0x00000010
+
+#define PVIDEO_INTR_EN                       0x00008140
+#define   PVIDEO_INTR_EN_BUFFER_0_DISABLED             0x00000000
+#define   PVIDEO_INTR_EN_BUFFER_0_ENABLED              0x00000001
+#define   PVIDEO_INTR_EN_BUFFER_1_DISABLED             0x00000000
+#define   PVIDEO_INTR_EN_BUFFER_1_ENABLED              0x00000010
+
+#define PVIDEO_BUFFER                        0x00008700
+#define   PVIDEO_BUFFER_0_USE_NOT_PENDING              0x00000000
+#define   PVIDEO_BUFFER_0_USE_PENDING                  0x00000001
+#define   PVIDEO_BUFFER_0_USE_SET                      0x00000001
+#define   PVIDEO_BUFFER_1_USE_NOT_PENDING              0x00000000
+#define   PVIDEO_BUFFER_1_USE_PENDING                  0x00000010
+#define   PVIDEO_BUFFER_1_USE_SET                      0x00000010
+
+#define PVIDEO_STOP                          0x00008704
+#define   PVIDEO_STOP_OVERLAY_INACTIVE                 0x00000000
+#define   PVIDEO_STOP_OVERLAY_ACTIVE                   0x00000001
+#define   PVIDEO_STOP_METHOD_IMMEDIATELY               0x00000000
+#define   PVIDEO_STOP_METHOD_NORMALLY                  0x00000010
+
+#define PVIDEO_UVBASE_0                      0x00008800
+#define PVIDEO_UVBASE_1                      0x00008804
+#define   PVIDEO_UVBASE_MSK                  0xFFFFFFC0
+
+#define PVIDEO_UVLIMIT_0                     0x00008808
+#define PVIDEO_UVLIMIT_1                     0x0000880C
+
+#define PVIDEO_UVOFFSET_0                    0x00008820
+#define PVIDEO_UVOFFSET_1                    0x00008824
+#define   PVIDEO_UVOFFSET_MSK                0xFFFFFFC0
+
+#define PVIDEO_BASE_0                        0x00008900
+#define PVIDEO_BASE_1                        0x00008904
+#define   PVIDEO_BASE_MSK                    0xFFFFFFC0
+
+#define PVIDEO_LIMIT_0                       0x00008908
+#define PVIDEO_LIMIT_1                       0x0000890C
+
+#define PVIDEO_LUMINANCE_0                   0x00008910
+#define PVIDEO_LUMINANCE_1                   0x00008914
+
+#define PVIDEO_CHROMINANCE_0                 0x00008918
+#define PVIDEO_CHROMINANCE_1                 0x0000891C
+
+#define PVIDEO_OFFSET_0                      0x00008920
+#define PVIDEO_OFFSET_1                      0x00008924
+#define   PVIDEO_OFFSET_MSK                  0xFFFFFFC0
+
+#define PVIDEO_SIZE_IN_0                     0x00008928
+#define PVIDEO_SIZE_IN_1                     0x0000892C
+#define   PVIDEO_SIZE_IN_WIDTH_MSK           0x000007FF
+#define   PVIDEO_SIZE_IN_HEIGHT_MSK          0x07FF0000
+
+#define PVIDEO_POINT_IN_0                    0x00008930
+#define PVIDEO_POINT_IN_1                    0x00008934
+#define   PVIDEO_POINT_IN_S_MSK              0x00007FFF
+#define   PVIDEO_POINT_IN_T_MSK              0xFFFE0000
+
+#define PVIDEO_DS_DX_0                       0x00008938
+#define PVIDEO_DS_DX_1                       0x0000893C
+
+#define PVIDEO_DT_DY_0                       0x00008940
+#define PVIDEO_DT_DY_1                       0x00008944
+
+#define PVIDEO_POINT_OUT_0                   0x00008948
+#define PVIDEO_POINT_OUT_1                   0x0000894C
+#define   PVIDEO_POINT_OUT_X_MSK             0x00000FFF
+#define   PVIDEO_POINT_OUT_Y_MSK             0x0FFF0000
+
+#define PVIDEO_SIZE_OUT_0                    0x00008950
+#define PVIDEO_SIZE_OUT_1                    0x00008954
+#define   PVIDEO_SIZE_OUT_WIDTH_MSK          0x00000FFF
+#define   PVIDEO_SIZE_OUT_HEIGHT_MSK         0x0FFF0000
+
+#define PVIDEO_FORMAT_0                      0x00008958
+#define PVIDEO_FORMAT_1                      0x0000895C
+#define   PVIDEO_FORMAT_PLANAR_NV                      0x00000001
+#define   PVIDEO_FORMAT_PITCH_MSK                      0x00001FC0
+#define   PVIDEO_FORMAT_COLOR_YB8CR8YA8CB8             0x00000000
+#define   PVIDEO_FORMAT_COLOR_CR8YB8CB8YA8             0x00010000
+#define   PVIDEO_FORMAT_COLOR_ECR8EYB8ECB8EYA8         0x00110000
+#define   PVIDEO_FORMAT_DISPLAY_ALWAYS                 0x00000000
+#define   PVIDEO_FORMAT_DISPLAY_COLOR_KEY_EQUAL        0x00100000
+#define   PVIDEO_FORMAT_MATRIX_ITURBT601               0x00000000
+#define   PVIDEO_FORMAT_MATRIX_ITURBT709               0x01000000
+
+#define PVIDEO_COLOR_KEY                     0x00008B00
+
+#define PVIDEO_TEST                          0x00008D00
+#define   PVIDEO_TEST_MODE_DISABLE                     0x00000000
+#define   PVIDEO_TEST_MODE_ENABLE                      0x00000001
+#define   PVIDEO_TEST_ADDRESS_MSK                      0x00007F00
+
+/* Array [0...11] */
+#define PVIDEO_TST_WRITE                     0x00008D10
+
+/* Array [0...11] */
+#define PVIDEO_TST_READ                      0x00008D40
+
+
+
+/* PTIMER */
+#define PTIMER           0x00009000
+
+
+
+/* PVIO */
+#define PVIO             0x000C0000
+
+#define PVIO_SEQ_INDEX                       0x000C03C4
+
+#define PVIO_SEQ_DATA                        0x000C03C5
+
+#define PVIO_GRA_INDEX                       0x000C03CE
+
+#define PCIO_GRA_DATA                        0x000C03CF
+
+
+
+/* PVGA */
+#define PVGA             0x000A0000
+
+
+
+/* PFB */
+#define PFB              0x00100000
+
+#define PFB_BOOT_0                           0x00100000
+#define   PFB_BOOT_0_RAM_AMOUNT_32MB                   0x00000000
+#define   PFB_BOOT_0_RAM_AMOUNT_4MB                    0x00000001
+#define   PFB_BOOT_0_RAM_AMOUNT_8MB                    0x00000002
+#define   PFB_BOOT_0_RAM_AMOUNT_16MB                   0x00000003
+#define   PFB_BOOT_0_RAM_WIDTH_128                     0x00000004
+#define   PFB_BOOT_0_RAM_TYPE_SGRAM_8MBIT              0x00000000
+#define   PFB_BOOT_0_RAM_TYPE_SGRAM_16MBIT             0x00000008
+#define   PFB_BOOT_0_RAM_TYPE_SGRAM_16MBIT_4BANK       0x00000010
+#define   PFB_BOOT_0_RAM_TYPE_SDRAM_16MBIT             0x00000018
+#define   PFB_BOOT_0_RAM_TYPE_SDRAM_64MBIT             0x00000020
+#define   PFB_BOOT_0_RAM_TYPE_SDRAM_64MBITX16          0x00000028
+
+
+
+/* PEXTDEV */
+#define PEXTDEV          0x00101000
+
+
+
+/* PGRAPH */
+#define PGRAPH           0x00400000
+
+#define PGRAPH_DEBUG_0                       0x00400080
+
+#define PGRAPH_DEBUG_1                       0x00400084
+
+#define PGRAPH_DEBUG_2                       0x00400088
+
+#define PGRAPH_DEBUG_3                       0x0040008C
+
+#define PGRAPH_DEBUG_4                       0x00400090
+
+#define PGRAPH_DEBUG_5                       0x00400094
+
+#define PGRAPH_DEBUG_6                       0x00400820
+
+#define PGRAPH_INTR                          0x00400100
+
+#define PGRAPH_NSTATUS                       0x00400104
+
+#define PGRAPH_NSOURCE                       0x00400108
+
+#define PGRAPH_INTR_EN                       0x00400140
+
+#define PGRAPH_FIFO						0x00400720
+#define   PGRAPH_FIFO_ACCESS_DISABLED                  0x00000000
+#define   PGRAPH_FIFO_ACCESS_ENABLED                   0x00000001
+
+#define PGRAPH_STATUS                        0x00400700
+#define   PGRAPH_STATUS_STATE_IDLE                     0x00000000
+#define   PGRAPH_STATUS_STATE_BUSY                     0x00000001
+#define   PGRAPH_STATUS_FINE_RASTERIZER_IDLE           0x00000000
+#define   PGRAPH_STATUS_FINE_RASTERIZER_BUSY           0x00000002
+#define   PGRAPH_STATUS_COARSE_RASTERIZER_IDLE         0x00000000
+#define   PGRAPH_STATUS_COARSE_RASTERIZER_BUSY         0x00000004
+#define   PGRAPH_STATUS_FE_3D_IDLE                     0x00000000
+#define   PGRAPH_STATUS_FE_3D_BUSY                     0x00000008
+#define   PGRAPH_STATUS_FE_2D_IDLE                     0x00000000
+#define   PGRAPH_STATUS_FE_2D_BUSY                     0x00000010
+#define   PGRAPH_STATUS_XY_LOGIC_IDLE                  0x00000000
+#define   PGRAPH_STATUS_XY_LOGIC_BUSY                  0x00000020
+#define   PGRAPH_STATUS_RASTERIZER_2D_IDLE             0x00000000
+#define   PGRAPH_STATUS_RASTERIZER_2D_BUSY             0x00000080
+#define   PGRAPH_STATUS_IDX_IDLE                       0x00000000
+#define   PGRAPH_STATUS_IDX_BUSY                       0x00000100
+#define   PGRAPH_STATUS_XF_IDLE                        0x00000000
+#define   PGRAPH_STATUS_XF_BUSY                        0x00000200
+#define   PGRAPH_STATUS_VTX_IDLE                       0x00000000
+#define   PGRAPH_STATUS_VTX_BUSY                       0x00000400
+#define   PGRAPH_STATUS_CAS_IDLE                       0x00000000
+#define   PGRAPH_STATUS_CAS_BUSY                       0x00000800
+#define   PGRAPH_STATUS_PORT_NOTIFY_IDLE               0x00000000
+#define   PGRAPH_STATUS_PORT_NOTIFY_BUSY               0x00001000
+#define   PGRAPH_STATUS_SHADER_IDLE                    0x00000000
+#define   PGRAPH_STATUS_SHADER_BUSY                    0x00002000
+#define   PGRAPH_STATUS_SHADER_BE_IDLE                 0x00000000
+#define   PGRAPH_STATUS_SHADER_BE_BUSY                 0x00004000
+#define   PGRAPH_STATUS_PORT_DMA_IDLE                  0x00000000
+#define   PGRAPH_STATUS_PORT_DMA_BUSY                  0x00010000
+#define   PGRAPH_STATUS_DMA_ENGINE_IDLE                0x00000000
+#define   PGRAPH_STATUS_DMA_ENGINE_BUSY                0x00020000
+#define   PGRAPH_STATUS_DMA_NOTIFY_IDLE                0x00000000
+#define   PGRAPH_STATUS_DMA_NOTIFY_BUSY                0x00100000
+#define   PGRAPH_STATUS_DMA_BUFFER_NOTIFY_IDLE         0x00000000
+#define   PGRAPH_STATUS_DMA_BUFFER_NOTIFY_BUSY         0x00200000
+#define   PGRAPH_STATUS_DMA_WARNING_NOTIFY_IDLE        0x00000000
+#define   PGRAPH_STATUS_DMA_WARNING_NOTIFY_BUSY        0x00400000
+#define   PGRAPH_STATUS_ZCULL_IDLE                     0x00000000
+#define   PGRAPH_STATUS_ZCULL_BUSY                     0x00800000
+#define   PGRAPH_STATUS_FDIFF_IDLE                     0x00000000
+#define   PGRAPH_STATUS_FDIFF_BUSY                     0x01000000
+#define   PGRAPH_STATUS_SETUP_IDLE                     0x00000000
+#define   PGRAPH_STATUS_SETUP_BUSY                     0x02000000
+#define   PGRAPH_STATUS_CACHE_IDLE                     0x00000000
+#define   PGRAPH_STATUS_CACHE_BUSY                     0x04000000
+#define   PGRAPH_STATUS_COMBINER_IDLE                  0x00000000
+#define   PGRAPH_STATUS_COMBINER_BUSY                  0x08000000
+#define   PGRAPH_STATUS_PREROP_IDLE                    0x00000000
+#define   PGRAPH_STATUS_PREROP_BUSY                    0x10000000
+#define   PGRAPH_STATUS_ROP_IDLE                       0x00000000
+#define   PGRAPH_STATUS_ROP_BUSY                       0x20000000
+#define   PGRAPH_STATUS_PORT_USER_IDLE                 0x00000000
+#define   PGRAPH_STATUS_PORT_USER_BUSY                 0x40000000
+#define   PGRAPH_STATUS_PORT_FB_IDLE                   0x00000000
+#define   PGRAPH_STATUS_PORT_FB_BUSY                   0x80000000
+
+#define NV10_PGRAPH_WINDOWCLIP_HORIZONTAL    0x00400F00
+
+#define NV10_PGRAPH_WINDOWCLIP_VERTICAL      0x00400F20
+
+#define NV10_PGRAPH_XFMODE0                  0x00400F40
+
+#define NV10_PGRAPH_XFMODE1                  0x00400F44
+
+#define NV10_PGRAPH_GLOBALSTATE0             0x00400F48
+
+#define NV10_PGRAPH_GLOBALSTATE1             0x00400F4C
+
+#define NV10_PGRAPH_PIPE_ADDRESS             0x00400F50
+
+#define NV10_PGRAPH_PIPE_DATA                0x00400F54
+
+
+
+/* PCRTC */
+#define PCRTC            0x00600000
+
+#define PCRTC_INTR                           0x00600100
+#define   PCRTC_INTR_VBLANK_RESET                      0x00000001
+
+#define PCRTC_INTR_EN                        0x00600140
+#define   PCRTC_INTR_EN_VBLANK_DISABLED                0x00000000
+#define   PCRTC_INTR_EN_VBLANK_ENABLED                 0x00000001
+
+#define PCRTC_START                          0x00600800
+
+#define PCRTC_CONFIG                         0x00600804
+#define   PCRTC_CONFIG_SIGNAL_VGA                      0x00000000
+#define   PCRTC_CONFIG_SIGNAL_NON_VGA                  0x00000001
+#define   PCRTC_CONFIG_SIGNAL_HSYNC                    0x00000002
+#define   PCRTC_CONFIG_ENDIAN                          0x80000000
+#define   PCRTC_CONFIG_ENDIAN_LITTLE                   0x00000000
+#define   PCRTC_CONFIG_ENDIAN_BIG                      0x80000000
+
+#define PCRTC_RASTER                         0x00600808
+#define   PCRTC_RASTER_POSITION_MSK                    0x000007FF
+#define   PCRTC_RASTER_SA_LOAD_DISPLAY                 0x00000000
+#define   PCRTC_RASTER_SA_LOAD_BEFORE                  0x00001000
+#define   PCRTC_RASTER_SA_LOAD_AFTER                   0x00002000
+#define   PCRTC_RASTER_VERT_BLANK_ACTIVE               0x00010000
+#define   PCRTC_RASTER_VERT_BLANK_INACTIVE             0x00000000
+#define   PCRTC_RASTER_FIELD_EVEN                      0x00000000
+#define   PCRTC_RASTER_FIELD_ODD                       0x00100000
+#define   PCRTC_RASTER_STEREO_LEFT                     0x00000000
+#define   PCRTC_RASTER_STEREO_RIGHT                    0x01000000
+
+
+
+/* PCRTC2 */
+#define PCRTC2           0x00600800
+
+#define PCRTC2_INTR                          0x00600900
+#define   PCRTC2_INTR_VBLANK_RESET                     0x00000001
+
+#define PCRTC2_INTR_EN                       0x00600940
+#define   PCRTC2_INTR_EN_VBLANK_DISABLED               0x00000000
+#define   PCRTC2_INTR_EN_VBLANK_ENABLED                0x00000001
+
+#define PCRTC2_START                         0x00601000
+
+#define PCRTC2_CONFIG                        0x00601004
+#define   PCRTC2_CONFIG_SIGNAL_VGA                     0x00000000
+#define   PCRTC2_CONFIG_SIGNAL_NON_VGA                 0x00000001
+#define   PCRTC2_CONFIG_SIGNAL_HSYNC                   0x00000002
+#define   PCRTC2_CONFIG_ENDIAN                         0x80000000
+#define   PCRTC2_CONFIG_ENDIAN_LITTLE                  0x00000000
+#define   PCRTC2_CONFIG_ENDIAN_BIG                     0x80000000
+
+#define PCRTC2_RASTER                        0x00601008
+#define   PCRTC2_RASTER_POSITION_MSK                   0x000007FF
+#define   PCRTC2_RASTER_SA_LOAD_DISPLAY                0x00000000
+#define   PCRTC2_RASTER_SA_LOAD_BEFORE                 0x00001000
+#define   PCRTC2_RASTER_SA_LOAD_AFTER                  0x00002000
+#define   PCRTC2_RASTER_VERT_BLANK_ACTIVE              0x00010000
+#define   PCRTC2_RASTER_VERT_BLANK_INACTIVE            0x00000000
+#define   PCRTC2_RASTER_FIELD_EVEN                     0x00000000
+#define   PCRTC2_RASTER_FIELD_ODD                      0x00100000
+#define   PCRTC2_RASTER_STEREO_LEFT                    0x00000000
+#define   PCRTC2_RASTER_STEREO_RIGHT                   0x01000000
+
+
+
+/* PCIO */
+#define PCIO             0x00601000
+
+#define PCIO_ATTR_INDEX                      0x006013C0
+
+#define PCIO_ATTR_DATA                       0x006013C1
+
+#define PCIO_CRTC_INDEX                      0x006013D4
+
+#define PCIO_CRTC_DATA                       0x006013D5
+
+/* CRTC Registers */
+#define CRTC_HORIZ_TOTAL                     0x00
+#define CRTC_HORIZ_DISPLAY_END               0x01
+#define CRTC_HORIZ_BLANK_START               0x02
+#define CRTC_HORIZ_BLANK_END                 0x03
+#define CRTC_HORIZ_RETRACE_START             0x04
+#define CRTC_HORIZ_RETRACE_END               0x05
+#define CRTC_VERT_TOTAL                      0x06
+#define CRTC_OVERFLOW                        0x07
+#define CRTC_PRESET_ROW_SCAN                 0x08
+#define CRTC_MAX_SCAN_LINE                   0x09
+#define CRTC_CURSOR_START                    0x0A
+#define CRTC_CURSOR_END                      0x0B
+#define CRTC_START_ADDR_HIGH                 0x0C
+#define CRTC_START_ADDR_LOW                  0x0D
+#define CRTC_CURSOR_LOCATION_HIGH            0x0E
+#define CRTC_CURSOR_LOCATION_LOW             0x0F
+#define CRTC_VERT_RETRACE_START              0x10
+#define CRTC_VERT_RETRACE_END                0x11
+#define CRTC_VERT_DISPLAY_END                0x12
+#define CRTC_OFFSET                          0x13
+#define CRTC_UNDERLINE_LOCATION              0x14
+#define CRTC_VERT_BLANK_START                0x15
+#define CRTC_VERT_BLANK_END                  0x16
+#define CRTC_MODE_CONTROL                    0x17
+#define CRTC_LINE_COMPARE                    0x18
+#define CRTC_REPAINT0                        0x19
+#define CRTC_HORIZ_EXTRA                     0x2d
+#define CRTC_EXTRA                           0x25
+#define CRTC_FIFO_CONTROL                    0x1b
+#define CRTC_FIFO                            0x20
+#define CRTC_REPAINT1                        0x1a
+#define CRTC_GRCURSOR0                       0x30
+#define CRTC_GRCURSOR1                       0x31
+#define CRTC_PIXEL                           0x28
+
+#define PCIO_CRTC_STATUS                     0x006013DA
+
+
+
+/* PRAMDAC */
+#define PRAMDAC          0x00680000
+
+
+
+/* PDIO */
+#define PDIO             0x00681000
+
+
+
+/* PRAMIN */
+#define PRAMIN           0x00700000
+
+
+
+/* PRAMHT */
+#define PRAMHT           0x00710000
+
+
+
+/*************************** FIFO Registers ******************************/
+
+
+#define FIFO_ADDRESS     0x00800000
+
+#define FIFO_FREE        0x00800010
+
+#define DMA_PUT          0x00800040
+
+#define DMA_GET          0x00800044
+
+
+/*
+ * Generic subchannel registers
+ */
+#define SET_OBJECT       0x00000000
+
+       
+/*
+ * 2D surfaces
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextDmaSource;      /* 0184-0187 */
+     u32 SetContextDmaDestin;      /* 0188-018B */
+     u32 Reserved01[0x05D];
+     u32 Format;                   /* 0300-0303 */
+     u32 Pitch;                    /* 0304-0307 */
+     u32 SourceOffset;             /* 0308-030B */
+     u32 DestOffset;               /* 030C-030F */
+     u32 Reserved02[0x73C];
+} NVSurfaces2D;
+#define SURFACES2D_FORMAT                    0x00000300
+#define   SURFACES2D_FORMAT_Y8                         0x00000001
+#define   SURFACES2D_FORMAT_X1R5G5B5                   0x00000002
+#define   SURFACES2D_FORMAT_A1R5G5B5                   0x00000003
+#define   SURFACES2D_FORMAT_R5G6B5                     0x00000004
+#define   SURFACES2D_FORMAT_Y16                        0x00000005
+#define   SURFACES2D_FORMAT_X8R8G8B8                   0x00000006
+#define   SURFACES2D_FORMAT_A8R8G8B8                   0x0000000A
+#define   SURFACES2D_FORMAT_Y32                        0x0000000B
+#define SURFACES2D_PITCH                     0x00000304
+#define SURFACES2D_SRC_OFFSET                0x00000308
+#define SURFACES2D_DST_OFFSET                0x0000030C
+
+/*
+ * 3D surfaces
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextDmaColor;       /* 0184-0187 */
+     u32 SetContextDmaZeta;        /* 0188-018B */
+     u32 Reserved01[0x05B];
+     u32 ClipHorizontal;           /* 02F8-02FB */
+     u32 ClipVertical;             /* 02FC-02FF */
+     u32 Format;                   /* 0300-0303 */
+     u32 ClipSize;                 /* 0304-0307 */
+     u32 Pitch;                    /* 0308-030B */
+     u32 RenderOffset;             /* 030C-030F */
+     u32 DepthOffset;              /* 0310-0313 */
+     u32 Reserved02[0x73B];
+} NVSurfaces3D;
+#define SURFACES3D_CLIP_HORIZONTAL           0x000002F8
+#define SURFACES3D_CLIP_VERTICAL             0x000002FC
+#define SURFACES3D_FORMAT                    0x00000300
+#define   SURFACES3D_FORMAT_COLOR_A1R5G5B5             0x00000001
+#define   SURFACES3D_FORMAT_COLOR_X1R5G5B5             0x00000002
+#define   SURFACES3D_FORMAT_COLOR_R5G6B5               0x00000003
+#define   SURAFCES3D_FORMAT_COLOR_X8R8G8B8             0x00000006
+#define   SURFACES3D_FORMAT_COLOR_A8R8G8B8             0x00000008
+#define   SURFACES3D_FORMAT_TYPE_PITCH                 0x00000100
+#define   SURFACES3D_FORMAT_TYPE_SWIZZLE               0x00000200
+#define SURFACES3D_CLIP_SIZE                 0x00000304
+#define SURFACES3D_PITCH                     0x00000308
+#define SURFACES3D_RENDER_OFFSET             0x0000030C
+#define SURFACES3D_DEPTH_OFFSET              0x00000310
+
+/*
+ * Scissor clip rectangle
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextDmaImage;       /* 0184-0187 */
+     u32 Reserved01[0x05E];
+     u32 TopLeft;                  /* 0300-0303 */
+     u32 WidthHeight;              /* 0304-0307 */
+     u32 Reserved02[0x73E];
+} NVClip;
+#define CLIP_TOP_LEFT                        0x00000300
+#define CLIP_WIDTH_HEIGHT                    0x00000304
+
+/*
+ * Global alpha factor
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 Reserved01[0x05F];
+     u32 SetBeta1D31;              /* 0300-0303 */
+     u32 Reserved02[0x73F];
+} NVBeta1;
+#define BETA1_FACTOR                         0x00000300
+
+/*
+ * Global ARGB factor
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 Reserved01[0x05F];
+     u32 SetBetaFactor;            /* 0300-0303 */
+     u32 Reserved02[0x73F];
+} NVBeta4;
+#define BETA4_FACTOR                         0x00000300
+
+/* 
+ * Generic Flags
+ */
+/* Operation */
+#define OPERATION_COPY                   0
+#define OPERATION_ROP                    1
+#define OPERATION_BLEND                  2
+#define OPERATION_SRCCOPY                3
+#define OPERATION_COLOR_MULTIPLY         4
+#define OPERATION_BLEND_PREMULTIPLIED    5
+/* ColorConversion */
+#define COLOR_CONVERSION_DITHER          0
+#define COLOR_CONVERSION_TRUNCATE        1
+#define COLOR_CONVERSION_SUBTR_TRUNCATE  2   
+
+/*
+ * 2D solid rectangle
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextClip;           /* 0184-0187 */
+     u32 SetContextPattern;        /* 0188-018B */
+     u32 SetContextRop;            /* 018C-018F */
+     u32 SetContextBeta1;          /* 0190-0193 */
+     u32 SetContextSurface;        /* 0194-0197 */
+     u32 Reserved01[0x059];
+     u32 SetOperation;             /* 02FC-02FF */
+     u32 SetColorFormat;           /* 0300-0303 */
+     u32 Color;                    /* 0304-0307 */
+     u32 Reserved02[0x03E];
+     u32 TopLeft;                  /* 0400-0403 */
+     u32 WidthHeight;              /* 0404-0407 */
+     u32 Reserved03[0x6FE];
+} NVRectangle;
+#define RECT_OPERATION                       0x000002FC
+#define RECT_COLOR_FORMAT                    0x00000300
+#define   RECT_COLOR_FORMAT_Y16                        0x00000001
+#define   RECT_COLOR_FORMAT_A1Y15                      0x00000002
+#define   RECT_COLOR_FORMAT_Y32                        0x00000003
+#define RECT_COLOR                           0x00000304
+#define RECT_TOP_LEFT                        0x00000400
+#define RECT_WIDTH_HEIGHT                    0x00000404
+
+/*
+ * 2D solid triangle
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextClip;           /* 0184-0187 */
+     u32 SetContextPattern;        /* 0188-018B */
+     u32 SetContextRop;            /* 018C-018F */
+     u32 SetContextBeta1;          /* 0190-0193 */
+     u32 SetContextSurface;        /* 0194-0197 */
+     u32 Reserved01[0x059];
+     u32 SetOperation;             /* 02FC-02FF */
+     u32 SetColorFormat;           /* 0300-0303 */
+     u32 Color;                    /* 0304-0307 */
+     u32 Reserved02[0x002];
+     u32 TrianglePoint0;           /* 0310-0313 */
+     u32 TrianglePoint1;           /* 0314-0317 */
+     u32 TrianglePoint2;           /* 0318-031B */
+     u32 Reserved03[0x001];
+     s32 Triangle32Point0X;        /* 0320-0323 */
+     s32 Triangle32Point0Y;        /* 0324-0327 */
+     s32 Triangle32Point1X;        /* 0328-032B */
+     s32 Triangle32Point1Y;        /* 032C-032F */
+     s32 Triangle32Point2X;        /* 0330-0333 */
+     s32 Triangle32Point2Y;        /* 0334-0337 */
+     u32 Reserved04[0x032];
+     u32 Trimesh[32];              /* 0400-047F */
+     struct {                      /* 0480-     */
+          s32 x;                   /*    0-   3 */
+          s32 y;                   /*    4-   7 */
+     } Trimesh32[16];              /*     -04FF */
+     struct {                      /* 0500-     */
+          u32 color;               /*    0-   3 */
+          u32 point0;              /*    4-   7 */
+          u32 point1;              /*    8-   B */
+          u32 point2;              /*    C-   F */
+     } ColorTriangle[8];           /*     -057F */
+     struct {                      /* 0580-     */
+          u32 color;               /*    0-   3 */
+          u32 point;               /*    4-   7 */
+     } ColorTrimesh[16];           /*     -05FF */
+     u32 Reserved05[0x680];
+} NVTriangle;
+#define TRI_OPERATION                        0x000002FC
+#define TRI_COLOR_FORMAT                     0x00000300
+#define   TRI_COLOR_FORMAT_Y16                         0x00000001
+#define   TRI_COLOR_FORMAT_A1Y15                       0x00000002
+#define   TRI_COLOR_FORMAT_Y32                         0x00000003
+#define TRI_COLOR                            0x00000304
+#define TRI_POINT0                           0x00000310
+#define TRI_POINT1                           0x00000314
+#define TRI_POINT2                           0x00000318
+
+/*
+ * 2D solid 
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextClip;           /* 0184-0187 */
+     u32 SetContextPattern;        /* 0188-018B */
+     u32 SetContextRop;            /* 018C-018F */
+     u32 SetContextBeta1;          /* 0190-0193 */
+     u32 SetContextSurface;        /* 0194-0197 */
+     u32 Reserved01[0x059];
+     u32 SetOperation;             /* 02FC-02FF */
+     u32 SetColorFormat;           /* 0300-0303 */
+     u32 Color;                    /* 0304-0307 */
+     u32 Reserved02[0x03E];
+     struct {                      /* 0400-     */
+          u32 point0;              /*    0-   3 */
+          u32 point1;              /*    4-   7 */
+     } Lin[16];                    /*     -047F */
+     struct {                      /* 0480-     */
+          u32 point0X;             /*    0-   3 */
+          u32 point0Y;             /*    4-   7 */
+          u32 point1X;             /*    8-   B */
+          u32 point1Y;             /*    C-   F */
+     } Lin32[8];                   /*     -04FF */
+     u32 PolyLin[32];              /* 0500-057F */
+     struct {                      /* 0580-     */
+          u32 x;                   /*    0-   3 */
+          u32 y;                   /*    4-   7 */
+     } PolyLin32[16];              /*     -05FF */
+     struct {                      /* 0600-     */
+          u32 color;               /*    0-   3 */
+          u32 point;               /*    4-   7 */
+     } ColorPolyLin[16];           /*     -067F */
+     u32 Reserved03[0x660];
+} NVLine;
+#define LINE_OPERATION                       0x000002FC
+#define LINE_COLOR_FORMAT                    0x00000300
+#define   LINE_COLOR_FORMAT_Y16                        0x00000001
+#define   LINE_COLOR_FORMAT_A1Y15                      0x00000002
+#define   LINE_COLOR_FORMAT_Y32                        0x00000003
+#define LINE_COLOR                           0x00000304
+#define LINE_POINT0                          0x00000400
+#define LINE_POINT1                          0x00000404
+
+/*
+ * 2D screen-screen BLT
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 WaitForIdle;              /* 0108-010B (09F_WAIT_FOR_IDLE) */
+     u32 WaitForSync;              /* 010C-010F (09F_WAIT_FOR_CRTC) */
+     u32 Reserved00[0x01C];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextColorKey;       /* 0184-0187 */
+     u32 SetContextClip;           /* 0188-018B */
+     u32 SetContextPattern;        /* 018C-018F */
+     u32 SetContextRop;            /* 0190-0193 */
+     u32 SetContextBeta1;          /* 0194-0197 */
+     u32 SetContextBeta4;          /* 0198-019B */
+     u32 SetContextSurface;        /* 019C-019F */
+     u32 Reserved01[0x057];
+     u32 SetOperation;             /* 02FC-02FF */
+     u32 TopLeftSrc;               /* 0300-0303 */
+     u32 TopLeftDst;               /* 0304-0307 */
+     u32 WidthHeight;              /* 0308-030B */
+     u32 Reserved02[0x73D];
+} NVScreenBlt;
+#define BLIT_OPERATION                       0x000002FC
+#define BLIT_TOP_LEFT_SRC                    0x00000300
+#define BLIT_TOP_LEFT_DST                    0x00000304
+#define BLIT_WIDTH_HEIGHT                    0x00000308
+
+/*
+ * 2D CPU to screen BLT
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextColorKey;       /* 0184-0187 */
+     u32 SetContextClip;           /* 0188-018B */
+     u32 SetContextPattern;        /* 018C-018F */
+     u32 SetContextRop;            /* 0190-0193 */
+     u32 SetContextBeta1;          /* 0194-0197 */
+     u32 SetContextBeta4;          /* 0198-019B */
+     u32 SetContextSurface;        /* 019C-019F */
+     u32 Reserved01[0x056];
+     u32 SetColorConversion;       /* 02F8-02FB */
+     u32 SetOperation;             /* 02FC-02FF */
+     u32 SetColorFormat;           /* 0300-0303 */
+     u32 Point;                    /* 0304-0307 */
+     u32 SizeOut;                  /* 0308-030B */
+     u32 SizeIn;                   /* 030C-030F */
+     u32 Reserved02[0x03C];
+     u32 Pixel[1792];              /* 0400-     */
+} NVImageBlt;
+#define IBLIT_COLOR_CONVERSION               0x000002F8
+#define IBLIT_OPERATION                      0x000002FC
+#define IBLIT_COLOR_FORMAT                   0x00000300
+#define   IBLIT_COLOR_FORMAT_R5G6B5                    0x00000001
+#define   IBLIT_COLOR_FORMAT_A1R5G5B5                  0x00000002
+#define   IBLIT_COLOR_FORMAT_X1R5G5B5                  0x00000003
+#define   IBLIT_COLOR_FORMAT_A8R8G8B8                  0x00000004
+#define   IBLIT_COLOR_FORMAT_X8R8G8B8                  0x00000005
+#define IBLIT_POINT                          0x00000304
+#define IBLIT_SIZE_OUT                       0x00000308
+#define IBLIT_SIZE_IN                        0x0000030C
+#define IBLIT_PIXEL0                         0x00000400
+
+/*
+ * 2D scaled image BLT
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextDmaImage;       /* 0184-0187 */
+     u32 SetContextPattern;        /* 0188-018B */
+     u32 SetContextRop;            /* 018C-018F */
+     u32 SetContextBeta1;          /* 0190-0193 */
+     u32 SetContextBeta4;          /* 0194-0197 */
+     u32 SetContextSurface;        /* 0198-019C */
+     u32 Reserved01[0x058];
+     u32 SetColorConversion;       /* 02FC-02FF */
+     u32 SetColorFormat;           /* 0300-0303 */
+     u32 SetOperation;             /* 0304-0307 */
+     u32 ClipPoint;                /* 0308-030B */
+     u32 ClipSize;                 /* 030C-030F */
+     u32 ImageOutPoint;            /* 0310-0313 */
+     u32 ImageOutSize;             /* 0314-0317 */
+     u32 DuDx;                     /* 0318-031B */
+     u32 DvDy;                     /* 031C-031F */
+     u32 Reserved02[0x038];
+     u32 ImageInSize;              /* 0400-0403 */
+     u32 ImageInFormat;            /* 0404-0407 */
+     u32 ImageInOffset;            /* 0408-040B */
+     u32 ImageInPoint;             /* 040C-040F */
+     u32 Reserved03[0x6FC];
+} NVScaledImage;
+#define SCALER_COLOR_CONVERSION              0x000002FC
+#define SCALER_COLOR_FORMAT                  0x00000300
+#define   SCALER_COLOR_FORMAT_A1R5G5B5                 0x00000001
+#define   SCALER_COLOR_FORMAT_X1R5G5B5                 0x00000002
+#define   SCALER_COLOR_FORMAT_A8R8G8B8                 0x00000003
+#define   SCALER_COLOR_FORMAT_X8R8G8B8                 0x00000004
+#define   SCALER_COLOR_FORMAT_V8YB8U8YA8               0x00000005
+#define   SCALER_COLOR_FORMAT_YB8V8YA8U8               0x00000006
+#define   SCALER_COLOR_FORMAT_R5G6B5                   0x00000007
+#define   SCALER_COLOR_FORMAT_Y8                       0x00000008
+#define   SCALER_COLOR_FORMAT_AY8                      0x00000009
+#define SCALER_OPERATION                     0x00000304
+#define SCALER_CLIP_POINT                    0x00000308
+#define SCALER_CLIP_SIZE                     0x0000030C
+#define SCALER_OUT_POINT                     0x00000310
+#define SCALER_OUT_SIZE                      0x00000314
+#define SCALER_DU_DX                         0x00000318
+#define SCALER_DV_DY                         0x0000031C
+#define SCALER_IN_SIZE                       0x00000400
+#define SCALER_IN_FORMAT                     0x00000404
+#define   SCALER_IN_FORMAT_ORIGIN_CENTER               0x00010000
+#define   SCALER_IN_FORMAT_ORIGIN_CORNER               0x00020000
+#define   SCALER_IN_FORMAT_FILTER_NEAREST              0x00000000
+#define   SCALER_IN_FORMAT_FILTER_LINEAR               0x01000000
+#define SCALER_IN_OFFSET                     0x00000408
+#define SCALER_IN_POINT                      0x0000040C
+
+/*
+ * 2D stretched image from CPU BLT
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextColorKey;       /* 0184-0187 */
+     u32 SetContextPattern;        /* 0188-018B */
+     u32 SetContextRop;            /* 018C-018F */
+     u32 SetContextBeta1;          /* 0190-0193 */
+     u32 SetContextBeta4;          /* 0194-0197 */
+     u32 SetContextSurface;        /* 0198-019C */
+     u32 Reserved01[0x057];
+     u32 SetColorConversion;       /* 02F8-02FB */
+     u32 SetOperation;             /* 02FC-02FF */
+     u32 SetColorFormat;           /* 0300-0303 */
+     u32 ImageInSize;              /* 0304-0307 */
+     u32 DxDu;                     /* 0308-030B */
+     u32 DyDv;                     /* 030C-030F */
+     u32 ClipPoint;                /* 0310-0313 */
+     u32 ClipSize;                 /* 0314-0317 */
+     u32 ImageOutPoint;            /* 0318-031B */
+     u32 Reserved02[0x039];
+     u32 Pixel[1792];              /* 0400-     */
+} NVStretchedImage;
+#define ISTRETCH_COLOR_CONVERSION            0x000002F8
+#define ISTRETCH_OPERATION                   0x000002FC
+#define ISTRETCH_COLOR_FORMAT                0x00000300
+#define   ISTRETCH_COLOR_FORMAT_R5G6B5                 0x00000001
+#define   ISTRETCH_COLOR_FORMAT_A1R5G5B5               0x00000002
+#define   ISTRETCH_COLOR_FORMAT_X1R5G5B5               0x00000003
+#define   ISTRETCH_COLOR_FORMAT_A8R8G8B8               0x00000004
+#define   ISTRETCH_COLOR_FORMAT_X8R8G8B8               0x00000005
+#define ISTRETCH_IN_SIZE                     0x00000304
+#define ISTRETCH_DX_DU                       0x00000308
+#define ISTRETCH_DY_DV                       0x0000030C
+#define ISTRETCH_CLIP_POINT                  0x00000310
+#define ISTRETCH_CLIP_SIZE                   0x00000314
+#define ISTRETCH_OUT_POINT                   0x00000318
+#define ISTRETCH_PIXEL0                      0x00000400
+
+/*
+ * 3D textured, Z buffered triangle
+ */
+typedef volatile struct {
+     u32 NoOperation;              /* 0100-0103 */
+     u32 Notify;                   /* 0104-0107 */
+     u32 Reserved00[0x01E];
+     u32 SetContextDmaNotify;      /* 0180-0183 */
+     u32 SetContextDmaA;           /* 0184-0187 */
+     u32 SetContextDmaB;           /* 0188-018B */
+     u32 SetContextSurfaces;       /* 018C-018F */
+     u32 Reserved01[0x05C];
+     u32 ColorKey;                 /* 0300-0303 */
+     u32 TextureOffset;            /* 0304-0307 */
+     u32 TextureFormat;            /* 0308-030B */
+     u32 TextureFilter;            /* 030C-030F */
+     u32 Blend;                    /* 0310-0313 */
+     u32 Control;                  /* 0314-0317 */
+     u32 FogColor;                 /* 0318-031B */
+     u32 Reserved02[0x039];
+     struct {                      /* 0400-     */
+          float sx;                /*   00-  03 */
+          float sy;                /*   04-  07 */
+          float sz;                /*   08-  0B */
+          float rhw;               /*   0C-  0F */
+          u32 color;               /*   10-  13 */
+          u32 specular;            /*   14-  17 */
+          float ts;                /*   18-  1B */
+          float tt;                /*   1C-  1F */
+     } Tlvertex[16];               /*     -05FF */
+     u32 DrawPrimitives[64];       /* 0600-063F */
+     u32 Reserved03[0x640];
+} NVTexturedTriangleDx5;
+#define TXTRI_COLOR_KEY                      0x00000300
+#define TXTRI_OFFSET                         0x00000304
+#define TXTRI_FORMAT                         0x00000308
+#define   TXTRI_FORMAT_CONTEXT_DMA_A                   0x00000001
+#define   TXTRI_FORMAT_CONTEXT_DMA_B                   0x00000002
+#define   TXTRI_FORMAT_COLORKEYENABLE                  0x00000004
+#define   TXTRI_FORMAT_ORIGIN_ZOH_CENTER               0x00000010
+#define   TXTRI_FORMAT_ORIGIN_ZOH_CORNER               0x00000020
+#define   TXTRI_FORMAT_ORIGIN_FOH_CENTER               0x00000040
+#define   TXTRI_FORMAT_ORIGIN_FOH_CORNER               0x00000080
+#define   TXTRI_FORMAT_COLOR_Y8                        0x00000100
+#define   TXTRI_FORMAT_COLOR_A1R5G5B5                  0x00000200
+#define   TXTRI_FORMAT_COLOR_X1R5G5B5                  0x00000300
+#define   TXTRI_FORMAT_COLOR_A4R4G4B4                  0x00000400
+#define   TXTRI_FORMAT_COLOR_R5G6B5                    0x00000500
+#define   TXTRI_FORMAT_COLOR_A8R8G8B8                  0x00000600
+#define   TXTRI_FORMAT_COLOR_X8R8G8B8                  0x00000700
+#define   TXTRI_FORMAT_MIPMAP_LEVELS_MSK               0x0000F000
+#define   TXTRI_FORMAT_BASE_SIZE_U_MSK                 0x000F0000
+#define   TXTRI_FORMAT_BASE_SIZE_V_MSK                 0x00F00000
+#define   TXTRI_FORMAT_U_WRAP                          0x01000000
+#define   TXTRI_FORMAT_U_MIRROR                        0x02000000
+#define   TXTRI_FORMAT_U_CLAMP                         0x03000000
+#define   TXTRI_FORMAT_U_CLAMP_BORDER                  0x04000000
+#define   TXTRI_FORMAT_WRAPU_ENABLE                    0x08000000
+#define   TXTRI_FORMAT_V_WRAP                          0x10000000
+#define   TXTRI_FORMAT_V_MIRROR                        0x20000000
+#define   TXTRI_FORMAT_V_CLAMP                         0x30000000
+#define   TXTRI_FORMAT_V_CLAMP_BORDER                  0x40000000
+#define   TXTRI_FORMAT_WRAPV_ENABLE                    0x80000000
+#define TXTRI_FILTER                         0x0000030C
+#define   TXTRI_FILTER_KERNEL_SIZE_X_MSK               0x000000FF
+#define   TXTRI_FILTER_KERNEL_SIZE_Y_MSK               0x00007F00
+#define   TXTRI_FILTER_MIPMAP_DITHER_ENABLE            0x00008000
+#define   TXTRI_FILTER_MIPMAPLODBIAS_MSK               0x00FF0000
+#define   TXTRI_FILTER_TEXTUREMIN_NEAREST              0x01000000
+#define   TXTRI_FILTER_TEXTUREMIN_LINEAR               0x02000000
+#define   TXTRI_FILTER_TEXTUREMIN_MIPNEAREST           0x03000000
+#define   TXTRI_FILTER_TEXTUREMIN_MIPLINEAR            0x04000000
+#define   TXTRI_FILTER_TEXTUREMIN_LINEARMIPNEAREST     0x05000000
+#define   TXTRI_FILTER_TEXTUREMIN_LINEARMIPLINEAR      0x06000000
+#define   TXTRI_FILTER_ANISOTROPIC_MIN_ENABLE          0x08000000
+#define   TXTRI_FILTER_TEXTUREMAG_NEAREST              0x10000000
+#define   TXTRI_FILTER_TEXTUREMAG_LINEAR               0x20000000
+#define   TXTRI_FILTER_TEXTUREMAG_MIPNEAREST           0x30000000
+#define   TXTRI_FILTER_TEXTUREMAG_MIPLINEAR            0x40000000
+#define   TXTRI_FILTER_TEXTUREMAG_LINEARMIPNEAREST     0x50000000
+#define   TXTRI_FILTER_TEXTUREMAG_LINEARMIPLINEAR      0x60000000
+#define   TXTRI_FILTER_ANISOTROPIC_MAG_ENABLE          0x80000000
+#define TXTRI_BLEND                          0x00000310
+#define   TXTRI_BLEND_TEXTUREMAPBLEND_DECAL            0x00000001
+#define   TXTRI_BLEND_TEXTUREMAPBLEND_MODULATE         0x00000002
+#define   TXTRI_BLEND_TEXTUREMAPBLEND_DECALALPHA       0x00000003
+#define   TXTRI_BLEND_TEXTUREMAPBLEND_MODULATEALPHA    0x00000004
+#define   TXTRI_BLEND_TEXTUREMAPBLEND_DECALMASK        0x00000005
+#define   TXTRI_BLEND_TEXTUREMAPBLEND_MODULATEMASK     0x00000006
+#define   TXTRI_BLEND_TEXTUREMAPBLEND_COPY             0x00000007
+#define   TXTRI_BLEND_TEXTUREMAPBLEND_ADD              0x00000008
+#define   TXTRI_BLEND_OPERATION_MUX_TALPHALSB          0x00000010
+#define   TXTRI_BLEND_OPERATION_MUX_TALPHAMSB          0x00000020
+#define   TXTRI_BLEND_SHADEMODE_FLAT                   0x00000040
+#define   TXTRI_BLEND_SHADEMODE_GOURAUD                0x00000080
+#define   TXTRI_BLEND_SHADEMODE_PHONG                  0x000000C0
+#define   TXTRI_BLEND_TEXTUREPERSPECTIVE_ENABLE        0x00000100
+#define   TXTRI_BLEND_SPECULAR_ENABLE                  0x00001000
+#define   TXTRI_BLEND_FOG_ENABLE                       0x00010000
+#define   TXTRI_BLEND_ALPHABLEND_ENABLE                0x00100000
+#define   TXTRI_BLEND_SRCBLEND_ZERO                    0x01000000
+#define   TXTRI_BLEND_SRCBLEND_ONE                     0x02000000
+#define   TXTRI_BLEND_SRCBLEND_SRCCOLOR                0x03000000
+#define   TXTRI_BLEND_SRCBLEND_INVSRCCOLOR             0x04000000
+#define   TXTRI_BLEND_SRCBLEND_SRCALPHA                0x05000000
+#define   TXTRI_BLEND_SRCBLEND_INVSRCALPHA             0x06000000
+#define   TXTRI_BLEND_SRCBLEND_DESTALPHA               0x07000000
+#define   TXTRI_BLEND_SRCBLEND_INVDESTALPHA            0x08000000
+#define   TXTRI_BLEND_SRCBLEND_DESTCOLOR               0x09000000
+#define   TXTRI_BLEND_SRCBLEND_INVDESTCOLOR            0x0A000000
+#define   TXTRI_BLEND_SRCBLEND_SRCALPHASAT             0x0B000000
+#define   TXTRI_BLEND_DESTBLEND_ZERO                   0x10000000
+#define   TXTRI_BLEND_DESTBLEND_ONE                    0x20000000
+#define   TXTRI_BLEND_DESTBLEND_SRCCOLOR               0x30000000
+#define   TXTRI_BLEND_DESTBLEND_INVSRCCOLOR            0x40000000
+#define   TXTRI_BLEND_DESTBLEND_SRCALPHA               0x50000000
+#define   TXTRI_BLEND_DESTBLEND_INVSRCALPHA            0x60000000
+#define   TXTRI_BLEND_DESTBLEND_DESTALPHA              0x70000000
+#define   TXTRI_BLEND_DESTBLEND_INVDESTALPHA           0x80000000
+#define   TXTRI_BLEND_DESTBLEND_DESTCOLOR              0x90000000
+#define   TXTRI_BLEND_DESTBLEND_INVDESTCOLOR           0xA0000000
+#define   TXTRI_BLEND_DESTBLEND_SRCALPHASAT            0xB0000000
+#define TXTRI_CONTROL                        0x00000314
+#define   TXTRI_CONTROL_ALPHAREF_MSK                   0x000000FF
+#define   TXTRI_CONTROL_ALPHAFUNC_NEVER                0x00000100
+#define   TXTRI_CONTROL_ALPHAFUNC_LESS                 0x00000200
+#define   TXTRI_CONTROL_ALPHAFUNC_EQUAL                0x00000300
+#define   TXTRI_CONTROL_ALPHAFUNC_LESSEQUAL            0x00000400
+#define   TXTRI_CONTROL_ALPHAFUNC_GREATER              0x00000500
+#define   TXTRI_CONTROL_ALPHAFUNC_NOTEQUAL             0x00000600
+#define   TXTRI_CONTROL_ALPHAFUNC_GREATEREQUAL         0x00000700
+#define   TXTRI_CONTROL_ALPHAFUNC_ALWAYS               0x00000800
+#define   TXTRI_CONTROL_ALPHATEST_ENABLE               0x00001000
+#define   TXTRI_CONTROL_ORIGIN_CENTER                  0x00000000
+#define   TXTRI_CONTROL_ORIGIN_CORNER                  0x00002000
+#define   TXTRI_CONTROL_Z_ENABLE                       0x00004000
+#define   TXTRI_CONTROL_ZFUNC_NEVER                    0x00010000
+#define   TXTRI_CONTROL_ZFUNC_LESS                     0x00020000
+#define   TXTRI_CONTROL_ZFUNC_EQUAL                    0x00030000
+#define   TXTRI_CONTROL_ZFUNC_LESSEQUAL                0x00040000
+#define   TXTRI_CONTROL_ZFUNC_GREATER                  0x00050000
+#define   TXTRI_CONTROL_ZFUNC_NOTEQUAL                 0x00060000
+#define   TXTRI_CONTROL_ZFUNC_GREATEREQUAL             0x00070000
+#define   TXTRI_CONTROL_ZFUNC_ALWAYS                   0x00080000
+#define   TXTRI_CONTROL_CULLMODE_NONE                  0x00100000
+#define   TXTRI_CONTROL_CULLMODE_CW                    0x00200000
+#define   TXTRI_CONTROL_CULLMODE_CCW                   0x00300000
+#define   TXTRI_CONTROL_DITHER_ENABLE                  0x00400000
+#define   TXTRI_CONTROL_Z_PERSPECTIVE_ENABLE           0x00800000
+#define   TXTRI_CONTROL_ZWRITE_ENABLE                  0x01000000
+#define   TXTRI_CONTROL_Z_FORMAT_FIXED                 0x40000000
+#define   TXTRI_CONTROL_Z_FORMAT_FLOAT                 0x80000000
+#define TXTRI_FOG_COLOR                      0x00000318
+#define TXTRI_VERTEX0                        0x00000400
+#define TXTRI_VERTEX0_X                      0x00000400
+#define TXTRI_VERTEX0_Y                      0x00000404
+#define TXTRI_VERTEX0_Z                      0x00000408
+#define TXTRI_VERTEX0_W                      0x0000040C
+#define TXTRI_VERTEX0_COLOR                  0x00000410
+#define TXTRI_VERTEX0_SPECULAR               0x00000414
+#define TXTRI_VERTEX0_S                      0x00000418
+#define TXTRI_VERTEX0_T                      0x0000041C
+#define TXTRI_PRIMITIVE0                     0x00000600
+
+
+
+
+typedef volatile struct {
+     u32 SetObject;                /* 0000-0003 */
+     u32 Reserved00[0x003];
+#ifdef WORDS_BIGENDIAN
+     u32 Free;                     /* 0010-0013 */
+#else
+     u16 Free;                     /* 0010-0011 */
+     u16 Nop;                      /* 0012-0013 */
+#endif
+     u32 Reserved01[0x00B];
+     u32 DmaPut;                   /* 0040-0043 */
+     u32 DmaGet;                   /* 0044-0047 */
+     u32 Reserved02[0x02E];
+     union {
+          NVSurfaces2D          Surfaces2D;
+          NVSurfaces3D          Surfaces3D;
+          NVClip                Clip;
+          NVBeta1               Beta1;
+          NVBeta4               Beta4;
+          NVRectangle           Rectangle;
+          NVTriangle            Triangle;
+          NVLine                Line;
+          NVScreenBlt           ScreenBlt;
+          NVImageBlt            ImageBlt;
+          NVScaledImage         ScaledImage;
+          NVStretchedImage      StretchedImage;
+          NVTexturedTriangleDx5 TexTriangle;
+     } o;
+} NVDmaSubChannel;
+
+
+typedef volatile struct {
+     NVDmaSubChannel sub[8];
+} NVDmaChannel;
+
+
+
+#endif /* __NVIDIA_REGS_H__ */

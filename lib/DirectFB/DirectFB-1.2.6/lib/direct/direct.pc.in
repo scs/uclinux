@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+moduledir=@MODULEDIR@
+moduledirname=@MODULEDIRNAME@
+includedir=@includedir@
+
+Name: Direct
+Description: DirectFB base development library
+Version: @VERSION@
+Libs: -L${libdir} -ldirect @THREADLIB@
+Libs.private: -L${libdir} @DYNLIB@
+Cflags: @THREADFLAGS@ -I@INCLUDEDIR@
