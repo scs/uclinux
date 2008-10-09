@@ -29,7 +29,7 @@ clean:
 	rm -rf build*
 
 romfs:
-	$(ROMFSINST) build-$(VER)/dropbearmulti /usr/bin/dropbear
+	$(ROMFSINST) -d build-$(VER)/dropbearmulti /usr/bin/dropbear
 	$(ROMFSINST) -s dropbear /usr/bin/dropbearkey
 	$(ROMFSINST) -s dropbear /usr/bin/dbclient
 	$(ROMFSINST) -s dropbear /usr/bin/dropbearconvert
