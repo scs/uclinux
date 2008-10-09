@@ -1,4 +1,4 @@
-VER = e2fsprogs-libs-1.41.0
+VER = e2fsprogs-libs-1.41.2
 
 MAKE := $(MAKE) DVI=true MAKEINFO=true LDCONFIG=: STRIP=:
 
