@@ -18,6 +18,8 @@ endif
 # CONFOPTS += --disable-shared
 # CONFOPTS += --disable-static
 
+CONFOPTS += --without-stackprotect
+
 ifdef CONFIG_USER_FLATFSD_FLATFSD
 CONFOPTS += --sysconfdir=/etc/config
 else
@@ -68,6 +70,9 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHKEYGEN build/ssh-keygen /bin/ssh-keygen
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHKEYGEN build/gen-keys /bin/gen-keys
 	$(ROMFSINST) -e CONFIG_USER_SSH_SCP build/scp /bin/scp
+	$(ROMFSINST) -e CONFIG_USER_SSH_SFTP build/sftp /bin/sftp
+	$(ROMFSINST) -d -e CONFIG_USER_SSH_SFTP_SERVER build/sftp-server /usr/libexec/sftp-server
+	$(ROMFSINST) -d -e CONFIG_USER_SSH_SSH_KEYSIGN build/ssh-keysign /usr/libexec/ssh-keysign
 ifndef CONFIG_PROP_CONFIG_LIBCONFIG
 	##
 	# Add the appropriate stuff to the start files.

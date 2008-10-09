@@ -86,6 +86,9 @@
 /* Used to identify ``EscapeChar none'' */
 #define SSH_ESCAPECHAR_NONE		-2
 
+/* Use default, which could be ~ or none (based on tty presence) */
+#define SSH_ESCAPECHAR_DEFAULT		-3
+
 /*
  * unprivileged user when UsePrivilegeSeparation=yes;
  * sshd will change its privileges to this user and its
