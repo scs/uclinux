@@ -559,7 +559,7 @@ static struct dep_t *build_dep(void)
 		if (ENABLE_FEATURE_2_6_MODULES) {
 			if (include_conf_file(&conf, "/etc/modprobe.conf"))
 				r = TRUE;
-			if (include_conf_recursive(&conf, "/etc/modprobe.d"))
+			if (!access("/etc/modprobe.d", X_OK) && include_conf_recursive(&conf, "/etc/modprobe.d"))
 				r = TRUE;
 		}
 		if (ENABLE_FEATURE_2_4_MODULES && !r)
