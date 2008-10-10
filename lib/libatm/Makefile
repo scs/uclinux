@@ -1,4 +1,4 @@
-VER = linux-atm-2.4.0
+VER = linux-atm-2.5.0
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
