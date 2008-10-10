@@ -35,13 +35,13 @@
 +({ \
 +	pid_t __child_pid = fork(); \
 +	if (__child_pid == -1 && errno == ENOSYS) { \
-+		strace_vforked = 1; \
++		strace_vforked = true; \
 +		__child_pid = vfork(); \
 +	} \
 +	__child_pid; \
 +})
 +#else
-+# define strace_vforked true
++# define strace_vforked false
 +# define strace_fork() vfork()
 +#endif
 +
