@@ -87,6 +87,7 @@ while 1 {
      }
 }
 
+if { $debug_port == "uart" } {
 send -s "\x81"
 send -s "b"
 send -s "g"
@@ -103,6 +104,7 @@ while 1 {
                 break
             }
         }
+}
 }
 
 incr case_num

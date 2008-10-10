@@ -1,0 +1,177 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "Start testing."
+
+set case_num 0
+incr case_num
+
+set timeout 2
+step "Clean src directory\n"
+spawn make clean
+while 1 {
+   expect {
+
+      "*error*" {
+         send_log "\nMake clean failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nMake clean.\n"
+         send_user "\nMake clean.\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+step "Build test program\n"
+spawn make
+while 1 {
+   expect {
+
+      "*error*" {
+         send_log "\nBuild test program failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nBuild test program done\n"
+         case_pass $case_num
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+
+set spawn_id $kermit_spawn_id
+
+sleep 3
+send "\r"
+expect  -re $kernel_prompt
+
+send "ifconfig eth0 $targetip up\r"
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+         puts "ifconfig set success.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
+
+set timeout 10
+step "Copy testcase to target board\n"
+spawn rcp hello.ko root@$targetip:/
+while 1 {
+   expect {
+
+      "*connect*" {
+         send_log "\nCopy libhelloworld.so to target board failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nCopy libhelloworld.so to target board done\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+set insert_hello_output      "code function addr = 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*\[\r\n]"
+append insert_hello_output ".*data variable addr = 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 0.*\[\r\n]"
+append insert_hello_output ".*bss  variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0"
+
+set spawn_id $kermit_spawn_id
+send "insmod hello.ko\r" 
+while 1 {   
+         expect {
+	 -re "$insert_hello_output" {
+                case_pass $case_num
+		break
+	 }
+	  
+	  timeout {
+                case_fail $case_num
+	   exit
+	 }
+	 }
+}
+
+incr case_num
+
+expect ">"
+send "lsmod\r" 
+while 1 {
+   expect {
+     -re "hello" {
+        
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+incr case_num
+
+expect  -re $kernel_prompt
+send "rmmod hello\r" 
+
+set timeout 5
+expect  -re $kernel_prompt
+send "lsmod\r" 
+while 1 {
+   expect {
+   
+      "hello" {
+                case_fail $case_num
+	exit
+         }
+	 
+     timeout {
+                case_pass $case_num
+         break
+      }
+     
+     }
+}
+
+  
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+log_file
