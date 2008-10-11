@@ -12,7 +12,7 @@
 #
 
 
-find . -xdev -type f \! \( -name '*.o' -o -name '*.so.*' -o -name 'lib*' -o -name '*.do' \) -print |
+find . -xdev -type f \! \( -name '*.o' -o -name '*.so.*' -o -name 'lib*' -o -name '*.do' -o -name '*.ko' \) -print |
 xargs file |
 awk -F: '$2 ~ /not .*strip/ { print $1 }'
 
