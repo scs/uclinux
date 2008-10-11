@@ -43,6 +43,17 @@ config INSTALL_ELF_SHARED_LIBS
 	  enable this option to get the shared libraries from the toolchain
 	  distribution installed in the romfs.
 
+config INSTALL_ELF_TRIM_LIBS
+	bool "Cull unused ELF shared libraries"
+	default n
+	depends INSTALL_ELF_SHARED_LIBS
+	help
+	  Automatically scan the romfs/ directory and remove all ELF libraries that
+	  are not explicitly required by other ELF binaries.
+
+	  Note: this requires "scanelf" from the "pax-utils" package:
+	        http://hardened.gentoo.org/pax-utils.xml
+
 config INSTALL_FLAT_SHARED_LIBS
 	bool "Install FLAT shared libraries"
 	help
