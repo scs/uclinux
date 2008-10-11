@@ -1,0 +1,18 @@
+#!/bin/sh -
+
+#
+# findstrip 1.00 - find programs that are not stripped
+#
+# Oleg Kibirev * April 1995 * oleg@gd.cs.CSUFresno.EDU
+#
+# This code is covered by General Public License, version 2 or any later
+# version of your choice. You should recieve file "COPYING" which contains
+# text of the license with any distribution of this program; if you don't 
+# have it, a copy is available from ftp.gnu.ai.mit.edu.
+#
+
+
+find . -xdev -type f \! \( -name '*.o' -o -name '*.so.*' -o -name 'lib*' -o -name '*.do' \) -print |
+xargs file |
+awk -F: '$2 ~ /not .*strip/ { print $1 }'
+

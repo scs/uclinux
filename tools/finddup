@@ -1,0 +1,216 @@
+#! /usr/bin/perl
+#
+# finddup 2.0 - find identical files and do somethink with it.
+#
+
+use strict;
+use warnings;
+
+use File::Find ();
+use Digest::MD5;
+use Getopt::Long;
+use Pod::Usage;
+
+# for the convenience of &wanted calls, including -eval statements:
+use vars qw(*name *dir *prune);
+*name   = *File::Find::name;
+*dir    = *File::Find::dir;
+*prune  = *File::Find::prune;
+
+use vars qw($RCS_VERSION $VERSION $opt %filelist %md5list);
+
+sub wanted;
+
+$RCS_VERSION = '$Id: finddup,v 2.2 2005/02/06 12:21:02 klaus Exp $';
+($VERSION = '$Revision: 2.2 $') =~ s/^\D*([\d.]*)\D*$/$1/;
+
+GetOptions($opt = {}, qw(help|h man version noaction|n verbose|v quiet|q link|l oldresult|o)) || pod2usage 2;
+pod2usage(1) if $opt->{help};
+pod2usage(-exitstatus => 0, -verbose => 2) if $opt->{man};
+if ($opt->{version}) { print "Version: $VERSION\n"; exit 0; }
+# Force some options
+$opt->{verbose} = 1 if not exists $opt->{verbose} and $opt->{noaction};
+$opt->{link} = 1 if not exists $opt->{link} and $0 =~ /^(.*\/)?nodup(.pl)?$/;
+$opt->{oldresult} = 1 if not exists $opt->{oldresult} and $0 =~ /^(.*\/)?nodup(.pl)?$/;
+
+if ($opt->{oldresult})
+{
+   while (<>)
+   {
+      chomp;
+      s/^(\d+) '//;
+      my $size = $1;
+      s/'$//;
+      my @files = split(/' '/);
+      open IN, "<", $files[0];
+      my $md5 = Digest::MD5->new->addfile(*IN)->hexdigest;
+      close IN;
+      $md5list{$md5} = [[$size, \@files]];
+   } # while (<>)
+} # if ($opt->{oldresult})
+else
+{
+   # Traverse desired filesystems
+   File::Find::find({wanted => \&wanted}, '.');
+
+   # Now calculate all md5sums. Afterwards %filelist can be freed.
+   foreach (sort {$a->[1]->[0] cmp $b->[1]->[0]} values(%filelist))
+   {
+      open IN, "<", $_->[1]->[0];
+      my $md5 = Digest::MD5->new->addfile(*IN)->hexdigest;
+      close IN;
+      $md5list{$md5} = [] unless exists $md5list{$md5};
+      push @{$md5list{$md5}}, $_;
+   }
+   %filelist = ();
+} # if ($opt->{oldresult}) { ... }...
+
+# Now we can output doubles sorted by size
+foreach (sort {$md5list{$b}->[0]->[0] <=> $md5list{$a}->[0]->[0]} keys(%md5list))
+{
+   next unless @{$md5list{$_}} > 1; # This file is single
+   my $size = $md5list{$_}->[0]->[0];
+   if ($size) # Do not output empty files
+   {
+      if ($opt->{link})
+      {
+	 my $reffile = shift @{$md5list{$_}->[0]->[1]}; # Remove the first file to not unlink them
+	 print "Länge: $size Files:\t$reffile\n" if $opt->{verbose};
+	 foreach (@{$md5list{$_}})
+	 {
+	    foreach (@{$_->[1]})
+	    {
+	       print "\t\t\t$_\n" if $opt->{verbose};
+	       unless ($opt->{noaction})
+	       {
+		  unlink $_ || die "Fehler beim Löschen von '$_'";
+		  link $reffile, $_ || die "Fehler beim ln '$reffile' '$_'";
+	       }
+	    }
+	 }
+	 print "\n" if $opt->{verbose};
+      } # if ($opt->{link})
+      else
+      {
+	 print "$size" unless $opt->{quiet};
+	 foreach (@{$md5list{$_}})
+	 {
+	    foreach (@{$_->[1]})
+	    {
+	       print " '$_'" unless $opt->{quiet};
+	    }
+	 }
+	 print "\n" unless $opt->{quiet};
+      } # if ($opt->{link}) { ... } else
+   } # if ($size) # Do not output emp...
+} # foreach (keys(%md5list))
+
+exit 0;
+
+
+sub wanted
+{
+   my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size);
+
+   if ((($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size) = lstat($_)) && !($File::Find::prune |= ($dev != $File::Find::topdev)) && -f _)
+   {
+      $filelist{$ino} = [$size, []] unless exists $filelist{$ino};
+      push @{$filelist{$ino}->[1]}, $name;
+   }
+}
+
+__END__
+
+=head1 NAME
+
+finddup - Find identical files and do somethink with it
+
+=head1 SYNOPSIS
+
+B<finddup> [I<options>...]
+
+     --man              the manpage
+ -h, --help             a short help
+     --version          the version (CVS) of the program
+ -n, --noaction         do just nothing, just print out (implies -v)
+ -v, --verbose          just what the name says
+ -q, --quiet            be quiet
+ -l, --link		link the identical files together
+ -o, --oldresult	Use the old output of this script
+
+=head1 DESCRIPTION
+
+finddup search the working directory and all files below on the same partition
+for duplicate files.
+
+finddup can optional hardlink such files to save space.
+
+Files size 0 will not be reported or hardlinked as this might give problemes
+later.
+
+This is a complete rewrite of the finddup in perl to handle several issues:
+
+=over
+
+=item
+
+Allow spaces and other characters in filenames
+
+=item
+
+be faster
+
+=item
+
+include nodup in same script
+
+=item
+
+Handle if the files allready have other hardlinks to it in the same tree
+
+=item
+
+Several improbvements
+
+=back
+
+If started as nodup or nodup.pl the script will act like started with optiones --link and
+--oldresult
+
+=head1 COPYRIGHT
+
+Copyright (c) 2005 by Klaus Ethgen. All rights reserved.
+
+=head1 LICENSE
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+=head1 AUTHOR
+
+S<Klaus Ethgen E<lt>Klaus@Ethgen.de<gt>>
+
+=head1 HISTORY
+
+ $Log: finddup,v $
+ Revision 2.2  2005/02/06 12:21:02  klaus
+ Little but important bug in link routine.
+
+ Revision 2.1  2005/02/05 18:43:11  klaus
+ Just cosmetic
+
+ Revision 2.0  2005/02/05 18:41:20  klaus
+ Completely new version
+
+=cut
