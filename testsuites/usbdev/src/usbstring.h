@@ -16,8 +16,8 @@
  * together with its ID.
  */
 struct usb_string {
-    __u8			id;
-    const char		*s;
+	__u8			id;
+	const char		*s;
 };
 
 /**
@@ -29,9 +29,10 @@ struct usb_string {
  * strings for a given language.
  */
 struct usb_gadget_strings {
-    __u16			language;	/* 0x0409 for en-us */
-    struct usb_string	*strings;
+	__u16			language;	/* 0x0409 for en-us */
+	struct usb_string	*strings;
 };
 
 /* put descriptor for string with that id into buf (buflen >= 256) */
 int usb_gadget_get_string (struct usb_gadget_strings *table, int id, __u8 *buf);
+
