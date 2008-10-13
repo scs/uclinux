@@ -34,7 +34,7 @@
 #include <asm/byteorder.h>
 
 #include <linux/types.h>
-#include <linux/usb_gadgetfs.h>
+#include <linux/usb/gadgetfs.h>
 #include <linux/usb/ch9.h>
 
 #ifdef	AIO
@@ -362,11 +362,11 @@ static int autoconfig ()
 
             fs_source_desc.bEndpointAddress
                 = hs_source_desc.bEndpointAddress
-                = USB_DIR_IN | 5;
-        EP_IN_NAME = "ep5in";
+                = USB_DIR_IN | 1;
+        EP_IN_NAME = "ep1in";
         fs_sink_desc.bEndpointAddress = hs_sink_desc.bEndpointAddress
-            = USB_DIR_OUT | 5;
-        EP_OUT_NAME = "ep5out";
+            = USB_DIR_OUT | 1;
+        EP_OUT_NAME = "ep1out";
 
         source_sink_intf.bNumEndpoints = 3;
         fs_status_desc.bEndpointAddress
@@ -568,7 +568,7 @@ static int iso_autoconfig ()
 
         fs_source_desc.bEndpointAddress
             = hs_source_desc.bEndpointAddress
-            = USB_DIR_IN | 5;
+            = USB_DIR_IN | 1;
         fs_source_desc.bmAttributes
             = hs_source_desc.bmAttributes
             = USB_ENDPOINT_XFER_ISOC;
@@ -576,11 +576,11 @@ static int iso_autoconfig ()
         hs_source_desc.wMaxPacketSize = wMaxPacketSize;
         fs_source_desc.bInterval = interval + 1;
         hs_source_desc.bInterval = bInterval;
-        EP_IN_NAME = "ep5in";
+        EP_IN_NAME = "ep1in";
 
         fs_sink_desc.bEndpointAddress
             = hs_sink_desc.bEndpointAddress
-            = USB_DIR_OUT | 5;
+            = USB_DIR_OUT | 1;
         fs_sink_desc.bmAttributes
             = hs_sink_desc.bmAttributes
             = USB_ENDPOINT_XFER_ISOC;
@@ -588,7 +588,7 @@ static int iso_autoconfig ()
         hs_sink_desc.wMaxPacketSize = wMaxPacketSize;
         fs_sink_desc.bInterval = interval + 1;
         hs_sink_desc.bInterval = bInterval;
-        EP_OUT_NAME = "ep5out";
+        EP_OUT_NAME = "ep1out";
 
         source_sink_intf.bNumEndpoints = 3;
         fs_status_desc.bEndpointAddress
@@ -1360,7 +1360,7 @@ static void handle_control (int fd, struct usb_ctrlrequest *setup)
     /*
        if ((setup->bRequestType & USB_TYPE_MASK) != USB_TYPE_STANDARD)
        goto special;
-       */
+     */
 
     switch (setup->bRequest) {	/* usb 2.0 spec ch9 requests */
         case USB_REQ_GET_DESCRIPTOR:
