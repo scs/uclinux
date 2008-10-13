@@ -1333,7 +1333,7 @@ static int init_device (void)
 		close (fd);
 		return status;
 	} else if (status != (cp - buf)) {
-		fprintf (stderr, "dev init, wrote %d expected %d\n",
+		fprintf (stderr, "dev init, wrote %d expected %ld\n",
 				status, cp - buf);
 		close (fd);
 		return -EIO;
