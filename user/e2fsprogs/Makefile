@@ -1,4 +1,4 @@
-VER = e2fsprogs-1.41.2
+VER = e2fsprogs-1.41.3
 
 MAKE := $(MAKE) DVI=true MAKEINFO=true
 
