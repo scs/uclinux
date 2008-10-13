@@ -1,0 +1,8 @@
+#! /usr/bin/env bash
+# This script is used to bring the working directory into a shape where it can be released as a tar Archive.
+
+find . -name ".gitignore" -or -name ".cdtproject" -or -name ".project" -or -name ".gitmodules" | while IFS= read i; do
+	rm -f "$i"
+done
+
+rm -f do-build do-release prune_dirs

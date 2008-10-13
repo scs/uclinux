@@ -1,0 +1,26 @@
+#! /usr/bin/env bash
+# do-build <platform> <results-dir>: This script is used to generate a binary to release.
+
+if [ $# -ne 2 ]; then
+	echo "wrong number of arguments"
+	exit 1
+fi
+
+PLATFORM=$1
+RESULTS_DIR=$2
+
+make distclean || exit $?
+
+if [ "$PLATFORM" == "leanXcam" ]; then
+	make SCS/BF537_LEANXCAM_config || exit $?
+elif [ "$PLATFORM" == "indXcam" ]; then
+	exit 1 # do not use, mockup!
+	make SCS/BF537_INDXCAM_config || exit $?
+else
+	exit 1
+	echo "unknown platform: $PLATFORM"
+fi
+
+make || exit $?
+
+cp "images/uImage" "$RESULTS_DIR/uImage" || exit $?

@@ -30,17 +30,46 @@ echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
 
 
-# Detect first-time-boot if not valid u-boot environment available
+# Detect first-time-boot if not valid ethaddr u-boot environment available
 
 if test "`fw_printenv | grep ethaddr`" = ""
 then
-	echo "No config\n\n"
+	echo ">>> Fist-time-boot: ethaddr not yet defined in u-boot variables. <<<"
 	ifconfig eth0 down
 	ifconfig eth0 hw ether 00:20:e3:23:00:00
-	ifconfig eth0 192.168.11.10
-	route add -net default gw 192.168.11.1
+	if test -e /mnt/app/config
+	then
+		echo "Use settings from config file instead default."
+		# Use IP, GATEWAYIP, SERVERIP from configuration file. 
+		# Usefull for uclinux/uboot migration.
+		ipaddr=`grep "^IP" /mnt/app/config | awk '{print $2}'`
+		gatewayip=`grep "^GATEWAYIP" /mnt/app/config | awk '{print $2}'`
+		serverip=`grep "^SERVERIP" /mnt/app/config | awk '{print $2}'`
+	fi
+
+	if test -z $ipaddr
+	then
+		ipaddr=192.168.11.10
+	else
+		echo "Use IP from config file: " $ipaddr
+	fi
+        if test -z $gatewayip
+        then
+                gatewayip=192.168.11.1
+        else
+                echo "Use GATEWAYIP from config file: " $gatewayip
+        fi
+        if test -z $serverip
+        then
+                serverip=192.168.11.2
+        else
+                echo "Use SERVERIP from config file: " $serverip
+        fi
+
+	ifconfig eth0 $ipaddr
+	route add -net default gw $gatewayip
 	ifconfig eth0 up
-	tftp 192.168.11.2 -g -r runinit.sh -l /home/runinit.sh
+	tftp $serverip -g -r runinit.sh -l /home/runinit.sh
 
 	if test -e /home/runinit.sh
 	then
