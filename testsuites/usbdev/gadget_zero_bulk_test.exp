@@ -1,0 +1,504 @@
+#!/usr/bin/expect
+
+#
+# This usb device test script is for Gadget Zero on BF548-EZKIT
+#
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+step "Start testing."
+sleep 5
+set case_num 0
+set test_interval [expr 3600*24]
+
+if [ catch {exec make clean -f Makefile.testusb -C src} ] {
+    send_user "Make clean of testusb fail\n"
+    case_fail $case_num
+} else {
+    send_user "Make clean of testusb done\n"
+}
+
+if [ catch {exec make -f Makefile.testusb -C src} ] {
+    send_user "Build testusb fail\n"
+    case_fail $case_num
+} else {
+    send_user "Build testusb done\n"
+}
+
+
+spawn /bin/bash
+set host_spawn_id $spawn_id
+
+
+incr case_num
+set timeout 15
+send "su -\r"
+while 1 {
+    expect {
+        -re "\[pP]assword" {
+            send "$password\r"
+            continue
+        }
+        -re "\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "cd $uclinux_path/testsuites/usbdev\r"
+expect "#"
+send "lsmod |grep usbtest\r"
+while 1 {
+    expect {
+        -re "usbcore.*usbtest.*#" {
+            case_pass $case_num
+            break
+        }
+        -re "#" {
+            send "sudo insmod ./configs/usbtest.ko\r"
+            while 1 {
+                expect {
+                    -re "insmod:|\[eE]rror|\[fF]ail" {
+                        case_fail $case_num
+                    }
+                    -re "#" {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        send "\3"
+                        expect "#"
+                        case_fail $case_num
+                    }
+                }
+            }
+            break
+        }
+        timeout {
+            send "\3"
+            expect "#"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "lsmod |grep usbtest\r"
+while 1 {
+    expect {
+        -re "usbcore.*usbtest.*#" {
+            case_pass $case_num
+            break
+        }
+        -re "#" {
+            case_fail $case_num
+        }
+        timeout {
+            send "\3"
+            expect "#"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 15
+send "sudo mount -t usbfs none /proc/bus/usb/\r"
+while 1 {
+    expect {
+        -re "mount: none already mounted" {
+            case_pass $case_num
+            break
+        }
+        -re "\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 4
+send "mount\r"
+while 1 {
+    expect {
+        -re "none on /proc/bus/usb type usbfs.*#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set spawn_id $kermit_spawn_id
+
+incr case_num
+set timeout 5
+send "modprobe g_zero\r"
+while 1 {
+    expect {
+        -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re "Gadget Zero.*using musb_hdrc.*source and sink data" {
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "(lsmod:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re "g_zero.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set spawn_id $host_spawn_id
+
+sleep 2
+
+incr case_num
+set timeout 5
+send "lsusb\r"
+while 1 {
+    expect {
+        -re ".*#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "lsusb|grep \"Gadget Zero\"|awk '{print \$2\" \"\$4}'\r"
+while 1 {
+    expect {
+        -re "(\[0-9]+)( )(\[0-9]+)" {
+            set g_zero_bus "$expect_out(1,string)"
+            set g_zero_dev "$expect_out(3,string)"
+            send_user "g_zero_bus=$g_zero_bus;g_zero_dev=$g_zero_dev\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set fail_count_t1 0
+set fail_count_t3 0
+set fail_count_t5 0
+set fail_count_t7 0
+set fail_count_t2 0
+set fail_count_t4 0
+set fail_count_t6 0
+set fail_count_t8 0
+set fail_count_at13 0
+set cur_time [timestamp]
+set end_time $cur_time
+incr end_time $test_interval
+
+for {set count 1} {$cur_time <= $end_time} {incr count} {
+    set cur_time [timestamp]
+
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t1\r"
+    while 1 {
+        expect {
+            -re "test 1.*\[0-2]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count_t1
+                send_user "testusb t1 fail\n"
+                break
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t3\r"
+    while 1 {
+        expect {
+            -re "test 3.*\[0-2]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count_t3
+                send_user "testusb t3 fail\n"
+                break
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t5\r"
+    while 1 {
+        expect {
+            -re "test 5.*\[0-2]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count_t5
+                send_user "testusb t5 fail\n"
+                break
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t7\r"
+    while 1 {
+        expect {
+            -re "test 7.*\[0-2]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count_t7
+                send_user "testusb t7 fail\n"
+                break
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t2\r"
+    while 1 {
+        expect {
+            -re "test 2.*\[0-2]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count_t2
+                send_user "testusb t2 fail\n"
+                break
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t4\r"
+    while 1 {
+        expect {
+            -re "test 4.*\[0-2]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count_t4
+                send_user "testusb t4 fail\n"
+                break
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t6\r"
+    while 1 {
+        expect {
+            -re "test 6.*\[0-2]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count_t6
+                send_user "testusb t6 fail\n"
+                break
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t8\r"
+    while 1 {
+        expect {
+            -re "test 8.*\[0-2]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count_t8
+                send_user "testusb t8 fail\n"
+                break
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -at13\r"
+    while 1 {
+        expect {
+            -re "test 13.*\[0-3]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count_at13
+                send_user "testusb at13 fail\n"
+                break
+            }
+        }
+    }
+
+    send_user "\n\ntest round $count finish\n\n"
+}
+
+incr case_num
+set timeout 5
+send "sudo rmmod ./configs/usbtest.ko\r"
+while 1 {
+    expect {
+        -re "rmmod:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "sudo umount /proc/bus/usb\r"
+while 1 {
+    expect {
+        -re "umount:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set spawn_id $kermit_spawn_id
+
+incr case_num
+set timeout 5
+send "rmmod g_zero\r"
+while 1 {
+    expect {
+        -re "rmmod:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "g_zero" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+if { $fail_count_t1 == 0 && $fail_count_t3 == 0 && $fail_count_t5 == 0 && $fail_count_t7 == 0 && $fail_count_t2 == 0 && $fail_count_t4 == 0 && $fail_count_t6 == 0 && $fail_count_t8 == 0 && $fail_count_at13 == 0} {
+    send_user "No error when running testusb\n"
+    case_pass $case_num
+} else {
+    send_user "test 1 fail $fail_count_t1 times\n"
+    send_user "test 3 fail $fail_count_t3 times\n"
+    send_user "test 5 fail $fail_count_t5 times\n"
+    send_user "test 7 fail $fail_count_t7 times\n"
+    send_user "test 2 fail $fail_count_t2 times\n"
+    send_user "test 4 fail $fail_count_t4 times\n"
+    send_user "test 6 fail $fail_count_t6 times\n"
+    send_user "test 8 fail $fail_count_t8 times\n"
+    send_user "test at13 fail $fail_count_at13 times\n"
+    case_fail $case_num
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
