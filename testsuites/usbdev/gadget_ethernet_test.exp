@@ -22,7 +22,7 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 set case_num 0
-set usb0_addr "192.168.1.66"
+set usb_peripheral "192.168.1.66"
 set usb_host  "192.168.1.56"
 
 sleep 3
@@ -59,7 +59,7 @@ while 1 {
     }
 }
 
-send "ifconfig usb0 $usb0_addr up\r"
+send "ifconfig usb0 $usb_peripheral up\r"
 sleep 3
 send "\r"
 expect -re $kernel_prompt
@@ -69,7 +69,7 @@ set timeout 10
 send "ifconfig usb0\r"
 while 1 {
     expect {
-        -re "$usb0_addr.*$kernel_prompt" {
+        -re "$usb_peripheral.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -125,25 +125,7 @@ while 1 {
 sleep 10
 incr case_num
 set timeout 30
-send "ping -f -l50 -c 1000 $usb0_addr\r"
-while 1 {
-    expect {
-        -re "1000 packets transmitted, (1000|9..) received.*#" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            send "\3"
-            expect "#"
-            case_fail $case_num
-        }
-    }
-}
-
-sleep 10
-incr case_num
-set timeout 30
-send "ping -f -l50 -c 1000 $usb0_addr\r"
+send "ping -f -l50 -c 1000 $usb_peripheral\r"
 while 1 {
     expect {
         -re "1000 packets transmitted, 1000 received.*#" {
@@ -158,10 +140,9 @@ while 1 {
     }
 }
 
-sleep 10
 incr case_num
 set timeout 30
-send "ping -f -l50 -c 10000 $usb0_addr\r"
+send "ping -f -l50 -c 10000 $usb_peripheral\r"
 while 1 {
     expect {
         -re "10000 packets transmitted, 10000 received.*#" {
@@ -176,11 +157,34 @@ while 1 {
     }
 }
 
+for {set size 1024} {$size <= 4096 } { incr size 512} {
+    incr case_num
+    set timeout 2
+    send "ping -c 1 -s $size $usb_peripheral\r"
+    while 1 {
+        expect {
+            -re "wrong data byte #.*#" {
+                case_fail $case_num
+            }
+            -re "1 packets transmitted, 1 received.*#" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send "\3"
+                expect "#"
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+
 set spawn_id $kermit_spawn_id
 
 incr case_num
 set timeout 1200
-send "ping -c 1000 $usb_host\r"
+send "ping -f -l50 -c 1000 $usb_host\r"
 while 1 {
     expect {
         -re "1000 packets transmitted, 1000 packets received.*$kernel_prompt" {
@@ -196,11 +200,50 @@ while 1 {
 }
 
 incr case_num
-set timeout 5
-send "rmmod g_ether\r"
+set timeout 1200
+send "ping -f -l50 -c 10000 $usb_host\r"
 while 1 {
     expect {
-        -re "(rmmod:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+        -re "10000 packets transmitted, 10000 packets received.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send "\3"
+            expect -re $kernel_prompt
+            case_fail $case_num
+        }
+    }
+}
+
+for {set size 1024} {$size <= 4096 } { incr size 512} {
+    incr case_num
+    set timeout 2
+    send "ping -c 1 -s $size $usb_host\r"
+    while 1 {
+        expect {
+            -re "wrong.*$kernel_prompt" {
+                case_fail $case_num
+            }
+            -re "1 packets transmitted, 1 packets received.*$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send "\3"
+                expect "#"
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "modprobe -r g_ether\r"
+while 1 {
+    expect {
+        -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             case_fail $case_num
         }
         -re $kernel_prompt {
