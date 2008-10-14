@@ -448,6 +448,8 @@ do
   cp $UCLINUX_DIST_TESTSUITES/usbhost/*_log  $THIS_LOG
   elif [ ${AUTO_TESTCASE[$i]} == "atapi_hd" ] ; then
   cp $UCLINUX_DIST_TESTSUITES/atapi/*_log  $THIS_LOG
+  elif [ ${AUTO_TESTCASE[$i]} == "kgdb_uart" ] ; then
+  cp $UCLINUX_DIST_TESTSUITES/kgdb/*_log  $THIS_LOG
   elif [ ${AUTO_TESTCASE[$i]} == "linphone_ad1981b" ] || [ ${AUTO_TESTCASE[$i]} == "linphone_ad73322" ] ; then
   cp $UCLINUX_DIST_TESTSUITES/linphone/*_log  $THIS_LOG
   else

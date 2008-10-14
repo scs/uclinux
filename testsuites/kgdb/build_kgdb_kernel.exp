@@ -39,7 +39,7 @@ source  make_default_config.exp
 # Following make specific configuration for this case.
 
 cd $uclinux_path
-set timeout 300
+set timeout 10 
 set baud_rate_done_flag 0
 spawn make config
 
@@ -47,6 +47,7 @@ if { $debug_port == "ethernet" } {
 
 #puts "Begin the interactive process of configuration"
 while 1 {
+set timeout 10 
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
@@ -67,21 +68,28 @@ while 1 {
         -re "KGDB: kernel debugging with remote gdb.*KGDB.*\\\[.*]" {
             send "Y\r"
         }
-    
+
+        -re "KGDB: use kgdb over the serial console.*KGDB_SERIAL_CONSOLE.*\\\[.*]" {
+            send "N\r"
+        }
+ 
         -re "KGDB: On ethernet.*KGDBOE.*\\\[.*]" {
             send "Y\r"
         }
-        
-        -re "Default bootloader kernel arguments.*CMDLINE_BOOL.*\\\[.*]" {
-            send "Y\r"             
-        }      
+
+        -re "Default bootloader kernel arguments \\\(CMDLINE_BOOL\\\) \\\[\[^\r]*]" {
+            expect {
+            -nocase -re  " (\[ym])\r\n" {
+                send_user "\n Item_value is selected  $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "Y\r"
+            }
+            }
+        }
 
         -re "Initial kernel command string.*CMDLINE.*\\\[(.*)]" {
             send -s "$expect_out(1,string) kgdboe=@10.100.4.50/,@10.100.4.174/\r"
-         }
-
-        -re "UART Mode.*DMA mode.*SERIAL_BFIN_DMA.*PIO mode.*SERIAL_BFIN_PIO.*choice\\\[.*]" {
-                send "2\r"
          }
 
          -re "Blackfin On-Chip Watchdog Timer.*BFIN_WDT.*\\\[.*]" {
@@ -89,8 +97,13 @@ while 1 {
          }
 
         "\\\(*) \\\[*]" {
-            sleep .01 
-            send "\r"
+            set timeout .2
+            send  "\r"
+            expect {
+            -nocase -re  " (\[ymn])\r\n" {
+                send_user "\n Item_value is selected  $expect_out(1,string).\n"
+            }
+            }
         }
 
         -re "\[cC]hoice\\\[.*]:" {
@@ -160,8 +173,13 @@ while 1 {
          }
 
         "\\\(*) \\\[*]" {
-            sleep .01 
-            send "\r"
+            set timeout .2
+            send  "\r"
+            expect {
+            -nocase -re  " (\[ymn])\r\n" {
+                send_user "\n Item_value is selected  $expect_out(1,string).\n"
+            }
+            }
         }
 
         -re "\[cC]hoice\\\[.*]:" {
