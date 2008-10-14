@@ -104,10 +104,10 @@ while 1 {
 }
 
 incr case_num
-send "ls -l /dev/simple\[nr\]\r" 
+send "ls -l /dev/simpler\r" 
 while 1 {
     expect {
-        -re "crw-rw-r--.*1.*simplen.*crw-rw-r--.*0.*simpler.*$kernel_prompt" {
+        -re "crw-rw-r--.*0.*simpler.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -155,7 +155,7 @@ incr case_num
 send "ls -l /dev/simple*\r" 
 while 1 {
     expect {
-        -re "simpler|simplen" {
+        -re "simpler" {
             case_fail $case_num
         }
         -re "No such file or directory" {

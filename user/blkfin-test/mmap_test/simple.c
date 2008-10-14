@@ -126,6 +126,7 @@ static int simple_remap_mmap(struct file *filp, struct vm_area_struct *vma)
 /*
  * The nopage version.
  */
+/*
 struct page *simple_vma_nopage(struct vm_area_struct *vma,
 			       unsigned long address, int *type)
 {
@@ -155,12 +156,14 @@ static struct vm_operations_struct simple_nopage_vm_ops = {
 	.close = simple_vma_close,
 	.nopage = simple_vma_nopage,
 };
+*/
 
 ssize_t simple_read(struct file * filp, char __user * buf, size_t count, loff_t * f_pos)
 {
 	return count;
 }
 
+/*
 static int simple_nopage_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
@@ -173,6 +176,7 @@ static int simple_nopage_mmap(struct file *filp, struct vm_area_struct *vma)
 	simple_vma_open(vma);
 	return 0;
 }
+*/
 
 /*
  * Set up the cdev structure for a device.
@@ -204,14 +208,16 @@ static struct file_operations simple_remap_ops = {
 };
 
 /* Device 1 uses nopage */
+/*
 static struct file_operations simple_nopage_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.release = simple_release,
 	.mmap = simple_nopage_mmap,
 };
+*/
 
-#define MAX_SIMPLE_DEV 2
+#define MAX_SIMPLE_DEV 1
 
 #if 0
 static struct file_operations *simple_fops[MAX_SIMPLE_DEV] = {
@@ -236,9 +242,9 @@ static int simple_init(void)
 
 	/* Figure out our device number. */
 	if (simple_major)
-		result = register_chrdev_region(dev, 2, "simple");
+		result = register_chrdev_region(dev, 1, "simple");
 	else {
-		result = alloc_chrdev_region(&dev, 0, 2, "simple");
+		result = alloc_chrdev_region(&dev, 0, 1, "simple");
 		simple_major = MAJOR(dev);
 	}
 	if (result < 0) {
@@ -251,15 +257,15 @@ static int simple_init(void)
 
 	/* Now set up two cdevs. */
 	simple_setup_cdev(SimpleDevs, 0, &simple_remap_ops);
-	simple_setup_cdev(SimpleDevs + 1, 1, &simple_nopage_ops);
+        //simple_setup_cdev(SimpleDevs + 1, 1, &simple_nopage_ops);
 	return 0;
 }
 
 static void simple_cleanup(void)
 {
 	cdev_del(SimpleDevs);
-	cdev_del(SimpleDevs + 1);
-	unregister_chrdev_region(MKDEV(simple_major, 0), 2);
+	//cdev_del(SimpleDevs + 1);
+	unregister_chrdev_region(MKDEV(simple_major, 0), 1);
 }
 
 module_init(simple_init);
