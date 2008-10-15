@@ -128,7 +128,7 @@ while 1 {
         if { $debug_port == "ethernet" } {
 	send "target remote udp:$targetip:6443\r"
 	expect {
-		"breakpoint () at kernel" {
+		"kgdb_breakpoint" {
                 case_pass $case_num
 			expect { 
 				"(gdb) " {

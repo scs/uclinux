@@ -39,7 +39,6 @@ source  make_default_config.exp
 # Following make specific configuration for this case.
 
 cd $uclinux_path
-set timeout 10 
 set baud_rate_done_flag 0
 spawn make config
 
@@ -47,7 +46,7 @@ if { $debug_port == "ethernet" } {
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-set timeout 10 
+set timeout 30 
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
@@ -74,6 +73,10 @@ set timeout 10
         }
  
         -re "KGDB: On ethernet.*KGDBOE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Compile the kernel with debug info.*DEBUG_INFO.*\\\[.*]" {
             send "Y\r"
         }
 
@@ -123,6 +126,7 @@ set timeout 10
 }
 } elseif { $debug_port == "uart" } {
 while 1 {
+set timeout 30 
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
@@ -145,6 +149,10 @@ while 1 {
         }
         
          -re "KGDB: use kgdb over the serial console.*KGDB_SERIAL_CONSOLE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Compile the kernel with debug info.*DEBUG_INFO.*\\\[.*]" {
             send "Y\r"
         }
 
