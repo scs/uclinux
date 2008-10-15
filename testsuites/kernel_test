@@ -591,7 +591,7 @@ do
   cp $UCLINUX_DIST_TESTSUITES/video/build_video_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/video/adv7393_test_log $THIS_LOG/video_adv7393_test_log
 
-  sleep 300
+  sleep 30
  
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -634,7 +634,7 @@ do
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_LQ043_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_lq043_test_log $THIS_LOG
 
-  sleep 300
+  sleep 30
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -675,7 +675,7 @@ do
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_landscape_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_lq035_test_log $THIS_LOG/tftlcd_lq035_landscape_test_log
 
-  sleep 300
+  sleep 30
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -711,7 +711,7 @@ do
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_portrait_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_lq035_test_log $THIS_LOG/tftlcd_lq035_portrait_test_log
 
-  sleep 300
+  sleep 30
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -762,7 +762,7 @@ do
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
 
-  sleep 300
+  sleep 30
  
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -808,7 +808,7 @@ do
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
  
-  sleep 300
+  sleep 30
  
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -854,7 +854,7 @@ do
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
 
-  sleep 300
+  sleep 30
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -901,7 +901,7 @@ do
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
 
-  sleep 300
+  sleep 30
 
 
   if [ $RESET_BOARD -eq 1  ] ; then
@@ -949,7 +949,7 @@ do
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
 
-  sleep 300
+  sleep 30
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -996,7 +996,7 @@ do
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
  
-  sleep 300
+  sleep 30
  
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -1345,7 +1345,7 @@ do
   #make sure kernel can boot up before next xip test
   cp $THIS_LOG/linux.policy /tftpboot/linux
 
-  sleep 300
+  sleep 30
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
@@ -1377,7 +1377,7 @@ do
   cd $UCLINUX_DIST_PATH/
   make clean > /dev/null 2>&1
 
-  sleep 300
+  sleep 30
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
