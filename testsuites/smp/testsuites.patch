@@ -50,7 +50,7 @@ Index: timer/timer_tick_test.exp
          	set START_TIME $expect_out(1,string)
          	expect {
 -			 -re "6: + (\[0-9]+) .* Blackfin Core Timer" {
-+			 -re "42: + (\[0-9]+) .* Blackfin Core Timer" {
++			 -re "42: + (\[0-9]+) .* BFIN Timer Tick" {
  			set TIMER_TICK_START $expect_out(1,string)
  		#	send_log "$START_TIME  $TIMER_TICK_START\r"
                  case_pass $case_num
@@ -59,7 +59,7 @@ Index: timer/timer_tick_test.exp
          	set END_TIME $expect_out(1,string)
          	expect {
 -			 -re "6: + (\[0-9]+) .* Blackfin Core Timer" {
-+			 -re "42: + (\[0-9]+) .* Blackfin Core Timer" {
++			 -re "42: + (\[0-9]+) .* BFIN Timer Tick" {
  			set TIMER_TICK_END $expect_out(1,string)
  		#	send_log "$END_TIME  $TIMER_TICK_END\r"
                  case_pass $case_num
