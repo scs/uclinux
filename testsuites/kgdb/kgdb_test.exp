@@ -4,7 +4,15 @@
 #Test program to test the KGDB patch.
 #
 source ../kernel_config.exp
-log_file [log_file_name "$argv0"]
+
+set debug_port "ethernet"
+
+if { $argc >= 2} {
+set debug_port [lindex $argv 1]
+}
+
+log_file [log_file_name $argv0.$debug_port ]
+
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
@@ -13,12 +21,6 @@ source ../spawn_kermit.exp
 
 step "Reboot the kernel."
 source ../reboot_kernel.exp
-
-set debug_port "ethernet"
-
-if { $argc >= 2} {
-set debug_port [lindex $argv 1]
-}
 
 if { $debug_port == "uart" || $debug_port == "ethernet" } {
 send_log "\n#### Debugging is through $debug_port port.\n"

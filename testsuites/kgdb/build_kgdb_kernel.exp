@@ -1,14 +1,17 @@
 #!/usr/bin/expect
 
 source ../kernel_config.exp
-source  ../board_info.exp
-log_file [log_file_name "$argv0"]
-send_user "Starting $argv0\n"
+
 set debug_port "ethernet"
 
 if { $argc >= 2} {
 set debug_port [lindex $argv 1]
 }
+
+log_file [log_file_name $argv0.$debug_port ]
+
+source  ../board_info.exp
+send_user "Starting $argv0\n"
 
 if { $debug_port == "uart" || $debug_port == "ethernet" } {
 send_log "\n#### Debugging is through $debug_port port.\n"
@@ -39,6 +42,7 @@ source  make_default_config.exp
 # Following make specific configuration for this case.
 
 cd $uclinux_path
+set timeout 30 
 set baud_rate_done_flag 0
 spawn make config
 
@@ -46,7 +50,6 @@ if { $debug_port == "ethernet" } {
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-set timeout 30 
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
@@ -81,14 +84,7 @@ set timeout 30
         }
 
         -re "Default bootloader kernel arguments \\\(CMDLINE_BOOL\\\) \\\[\[^\r]*]" {
-            expect {
-            -nocase -re  " (\[ym])\r\n" {
-                send_user "\n Item_value is selected  $expect_out(1,string).\n"
-            }
-            timeout {
                 send -s "Y\r"
-            }
-            }
         }
 
         -re "Initial kernel command string.*CMDLINE.*\\\[(.*)]" {
@@ -99,14 +95,12 @@ set timeout 30
             send -s "N\r"
          }
 
-        "\\\(*) \\\[*]" {
-            set timeout .2
-            send  "\r"
-            expect {
-            -nocase -re  " (\[ymn])\r\n" {
-                send_user "\n Item_value is selected  $expect_out(1,string).\n"
-            }
-            }
+         -nocase -re  " \\\(.*\\\) \\\[\[^\r]*] (\[ymn])" {
+        }
+
+        -re  " \\\(.*\\\) \\\[\[^\r]*] " {
+            send "\r"
+            sleep .1
         }
 
         -re "\[cC]hoice\\\[.*]:" {
@@ -126,7 +120,6 @@ set timeout 30
 }
 } elseif { $debug_port == "uart" } {
 while 1 {
-set timeout 30 
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
@@ -180,14 +173,12 @@ set timeout 30
             send -s "N\r"
          }
 
-        "\\\(*) \\\[*]" {
-            set timeout .2
-            send  "\r"
-            expect {
-            -nocase -re  " (\[ymn])\r\n" {
-                send_user "\n Item_value is selected  $expect_out(1,string).\n"
-            }
-            }
+         -nocase -re  " \\\(.*\\\) \\\[\[^\r]*] (\[ymn])" {
+        }
+
+        -re  " \\\(.*\\\) \\\[\[^\r]*] " {
+            send "\r"
+            sleep .1
         }
 
         -re "\[cC]hoice\\\[.*]:" {
