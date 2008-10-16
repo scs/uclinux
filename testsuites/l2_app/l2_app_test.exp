@@ -106,27 +106,6 @@ while 1 {
    }
 }
 
-spawn rcp libhelloworldcpp.so root@$targetip:/lib/.
-while 1 {
-   expect {
-
-      "*connect*" {
-         send_log "\nCopy libhelloworld.so to target board failed\n"
-         case_fail $case_num
-      }
-
-      eof {
-         send_log "\nCopy libhelloworld.so to target board done\n"
-         send_user "\nCopy libhelloworld.so to target board done\n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
-}
-
 spawn rcp test_helloworld root@$targetip:/.
 while 1 {
    expect {
@@ -154,7 +133,7 @@ send "/test_helloworld\r"
 while 1 {
    expect {
 
-      -re "FAIL" {
+      -re "FAIL|can't" {
          send_log "\nTest for data and instruction fail\n"
          case_fail $case_num
       }

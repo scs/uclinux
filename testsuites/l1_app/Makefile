@@ -6,14 +6,10 @@ CFLAGS:= -fno-jump-tables -mfdpic
 LDFLAGS:= -Wl,-elf2flt
 L1FLAGS:= -Wl,--sep-code -Wl,--code-in-l1 -Wl,-z -Wl,now -Wl,--data-in-l1
 
-all: test_helloworld test_helloworldcpp test_helloworld_stack
+all: test_helloworld test_helloworldcpp
 
 test_helloworld: libhelloworld
 	$(CC) -pie -o $@ $@.c -lhelloworld -L./ $(CFLAGS)
-
-test_helloworld_stack:
-	$(CCF) $(LDFLAGS) -o $@ $@.c
-	bfin-uclinux-flthdr -u -s 3500 test_helloworld_stack
 
 libhelloworld:
 	$(CC) -shared -o libhelloworld.so helloworld.c $(CFLAGS) $(L1FLAGS)
@@ -25,4 +21,4 @@ libhelloworldcpp:
 	$(CPPC) -shared -o libhelloworldcpp.so helloworld.cpp $(CFLAGS)
 
 clean:
-	rm -rf *.o *.so *.gdb test_helloworld test_helloworldcpp test_helloworld_stack
+	rm -rf *.o *.so *.gdb test_helloworld test_helloworldcpp

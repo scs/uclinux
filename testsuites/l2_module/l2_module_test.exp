@@ -108,7 +108,7 @@ while 1 {
 
 set insert_hello_output      "code function addr = 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*\[\r\n]"
 append insert_hello_output ".*data variable addr = 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 0.*\[\r\n]"
-append insert_hello_output ".*bss  variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0"
+append insert_hello_output ".*bss  variable addr = 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0"
 
 set spawn_id $kermit_spawn_id
 send "insmod hello.ko\r" 

@@ -1,15 +1,15 @@
-/* Test module for L1 attributes and stuff */
+/* Test module for L2 attributes and stuff */
 
 #include <linux/init.h>
 #include <linux/module.h>
 
 MODULE_LICENSE("Dual BSD/GPL");
 
-int e __attribute__((l2_data));
+int e __attribute__((l2));
 int f __attribute((section(".l2.bss")));
 
 
-void l2_code_test(void) __attribute__((l2_text));
+void l2_code_test(void) __attribute__((l2));
 
 void l2_code_test(void)
 {
