@@ -73,7 +73,7 @@ set CACHE_DISABLED          "disabled"
 
 proc log_file_name { file_name } {
     
-  return [ exec echo "$file_name" | sed "s/.exp/_log/g" ]
+  return [ exec echo "$file_name" | sed "s/\\.exp/_log/g" | sed "s/\\.\\(\[a-zA-Z\]\\)/_\\1/g" | sed "s/\\(\.\*\\)\\(_\.\*_log\\)\\(\.\*\\)/\\1\\3\\2/g" ]
 }
 
 proc title { file_name } {
