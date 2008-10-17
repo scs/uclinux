@@ -57,8 +57,11 @@ while 1 {
             send -s "Y\r"
         }
 
+        -nocase -re  " \\\(.*\\\) \\\[\[^\r]*] (\[ymn])" {
+        }
+
         "\\\(*) \\\[*]" {
-            sleep .01
+            sleep .1
             send "\r"
         }
 

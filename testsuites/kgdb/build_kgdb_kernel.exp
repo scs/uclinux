@@ -210,19 +210,5 @@ step "Copy linux"
 
 source   copy_image.exp
 
-
-step "Revert kgdb patch."
-
-cd $uclinux_path/linux-2.6.x
-
-if { $debug_port == "ethernet" } {
-
-exec patch -p0 -R < ../bfin_patch/kgdb_patch/kgdboe_bfin_linux-2.6.x.patch
-
-}
-
-exec patch -p1 -R < ../testsuites/kgdb/kgdb_bfin_linux-2.6.x_test.patch
-
-
 send_user "Ending $argv0\n"
 log_file
