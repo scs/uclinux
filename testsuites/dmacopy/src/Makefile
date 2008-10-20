@@ -1,7 +1,8 @@
 # Makefile for dma_memcpy test
 
 CC	= bfin-uclinux-gcc
-CFLAGS += -Wl,-elf2flt
+CFLAGS += -Wall
+LDFLAGS += -Wl,-elf2flt
 
 SRCS	= dmacopy.c
 TARGETS	= $(patsubst %.c,%,$(SRCS))
