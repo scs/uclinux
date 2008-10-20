@@ -53,6 +53,8 @@ romfs::
 	$(ROMFSINST) fw_printenv /bin/fw_printenv
 	$(ROMFSINST) -s /bin/fw_printenv /bin/fw_setenv
 
+	$(ROMFSINST) maintenance /bin/maintenance
+
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
 ifeq ($(CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG),y)
 	gzip -9c $(ROOTDIR)/config/.config > $(ROMFSDIR)/root/uclinux-config.gz
