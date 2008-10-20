@@ -99,7 +99,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .01
+            sleep .1
             send "\r"
         }
 
@@ -114,6 +114,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }
