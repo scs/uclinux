@@ -21,7 +21,7 @@ source  make_mtd_config.exp
 cd $uclinux_path/testsuites
 source  make_cut_fs_config.exp
 
-cd $uclinux_path/testsuites/jffs2
+cd $uclinux_path/testsuites/snormtd
 source  make_spi_config.exp
 
 cd $uclinux_path

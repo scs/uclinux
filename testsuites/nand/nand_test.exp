@@ -54,12 +54,11 @@ send -s "dmesg \r"
 while 1 {
     expect {
 
-       -re "NAND.*(0x\[0-9a-fA-F]+-0x\[0-9a-fA-F]+)\[\x20\t]+:\[\x20\t]+\"(.*)\"\r\n(0x\[0-9a-fA-F]+-0x\[0-9a-fA-F]+)\[\x20\t]+:\[\x20\t]+\"(.*)\"\r\n" {
+       -re "\"NAND.*\".*(0x\[0-9a-fA-F]+-0x\[0-9a-fA-F]+)\[\x20\t]+:\[\x20\t]+\"(.*)\"\r\n(0x\[0-9a-fA-F]+-0x\[0-9a-fA-F]+)\[\x20\t]+:\[\x20\t]+\"(.*)\"\r\n" {
                 set kernel_partition_address $expect_out(1,string)
                 set kernel_partition_name $expect_out(2,string)
                 set rootfs_partition_address $expect_out(3,string)
                 set rootfs_partition_name $expect_out(4,string)
-
                 case_pass $case_num
                 expect ">"
                 break;
@@ -95,6 +94,18 @@ while 1 {
 incr case_num
 
 step "MTD test"
+
+set list [ split $rootfs_partition_name "" ]
+if { [ lsearch  $list "(" ] > 0 } {
+set i [ lsearch  $list "(" ]
+set list2  [ linsert  $list $i "\\" ]
+set j [ lsearch  $list2 ")" ]
+set list3 [ linsert  $list2 $j "\\" ]
+set rootfs_partition_name [ join $list3 "" ]
+puts "Rootfs_partition_name is $rootfs_partition_name."
+} else {
+set rootfs_partition_name [ join $list "" ]
+}
 
 set timeout 5
 set mtd_temp_result $TEST_FAIL
@@ -331,29 +342,23 @@ while 1 {
 }
 
 incr case_num
-set timeout 5
+set timeout 10
 
 send -s "modprobe bfin_nand\r"
 while 1 {
     expect {
-        -re "NAND device.*Creating .* MTD partitions" {
-                expect ">"
-                case_pass $case_num
-                break;
-        }
 
-        "No | error" {
+       -re "No | error |failed" {
                 case_fail $case_num
                 exit
         }
 
         timeout {
-                case_fail $case_num
-                exit
+                case_pass $case_num
+                break
         }
     }
 }
-
 }
 
 send_log "\n"
