@@ -1,0 +1,77 @@
+--- cpufrequtils-005/Makefile
++++ cpufrequtils-005/Makefile
+@@ -140,7 +140,7 @@ endif
+ endif
+ 
+ 
+-CFLAGS += $(WARNINGS) -I$(GCCINCDIR)
++CFLAGS += $(WARNINGS)
+ 
+ ifeq ($(strip $(V)),false)
+ 	QUIET=@$(PWD)/build/ccdv
+@@ -156,13 +157,7 @@ else
+ endif
+ 
+ # if DEBUG is enabled, then we do not strip or optimize
+-ifeq ($(strip $(DEBUG)),true)
+-	CFLAGDEF  += -O1 -g -DDEBUG
+-	STRIPCMD = /bin/true -Since_we_are_debugging
+-else
+-	CFLAGDEF  += $(OPTIMIZATION) -fomit-frame-pointer
+-	STRIPCMD = $(STRIP) -s --remove-section=.note --remove-section=.comment
+-endif
++STRIPCMD = /bin/true -Since_we_are_debugging
+ 
+ 
+ 
+@@ -176,21 +171,27 @@ ccdv:
+ 	@$(HOSTCC) -O1 build/ccdv.c -o build/ccdv
+ 
+ %.lo: $(LIB_OBJS) $(LIB_HEADERS)
+-	$(QUIET) $(LIBTOOL) $(LIBTOOL_OPT) --mode=compile $(CC) $(CFLAGDEF) $(CFLAGS) -o $@ -c $*.c
++	$(QUIET) $(CC) $(CFLAGDEF) $(CFLAGS) -o $@ -c $*.c
+ 
+ libcpufreq.la: $(LIB_OBJS) $(LIB_HEADERS) $(LIB_PARTS) Makefile
+ 	@if [ $(strip $(SYSFS)) != true -a $(strip $(PROC)) != true ]; then \
+ 		echo '*** At least one of /sys support or /proc support MUST be enabled ***'; \
+ 		exit -1; \
+ 	fi;
+-	$(QUIET) $(LIBTOOL) $(LIBTOOL_OPT) --mode=link $(CC) $(CFLAGDEF) $(CFLAGS) $(LDFLAGS) -o libcpufreq.la -rpath \
+-		${libdir} -version-info $(LIB_VERSION) $(LIB_PARTS)
++ifeq ($(CONFIGURE_SHARED_ENABLE),--enable-shared)
++	$(QUIET) $(CC) $(CFLAGDEF) $(CFLAGS) $(LDFLAGS) -o libcpufreq.so.0 -Wl,-soname,libcpufreq.so.0
++		$(LIB_PARTS)
++	ln -sf libcpufreq.so.0 libcpufreq.so
++endif
++	$(QUIET) $(CC) $(CFLAGDEF) $(CFLAGS) -c $(LIB_OBJS)
++	$(AR) rc libcpufreq.a *.o
++	touch $@
+ 
+ libcpufreq: libcpufreq.la
+ 
+ cpufreq-%: libcpufreq.la $(UTIL_OBJS)
+ 	$(QUIET) $(CC) $(CFLAGDEF) $(CFLAGS) -g -I. -I./lib/ -c -o utils/$@.o utils/$*.c
+-	$(QUIET) $(CC) $(CFLAGDEF) $(CFLAGS) -g -I./lib/ -L. -L./.libs/ -lcpufreq -o $@ utils/$@.o
++	$(QUIET) $(CC) $(CFLAGDEF) $(CFLAGS) -g $(LDFLAGS) -I./lib/ -L. -L./.libs/ -o $@ utils/$@.o -lcpufreq
+ 	$(QUIET) $(STRIPCMD) $@
+ 
+ utils: cpufreq-info cpufreq-set
+@@ -220,3 +220,5 @@
+ 	-rm -rf .libs
++	-rm -f libcpufreq.*
+ 	-rm -f cpufreq-info cpufreq-set
++	-rm -f cpufreq-info.gdb cpufreq-set.gdb
+ 	-rm -f build/ccdv
+@@ -226,7 +227,11 @@ clean:
+ 
+ install-lib:
+ 	$(INSTALL) -d $(DESTDIR)${libdir}
+-	$(LIBTOOL) --mode=install $(INSTALL) libcpufreq.la $(DESTDIR)${libdir}/libcpufreq.la
++ifeq ($(CONFIGURE_SHARED_ENABLE),--enable-shared)
++	$(INSTALL_PROGRAM) libcpufreq.so.0 $(DESTDIR)${libdir}/libcpufreq.so.0
++	ln -sf libcpufreq.so.0 $(DESTDIR)${libdir}/libcpufreq.so
++endif
++	$(INSTALL_DATA) libcpufreq.a $(DESTDIR)${libdir}/libcpufreq.a
+ 	$(INSTALL) -d $(DESTDIR)${includedir}
+ 	$(INSTALL_DATA) lib/cpufreq.h $(DESTDIR)${includedir}/cpufreq.h
+ 

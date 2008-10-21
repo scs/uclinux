@@ -226,6 +226,8 @@ config USER_UVC_VIDEO
 	bool "USB Video Class Driver and Test Application"
 	select LIB_LIBSDL
 	select LIB_TSLIB	
+config USER_CPUFREQUTILS
+	bool "cpufrequtils"
 endmenu
 
 

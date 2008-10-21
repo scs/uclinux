@@ -1,0 +1,16 @@
+.libs
+build/ccdv
+cpufreq-info
+cpufreq-set
+lib/.libs
+lib/cpufreq.lo
+lib/cpufreq.o
+lib/proc.lo
+lib/proc.o
+lib/sysfs.lo
+lib/sysfs.o
+libcpufreq.la
+po/cpufrequtils.pot
+po/*.gmo
+utils/cpufreq-info.o
+utils/cpufreq-set.o

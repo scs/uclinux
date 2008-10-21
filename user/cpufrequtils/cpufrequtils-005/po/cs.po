@@ -1,0 +1,367 @@
+# translation of cs.po to Czech
+# Czech translation for cpufrequtils package
+# Czech messages for cpufrequtils.
+# Copyright (C) 2007 kavol
+# This file is distributed under the same license as the cpufrequtils package.
+#
+# Karel Volný <kavol@seznam.cz>, 2007, 2008.
+msgid ""
+msgstr ""
+"Project-Id-Version: cs\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-07-17 11:29+0200\n"
+"PO-Revision-Date: 2008-06-11 16:26+0200\n"
+"Last-Translator: Karel Volný <kavol@seznam.cz>\n"
+"Language-Team: Czech <diskuze@lists.l10n.cz>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms:  nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#: utils/info.c:36
+#, c-format
+msgid "Couldn't count the number of CPUs (%s: %s), assuming 1\n"
+msgstr "Nelze zjistit počet CPU (%s: %s), předpokládá se 1.\n"
+
+#: utils/info.c:67
+#, c-format
+msgid ""
+"          minimum CPU frequency  -  maximum CPU frequency  -  governor\n"
+msgstr ""
+"         minimální frekvence CPU - maximální frekvence CPU -  regulátor\n"
+
+#: utils/info.c:128
+#, c-format
+msgid "couldn't analyze CPU %d as it doesn't seem to be present\n"
+msgstr "nelze analyzovat CPU %d, vypadá to, že není přítomen\n"
+
+#: utils/info.c:132
+#, c-format
+msgid "analyzing CPU %d:\n"
+msgstr "analyzuji CPU %d:\n"
+
+#: utils/info.c:139
+#, c-format
+msgid "  no or unknown cpufreq driver is active on this CPU\n"
+msgstr "  pro tento CPU není aktivní žádný známý ovladač cpufreq\n"
+
+#: utils/info.c:141
+#, c-format
+msgid "  driver: %s\n"
+msgstr "  ovladač: %s\n"
+
+#: utils/info.c:147
+#, c-format
+msgid "  CPUs which need to switch frequency at the same time: "
+msgstr "  CPU, které musí měnit frekvenci zároveň: "
+
+#: utils/info.c:157
+#, c-format
+msgid "  hardware limits: "
+msgstr "  hardwarové meze: "
+
+#: utils/info.c:166
+#, c-format
+msgid "  available frequency steps: "
+msgstr "  dostupné frekvence: "
+
+#: utils/info.c:179
+#, c-format
+msgid "  available cpufreq governors: "
+msgstr "  dostupné regulátory: "
+
+#: utils/info.c:190
+#, c-format
+msgid "  current policy: frequency should be within "
+msgstr "  současná taktika: frekvence by měla být mezi "
+
+#: utils/info.c:192
+#, c-format
+msgid " and "
+msgstr " a "
+
+#: utils/info.c:196
+#, c-format
+msgid ""
+"The governor \"%s\" may decide which speed to use\n"
+"                  within this range.\n"
+msgstr ""
+"  Regulátor \"%s\" může rozhodnout jakou frekvenci použít\n"
+"                    v těchto mezích.\n"
+
+#: utils/info.c:203
+#, c-format
+msgid "  current CPU frequency is "
+msgstr "  současná frekvence CPU je "
+
+#: utils/info.c:206
+#, c-format
+msgid " (asserted by call to hardware)"
+msgstr "  (zjištěno hardwarovým voláním)"
+
+#: utils/info.c:214
+#, c-format
+msgid "  cpufreq stats: "
+msgstr "  statistika cpufreq: "
+
+#: utils/info.c:361 utils/set.c:30
+#, c-format
+msgid "Report errors and bugs to %s, please.\n"
+msgstr ""
+"Chyby v programu prosím hlaste na %s (anglicky).\n"
+"Chyby v překladu prosím hlaste na kavol@seznam.cz (česky ;-)\n"
+
+#: utils/info.c:365
+#, c-format
+msgid "Usage: cpufreq-info [options]\n"
+msgstr "Užití: cpufreq-info [přepínače]\n"
+
+#: utils/info.c:366 utils/set.c:35
+#, c-format
+msgid "Options:\n"
+msgstr "Přepínače:\n"
+
+#: utils/info.c:367
+#, c-format
+msgid ""
+"  -c CPU, --cpu CPU    CPU number which information shall be determined "
+"about\n"
+msgstr "  -c CPU, --cpu CPU    Číslo CPU, o kterém se mají zjistit informace\n"
+
+#: utils/info.c:368
+#, c-format
+msgid "  -e, --debug          Prints out debug information\n"
+msgstr "  -e, --debug          Vypíše ladicí informace\n"
+
+#: utils/info.c:369
+#, c-format
+msgid ""
+"  -f, --freq           Get frequency the CPU currently runs at, according\n"
+"                       to the cpufreq core *\n"
+msgstr ""
+"  -f, --freq           Zjistí aktuální frekvenci, na které CPU běží\n"
+"                       podle cpufreq *\n"
+
+#: utils/info.c:371
+#, c-format
+msgid ""
+"  -w, --hwfreq         Get frequency the CPU currently runs at, by reading\n"
+"                       it from hardware (only available to root) *\n"
+msgstr ""
+"  -w, --hwfreq         Zjistí aktuální frekvenci, na které CPU běží\n"
+"                       z hardware (dostupné jen uživateli root) *\n"
+
+#: utils/info.c:373
+#, c-format
+msgid ""
+"  -l, --hwlimits       Determine the minimum and maximum CPU frequency "
+"allowed *\n"
+msgstr ""
+"  -l, --hwlimits       Zjistí minimální a maximální dostupnou frekvenci CPU "
+"*\n"
+
+#: utils/info.c:374
+#, c-format
+msgid "  -d, --driver         Determines the used cpufreq kernel driver *\n"
+msgstr "  -d, --driver         Zjistí aktivní ovladač cpufreq *\n"
+
+#: utils/info.c:375
+#, c-format
+msgid "  -p, --policy         Gets the currently used cpufreq policy *\n"
+msgstr "  -p, --policy         Zjistí aktuální taktiku cpufreq *\n"
+
+#: utils/info.c:376
+#, c-format
+msgid "  -g, --governors      Determines available cpufreq governors *\n"
+msgstr "  -g, --governors      Zjistí dostupné regulátory cpufreq *\n"
+
+#: utils/info.c:377
+#, c-format
+msgid ""
+"  -a, --affected-cpus  Determines which CPUs can only switch frequency at "
+"the\n"
+"                       same time *\n"
+msgstr ""
+"  -a, --affected-cpus  Zjistí, které CPU musí měnit frekvenci zároveň *\n"
+
+#: utils/info.c:379
+#, c-format
+msgid "  -s, --stats          Shows cpufreq statistics if available\n"
+msgstr "  -s, --stats          Zobrazí statistiku cpufreq, je-li dostupná\n"
+
+#: utils/info.c:380
+#, c-format
+msgid ""
+"  -o, --proc           Prints out information like provided by the /proc/"
+"cpufreq\n"
+"                       interface in 2.4. and early 2.6. kernels\n"
+msgstr ""
+"  -o, --proc           Vypíše informace ve formátu, jaký používalo rozhraní\n"
+"                       /proc/cpufreq v kernelech řady 2.4 a časné 2.6\n"
+
+#: utils/info.c:382
+#, c-format
+msgid ""
+"  -m, --human          human-readable output for the -f, -w and -s "
+"parameters\n"
+msgstr ""
+"  -m, --human          Výstup parametrů -f, -w a -s v „lidmi čitelném“ "
+"formátu\n"
+
+#: utils/info.c:383 utils/set.c:42
+#, c-format
+msgid "  -h, --help           Prints out this screen\n"
+msgstr "  -h, --help           Vypíše tuto nápovědu\n"
+
+#: utils/info.c:386
+#, c-format
+msgid ""
+"If no argument or only the -c, --cpu parameter is given, debug output about\n"
+"cpufreq is printed which is useful e.g. for reporting bugs.\n"
+msgstr ""
+"Není-li zadán žádný parametr nebo je-li zadán pouze přepínač -c, --cpu, "
+"jsou\n"
+"vypsány ladicí informace, což může být užitečné například při hlášení chyb.\n"
+
+#: utils/info.c:388
+#, c-format
+msgid ""
+"For the arguments marked with *, omitting the -c or --cpu argument is\n"
+"equivalent to setting it to zero\n"
+msgstr ""
+"Není-li při použití přepínačů označených * zadán parametr -c nebo --cpu,\n"
+"předpokládá se jeho hodnota 0.\n"
+
+#: utils/info.c:478
+#, c-format
+msgid ""
+"The argument passed to this tool can't be combined with passing a --cpu "
+"argument\n"
+msgstr "Zadaný parametr nemůže být použit zároveň s přepínačem -c nebo --cpu\n"
+
+#: utils/info.c:491
+#, c-format
+msgid ""
+"You can't specify more than one --cpu parameter and/or\n"
+"more than one output-specific argument\n"
+msgstr ""
+"Nelze zadat více než jeden parametr -c nebo --cpu\n"
+"anebo více než jeden parametr určující výstup\n"
+
+#: utils/info.c:497 utils/set.c:79
+#, c-format
+msgid "invalid or unknown argument\n"
+msgstr "neplatný nebo neznámý parametr\n"
+
+#: utils/set.c:34
+#, c-format
+msgid "Usage: cpufreq-set [options]\n"
+msgstr "Užití: cpufreq-set [přepínače]\n"
+
+#: utils/set.c:36
+#, c-format
+msgid ""
+"  -c CPU, --cpu CPU        number of CPU where cpufreq settings shall be "
+"modified\n"
+msgstr ""
+"  -c CPU, --cpu CPU        Číslo CPU pro který se má provést nastavení "
+"cpufreq\n"
+
+#: utils/set.c:37
+#, c-format
+msgid ""
+"  -d FREQ, --min FREQ      new minimum CPU frequency the governor may "
+"select\n"
+msgstr ""
+"  -d FREQ, --min FREQ      Nová nejnižší frekvence, kterou může regulátor "
+"vybrat\n"
+
+#: utils/set.c:38
+#, c-format
+msgid ""
+"  -u FREQ, --max FREQ      new maximum CPU frequency the governor may "
+"select\n"
+msgstr ""
+"  -u FREQ, --max FREQ      Nová nejvyšší frekvence, kterou může regulátor "
+"zvolit\n"
+
+#: utils/set.c:39
+#, c-format
+msgid "  -g GOV, --governor GOV   new cpufreq governor\n"
+msgstr "  -g GOV, --governors GOV  Nový regulátor cpufreq\n"
+
+#: utils/set.c:40
+#, c-format
+msgid ""
+"  -f FREQ, --freq FREQ     specific frequency to be set. Requires userspace\n"
+"                           governor to be available and loaded\n"
+msgstr ""
+"  -f FREQ, --freq FREQ     Frekvence, která má být nastavena. Vyžaduje, aby "
+"byl\n"
+"                           v jádře nahrán regulátor ‚userspace‘.\n"
+
+#: utils/set.c:44
+#, c-format
+msgid ""
+"Notes:\n"
+"1. Omitting the -c or --cpu argument is equivalent to setting it to zero\n"
+"2. The -f FREQ, --freq FREQ parameter cannot be combined with any other "
+"parameter\n"
+"   except the -c CPU, --cpu CPU parameter\n"
+"3. FREQuencies can be passed in Hz, kHz (default), MHz, GHz, or THz\n"
+"   by postfixing the value with the wanted unit name, without any space\n"
+"   (FREQuency in kHz =^ Hz * 0.001 =^ MHz * 1000 =^ GHz * 1000000).\n"
+msgstr ""
+"Poznámky:\n"
+"1. Vynechání parametru -c nebo --cpu je ekvivalentní jeho nastavení na 0\n"
+"2. Přepínač -f nebo --freq nemůže být použit zároveň s žádným jiným vyjma -"
+"c\n"
+"   nebo --cpu\n"
+"3. Frekvence (FREQ) mohou být zadány v Hz, kHz (výchozí), MHz, GHz nebo THz\n"
+"   připojením názvu jednotky bez mezery mezi číslem a jednotkou\n"
+"   (FREQ v kHz =^ Hz * 0,001 = ^ MHz * 1000 =^ GHz * 1000000)\n"
+
+#: utils/set.c:251
+#, c-format
+msgid ""
+"the -f/--freq parameter cannot be combined with -d/--min, -u/--max or\n"
+"-g/--governor parameters\n"
+msgstr ""
+"přepínač -f/--freq nemůže být použit zároveň\n"
+"s přepínačem -d/--min, -u/--max nebo -g/--governor\n"
+
+#: utils/set.c:262
+#, c-format
+msgid ""
+"At least one parameter out of -f/--freq, -d/--min, -u/--max, and\n"
+"-g/--governor must be passed\n"
+msgstr ""
+"Musí být zadán alespoň jeden přepínač\n"
+"-f/--freq, -d/--min, -u/--max nebo -g/--governor\n"
+
+#: utils/set.c:282
+#, c-format
+msgid "wrong, unknown or unhandled CPU?\n"
+msgstr "neznámý nebo nepodporovaný CPU?\n"
+
+#: utils/set.c:306
+#, c-format
+msgid ""
+"Error setting new values. Common errors:\n"
+"- Do you have proper administration rights? (super-user?)\n"
+"- Is the governor you requested available and modprobed?\n"
+"- Trying to set an invalid policy?\n"
+"- Trying to set a specific frequency, but userspace governor is not "
+"available,\n"
+"   for example because of hardware which cannot be set to a specific "
+"frequency\n"
+"   or because the userspace governor isn't loaded?\n"
+msgstr ""
+"Chyba při nastavování nových hodnot. Obvyklé problémy:\n"
+"- Máte patřičná administrátorská práva? (root?)\n"
+"- Je požadovaný regulátor dostupný v jádře? (modprobe?)\n"
+"- Snažíte se nastavit neplatnou taktiku?\n"
+"- Snažíte se nastavit určitou frekvenci, ale není dostupný\n"
+"  regulátor ‚userspace‘, například protože není nahrán v jádře,\n"
+"  nebo nelze na tomto hardware nastavit určitou frekvenci?\n"

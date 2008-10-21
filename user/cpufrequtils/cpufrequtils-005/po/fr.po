@@ -1,0 +1,370 @@
+# French translations for cpufrequtils package
+# Copyright (C) 2004 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the cpufrequtils package.
+# Ducrot Bruno <ducrot@poupinou.org>, 2004.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: cpufrequtils 0.1-pre2\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-07-17 11:29+0200\n"
+"PO-Revision-Date: 2004-11-17 15:53+1000\n"
+"Last-Translator: Bruno Ducrot <ducrot@poupinou.org>\n"
+"Language-Team: NONE\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-1\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: utils/info.c:36
+#, c-format
+msgid "Couldn't count the number of CPUs (%s: %s), assuming 1\n"
+msgstr "Détermination du nombre de CPUs (%s : %s) impossible.  Assume 1\n"
+
+#: utils/info.c:67
+#, c-format
+msgid ""
+"          minimum CPU frequency  -  maximum CPU frequency  -  governor\n"
+msgstr ""
+"         Fréquence CPU minimale - Fréquence CPU maximale  - régulateur\n"
+
+#: utils/info.c:128
+#, c-format
+msgid "couldn't analyze CPU %d as it doesn't seem to be present\n"
+msgstr "analyse du CPU %d impossible puisqu'il ne semble pas être présent\n"
+
+#: utils/info.c:132
+#, c-format
+msgid "analyzing CPU %d:\n"
+msgstr "analyse du CPU %d :\n"
+
+#: utils/info.c:139
+#, c-format
+msgid "  no or unknown cpufreq driver is active on this CPU\n"
+msgstr "  pas de pilotes cpufreq reconnu pour ce CPU\n"
+
+#: utils/info.c:141
+#, c-format
+msgid "  driver: %s\n"
+msgstr "  pilote : %s\n"
+
+#: utils/info.c:147
+#, c-format
+msgid "  CPUs which need to switch frequency at the same time: "
+msgstr "  CPUs qui doivent changer de fréquences en même temps : "
+
+#: utils/info.c:157
+#, c-format
+msgid "  hardware limits: "
+msgstr "  limitation matérielle : "
+
+#: utils/info.c:166
+#, c-format
+msgid "  available frequency steps: "
+msgstr "  plage de fréquence : "
+
+#: utils/info.c:179
+#, c-format
+msgid "  available cpufreq governors: "
+msgstr "  régulateurs disponibles : "
+
+#: utils/info.c:190
+#, c-format
+msgid "  current policy: frequency should be within "
+msgstr "  tactique actuelle : la fréquence doit être comprise entre "
+
+#: utils/info.c:192
+#, c-format
+msgid " and "
+msgstr " et "
+
+#: utils/info.c:196
+#, c-format
+msgid ""
+"The governor \"%s\" may decide which speed to use\n"
+"                  within this range.\n"
+msgstr ""
+"Le régulateur \"%s\" est libre de choisir la vitesse\n"
+"                  dans cette plage de fréquences.\n"
+
+#: utils/info.c:203
+#, c-format
+msgid "  current CPU frequency is "
+msgstr "  la fréquence actuelle de ce CPU est "
+
+#: utils/info.c:206
+#, c-format
+msgid " (asserted by call to hardware)"
+msgstr " (vérifié par un appel direct du matériel)"
+
+#: utils/info.c:214
+#, c-format
+msgid "  cpufreq stats: "
+msgstr "  des statistique concernant cpufreq:"
+
+#: utils/info.c:361 utils/set.c:30
+#, c-format
+msgid "Report errors and bugs to %s, please.\n"
+msgstr "Veuillez rapportez les erreurs et les bogues à %s, s'il vous plait.\n"
+
+#: utils/info.c:365
+#, c-format
+msgid "Usage: cpufreq-info [options]\n"
+msgstr "Usage : cpufreq-info [options]\n"
+
+#: utils/info.c:366 utils/set.c:35
+#, c-format
+msgid "Options:\n"
+msgstr "Options :\n"
+
+#: utils/info.c:367
+#, c-format
+msgid ""
+"  -c CPU, --cpu CPU    CPU number which information shall be determined "
+"about\n"
+msgstr ""
+"  -c CPU, --cpu CPU    Numéro du CPU pour lequel l'information sera "
+"affichée\n"
+
+#: utils/info.c:368
+#, c-format
+msgid "  -e, --debug          Prints out debug information\n"
+msgstr "  -e, --debug          Afficher les informations de déboguage\n"
+
+#: utils/info.c:369
+#, c-format
+msgid ""
+"  -f, --freq           Get frequency the CPU currently runs at, according\n"
+"                       to the cpufreq core *\n"
+msgstr ""
+"  -f, --freq           Obtenir la fréquence actuelle du CPU selon le point\n"
+"                       de vue du coeur du système de cpufreq *\n"
+
+#: utils/info.c:371
+#, c-format
+msgid ""
+"  -w, --hwfreq         Get frequency the CPU currently runs at, by reading\n"
+"                       it from hardware (only available to root) *\n"
+msgstr ""
+"  -w, --hwfreq         Obtenir la fréquence actuelle du CPU directement par\n"
+"                       le matériel (doit être root) *\n"
+
+#: utils/info.c:373
+#, c-format
+msgid ""
+"  -l, --hwlimits       Determine the minimum and maximum CPU frequency "
+"allowed *\n"
+msgstr ""
+"  -l, --hwlimits       Affiche les fréquences minimales et maximales du CPU "
+"*\n"
+
+#: utils/info.c:374
+#, c-format
+msgid "  -d, --driver         Determines the used cpufreq kernel driver *\n"
+msgstr "  -d, --driver         Affiche le pilote cpufreq utilisé *\n"
+
+#: utils/info.c:375
+#, c-format
+msgid "  -p, --policy         Gets the currently used cpufreq policy *\n"
+msgstr "  -p, --policy         Affiche la tactique actuelle de cpufreq *\n"
+
+#: utils/info.c:376
+#, c-format
+msgid "  -g, --governors      Determines available cpufreq governors *\n"
+msgstr ""
+"  -g, --governors      Affiche les régulateurs disponibles de cpufreq *\n"
+
+#: utils/info.c:377
+#, c-format
+msgid ""
+"  -a, --affected-cpus  Determines which CPUs can only switch frequency at "
+"the\n"
+"                       same time *\n"
+msgstr ""
+"  -a, --affected-cpus   Affiche quels sont les CPUs qui doivent changer de\n"
+"                        fréquences en même temps *\n"
+
+#: utils/info.c:379
+#, c-format
+msgid "  -s, --stats          Shows cpufreq statistics if available\n"
+msgstr ""
+"  -s, --stats          Indique des statistiques concernant cpufreq, si\n"
+"                       disponibles\n"
+
+#: utils/info.c:380
+#, c-format
+msgid ""
+"  -o, --proc           Prints out information like provided by the /proc/"
+"cpufreq\n"
+"                       interface in 2.4. and early 2.6. kernels\n"
+msgstr ""
+"  -o, --proc           Affiche les informations en utilisant l'interface\n"
+"                       fournie par /proc/cpufreq, présente dans les "
+"versions\n"
+"                       2.4 et les anciennes versions 2.6 du noyau\n"
+
+#: utils/info.c:382
+#, c-format
+msgid ""
+"  -m, --human          human-readable output for the -f, -w and -s "
+"parameters\n"
+msgstr ""
+"  -m, --human           affiche dans un format lisible pour un humain\n"
+"                        pour les options -f, -w et -s (MHz, GHz)\n"
+
+#: utils/info.c:383 utils/set.c:42
+#, c-format
+msgid "  -h, --help           Prints out this screen\n"
+msgstr "  -h, --help           affiche l'aide-mémoire\n"
+
+#: utils/info.c:386
+#, c-format
+msgid ""
+"If no argument or only the -c, --cpu parameter is given, debug output about\n"
+"cpufreq is printed which is useful e.g. for reporting bugs.\n"
+msgstr ""
+"Par défaut, les informations de déboguage seront affichées si aucun\n"
+"argument, ou bien si seulement l'argument -c (--cpu) est donné, afin de\n"
+"faciliter les rapports de bogues par exemple\n"
+
+#: utils/info.c:388
+#, c-format
+msgid ""
+"For the arguments marked with *, omitting the -c or --cpu argument is\n"
+"equivalent to setting it to zero\n"
+msgstr "Les arguments avec un * utiliseront le CPU 0 si -c (--cpu) est omis\n"
+
+#: utils/info.c:478
+#, c-format
+msgid ""
+"The argument passed to this tool can't be combined with passing a --cpu "
+"argument\n"
+msgstr "Cette option est incompatible avec --cpu\n"
+
+#: utils/info.c:491
+#, c-format
+msgid ""
+"You can't specify more than one --cpu parameter and/or\n"
+"more than one output-specific argument\n"
+msgstr ""
+"On ne peut indiquer plus d'un paramètre --cpu, tout comme l'on ne peut\n"
+"spécifier plus d'un argument de formatage\n"
+
+#: utils/info.c:497 utils/set.c:79
+#, c-format
+msgid "invalid or unknown argument\n"
+msgstr "option invalide\n"
+
+#: utils/set.c:34
+#, c-format
+msgid "Usage: cpufreq-set [options]\n"
+msgstr "Usage : cpufreq-set [options]\n"
+
+#: utils/set.c:36
+#, c-format
+msgid ""
+"  -c CPU, --cpu CPU        number of CPU where cpufreq settings shall be "
+"modified\n"
+msgstr ""
+"  -c CPU, --cpu CPU        numéro du CPU à prendre en compte pour les\n"
+"                           changements\n"
+
+#: utils/set.c:37
+#, c-format
+msgid ""
+"  -d FREQ, --min FREQ      new minimum CPU frequency the governor may "
+"select\n"
+msgstr ""
+"  -d FREQ, --min FREQ       nouvelle fréquence minimale du CPU à utiliser\n"
+"                            par le régulateur\n"
+
+#: utils/set.c:38
+#, c-format
+msgid ""
+"  -u FREQ, --max FREQ      new maximum CPU frequency the governor may "
+"select\n"
+msgstr ""
+"  -u FREQ, --max FREQ       nouvelle fréquence maximale du CPU à utiliser\n"
+"                            par le régulateur\n"
+
+#: utils/set.c:39
+#, c-format
+msgid "  -g GOV, --governor GOV   new cpufreq governor\n"
+msgstr "  -g GOV, --governor GOV   active le régulateur GOV\n"
+
+#: utils/set.c:40
+#, c-format
+msgid ""
+"  -f FREQ, --freq FREQ     specific frequency to be set. Requires userspace\n"
+"                           governor to be available and loaded\n"
+msgstr ""
+"  -f FREQ, --freq FREQ     fixe la fréquence du processeur à FREQ. Il faut\n"
+"                           que le régulateur « userspace » soit disponible \n"
+"                           et activé.\n"
+
+#: utils/set.c:44
+#, c-format
+msgid ""
+"Notes:\n"
+"1. Omitting the -c or --cpu argument is equivalent to setting it to zero\n"
+"2. The -f FREQ, --freq FREQ parameter cannot be combined with any other "
+"parameter\n"
+"   except the -c CPU, --cpu CPU parameter\n"
+"3. FREQuencies can be passed in Hz, kHz (default), MHz, GHz, or THz\n"
+"   by postfixing the value with the wanted unit name, without any space\n"
+"   (FREQuency in kHz =^ Hz * 0.001 =^ MHz * 1000 =^ GHz * 1000000).\n"
+msgstr ""
+"Remarque :\n"
+"1. Le CPU numéro 0 sera utilisé par défaut si -c (ou --cpu) est omis ;\n"
+"2. l'argument -f FREQ (ou --freq FREQ) ne peut être utilisé qu'avec --cpu ;\n"
+"3. on pourra préciser l'unité des fréquences en postfixant sans aucune "
+"espace\n"
+"   les valeurs par hz, kHz (par défaut), MHz, GHz ou THz\n"
+"   (kHz =^ Hz * 0.001 =^ MHz * 1000 =^ GHz * 1000000).\n"
+
+#: utils/set.c:251
+#, c-format
+msgid ""
+"the -f/--freq parameter cannot be combined with -d/--min, -u/--max or\n"
+"-g/--governor parameters\n"
+msgstr ""
+"l'option -f/--freq est incompatible avec les options -d/--min, -u/--max et\n"
+"-g/--governor\n"
+
+#: utils/set.c:262
+#, c-format
+msgid ""
+"At least one parameter out of -f/--freq, -d/--min, -u/--max, and\n"
+"-g/--governor must be passed\n"
+msgstr ""
+"L'un de ces paramètres est obligatoire : -f/--freq, -d/--min, -u/--max et\n"
+"-g/--governor\n"
+
+#: utils/set.c:282
+#, c-format
+msgid "wrong, unknown or unhandled CPU?\n"
+msgstr "CPU inconnu ou non supporté ?\n"
+
+#: utils/set.c:306
+#, c-format
+msgid ""
+"Error setting new values. Common errors:\n"
+"- Do you have proper administration rights? (super-user?)\n"
+"- Is the governor you requested available and modprobed?\n"
+"- Trying to set an invalid policy?\n"
+"- Trying to set a specific frequency, but userspace governor is not "
+"available,\n"
+"   for example because of hardware which cannot be set to a specific "
+"frequency\n"
+"   or because the userspace governor isn't loaded?\n"
+msgstr ""
+"En ajustant les nouveaux paramètres, une erreur est apparue. Les sources\n"
+"d'erreur typique sont :\n"
+"- droit d'administration insuffisant (êtes-vous root ?) ;\n"
+"- le régulateur choisi n'est pas disponible, ou bien n'est pas disponible "
+"en\n"
+"  tant que module noyau ;\n"
+"- la tactique n'est pas disponible ;\n"
+"- vous voulez utiliser l'option -f/--freq, mais le régulateur « userspace »\n"
+"  n'est pas disponible, par exemple parce que le matériel ne le supporte\n"
+"  pas, ou bien n'est tout simplement pas chargé.\n"
