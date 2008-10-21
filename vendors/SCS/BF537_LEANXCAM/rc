@@ -109,11 +109,21 @@ cat /etc/motd
 echo "Starting Webserver"
 boa -f /etc/boa.conf&
 
+#Get name of user-specific run script
+runscript=`fw_printenv | grep "runscript=" | sed -e s/runscript=//g`
+
 #launch user specific application script
-if test -e /mnt/app/runapp.sh
+if test -n $runscript
 then
-       cd /mnt/app
-       ./runapp.sh &
-       cd /
+	if test "$runscript" != ""
+	then
+		if test -e /mnt/app/$runscript
+		then
+			echo "Executing $runscript..."
+ 			cd /mnt/app
+ 			./$runscript &
+ 			cd /
+		fi
+	fi
 fi
 

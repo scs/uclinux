@@ -81,10 +81,18 @@ then
 else
 	ifconfig eth0 down
 	ifconfig eth0 hw ether `fw_printenv | grep "ethaddr" | sed -e s/ethaddr=//g`
-	ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
-	route add -net default gw `fw_printenv | grep "gatewayip=" | sed -e s/gatewayip=//g`
-	echo ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
-	ifconfig eth0 up
+	if test "`fw_printenv | grep ipaddr= | sed -e s/ipaddr=//g`" = "dhcp"
+	then
+		# DHCP is configured => Launch dhcp daemon
+		ifconfig eth0 up
+		dhcpcd &
+		echo "Using DHCP."
+	else
+		ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
+		route add -net default gw `fw_printenv | grep "gatewayip=" | sed -e s/gatewayip=//g`
+		echo ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
+		ifconfig eth0 up
+	fi
 fi
 
 
@@ -101,11 +109,21 @@ cat /etc/motd
 echo "Starting Webserver"
 boa -f /etc/boa.conf&
 
+#Get name of user-specific run script
+runscript=`fw_printenv | grep "runscript=" | sed -e s/runscript=//g`
+
 #launch user specific application script
-if test -e /mnt/app/runapp.sh
+if test -n $runscript
 then
-       cd /mnt/app
-       ./runapp.sh &
-       cd /
+	if test "$runscript" != ""
+	then
+		if test -e /mnt/app/$runscript
+		then
+			echo "Executing $runscript..."
+ 			cd /mnt/app
+ 			./$runscript &
+ 			cd /
+		fi
+	fi
 fi
 
