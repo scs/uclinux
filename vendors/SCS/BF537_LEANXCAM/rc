@@ -41,7 +41,7 @@ then
 	then
 		echo "Use settings from config file instead default."
 		# Use IP, GATEWAYIP, SERVERIP from configuration file. 
-		# Usefull for uclinux/uboot migration.
+		# Useful for uclinux/uboot migration.
 		ipaddr=`grep "^IP" /mnt/app/config | awk '{print $2}'`
 		gatewayip=`grep "^GATEWAYIP" /mnt/app/config | awk '{print $2}'`
 		serverip=`grep "^SERVERIP" /mnt/app/config | awk '{print $2}'`
@@ -81,10 +81,18 @@ then
 else
 	ifconfig eth0 down
 	ifconfig eth0 hw ether `fw_printenv | grep "ethaddr" | sed -e s/ethaddr=//g`
-	ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
-	route add -net default gw `fw_printenv | grep "gatewayip=" | sed -e s/gatewayip=//g`
-	echo ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
-	ifconfig eth0 up
+	if test "`fw_printenv | grep ipaddr= | sed -e s/ipaddr=//g`" = "dhcp"
+	then
+		# DHCP is configured => Launch dhcp daemon
+		ifconfig eth0 up
+		dhcpcd &
+		echo "Using DHCP."
+	else
+		ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
+		route add -net default gw `fw_printenv | grep "gatewayip=" | sed -e s/gatewayip=//g`
+		echo ifconfig eth0 `fw_printenv | grep "ipaddr=" | sed -e s/ipaddr=//g`
+		ifconfig eth0 up
+	fi
 fi
 
 
