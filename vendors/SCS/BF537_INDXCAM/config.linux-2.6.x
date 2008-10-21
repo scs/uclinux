@@ -134,8 +134,8 @@ CONFIG_BF537=y
 # CONFIG_BF561 is not set
 # CONFIG_BF_REV_0_0 is not set
 # CONFIG_BF_REV_0_1 is not set
-CONFIG_BF_REV_0_2=y
-# CONFIG_BF_REV_0_3 is not set
+# CONFIG_BF_REV_0_2 is not set
+CONFIG_BF_REV_0_3=y
 # CONFIG_BF_REV_0_4 is not set
 # CONFIG_BF_REV_0_5 is not set
 # CONFIG_BF_REV_ANY is not set
@@ -837,8 +837,6 @@ CONFIG_USB_OTG_WHITELIST=y
 #
 # CONFIG_USB_GADGET is not set
 # CONFIG_MMC is not set
-# CONFIG_SPI_MMC_FRAMEWORK_DRIVER is not set
-# CONFIG_SPI_MMC_BFIN_PIO_SPI is not set
 
 #
 # LED devices

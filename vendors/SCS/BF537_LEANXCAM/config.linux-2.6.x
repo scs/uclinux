@@ -134,8 +134,8 @@ CONFIG_BF537=y
 # CONFIG_BF561 is not set
 # CONFIG_BF_REV_0_0 is not set
 # CONFIG_BF_REV_0_1 is not set
-CONFIG_BF_REV_0_2=y
-# CONFIG_BF_REV_0_3 is not set
+# CONFIG_BF_REV_0_2 is not set
+CONFIG_BF_REV_0_3=y
 # CONFIG_BF_REV_0_4 is not set
 # CONFIG_BF_REV_0_5 is not set
 # CONFIG_BF_REV_ANY is not set
@@ -643,6 +643,7 @@ CONFIG_BFIN_RX_DESC_NUM=20
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF5xx_PPIFCD is not set
 # CONFIG_BFIN_SIMPLE_TIMER is not set
+# CONFIG_BFIN_AMC is not set
 # CONFIG_BF5xx_PPI is not set
 # CONFIG_BFIN_SPORT is not set
 CONFIG_BFIN_TIMER_LATENCY=y
