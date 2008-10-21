@@ -5,6 +5,25 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
+if { $argc == 1 } {
+    set pm_state_count [lindex $argv 0]
+} else {
+    puts "Please input a power management state:"
+    puts "1: Standby; 2: Suspend-to-RAM"
+    exit
+}
+
+if { $pm_state_count == 1 } {
+    set pm_state_str "standby"
+    append TITLE " (STANDBY)"
+} elseif { $pm_state_count == 2 } {
+    set pm_state_str "mem"
+    append TITLE " (SUSPEND-TO-RAM)"
+} else {
+    send_user "Power Management State setting error\n"
+    exit
+}
+
 step "Spawn kermit"
 source ../spawn_kermit.exp
 
@@ -23,25 +42,11 @@ proc standby_test_case1 {} {
     global kernel_prompt
     global wait_time
     global standby_fail
+    global pm_state_str
 
-    set timeout 5
+    set timeout [expr $wait_time + 5]
     incr case_num
-    send "rtctest $wait_time /dev/rtc0 &\r"
-    while 1 {
-        expect {
-            -re "Current RTC.*Alarm time now.*Waiting $wait_time seconds for alarm" {
-                case_pass $case_num
-                break
-            }
-            timeout {
-                case_fail $case_num
-            }
-        }
-    }
-
-    set timeout $wait_time
-    incr case_num
-    send "\necho 'standby' > /sys/power/state\r"
+    send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
         expect {
             -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
@@ -96,25 +101,11 @@ proc standby_test_case2 {} {
     global kernel_prompt
     global wait_time
     global standby_fail
+    global pm_state_str
 
-    set timeout 5
+    set timeout [expr $wait_time + 5]
     incr case_num
-    send "rtctest $wait_time /dev/rtc0 &\r"
-    while 1 {
-        expect {
-            -re "Current RTC.*Alarm time now.*Waiting $wait_time seconds for alarm" {
-                case_pass $case_num
-                break
-            }
-            timeout {
-                case_fail $case_num
-            }
-        }
-    }
-
-    set timeout $wait_time
-    incr case_num
-    send "\necho 'standby' > /sys/power/state\r"
+    send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
         expect {
             -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
@@ -141,79 +132,6 @@ sleep 5
 send "\r"
 expect -re $kernel_prompt
 
-step "Clean src directory\n"
-spawn make clean -C src
-while 1 {
-    expect {
-        -re "\[eE]rror" {
-            case_fail $case_num
-        }
-        eof {
-            send_user "\nClean src\n"
-            break
-        }
-        timeout {
-            break
-        }
-    }
-}
-
-step "Build test program\n"
-spawn make -C src
-while 1 {
-    expect {
-        -re "\[eE]rror" {
-            case_fail $case_num
-        }
-        eof {
-            send_user "\nBuild test program done\n"
-            break
-        }
-        timeout {
-            break
-        }
-    }
-}
-
-set spawn_id $kermit_spawn_id
-
-send "ifconfig eth0 $targetip up\r"
-set timeout 60
-while 1 {
-    expect {
-        -re $kernel_prompt {
-            send "\r"
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-set timeout 5
-expect -re "Full\r\n|lpa 0x41E1\r\n"
-
-set timeout 100
-step "Copy testcase to target board\n"
-spawn rcp src/rtctest root@$targetip:/bin
-while 1 {
-    expect {
-        "*connect*" {
-            case_fail $case_num
-        }
-        eof {
-            send_user "\nCopy rtctest to target board done\n"
-            break
-        }
-        timeout {
-            break
-        }
-    }
-}
-
-set spawn_id $kermit_spawn_id
-
 set timeout 20
 incr case_num
 send "modprobe snd-ad73311\r"
@@ -239,21 +157,6 @@ send "lsmod\r"
 while 1 {
     expect {
         -re "snd_ad73311.*$kernel_prompt" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 10
-send "echo 'enabled' > /sys/class/rtc/rtc0/power/wakeup\r"
-while 1 {
-    expect {
-        -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -371,10 +274,10 @@ while 1 {
 
 set timeout 20
 incr case_num
-send "rmmod snd-ad73311\r"
+send "modprobe snd-ad73311\r"
 while 1 {
     expect {
-        -re "(rmmod:|No such).*$kernel_prompt" {
+        -re "(modprobe:|No such).*$kernel_prompt" {
             send_user "Uninstall module failed!\r"
             case_fail $case_num
         }

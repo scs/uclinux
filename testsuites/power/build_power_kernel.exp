@@ -33,11 +33,7 @@ while 1 {
         }
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "n\r"
-            } else {
-                send "\r"
-            }
+            send "n\r"
         }
 
 #Power Management
@@ -45,8 +41,8 @@ while 1 {
             send "y\r"
         }
 
-        -re "Default Power Saving Mode.*Sleep Deeper.*Sleep.*choice\\\[.*]" {
-            send "1\r"
+        -re "Suspend to RAM and standby \\\(SUSPEND\\\) \\\[.*]" {
+            send "y\r"
         }
 
         -re "Cause Wakeup Event by GPIO \\\(PM_WAKEUP_BY_GPIO\\\) \\\[.*]" {
@@ -54,9 +50,9 @@ while 1 {
         }
 
 #disable usb support becase usb driver don't support power management
-        -re "USB support \\\(USB_SUPPORT\\\) \\\[././.]" {
-            send "n\r"
-        }
+#        -re "USB support \\\(USB_SUPPORT\\\) \\\[././.]" {
+#            send "n\r"
+#        }
 
 #Video Output
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
