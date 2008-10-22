@@ -41,7 +41,7 @@ set case_num 0
 set timeout 1000
 
 incr case_num
-send -s  "./nbench\r" 
+send -s  "date;./nbench;date\r" 
 while 1 {
    expect {
      -re "NUMERIC SORT +: +(\[0-9]+\.\[0-9e+]+) " {
