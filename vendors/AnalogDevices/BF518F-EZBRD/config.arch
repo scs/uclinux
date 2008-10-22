@@ -1,0 +1,13 @@
+.EXPORT_ALL_VARIABLES:
+
+#
+# Board specific settings go here
+#
+
+
+
+#
+# Pull in common Blackfin settings
+#
+
+include $(ROOTDIR)/vendors/config/bfin/config.arch
