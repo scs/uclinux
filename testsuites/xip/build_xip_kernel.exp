@@ -41,11 +41,11 @@ while 1 {
             send "y\r"
         }
 
-        -re "ROM file system support \\\(ROMFS_FS\\\).*\\\[./././.]" {
+        -re "ROM file system support.*ROMFS_FS.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "MTD-based ROM file system support \\\(ROMFS_MTD_FS\\\).*\\\[./././.]" {
+        -re "MTD-based ROM file system support.*ROMFS_MTD_FS.*\\\[.*]" {
             send "y\r"
         }
 

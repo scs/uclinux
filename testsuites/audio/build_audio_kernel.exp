@@ -45,11 +45,7 @@ while 1 {
         }
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "n\r"
-            } else {
-                send "\r"
-            }
+            send "n\r"
         }
 
         -re "Sound card support.*SOUND.*\\\[.*]" {
