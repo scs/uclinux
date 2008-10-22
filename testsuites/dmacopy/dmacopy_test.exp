@@ -116,16 +116,20 @@ while 1 {
             case_fail $case_num
             break
         }
-        -re "test case 1 pass, memcmp result is 0" {
+        -re "PASS: dma_memcpy test case 1, memcmp result is 0" {
             case_pass $case_num
             incr case_num
         }
-        -re "test case 1 fail, memcmp result is .*" {
+        -re "FAIL: dma_memcpy test case 1, memcmp result is .*" {
             case_fail $case_num
             break
         }
-        -re "test case 2 pass, memcmp result is 0" {
+        -re "PASS: dma_memcpy test case 2, memcmp result is 0" {
             case_pass $case_num
+            break
+        }
+        -re "FAIL: dma_memcpy test case 2, memcmp result is .*" {
+            case_fail $case_num
             break
         }
         timeout {
