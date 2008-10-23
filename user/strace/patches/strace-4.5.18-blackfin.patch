@@ -11,6 +11,16 @@
  i[[3456]]86|pentium)
  	arch=i386
  	AC_DEFINE([I386], 1, [Define for the i386 architecture.])
+--- strace-4.5.18/Makefile.am
++++ strace-4.5.18/Makefile.am
+@@ -34,6 +34,7 @@ EXTRA_DIST = $(man_MANS) errnoent.sh sig
+ 	     linux/arm/syscallent.h linux/arm/syscallent1.h \
+ 	     linux/arm/signalent1.h linux/arm/ioctlent1.h \
+ 	     linux/arm/errnoent1.h \
++	     linux/bfin/ioctlent.h linux/bfin/syscallent.h \
+ 	     linux/hppa/errnoent.h linux/hppa/ioctlent.h \
+ 	     linux/hppa/signalent.h linux/hppa/syscallent.h \
+ 	     linux/ia64/syscallent.h linux/ia64/errnoent.h \
 --- strace-4.5.18/linux/syscall.h
 +++ strace-4.5.18/linux/syscall.h
 @@ -326,3 +326,7 @@ int sys_pread64(), sys_pwrite64();
