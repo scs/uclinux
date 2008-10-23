@@ -72,6 +72,7 @@ expect  -re $kernel_prompt
 
 incr case_num
 
+set timeout 15
 send -s "mount -o nolock,rsize=1024,wsize=1024 -t nfs $serverip:$uclinux_path/romfs /mnt\r" 
 while 1 {
    expect {
