@@ -41,6 +41,7 @@ config LIB_E2FSPROGS_LIBS
 
 config LIB_LIBEXOSIP
 	bool "Build eXosip"
+	select LIB_OSIP2
 
 config LIB_FAAD2
 	bool "Build faad2"
