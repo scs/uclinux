@@ -1,0 +1,125 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+
+step "Make config"
+
+source make_default_config.exp
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\\\).*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "SoC AC97 Audio for the ADI BF5xx chip.*SND_BF5XX_AC97.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Enable Multichannel Support.*SND_MULTICHAN_SUPPORT.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "SoC AD1980/1 Audio support for BF5xx.*SND_BF5XX_SOC_AD1980.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Uncached DMA region.*Enable 4M DMA region.*DMA_UNCACHED_4M.*\[cC]hoice\\\[.*]:" {
+            send "1\r"
+        }
+
+        -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+            send "4\r"
+        }
+
+        -re "ALSA utils.*USER_ALSA_UTILS.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "mp3play.*USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .1
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+log_file
