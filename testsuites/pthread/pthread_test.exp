@@ -15,170 +15,131 @@ step "Starting test."
 
 set case_num 0
 
-incr case_num
-
 set timeout 8
-set flag 0
-
 send "cd /bin\r" 
-while 1 {
-   expect {
-      "bin" {
-         set flag 1
-         break
-      }
-
-      timeout {
-                   
-            break
-         }
-     }
-}
+expect "root:/bin>"
 
 set timeout 100
 
-expect "root:/bin>"
-send -s  "./ex1\r" 
+incr case_num
+send -s "taskset 1 ./ex1\r"
 while 1 {
-   expect {
-      "join b succeeded 0" {         
-         send_log "Run ex1 finished.\n"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        "join b succeeded 0" {         
+            send_user "Run ex1 finished.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-
-send -s  "./ex2\r" 
+send -s "taskset 1 ./ex2\r"
 while 1 {
-   expect {
-      "> 9999" {         
-         send_log "Run ex2 finished.\n"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        "> 9999" {         
+            send_user "Run ex2 finished.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-
-send -s  "./ex3\r" 
+send -s "taskset 1 ./ex3\r"
 while 1 {
-   expect {
-    -re  "It took .*tries to find the number" {         
-         send_log "Run ex3 finished.\n"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        -re "It took .*tries to find the number" {         
+            send_user "Run ex3 finished.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-
-send -s  "./ex4\r" 
+send -s "taskset 1 ./ex4\r"
 while 1 {
-   expect {
-     -re "Thread .* freeing buffer at .*" {         
-         send_log "Run ex4 finished.\n"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        -re "Thread .* freeing buffer at .*" {         
+            send_user "Run ex4 finished.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-
-send -s  "./ex5\r" 
+send -s "taskset 1 ./ex5\r"
 while 1 {
-   expect {
-      "> 9999" {         
-         send_log "Run ex5 finished.\n"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        "> 9999" {         
+            send_user "Run ex5 finished.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
-  
-incr case_num
-   
-send -s  "./ex6\r" 
-while 1 {
-   expect {
-      "count = 1999" {         
-         send_log "Run ex6 finished.\n"
-                case_pass $case_num
-         break
-      }
 
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+incr case_num
+send -s "taskset 1 ./ex6\r"
+while 1 {
+    expect {
+        "count = 1999" {         
+            send_user "Run ex6 finished.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
-     
+
 incr case_num
-
-send -s  "./ex7\r" 
+send -s "taskset 1 ./ex7\r"
 while 1 {
-   expect {
-     -re "waiting .*count = 19" {         
-         send_log "Run ex7 finished.\n"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        -re "waiting .*count = 19" {         
+            send_user "Run ex7 finished.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
 set timeout 15
-
-send -s  "./ptest\r"
+send -s "taskset 1 ./ptest\r"
 while 1 {
-   expect {
-     -re "PASS" {
-         send_log "Run ptest finished.\n"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "PASS" {
+            send_user "Run ptest finished.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 send_log "\n"
@@ -186,6 +147,3 @@ send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-
