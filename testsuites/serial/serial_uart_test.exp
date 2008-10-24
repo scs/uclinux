@@ -7,6 +7,7 @@
 #
 
 source ../kernel_config.exp
+source ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
@@ -16,21 +17,32 @@ step "Start kermit."
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
+if { $board_type == "BF527-EZKIT" } {
+set bootargs             $bootargs_param8
+set ttyBFdev /dev/ttyBF0
+} else {
 set bootargs             $bootargs_param7
+set ttyBFdev /dev/ttyBF1
+}
+
 source ../reboot_kernel.exp
 
 send_log "\nStarting test for Serial UART 1...\n"
 
-set ttyBFdev /dev/ttyBF1
 set ttydev $ttyUSBdev
 set target_file aaa
 set host_file bbb
 set save_file ccc
 
-
 set argc [llength $argv]
-if { $argc > 0 } {
-set ttyBFdev             [lindex $argv 0]
+
+if { $argc < 1} {
+puts "Please input: board_type [buffer_status] ."
+exit
+}
+
+if { $argc >= 2} {
+set ttyBFdev [lindex $argv 1]
 }
 
 send_log "*********************************\r"

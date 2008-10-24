@@ -44,11 +44,31 @@ while 1 {
           -re "UART Mode.*DMA mode.*SERIAL_BFIN_DMA.*PIO mode.*SERIAL_BFIN_PIO.*choice.*\\\[.*]" {
              send "1\r"
       }
+          
+          -re "Enable UART0.*SERIAL_BFIN_UART0.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            } 
+      }
 
           -re "Enable UART1.*SERIAL_BFIN_UART1.*\\\[.*]" {
-             send "y\r"
+            if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "\r"
+            } 
       }
-   
+
+          -re "Enable UART3.*SERIAL_BFIN_UART3.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+      }
+ 
        "\\\(*) \\\[*]" {
              sleep .01
 	     send "\r"
