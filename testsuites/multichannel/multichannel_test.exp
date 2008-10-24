@@ -30,10 +30,45 @@ if [ catch {exec rcp six_channels.wav root@$targetip:/} ] {
     case_pass $case_num
 }
 
+set timeout 5
+incr case_num
+send "dmesg |grep -i -c AD1836\r"
+while 1 {
+    expect {
+        -re "AD1836\r\n\[1-9]" {
+            set device_arg ""
+            case_pass $case_num
+            break
+        }
+        -re "AD1836\r\n0" {
+            send "dmesg |grep -i -c AD1980\r"
+            while 1 {
+                expect {
+                    -re "AD1980\r\n\[1-9]" {
+                        set device_arg "-D plug:surround51"
+                        case_pass $case_num
+                        break
+                    }
+                    -re "AD1980\r\n0" {
+                        case_fail $case_num
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
 set count_under_run 0
 set timeout 60
 incr case_num
-send "speaker-test -D plug:surround51 -c 6\r"
+send "speaker-test $device_arg -c 6\r"
 while 1 {
     expect {
         -re "TUV|UVF|TU|UV|VF" {
@@ -67,7 +102,7 @@ sleep 5
 
 set timeout 30
 incr case_num
-send "aplay -D plug:surround51 six_channels.wav;aplay -D plug:surround51 six_channels.wav;aplay -D plug:surround51 six_channels.wav\r"
+send "aplay $device_arg six_channels.wav;aplay $device_arg six_channels.wav;aplay $device_arg six_channels.wav\r"
 while 1 {
     expect {
         -re "TUV|UVF|TU|UV|VF" {

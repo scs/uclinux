@@ -2,6 +2,15 @@
 
 source ../kernel_config.exp
 source  ../board_info.exp
+
+if { $argc < 2} {
+    puts "Please input: board_type, audio_dev"
+    puts "audio_dev: audio_ad1836, audio_ad1980"
+    exit
+}
+
+set audio_dev [lindex $argv 1]
+
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
@@ -52,8 +61,24 @@ while 1 {
             send "Y\r"
         }
 
-        -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
+        -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+            if { $audio_dev == "audio_ad1836" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "5\.1 Channels or 3 Separate Stereos.*SND_BLACKFIN_AD1836_5P1.*\[cC]hoice\\\[.*]:" {
             send "Y\r"
+        }
+
+        -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
+            if { $audio_dev == "audio_ad1836" } {
+                send "N\r"
+            } else {
+                send "Y\r"
+            }
         }
 
         -re "SoC AC97 Audio for the ADI BF5xx chip.*SND_BF5XX_AC97.*\\\[.*]" {
