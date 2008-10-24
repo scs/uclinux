@@ -49,19 +49,19 @@ then
 
 	if test -z $ipaddr
 	then
-		ipaddr=192.168.11.10
+		ipaddr=192.168.1.10
 	else
 		echo "Use IP from config file: " $ipaddr
 	fi
         if test -z $gatewayip
         then
-                gatewayip=192.168.11.1
+                gatewayip=192.168.1.1
         else
                 echo "Use GATEWAYIP from config file: " $gatewayip
         fi
         if test -z $serverip
         then
-                serverip=192.168.11.2
+                serverip=192.168.1.2
         else
                 echo "Use SERVERIP from config file: " $serverip
         fi
