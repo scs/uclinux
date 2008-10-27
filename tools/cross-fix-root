@@ -13,6 +13,7 @@
 # while a `ln` is actually unlink();symlink();.
 #
 
+LIBDIR="usr/lib"
 SYSROOT=${SYSROOT:-${ROOT:-${STAGEDIR}}}
 CROSS_BINDIR=""
 if [ -n "${ROOTDIR}" ] ; then
@@ -28,26 +29,32 @@ fi
 
 cd "${SYSROOT}" || exit 1
 
-find ./usr/lib/ -name 'lib*.so*' -print0 | xargs -0 -r chmod 755
-find ./usr/lib/ -name 'lib*.la' -o -name 'lib*.a' -print0 | xargs -0 -r chmod 644
-find ./usr/lib/ -name 'lib*.la' -print0 | xargs -0 -r \
-	sed -i \
-		-e "/^libdir=/s:=.*:='${SYSROOT}/usr/lib':" \
-		-e "/^dependency_libs=/s: /usr/lib/: ${SYSROOT}/usr/lib/:g"
+if [ -d ${LIBDIR} ] ; then
+	find ./${LIBDIR}/ -name 'lib*.so*' -print0 | xargs -0 -r chmod 755
+	find ./${LIBDIR}/ -name 'lib*.la' -o -name 'lib*.a' -print0 | xargs -0 -r chmod 644
+	find ./${LIBDIR}/ -name 'lib*.la' -print0 | xargs -0 -r \
+		sed -i \
+			-e "/^libdir=/s:=.*:='${SYSROOT}/usr/lib':" \
+			-e "/^dependency_libs=/s: /usr/lib/: ${SYSROOT}/usr/lib/:g"
+fi
 
-find ./usr/lib/pkgconfig/ -name '*.pc' -print0 | xargs -0 -r \
-	sed -i "/^prefix=/s:=.*:='${SYSROOT}/usr':"
+if [ -d ${LIBDIR}/pkgconfig ] ; then
+	find ./${LIBDIR}/pkgconfig/ -name '*.pc' -print0 | xargs -0 -r \
+		sed -i "/^prefix=/s:=.*:='${SYSROOT}/usr':"
+fi
 
-find ./usr/bin/ -name '*-config' -print0 | xargs -0 -r \
-	sed -i "/^prefix=/s:=.*:='${SYSROOT}/usr':"
+if [ -d usr/bin ] ; then
+	find ./usr/bin/ -name '*-config' -print0 | xargs -0 -r \
+		sed -i "/^prefix=/s:=.*:='${SYSROOT}/usr':"
 
-if [ -n "${CROSS_BINDIR}" ] && [ -d "${CROSS_BINDIR}" ] && [ -n "${CROSS_PREFIX}" ] ; then
-	cd usr/bin || exit 1
-	for config in *-config ; do
-		ln -s "${SYSROOT}/usr/bin/${config}" "${CROSS_BINDIR}/${CROSS_PREFIX}.$$"
-		mv "${CROSS_BINDIR}/${CROSS_PREFIX}.$$" "${CROSS_BINDIR}/${CROSS_PREFIX}"
-	done
-	cd ../..
+	if [ -n "${CROSS_BINDIR}" ] && [ -d "${CROSS_BINDIR}" ] && [ -n "${CROSS_PREFIX}" ] ; then
+		cd usr/bin || exit 1
+		for config in *-config ; do
+			ln -s "${SYSROOT}/usr/bin/${config}" "${CROSS_BINDIR}/${CROSS_PREFIX}.$$"
+			mv "${CROSS_BINDIR}/${CROSS_PREFIX}.$$" "${CROSS_BINDIR}/${CROSS_PREFIX}"
+		done
+		cd ../..
+	fi
 fi
 
 exit 0
