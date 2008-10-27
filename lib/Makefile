@@ -100,13 +100,7 @@ DIRS_all = $(foreach n,$(DIRS_NUM),$(sort $(dir_$(n)_y) $(dir_$(n)_n) $(dir_$(n)
 
 ##############################################################################
 
-SET_STAGEDIR = \
-	(cd $(STAGEDIR); \
-	chmod 755 ./usr/lib/lib*.so*; \
-	chmod 644 ./usr/lib/lib*.la ./usr/lib/lib*.a; \
-	sed -i -e "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':" -e "/^dependency_libs=/s: /usr/lib/: $(STAGEDIR)/usr/lib/:g" ./usr/lib/*.la; \
-	sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':" ./usr/lib/pkgconfig/*.pc ./usr/bin/*-config; \
-	true)
+SET_STAGEDIR = $(ROOTDIR)/tools/cross-fix-root
 
 all:
 	[ -z "$(dir_1_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_1_y)) || exit $$?

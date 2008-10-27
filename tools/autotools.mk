@@ -11,26 +11,7 @@ all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
 	$(MAKE) post-build
 
-# fix library perms, mung paths in pkg-config files, libtool linker scripts,
-# and random -config scripts to point to our build directory, and cross-compile
-# symlinks for the -config scripts as autotool packages will search for
-# prefixed -config scripts when cross-compiling.  note: the ugly ln/mv is to
-# work around a possible race condition if multiple make jobs are generating
-# the same symlink at the same time.  a `mv` is "atomic" (it uses rename())
-# while a `ln` is actually unlink();symlink();.
-	set -e; \
-	cd $(STAGEDIR); \
-	find ./usr/lib/ -name 'lib*.so*' -print0 | xargs -0 -r chmod 755; \
-	find ./usr/lib/ -name 'lib*.la' -o -name 'lib*.a' -print0 | xargs -0 -r chmod 644; \
-	find ./usr/lib/ -name 'lib*.la' -print0 | xargs -0 -r sed -i -e "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':" -e "/^dependency_libs=/s: /usr/lib/: $(STAGEDIR)/usr/lib/:g"; \
-	find ./usr/lib/pkgconfig/ -name '*.pc' -print0 | xargs -0 -r sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':"; \
-	find ./usr/bin/ -name '*-config' -print0 | xargs -0 -r sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':"; \
-	test -d usr/bin || exit 0; \
-	cd usr/bin; \
-	for config in *-config ; do \
-		ln -s "$(STAGEDIR)/usr/bin/$$config" "$(ROOTDIR)/tools/$(CROSS_COMPILE)$$config.$$$$"; \
-		mv "$(ROOTDIR)/tools/$(CROSS_COMPILE)$$config.$$$$" "$(ROOTDIR)/tools/$(CROSS_COMPILE)$$config"; \
-	done 
+	$(ROOTDIR)/tools/cross-fix-root
 
 post-build::
 
