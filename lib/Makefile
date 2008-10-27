@@ -134,7 +134,7 @@ $(DIRS_y):
 	[ ! -d "$@" ] || ( touch $@/.sgbuilt_lib && $(MAKE) -C $@ ) || exit $$?
 
 %_only:
-	touch $(@:_only=)/.sgbuilt_lib && $(MAKE) -C $(@:_only=) -j$(HOST_NCPU)
+	touch $(@:_only=)/.sgbuilt_lib && $(MAKE) -C $(@:_only=) -j$(HOST_NCPU) $(TONLY)
 
 %_clean:
 	$(MAKE) -C $(@:_clean=) clean; rm -f $(@:_clean=)/.sgbuilt_lib; true

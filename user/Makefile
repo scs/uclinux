@@ -454,7 +454,7 @@ $(sort $(dir_y) $(dir_p)):  config
 	[ ! -d "$@" ] || ( touch $@/.sgbuilt_user && $(MAKE) -C $@ ) || exit $$?
 
 %_only:
-	touch $(@:_only=)/.sgbuilt_user && $(MAKE) -C $(@:_only=) -j$(HOST_NCPU)
+	touch $(@:_only=)/.sgbuilt_user && $(MAKE) -C $(@:_only=) -j$(HOST_NCPU) $(TONLY)
 
 %_clean:
 	$(MAKE) -C $(@:_clean=) clean; rm -f $(@:_clean=)/.sgbuilt_user; true
