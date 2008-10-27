@@ -2,7 +2,6 @@ include/asm-blackfin/l1layout.h
 include/asm-blackfin/smp.h
 include/asm-blackfin/cplbinit.h
 include/asm-blackfin/spinlock_types.h
-include/asm-blackfin/mach-bf548/mem_map.h
 include/asm-blackfin/percpu.h
 include/asm-blackfin/bitops.h
 include/asm-blackfin/mmu_context.h
@@ -16,7 +15,12 @@ include/asm-blackfin/mach-bf561/mem_map.h
 include/asm-blackfin/mach-bf561/smp.h
 include/asm-blackfin/mach-bf561/defBF561.h
 include/asm-blackfin/pda.h
+include/asm-blackfin/mach-bf533/mem_map.h
+include/asm-blackfin/mach-bf537/mem_map.h
+include/asm-blackfin/mach-bf548/mem_map.h
 include/asm-blackfin/mach-bf527/mem_map.h
+include/asm-blackfin/mach-bf538/mem_map.h
+include/asm-blackfin/mach-bf518/mem_map.h
 include/asm-blackfin/mach-common/context.S
 include/asm-blackfin/processor.h
 include/asm-blackfin/cplb.h
@@ -25,9 +29,7 @@ include/asm-blackfin/thread_info.h
 include/asm-blackfin/system.h
 include/asm-blackfin/cpu.h
 include/asm-blackfin/mutex-dec.h
-include/asm-blackfin/mach-bf533/mem_map.h
 include/asm-blackfin/cache.h
-include/asm-blackfin/mach-bf537/mem_map.h
 arch/blackfin/Kconfig
 arch/blackfin/kernel/cplb-mpu/cplbinit.c
 arch/blackfin/kernel/cplb-mpu/cplbmgr.c
