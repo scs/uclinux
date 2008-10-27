@@ -1,4 +1,8 @@
 #!/bin/sh
+# Copyright 2008 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+# $Header: $
+
 #
 # This creates a pkg-config frontend that has the form TARGET-pkg-config
 # as this is the utility that autoconf scripts will automatically search
@@ -7,10 +11,13 @@
 # staging directory rather than the host system.
 #
 
+EMERGE=false
+UCLINUX=true
+
 #
 # Helper functions.  So very helpful.
 #
-msg_to_stderr() { echo "staging-pkg-config: $*" 1>&2 ; }
+msg_to_stderr() { echo "cross-pkg-config: $*" 1>&2 ; }
 warn() { msg_to_stderr "warning: $*" ; }
 error() {
 	msg_to_stderr "error: $*"
@@ -18,10 +25,21 @@ error() {
 }
 
 #
-# Sanity checks
+# Sanity/distro checks
 #
-# things won't work without the staging directory.
-[ -z "${STAGEDIR}" ] && error "STAGEDIR is not set!"
+unset EXTRA_PKG_CONFIG_LIBDIR
+if ${EMERGE} ; then
+	# things won't work without the ROOT directory.
+	[ -z "${ROOT}" ] && error "ROOT is not set!"
+	SYSROOT=${ROOT}
+elif ${UCLINUX} ; then
+	# things won't work without the staging directory.
+	[ -z "${STAGEDIR}" ] && error "STAGEDIR is not set!"
+	SYSROOT=${STAGEDIR}
+	EXTRA_PKG_CONFIG_LIBDIR=${UCLINUX_PKG_CONFIG_LIBDIR}
+else
+	error "I need a distro!"
+fi
 # abort infinite loop due to misconfiguration
 [ "${0##*/}" = "pkg-config" ] && error "aborting infinite loop! (make sure to delete uClinux-dist/tools/pkg-config)"
 
@@ -36,9 +54,9 @@ unset PKG_CONFIG_ALLOW_SYSTEM_LIBS
 #
 # Set the pkg-config search paths to our staging directory.
 #
-export PKG_CONFIG_LIBDIR="${STAGEDIR}/usr/lib/pkgconfig"
-if [ -n "${UCLINUX_PKG_CONFIG_LIBDIR}" ] ; then
-	export PKG_CONFIG_LIBDIR="${UCLINUX_PKG_CONFIG_LIBDIR}:${PKG_CONFIG_LIBDIR}"
+export PKG_CONFIG_LIBDIR="${SYSROOT}/usr/lib/pkgconfig"
+if [ -n "${EXTRA_PKG_CONFIG_LIBDIR}" ] ; then
+	EXTRA_CONFIG_LIBDIR="${EXTRA_PKG_CONFIG_LIBDIR}:${PKG_CONFIG_LIBDIR}"
 fi
 
 #
@@ -53,12 +71,14 @@ case " ${output} " in
 	*" -L/usr/lib64 "*|*" -L/usr/local/lib64 "*|\
 	*" -L /usr/lib64 "*|*" -L /usr/local/lib64 "*)
 		warn "### falling down so here is a dump state ######"
+		export PKG_CONFIG_DEBUG_SPEW="yes"
 		pkg-config --debug "$@" 1>&2
 		warn "### end of dump ###############################"
 		error "host -L paths detected: ${output}"
 		;;
 	*" -I/usr/include"*|*" -I/usr/local/include"*)
 		warn "### falling down so here is a dump state ######"
+		export PKG_CONFIG_DEBUG_SPEW="yes"
 		pkg-config --debug "$@" 1>&2
 		warn "### end of dump ###############################"
 		error "host -I paths detected: ${output}"

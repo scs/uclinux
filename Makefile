@@ -117,7 +117,7 @@ staging: \
 tools/$(CROSS_COMPILE)%:
 	ln -sf staging-compiler $@
 tools/$(CROSS_COMPILE)pkg-config:
-	ln -sf staging-pkg-config $@
+	ln -sf cross-pkg-config $@
 else
 staging:
 	@echo "Error: you have not configured things yet" ; false
