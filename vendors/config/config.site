@@ -1,0 +1,147 @@
+#!/bin/sh
+# Copyright 2008 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+
+#
+# config.site - find cached configure values to force configure tests to
+#               known good values since cross-compiling can be crazy
+#
+
+#
+# Autotools provides these variables:
+#	build		--build=${...}
+#	host		--host=${...}
+#	target		--target=${...}
+#	PACKAGE		package name (if package set it)
+#
+# These config.site rules are really only for cross-compiling:
+#   build != host && host == target
+#
+
+# Dump autoconf vars
+# set >&5; set >&6; exit 0
+
+SITE_DIR=${ac_site_file%/*}
+
+_site_msg()     { echo "config.site: $*"; }
+site_msg()      { _site_msg "$@" >&5; }
+user_site_msg() { _site_msg "$@" >&6; }
+
+find_gnuconfig() {
+	local u=$(echo $1 | tr '[:lower:]' '[:upper:]')
+	local v=$(eval echo \$SITE_CONFIG_${u})
+	local c
+	for c in \
+		${v} \
+		/usr/share/gnuconfig/config.$1 \
+		/usr/share/libtool/config.$1 \
+		/usr/share/automake/config.$1 \
+		${ac_confdir}/config.$1
+	do
+		if [ -x "${c}" ] ; then
+			echo "${c}"
+			return 0
+		fi
+	done
+	return 1
+}
+SITE_CONFIG_SUB=$(find_gnuconfig sub)
+SITE_CONFIG_GUESS=$(find_gnuconfig guess)
+site_msg "SITE_CONFIG_SUB   = ${SITE_CONFIG_SUB}"
+site_msg "SITE_CONFIG_GUESS = ${SITE_CONFIG_GUESS}"
+
+site_build=$(${SITE_CONFIG_SUB} ${build:-$(${SITE_CONFIG_GUESS})})
+site_host=$(${SITE_CONFIG_SUB} ${host:-${site_build}})
+site_target=$(${SITE_CONFIG_SUB} ${target:-${site_host}})
+site_msg "site_build        = ${site_build}"
+site_msg "site_host         = ${site_host}"
+site_msg "site_target       = ${site_target}"
+
+if [ "${site_build}" != "${site_host}" ] ; then
+	split_tuple() {
+		full_tuple=$*
+		set -- $(echo "$@" | sed 's:-: :g')
+
+		arch=$1
+		cpu=$1
+		case $* in
+			arm*eb*)  arch=armeb;;
+			arm*)     arch=arm;;
+			mips*el*) arch=mipsel;;
+			mips*)    arch=mips;;
+			sh*eb*)   arch=sheb;;
+			sh*)      arch=sh;;
+			i?86)     arch=i386;;
+		esac
+
+		os=""
+		case $* in
+			*linux*)  os=linux;;
+			*darwin*) os=darwin;;
+		esac
+
+		libc=""
+		case $* in
+			*uclibc*) libc=uclibc;;
+			*gnu*)    libc=glibc;;
+		esac
+
+		abi=""
+		case $* in
+			*gnueabi*)    abi=gnueabi;;
+			*uclibceabi*) abi=uclibceabi;;
+		esac
+
+		list="
+			${arch} ${cpu}
+			${os} ${arch}-${os} ${cpu}-${os}
+			${libc} ${libc}-${os} ${arch}-${libc} ${cpu}-${libc}
+			$* ${full_tuple}
+		"
+		disp_list=""
+		for t in ${list} ; do
+			case ${t} in *-|-*) continue;; esac
+			for tt in ${disp_list} ; do
+				if [ "${t}" = "${tt}" ] ; then
+					t=""
+					break
+				fi
+			done
+			if [ -n "${t}" ] ; then
+				echo "${t}"
+				disp_list="${disp_list} ${t}"
+			fi
+		done
+	}
+	package_frags() {
+		[ -z "${PACKAGE_NAME}" ] && return 0
+		echo ${PACKAGE_NAME} common/${PACKAGE_NAME}
+		echo ${PACKAGE_NAME}-${PACKAGE_VERSION} common/${PACKAGE_NAME}-${PACKAGE_VERSION}
+	}
+	for site_tuple in $(split_tuple ${site_host}) $(package_frags) ; do
+		site_config="${SITE_DIR}/${site_tuple}"
+		site_msg "searching for site script frag ${site_config} ..."
+		if [ -d "${site_config}" ] ; then
+			site_config="${SITE_DIR}/${site_tuple}/config.site"
+			site_msg "searching for site script frag ${site_config} ..."
+		fi
+		if [ -e "${site_config}" ] ; then
+			site_msg "loading site script frag ${site_config}"
+			user_site_msg "loading site script frag ${site_config}"
+			cat "${site_config}" >&5
+			. "${site_config}"
+		fi
+	done
+	unset site_config
+	unset site_tuple
+else
+	site_msg "native build -- not loading any site script files"
+fi
+
+unset site_build
+unset site_host
+unset site_target
+
+unset SITE_CONFIG_GUESS
+unset SITE_CONFIG_SUB
+unset SITE_DIR
