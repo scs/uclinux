@@ -77,7 +77,7 @@ while 1 {
         }
 
         -re "Support for generic platform NAND driver.*MTD_NAND_PLATFORM.*\\\[.*]" {
-            send -s "Y\r"
+            send -s "N\r"
         }
 
         -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
