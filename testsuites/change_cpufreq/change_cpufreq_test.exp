@@ -1,0 +1,194 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+set governor userspace
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated, 
+# for it is the default value.
+# set bootargs 	$bootargs_param0   
+source ../reboot_kernel.exp 
+
+step "Start testing."
+
+set timeout 5
+
+set case_num 0
+incr case_num
+
+set timeout 5
+
+send -s  "dmesg\r"
+while 1 {
+   expect {
+     -re "Processor Speed: (.*) MHz core clock and (.*) MHz System Clock" {
+                set core_clock $expect_out(1,string)
+                set system_clock $expect_out(2,string)
+                expect  -re "$kernel_prompt"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+      exit
+         }
+     }
+}
+
+
+if { $core_clock == 500 } {
+
+send "cd /usr/bin\r"
+while 1 {
+   expect {
+      "bin" {
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+      }
+   }
+}
+
+
+incr case_num
+send -s  "cpufreq-info\r" 
+while 1 {
+   expect {
+      -re "cpufrequtils.*driver: bfin cpufreq.*cpufreq stats" {         
+                expect  -re "$kernel_prompt"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+incr case_num
+send -s  "cat /proc/cpuinfo\r"
+while 1 {
+   expect {
+      -re "cpu MHz\[\x20\t]+: 500\.000" {
+                expect  -re "$kernel_prompt"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+         }
+     }
+}
+
+incr case_num
+send -s  "cpufreq-set -f 250000\r"
+while 1 {
+   expect {
+      -re "$kernel_prompt" {
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+         }
+     }
+}
+
+incr case_num
+send -s  "cat /proc/cpuinfo\r"
+while 1 {
+   expect {
+      -re "cpu MHz\[\x20\t]+: 250\.000" {
+                expect  -re "$kernel_prompt"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+         }
+     }
+}
+
+
+} else {
+   send_user "The original cpu core clock is not as required.\n"
+                case_fail $case_num
+}
+
+send "cd /sys/devices/system/cpu/cpu0/cpufreq/\r"
+while 1 {
+   expect {
+      "cpufreq" {
+         expect  -re "$kernel_prompt"
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+      }
+   }
+}
+
+incr case_num
+send -s  "cat scaling_governor\r"
+while 1 {
+   expect {
+      -re "$governor" {
+                expect  -re "$kernel_prompt"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+         }
+     }
+}
+
+incr case_num
+send -s  "cat stats/*\r"
+while 1 {
+   expect {
+      -re "500000.*250000" {
+                expect  -re "$kernel_prompt"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+         }
+     }
+}
+
+
+send_user "Ending $argv0\n"
+
+log_file
+
