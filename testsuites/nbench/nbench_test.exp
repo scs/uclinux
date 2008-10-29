@@ -38,7 +38,7 @@ while 1 {
 
 set case_num 0
 
-set timeout 1000
+set timeout 1500
 
 incr case_num
 send -s  "date;./nbench;date\r" 
