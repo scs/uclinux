@@ -301,6 +301,7 @@ int main(int argc, char *argv[])
 
 			printf("\nRunning test %li for exception 0x%02x: %s\n... ", test_num, bad_funcs[test_num].excause, bad_funcs[test_num].name);
 			fflush(stdout);
+                        sleep (1);
 
 			pid = vfork();
 			if (pid == 0) {
