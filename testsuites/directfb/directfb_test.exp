@@ -1,0 +1,89 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+set bootargs  $bootargs_param9
+source ../reboot_kernel.exp
+sleep 5
+send "\r"
+expect -re $kernel_prompt
+
+step "Start testing"
+set case_num 0
+
+set timeout 5
+incr case_num
+send "dmesg |grep -i \"tty0\"\r"
+while 1 {
+    expect {
+        -re "enabled.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "dmesg |grep -i frame\r"
+while 1 {
+    expect {
+        -re "FrameBuffer initializing.*Console: switching to colour frame buffer device.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "dmesg |grep -i mouse\r"
+while 1 {
+    expect {
+        -re "mouse device common for all mice.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 180
+incr case_num
+send "df_dok --noresults\r"
+while 1 {
+    expect {
+        #-re "Benchmarking.*Stretch Blit colorkeyed.*$kernel_prompt" 
+        -re "Stretch Blit colorkeyed.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+send_user "Ending $argv0\n"
+
+log_file

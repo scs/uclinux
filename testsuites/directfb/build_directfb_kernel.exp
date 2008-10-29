@@ -1,0 +1,257 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+
+step "Make config."
+
+source  make_default_config.exp
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+#TFT LCD
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "M\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Lowlevel LCD controls.*LCD_CLASS_DEVICE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Lowlevel Backlight controls.*BACKLIGHT_CLASS_DEVICE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "SHARP LQ035 TFT LCD on uClinux.*FB_BF537_LQ035.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "Use Landscape 320x240 instead of Portrait 240x320.*FB_BFIN_LANDSCAPE.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "Varitronix COG-T350MCQB TFT LCD display.*FB_BFIN_T350MCQB.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+
+#Virtual terminal & frame buffer
+        -re "I2C support.*I2C.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Framebuffer Console support.*FRAMEBUFFER_CONSOLE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Select compiled-in fonts.*FONTS.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Mac console 6x11 font.*FONT_6x11.*\\\[.*]" {
+            send "Y\r"
+        }
+
+
+#USB mouse
+        -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
+            #CONFIG_MTD_PHYSMAP claims the entire Async. Memory Space
+            #need to entirely disable it while using various U-Connector boards
+            send "N\r"
+        }
+
+        -re "USB support.*USB_SUPPORT.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Support for Host-side USB.*USB.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "0xAAC2\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "ISP1362 HCD support \\\(USB_ISP1362_HCD\\\).*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "N\r"
+            } elseif { $board_type == "BF527-EZKIT" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "USB Human Interface Device \\\(full HID\\\) support.*USB_HID.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[./.*]" {
+            send "Y\r"
+        }
+
+        -re "Mouse interface.*INPUT_MOUSEDEV.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Horizontal screen resolution.*INPUT_MOUSEDEV_SCREEN_X.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "480\r"
+            } else {
+                send "320\r"
+            }
+        }
+
+        -re "Vertical screen resolution.*INPUT_MOUSEDEV_SCREEN_Y.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "272\r"
+            } else {
+                send "240\r"
+            }
+        }
+
+        -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Mice.*INPUT_MOUSE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+
+#vendor config
+        -re "DirectFB Examples.*USER_DIRECTFBEXAMPLES.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+            send  "4\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .1
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+log_file
