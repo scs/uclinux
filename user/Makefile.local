@@ -9,6 +9,7 @@ dir_$(CONFIG_USER_DIRECTVNC)                += directvnc
 dir_$(CONFIG_USER_BLUEZ)                    += bluez-utils
 dir_$(CONFIG_USER_I2C_TOOLS)                += i2c-tools
 dir_$(CONFIG_USER_BLACKFIN_LINPHONE)        += linphone
+dir_$(CONFIG_USER_LSUIO)                    += lsuio
 dir_$(CONFIG_USER_MPC)                      += mpc
 dir_$(CONFIG_USER_MPC2X)                    += mpc2x
 dir_$(CONFIG_USER_MPD)                      += mpd

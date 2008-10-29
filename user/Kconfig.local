@@ -214,6 +214,11 @@ config USER_UBOOT_TOOLS
 	bool "U-Boot Tools"
 config USER_I2C_TOOLS
 	bool "I2C Tools"
+config USER_LSUIO
+	bool "lsuio"
+	help
+	  List user space i/o drivers:
+	  http://docs.blackfin.uclinux.org/doku.php?id=auto_generated_kernel_docs:uio-howto
 config USER_NANO
 	bool "nano"
 	select LIB_NCURSES
