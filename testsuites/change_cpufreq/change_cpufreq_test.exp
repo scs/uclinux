@@ -48,7 +48,7 @@ while 1 {
 }
 
 
-if { $core_clock == 500 } {
+if { $core_clock >= 500 } {
 
 send "cd /usr/bin\r"
 while 1 {
@@ -86,7 +86,7 @@ incr case_num
 send -s  "cat /proc/cpuinfo\r"
 while 1 {
    expect {
-      -re "cpu MHz\[\x20\t]+: 500\.000" {
+      -re "cpu MHz\[\x20\t]+: $core_clock\.000" {
                 expect  -re "$kernel_prompt"
                 case_pass $case_num
          break
@@ -99,8 +99,10 @@ while 1 {
      }
 }
 
+set core_clock_inK [ expr $core_clock * 1000 ] 
+set new_core_clock_inK [ expr $core_clock_inK / 2 ]
 incr case_num
-send -s  "cpufreq-set -f 250000\r"
+send -s  "cpufreq-set -f $new_core_clock_inK\r"
 while 1 {
    expect {
       -re "$kernel_prompt" {
@@ -115,11 +117,13 @@ while 1 {
      }
 }
 
+set new_core_clock [ expr $new_core_clock_inK / 1000 ] 
+
 incr case_num
 send -s  "cat /proc/cpuinfo\r"
 while 1 {
    expect {
-      -re "cpu MHz\[\x20\t]+: 250\.000" {
+      -re "cpu MHz\[\x20\t]+: $new_core_clock" {
                 expect  -re "$kernel_prompt"
                 case_pass $case_num
          break
@@ -174,7 +178,7 @@ incr case_num
 send -s  "cat stats/*\r"
 while 1 {
    expect {
-      -re "500000.*250000" {
+      -re "$core_clock_inK.*$new_core_clock_inK" {
                 expect  -re "$kernel_prompt"
                 case_pass $case_num
          break
