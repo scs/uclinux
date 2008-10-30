@@ -377,7 +377,7 @@
 	{ 5,	TD,	sys_epoll_pwait,	"epoll_pwait"	}, /* 346 */
 	{ 4,	TD|TF,	sys_utimensat,		"utimensat"	}, /* 347 */
 	{ 3,	TD|TS,	sys_signalfd,		"signalfd"	}, /* 348 */
-	{ 2,	TD,	sys_timerfd,		"timerfd_create"	}, /* 349 */
+	{ 2,	TD,	sys_timerfd_create,	"timerfd_create"	}, /* 349 */
 	{ 1,	TD,	sys_eventfd,		"eventfd"	}, /* 350 */
 	{ 5,	0,	sys_pread,		"pread64"	}, /* 351 */
 	{ 5,	0,	sys_pwrite,		"pwrite64"	}, /* 352 */
@@ -386,6 +386,12 @@
 	{ 3,	0,	printargs,		"get_robust_list"	}, /* 355 */
 	{ 4,	0,	printargs,		"fallocate"	}, /* 356 */
 	{ 5,	TI,	sys_semtimedop,		"semtimedop"	}, /* 357 */
-	{ 7,	0,	printargs,		"syscall"	}, /* 358 */
-	{ 4,	TD,	printargs,	"timerfd_settime"	}, /* 358 */
-	{ 2,	TD,	printargs,	"timerfd_gettime"	}, /* 359 */
+	{ 4,	TD,	sys_timerfd_settime,	"timerfd_settime"	}, /* 358 */
+	{ 2,	TD,	sys_timerfd_gettime,	"timerfd_gettime"	}, /* 359 */
+	{ 3,	0,	sys_signalfd4,		"signalfd4"	}, /* 360 */
+	{ 2,	0,	sys_eventfd2,		"eventfd2"	}, /* 361 */
+	{ 2,	0,	sys_epoll_create1,	"epoll_create1"	}, /* 362 */
+	{ 3,	0,	sys_dup3,		"dup3"		}, /* 363 */
+	{ 2,	0,	sys_pipe2,		"pipe2"		}, /* 364 */
+	{ 2,	0,	sys_inotify_init1,	"inotify_init1"	}, /* 365 */
+	{ 7,	0,	printargs,		"syscall"	}, /* 366 */
