@@ -387,7 +387,7 @@ while 1 {
 		}
 	}
 	incr case_num
-	send "break kgdb_l1_test\r"
+	send "hbreak kgdb_l1_test\r"
 	expect {
 	  -re	"\[Bb]reakpoint 3 at 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
 		expect {
@@ -862,7 +862,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         incr case_num
         send "print num2\r"
         expect {
-              -re  "\\\$5 = 0" {
+              -re  "\\\$5 = 80" {
                 case_pass $case_num
                 expect {
                         "(gdb) " {
@@ -894,7 +894,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         incr case_num
         send "print num2\r"
         expect {
-              -re  "\\\$6 = 10" {
+              -re  "\\\$6 = 100" {
                 case_pass $case_num
                 expect {
                         "(gdb) " {

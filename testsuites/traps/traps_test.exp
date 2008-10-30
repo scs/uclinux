@@ -65,8 +65,8 @@ for { set j 0 } { $j < [ expr $case_number + 1 ] } { incr j 1 } {
 while 1 {
    expect {
       -re "$j.*:.*PASS \\(.*\\)" {
+         send_log "Pass_num is $j ."
          incr pass_num  
-         send_log "Pass_num is $pass_num ."
          break
       }
 

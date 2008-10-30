@@ -57,6 +57,70 @@ set target_id $spawn_id
 ### so use igncr to set target tty device not to add "\n" sign.
 ###
 
+#config Linux host pc
+spawn /bin/bash
+set shell_spawn_id $spawn_id
+
+incr case_num
+set timeout 30
+send "su \r"
+while 1 {
+    expect {
+        -re "\[Pp]assword:" {break}
+        timeout {
+            send_user "su timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 60
+send "$password\r"
+while 1 {
+    expect {
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "su and login timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "rmmod pl2303\r"
+while 1 {
+    expect {
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "su and login timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+incr case_num
+send "modprobe pl2303\r"
+while 1 {
+    expect {
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "su and login timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+
+set spawn_id $kermit_spawn_id
+
 incr case_num
 set timeout 5
 
@@ -303,10 +367,10 @@ expect {
          }
 }
 ###
-### Case 3 is to check if it can use ttyBF1 as default console to boot up kernel.
+### Case 3 is to check if it can use the extend ttyBF port as default console to boot up kernel.
 ###
 
-step "Convert the console to ttyBF1."
+step "Convert the console to the extend ttyBF."
 
 set spawn_id $target_id
 set console [file tail $ttyBFdev]
