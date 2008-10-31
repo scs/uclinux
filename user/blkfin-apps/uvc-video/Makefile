@@ -1,4 +1,4 @@
-dir_y = linux-uvc-svn-220 luvcview-svn-14
+dir_y = luvcview-svn-14
 dir_n =
 dir_  =
 dir_all = $(dir_y) $(dir_n) $(dir_)
