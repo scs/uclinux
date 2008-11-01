@@ -3,7 +3,6 @@ VER = e2fsprogs-libs-1.41.3
 MAKE := $(MAKE) DVI=true MAKEINFO=true LDCONFIG=: STRIP=:
 
 CONF_OPTS = \
-	--with-ldopts="$(LDFLAGS)" \
 	$(CONFIGURE_SHARED_ENABLE:shared=elf-shlibs)
 
 include $(ROOTDIR)/tools/autotools.mk
