@@ -2,7 +2,9 @@ VER = alsa-lib-1.0.12
 
 CONF_OPTS = \
 	--with-softfloat \
-	--with-versioned=no
+	--with-versioned=no \
+	--enable-static \
+	$(CONFIGURE_SHARED_ENABLE)
 
 # install target is not parallel safe
 .NOTPARALLEL:
