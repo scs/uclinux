@@ -11,9 +11,6 @@
 # staging directory rather than the host system.
 #
 
-EMERGE=false
-UCLINUX=true
-
 #
 # Helper functions.  So very helpful.
 #
@@ -28,17 +25,15 @@ error() {
 # Sanity/distro checks
 #
 unset EXTRA_PKG_CONFIG_LIBDIR
-if ${EMERGE} ; then
-	# things won't work without the ROOT directory.
-	[ -z "${ROOT}" ] && error "ROOT is not set!"
+if [ -n "${ROOT}" ] ; then
+	# Gentoo
 	SYSROOT=${ROOT}
-elif ${UCLINUX} ; then
-	# things won't work without the staging directory.
-	[ -z "${STAGEDIR}" ] && error "STAGEDIR is not set!"
+elif [ -n "${STAGEDIR}" ] ; then
+	# uClinux-dist
 	SYSROOT=${STAGEDIR}
 	EXTRA_PKG_CONFIG_LIBDIR=${UCLINUX_PKG_CONFIG_LIBDIR}
 else
-	error "I need a distro!"
+	error "Need \$ROOT or \$STAGEDIR set first"
 fi
 # abort infinite loop due to misconfiguration
 [ "${0##*/}" = "pkg-config" ] && error "aborting infinite loop! (make sure to delete uClinux-dist/tools/pkg-config)"
@@ -54,7 +49,7 @@ unset PKG_CONFIG_ALLOW_SYSTEM_LIBS
 #
 # Set the pkg-config search paths to our staging directory.
 #
-export PKG_CONFIG_LIBDIR="${SYSROOT}/usr/lib/pkgconfig"
+export PKG_CONFIG_LIBDIR="${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgconfig"
 if [ -n "${EXTRA_PKG_CONFIG_LIBDIR}" ] ; then
 	EXTRA_CONFIG_LIBDIR="${EXTRA_PKG_CONFIG_LIBDIR}:${PKG_CONFIG_LIBDIR}"
 fi

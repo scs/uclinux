@@ -29,17 +29,17 @@ fi
 
 cd "${SYSROOT}" || exit 1
 
-if [ -d ${LIBDIR} ] ; then
-	find ./${LIBDIR}/ -name 'lib*.so*' -print0 | xargs -0 -r chmod 755
-	find ./${LIBDIR}/ -name 'lib*.la' -o -name 'lib*.a' -print0 | xargs -0 -r chmod 644
-	find ./${LIBDIR}/ -name 'lib*.la' -print0 | xargs -0 -r \
+if [ -d "${LIBDIR}" ] ; then
+	find "./${LIBDIR}/" -name 'lib*.so*' -print0 | xargs -0 -r chmod 755
+	find "./${LIBDIR}/" -name 'lib*.la' -o -name 'lib*.a' -print0 | xargs -0 -r chmod 644
+	find "./${LIBDIR}/" -name 'lib*.la' -print0 | xargs -0 -r \
 		sed -i \
 			-e "/^libdir=/s:=.*:='${SYSROOT}/usr/lib':" \
 			-e "/^dependency_libs=/s: /usr/lib/: ${SYSROOT}/usr/lib/:g"
 fi
 
-if [ -d ${LIBDIR}/pkgconfig ] ; then
-	find ./${LIBDIR}/pkgconfig/ -name '*.pc' -print0 | xargs -0 -r \
+if [ -d "${LIBDIR}/pkgconfig" ] ; then
+	find "./${LIBDIR}/pkgconfig/" -name '*.pc' -print0 | xargs -0 -r \
 		sed -i "/^prefix=/s:=.*:='${SYSROOT}/usr':"
 fi
 
