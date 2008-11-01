@@ -15,19 +15,35 @@ all: build-$(VER)/Makefile
 
 post-build::
 
-build-$(VER)/Makefile:
-	chmod a+rx $(VER)/configure # for CVS users with screwed perms
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
+ifneq ($(findstring s,$(MAKEFLAGS)),)
+echo-cmd = :
+else
+echo-cmd = printf
+endif
+
+if_changed = \
+	@echo $(CONFIGURE_OPTS) $(CONF_OPTS) $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) > .build-$(VER).settings.new ; \
+	if ! cmp -s .build-$(VER).settings.new .build-$(VER).settings ; then \
+		$(echo-cmd) "%s\n" "$(cmd_$(1))" ; \
+		( $(cmd_$(1)) ) || exit $$? ; \
+	fi ; \
+	mv .build-$(VER).settings.new .build-$(VER).settings
+
+cmd_configure = \
 	set -e ; \
+	chmod a+rx $(VER)/configure ; \
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure ; \
 	rm -rf build-$(VER) ; \
 	mkdir build-$(VER) ; \
 	cd build-$(VER) ; \
 	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
+build-$(VER)/Makefile: FORCE
+	$(call if_changed,configure)
 
 clean:
-	rm -rf build*
+	rm -rf build* .build*
 
-.PHONY: all clean post-build romfs
+.PHONY: all clean post-build romfs FORCE
 
 #
 # Helper functions
