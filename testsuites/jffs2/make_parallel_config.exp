@@ -26,7 +26,7 @@ while 1 {
             send -s "Y\r"
         }
 
-        -re "Support for AMD/Fujitsu flash chips \\\(MTD_CFI_AMDSTD\\\).*\\\[.*]" {
+        -re "Support for AMD/Fujitsu/Spansion.* flash chips \\\(MTD_CFI_AMDSTD\\\).*\\\[.*]" {
             send "Y\r"
         }
 
