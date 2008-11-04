@@ -25,7 +25,6 @@ include/asm-blackfin/mach-common/context.S
 include/asm-blackfin/processor.h
 include/asm-blackfin/cplb.h
 include/asm-blackfin/spinlock.h
-include/asm-blackfin/thread_info.h
 include/asm-blackfin/system.h
 include/asm-blackfin/cpu.h
 include/asm-blackfin/mutex-dec.h
