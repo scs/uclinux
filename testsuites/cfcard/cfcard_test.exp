@@ -41,7 +41,7 @@ incr case_num
 send -s "cardctl ident\r"
 while 1 {
    expect {
-     -re "product info.*SanDisk" {
+     -re "product info" {
                 expect -re $kernel_prompt
                 case_pass $case_num
                 break
@@ -59,7 +59,7 @@ incr case_num
 send "dump_cis\r"
 while 1 {
    expect {
-     -re "Socket 0:.*dev_info.*SanDisk.*disk_interface.*cftable_entry" {
+     -re "Socket 0:.*dev_info.*disk_interface.*cftable_entry" {
                 expect -re $kernel_prompt
                 case_pass $case_num
                 break
@@ -94,7 +94,7 @@ while 1 {
 while 1 {
 
 incr case_num
-send "fdisk /dev/sda1\r" 
+send "fdisk /dev/sda\r" 
 expect {
      -re "Command .*:" {		
       }
