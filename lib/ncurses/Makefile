@@ -1,4 +1,4 @@
-VER = ncurses-5.6
+VER = ncurses-5.7
 
 NCURSES_TERMS = linux,vt100,vt220,xterm
 NCURSES_DEMOS = dots firework gdc hanoi newdemo railroad rain tclock worm xmas
