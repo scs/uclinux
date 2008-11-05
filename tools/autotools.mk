@@ -8,11 +8,13 @@
 # include $(ROOTDIR)/tools/autotools.mk
 
 all: build-$(VER)/Makefile
+	$(MAKE) pre-build
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
 	$(MAKE) post-build
 
 	$(ROOTDIR)/tools/cross-fix-root
 
+pre-build::
 post-build::
 
 ifneq ($(findstring s,$(MAKEFLAGS)),)
@@ -22,28 +24,36 @@ echo-cmd = printf
 endif
 
 if_changed = \
-	@echo $(CONFIGURE_OPTS) $(CONF_OPTS) $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) > .build-$(VER).settings.new ; \
-	if ! cmp -s .build-$(VER).settings.new .build-$(VER).settings ; then \
+	settings=".build-$(3)$(VER).settings" ; \
+	echo $(2) $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) > $$settings.new ; \
+	if ! cmp -s $$settings.new $$settings ; then \
 		$(echo-cmd) "%s\n" "$(cmd_$(1))" ; \
 		( $(cmd_$(1)) ) || exit $$? ; \
 	fi ; \
-	mv .build-$(VER).settings.new .build-$(VER).settings
+	mv $$settings.new $$settings
 
 cmd_configure = \
 	set -e ; \
 	chmod a+rx $(VER)/configure ; \
 	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
-build-$(VER)/Makefile: FORCE
-	$(call if_changed,configure)
+	rm -rf build-$(3)$(VER) ; \
+	mkdir build-$(3)$(VER) ; \
+	cd build-$(3)$(VER) ; \
+	../$(VER)/configure $(2)
+build-$(VER)/Makefile: build-host-$(VER)/Makefile FORCE
+	@$(call if_changed,configure,$(CONFIGURE_OPTS) $(CONF_OPTS))
+
+build-host-$(VER)/Makefile: FORCE
+ifeq ($(AUTOTOOLS_BUILD_HOST),true)
+	export CC=$(HOSTCC) CPPFLAGS="" CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="" CONFIG_SITE="" \
+	$(call if_changed,configure,$(BUILD_CONFIGURE_OPTS) $(BUILD_CONF_OPTS),host-)
+	$(MAKE) host-build
+endif
 
 clean:
 	rm -rf build* .build*
 
-.PHONY: all clean post-build romfs FORCE
+.PHONY: all clean pre-build post-build romfs FORCE
 
 #
 # Helper functions
