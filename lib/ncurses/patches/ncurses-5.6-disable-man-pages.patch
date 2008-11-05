@@ -1,0 +1,11 @@
+--- ncurses-5.6/man/Makefile.in
++++ ncurses-5.6/man/Makefile.in
+@@ -57,7 +57,7 @@
+ EDITARGS = $(DESTDIR)$(mandir) $(srcdir) terminfo.5 $(srcdir)/*.[0-9]*
+ 
+ install install.man : terminfo.5 $(DESTDIR)$(mandir)
+-	sh ../edit_man.sh normal installing $(EDITARGS)
++#	sh ../edit_man.sh normal installing $(EDITARGS)
+ 
+ uninstall uninstall.man :
+ 	-sh ../edit_man.sh normal removing $(EDITARGS)
