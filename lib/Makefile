@@ -103,6 +103,7 @@ DIRS_all = $(foreach n,$(DIRS_NUM),$(sort $(dir_$(n)_y) $(dir_$(n)_n) $(dir_$(n)
 SET_STAGEDIR = $(ROOTDIR)/tools/cross-fix-root
 
 all:
+	mkdir -p $(STAGEDIR)
 	[ -z "$(dir_1_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_1_y)) || exit $$?
 	[ -z "$(dir_1_y)" ] || $(SET_STAGEDIR)
 	[ -z "$(dir_2_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_2_y)) || exit $$?
