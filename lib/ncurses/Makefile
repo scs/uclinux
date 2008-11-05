@@ -14,7 +14,19 @@ CONF_OPTS = \
 	--enable-symlinks \
 	--enable-const
 
+AUTOTOOLS_BUILD_HOST = true
+BUILD_CONF_OPTS = \
+	--disable-termcap \
+	--without-ada \
+	--disable-shared \
+	--enable-static
+export PATH := $(ROOTDIR)/lib/ncurses/build-host-$(VER)/progs:$(PATH)
+
 include $(ROOTDIR)/tools/autotools.mk
+
+host-build:
+	$(MAKE) -C build-host-$(VER)/include
+	$(MAKE) -C build-host-$(VER)/progs tic
 
 post-build::
 ifeq ($(CONFIG_USER_NCURSES_TESTS),y)
