@@ -1,7 +1,6 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
-source  ../kernel_config.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
