@@ -88,6 +88,24 @@ while 1 {
    }
 }
 
+set timeout 60
+incr case_num
+send "time cat /mnt/mmc/$FILE_SIZE.bin > /dev/null\r"
+while 1 {
+    expect {
+        -re "real.*user.*sys.*>" {
+            send_user "Read file done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Read file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+
 set timeout 5
 send "ls /mnt/mmc\r"
 while 1 {
@@ -260,6 +278,23 @@ while 1 {
    }
 }
 
+set timeout 60
+incr case_num
+send "time cat /mnt/mmc1/$FILE_SIZE.bin > /dev/null\r"
+while 1 {
+    expect {
+        -re "real.*user.*sys.*>" {
+            send_user "Read file done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Read file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
 incr case_num
 set timeout 60
 send "time dd if=/dev/zero of=/mnt/mmc2/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
@@ -274,6 +309,45 @@ while 1 {
       }
    }
 }
+
+set timeout 60
+incr case_num
+send "time cat /mnt/mmc2/$FILE_SIZE.bin > /dev/null\r"
+while 1 {
+    expect {
+        -re "real.*user.*sys.*>" {
+            send_user "Read file done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Read file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "rm /mnt/mmc1/$FILE_SIZE.bin\r"
+while 1 {
+   expect {
+      -re "rm:.*>" {
+         send_user "rm fail, test fail\n"
+         case_fail $case_num
+      }
+      -re $kernel_prompt {
+         send_user "rm done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "rm timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
 
 incr case_num
 set timeout 5

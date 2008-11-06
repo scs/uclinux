@@ -287,6 +287,40 @@ while 1 {
 
 set timeout 60
 incr case_num
+send "time dd if=/dev/zero of=/mnt/hd1/test.bin bs=1M count=100\r"
+while 1 {
+    expect {
+        -re "records in.*records out.*real.*user.*sys.*>" {
+            send_user "Generate file done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Generate file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 60
+incr case_num
+send "time cat /mnt/hd1/test.bin > /dev/null\r"
+while 1 {
+    expect {
+        -re "real.*user.*sys.*>" {
+            send_user "Read file done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Read file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 60
+incr case_num
 send "time dd if=/dev/zero of=/mnt/hd2/test.bin bs=1M count=100\r"
 while 1 {
     expect {
