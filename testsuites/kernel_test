@@ -493,7 +493,7 @@ do
   cp -a  $UCLINUX_DIST_PATH_BAK/user/linphone  .
   fi
 
-  if [ ${AUTO_TESTCASE[$i]} == "shared_flat" ] || [ ${AUTO_TESTCASE[$i]} == "linphone_ad1981b" ] || [ ${AUTO_TESTCASE[$i]} == "linphone_ad73322" ] ; then
+  if [ ${AUTO_TESTCASE[$i]} == "shared_flat" ] || [ ${AUTO_TESTCASE[$i]} == "linphone_ad1981b" ] || [ ${AUTO_TESTCASE[$i]} == "linphone_ad73322" ] || [ ${AUTO_TESTCASE[$i]} == "directfb" ]; then
   cd $UCLINUX_DIST_PATH/ 
   make clean > /dev/null 2>&1
   fi
