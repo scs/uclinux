@@ -14,16 +14,16 @@ url="${base_url}${bver}/"
 
 cd ${bdir}
 
-#rm -rf hotfixes
-#svn_st=$(svn st)
+rm -rf hotfixes
+svn_st=$(svn st)
 if [[ -n ${svn_st} ]] ; then
 	echo "ERROR: uncommitted changes"
 	echo "${svn_st}"
 	exit 1
 fi
-#mkdir hotfixes
+mkdir hotfixes
 cd hotfixes
-#wget -nv -m -nd -np ${url}
+wget -nv -m -nd -np ${url}
 hotfixes=$(echo *.patch)
 cd ..
 
