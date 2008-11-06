@@ -3,3 +3,4 @@ busybox-1.12.1-grep.patch
 busybox-1.12.1-vi.patch
 busybox-1.12.1-standalone.patch
 busybox-1.12.1-basename.patch
+busybox-1.12.1-lineedit.patch
