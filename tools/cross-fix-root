@@ -27,7 +27,7 @@ if [ -n "$1" ] && [ -e "/usr/$1" ] ; then
 	CROSS_PREFIX="$1-"
 fi
 
-cd "${SYSROOT}" || exit 1
+cd "${SYSROOT}" || exit 0
 
 if [ -d "${LIBDIR}" ] ; then
 	find "./${LIBDIR}/" -name 'lib*.so*' -print0 | xargs -0 -r chmod 755
@@ -50,8 +50,8 @@ if [ -d usr/bin ] ; then
 	if [ -n "${CROSS_BINDIR}" ] && [ -d "${CROSS_BINDIR}" ] && [ -n "${CROSS_PREFIX}" ] ; then
 		cd usr/bin || exit 1
 		for config in *-config ; do
-			ln -s "${SYSROOT}/usr/bin/${config}" "${CROSS_BINDIR}/${CROSS_PREFIX}.$$"
-			mv "${CROSS_BINDIR}/${CROSS_PREFIX}.$$" "${CROSS_BINDIR}/${CROSS_PREFIX}"
+			ln -s "${SYSROOT}/usr/bin/${config}" "${CROSS_BINDIR}/${CROSS_PREFIX}${config}.$$"
+			mv "${CROSS_BINDIR}/${CROSS_PREFIX}${config}.$$" "${CROSS_BINDIR}/${CROSS_PREFIX}${config}"
 		done
 		cd ../..
 	fi
