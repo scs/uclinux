@@ -4,6 +4,7 @@ CXX = bfin-elf-g++
 # we have to clobber a bunch of flags as they are normally geared towards
 # running under linux, not a bare metal environment like core b
 CPPFLAGS =
+CFLAGS  ?= -mcpu=bf561
 CFLAGS  += -mmulticore -mcoreb
 LDFLAGS  = $(CFLAGS)
 ASFLAGS  = $(CFLAGS)
