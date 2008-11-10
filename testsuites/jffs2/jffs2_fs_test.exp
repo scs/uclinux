@@ -12,140 +12,137 @@ source ../spawn_kermit.exp
 step "Reboot the kernel."
 
 if { $board_type == "BF537-STAMP" || $board_type == "BF561-EZKIT" || $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
-
-set bootargs  $bootargs_param1
-
+    set bootargs  $bootargs_param1
 } elseif { $board_type == "BF533-STAMP" } {
-
-set bootargs  $bootargs_param2
-
+    set bootargs  $bootargs_param2
 }
 
 source ../reboot_kernel.exp
 
 step "Starting test."
-
 set case_num 0
 
 incr case_num
-
 send "cd /bin\r"
 while 1 {
-   expect {
-      "bin" {
-         set flag 1
-         break
-      }
-
-      timeout {
-
+    expect {
+        "bin" {
+            set flag 1
             break
-         }
-     }
+        }
+        timeout {
+            break
+        }
+    }
 }
 
 set timeout 500
 expect "root:/bin>"
 
-send -s  "./fs_test.sh\r" 
+send -s  "./fs_test.sh\r"
 while 1 {
-   expect {
-      "Execution completed" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
+    expect {
+        "Execution completed" {
+            case_pass $case_num
+            break
         }
-     }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
+sleep 10
 incr case_num
-
-send -s "ls -l TestFailed.log\r"
 set timeout 10
+send -s "ls -l TestFailed.log\r"
 while 1 {
-   expect {
-      -re "rw.* .* .* .* (\[0-9]+) .*TestFailed\.log" {
-         set FileSize $expect_out(1,string)
-         expect ">"
-         puts " FileSize $expect_out(1,string)"	 
-         break
-      }
-
-      timeout {
-        break       
-         }
-     }
+    expect {
+        -re "rw.* .* .* .* (\[0-9]+) .*TestFailed\.log" {
+            set FileSize $expect_out(1,string)
+            expect ">"
+            puts " FileSize $expect_out(1,string)"
+            break
+        }
+        timeout {
+            break
+        }
+    }
 }
 
- if { $FileSize == 0 } {
-
-                case_pass $case_num
-
- } else {
-                case_fail $case_num
-                exit
- }
+if { $FileSize == 0 } {
+    case_pass $case_num
+} else {
+    case_fail $case_num
+}
 
 set timeout 500
 spawn ftp $targetip
 while 1 {
     expect {
-                "Name" { }
-                timeout { send_user "Failed first return\n"
-                        break }
+        "Name" { }
+        timeout {
+            send_user "Failed first return\n"
+            break
         }
-        send -s "root\r"
-        expect {
-                "Password:" { }
-                timeout { send_user "Failed first return\n"
-                        break }
+    }
+    send -s "root\r"
+    expect {
+        "Password:" { }
+        timeout {
+            send_user "Failed first return\n"
+            break
         }
-        send -s "uClinux\r"
-        expect {
-                "ftp>" { }
-                timeout { send_user "Failed first return\n"
-                        break }
+    }
+    send -s "uClinux\r"
+    expect {
+        "ftp>" { }
+        timeout {
+            send_user "Failed first return\n"
+            break
         }
+    }
 
-	send -s "cd /bin\r"
-        expect {
-                "ftp>" { }
-                timeout { send_user "Failed first return\n"
-                        break }
+    send -s "cd /bin\r"
+    expect {
+        "ftp>" { }
+        timeout {
+            send_user "Failed first return\n"
+            break
         }
-	
-        send -s "get TestOverall.log\r"
-        expect {
-                "ftp>" { }
-                timeout { send_user "Failed first return\n"
-                        break }
+    }
+
+    send -s "get TestOverall.log\r"
+    expect {
+        "ftp>" { }
+        timeout {
+            send_user "Failed first return\n"
+            break
         }
+    }
 
-        send -s "get TestResults.log\r"
-        expect {
-                "ftp>" { }
-                timeout { send_user "Failed first return\n"
-                        break }
+    send -s "get TestResults.log\r"
+    expect {
+        "ftp>" { }
+        timeout {
+            send_user "Failed first return\n"
+            break
         }
+    }
 
-         send -s "bye\r"
-         expect {
-                "Goodbye" { break }
-                timeout { send_user "Failed first return\n"
-                        break }
-         }
+    send -s "bye\r"
+    expect {
+        "Goodbye" { break }
+        timeout {
+            send_user "Failed first return\n"
+            break
+        }
+    }
 
-   }
+}
 
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 log_file
-
-
-
