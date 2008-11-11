@@ -72,9 +72,9 @@ diff -urN linux-2.6.x/arch/blackfin/kernel/kgdb_test.c linux-2.6.x.kgdb/arch/bla
 +#if defined(CONFIG_BF548) || defined(CONFIG_BF561)
 +
 +int num2 __attribute__((l2));
-+
++/* Should be enabled after bug 4562 is fixed.
 +void kgdb_l2_test(void) __attribute__((l2));
-+
++*/
 +void kgdb_l2_test(void)
 +{
 +        printk(KERN_ALERT "L2(before change) : data variable addr = 0x%p, data value is %d\n", &num2, num2);
