@@ -6,6 +6,7 @@ send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
 set NUM_CYLINDER 1024
+set FILE_SIZE 10
 
 step "Start kermit."
 source ../spawn_kermit.exp
@@ -100,6 +101,24 @@ while 1 {
         }
     }
 }
+
+set timeout 60
+incr case_num
+send "time cat /mnt/mmc/10m.bin > /dev/null\r"
+while 1 {
+    expect {
+        -re "real.*user.*sys.*>" {
+            send_user "Read file done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Read file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
 sleep 1 
 send "ls /mnt/mmc\r"
 while 1 {
@@ -374,6 +393,72 @@ while 1 {
         }
         timeout {
             send_user "mount DOS FS timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 60
+send "time dd if=/dev/zero of=/mnt/mmc1/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
+while 1 {
+   expect {
+      -re "records in.*records out.*real.*user.*sys.*>" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "Generate a $FILE_SIZE MB file in mmc1 timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+set timeout 60
+incr case_num
+send "time cat /mnt/mmc1/$FILE_SIZE.bin > /dev/null\r"
+while 1 {
+    expect {
+        -re "real.*user.*sys.*>" {
+            send_user "Read file done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Read file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 60
+send "time dd if=/dev/zero of=/mnt/mmc2/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
+while 1 {
+   expect {
+      -re "records in.*records out.*real.*user.*sys.*>" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "Generate a $FILE_SIZE MB file in mmc2 timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+set timeout 60
+incr case_num
+send "time cat /mnt/mmc2/$FILE_SIZE.bin > /dev/null\r"
+while 1 {
+    expect {
+        -re "real.*user.*sys.*>" {
+            send_user "Read file done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Read file timeout, test fail\n"
             case_fail $case_num
         }
     }

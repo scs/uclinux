@@ -325,6 +325,7 @@ cd  $UCLINUX_DIST_TESTSUITES
 chmod +x *.exp  */*.exp
 cp  $UCLINUX_DIST_TESTSUITES/test_scripts/compare_kernel_results  $UCLINUX_DIST_SCRIPTS/uclinux-dist 
 cp  $UCLINUX_DIST_TESTSUITES/test_scripts/get_test_summary  $UCLINUX_DIST_SCRIPTS/uclinux-dist 
+cp  $UCLINUX_DIST_TESTSUITES/test_scripts/get_performance_result  $UCLINUX_DIST_SCRIPTS/uclinux-dist
 cp  $UCLINUX_DIST_TESTSUITES/test_scripts/test_runtime_control  $UCLINUX_DIST_SCRIPTS/uclinux-dist
 cp  $UCLINUX_DIST_SCRIPTS/uclinux-dist/reset_board $UCLINUX_DIST_TESTSUITES
 cp  $UCLINUX_DIST_SCRIPTS/uclinux-dist/reset_board $UCLINUX_DIST_TESTSUITES/ltp

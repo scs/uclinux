@@ -48,4 +48,4 @@ cat test_summary/fail_summary  >> test_summary/summary
 rm -f summary
 ln -s `pwd`/test_summary/summary summary
 
-
+../../get_performance_result
