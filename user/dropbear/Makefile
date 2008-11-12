@@ -1,32 +1,19 @@
-VER = dropbear-0.51
+VER = dropbear-0.52
 
 FLTFLAGS = -s 0x4000
 
-all: build-$(VER)/Makefile build-$(VER)-host/dropbearkey
-	$(MAKE) -C build-$(VER) MULTI=1 PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp"
+export MULTI = 1
+export PROGRAMS = dropbear dbclient dropbearkey dropbearconvert scp
 
-build-$(VER)-host/dropbearkey: build-$(VER)-host/Makefile
-	$(MAKE) -C build-$(VER)-host dropbearkey
+AUTOTOOLS_BUILD_HOST = true
 
-build-$(VER)/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	../$(VER)/configure $(CONFIGURE_OPTS)
+include $(ROOTDIR)/tools/autotools.mk
 
-build-$(VER)-host/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER)-host ; \
-	mkdir build-$(VER)-host ; \
-	cd build-$(VER)-host ; \
-	unset AR CC LD RANLIB CFLAGS LDFLAGS CPPFLAGS ; \
-	../$(VER)/configure
+pre-build::
+	$(MAKE) -C build-$(VER)
 
-clean:
-	rm -rf build*
+host-build:
+	$(MAKE) -C build-host-$(VER) dropbearkey MULTI=0
 
 romfs:
 	$(ROMFSINST) -d build-$(VER)/dropbearmulti /usr/bin/dropbear
@@ -37,7 +24,5 @@ romfs:
 	$(ROMFSINST) -a "ssh     stream tcp nowait root /usr/bin/dropbear -i 2 > /dev/null" /etc/inetd.conf
 
 	mkdir -p $(ROMFSDIR)/etc/dropbear
-	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key ] || ./build-$(VER)-host/dropbearkey -t dss -f $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key
-	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key ] || ./build-$(VER)-host/dropbearkey -t rsa -f $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key
-
-.PHONY: all clean romfs
+	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key ] || ./build-host-$(VER)/dropbearkey -t dss -f $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key
+	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key ] || ./build-host-$(VER)/dropbearkey -t rsa -f $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key
