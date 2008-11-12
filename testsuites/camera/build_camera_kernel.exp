@@ -61,8 +61,8 @@ while 1 {
             send "M\r"
         }
 
-        -re "Target Sensor.*VS6524.*\[cC]hoice\\\[.*]:" {
-            send "2\r"
+        -re "Target Sensor.*VS6624.*\[cC]hoice\\\[.*]:" {
+            send "3\r"
         }
 
         -re "Video For Linux.*VIDEO_DEV.*\\\[.*]" {
