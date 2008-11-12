@@ -33,7 +33,8 @@ incr case_num
 send "dmesg\r"
 while 1 {
     expect {
-        -re "TOSHIBA MK4032GAX.*78140160 sectors.*configured for UDMA.*sda: sda1.*>" {
+        -re "TOSHIBA MK4032GAX.*78140160 sectors.*configured for UDMA.*sda: sda1" {
+            sleep 2
             send_user "Harddisk found, test pass\n"
             case_pass $case_num
             break
