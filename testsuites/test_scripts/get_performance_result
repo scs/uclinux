@@ -1,0 +1,54 @@
+#!/bin/sh
+LOG_PATH=`pwd`
+if [ $# -gt 0 ] ; then
+  LOG_PATH=$1
+fi
+
+#echo  "##### Log is in: $LOG_PATH."
+cd $LOG_PATH
+
+READ_COMMAND="time cat"
+WRITE_COMMAND="time dd"
+rm -rf performance_file  
+
+LOG_FILE=`ls *_test_log | xargs grep -r -E "$READ_COMMAND|$WRITE_COMMAND" -a -l`
+
+for file in $LOG_FILE 
+do
+TEST_NAME=`ls $file |  sed "s/_log//g" `
+printf "\n##### %-18s:            read                            write                                 #####\n" "$TEST_NAME"  >> performance_file 
+
+READ_COUNT=`grep -r "$READ_COMMAND" -a -h $file -c`
+WRITE_COUNT=`grep -r "$WRITE_COMMAND" -a -h $file -c`
+
+rm -rf read_file write_file r2 w2
+grep -r "$READ_COMMAND" -a -A 3 -h $file > read_file 
+grep -r "$WRITE_COMMAND" -a -A 5 -h $file > write_file
+
+if [ $READ_COUNT -gt "0" ] && [ $WRITE_COUNT -gt "0" ] ; then
+
+if [ $READ_COUNT -eq $WRITE_COUNT ] ; then
+
+awk 'BEGIN { FS=">" } /time/ {printf("\t\t\t\t%-*s\n",n, $1)}''/real/ {printf("\t\t\t\t%-*s\n",n, $0)}''/user/ {printf("\t\t\t\t%-*s\n",n, $0)}''/sys/ {printf("\t\t\t\t%-*s\n",n, $0)}' n=30 read_file > r2
+awk 'BEGIN { FS=">" } /time/ {printf("%-*s\n",m, $1)}''/real/ {printf("%-*s\n",m, $0)}''/user/ {printf("%-*s\n",m, $0)}''/sys/ {printf("%-*s\n",m, $0)}' m=50 write_file > w2
+dos2unix r2 w2 2>/dev/null
+paste r2 w2 >> performance_file
+else
+printf "### The Read and Write Counts are not Equal! $file fails.\n" >> performance_file
+fi
+
+elif [ $READ_COUNT -eq "0" ] ; then  # which means only has write log.
+awk 'BEGIN { FS=">" } /time/ {printf("\t\t\t\t\t\t\t\t%-*s\n",m, $1)}''/real/ {printf("\t\t\t\t\t\t\t\t%-*s\n",m, $0)}''/user/ {printf("\t\t\t\t\t\t\t\t%-*s\n",m, $0)}''/sys/ {printf("\t\t\t\t\t\t\t\t%-*s\n",m, $0)}' m=50 write_file > w2
+dos2unix w2 2>/dev/null
+paste w2 >> performance_file
+
+elif [ $WRITE_COUNT -eq "0" ] ; then  # which means only has read log.
+awk 'BEGIN { FS=">" } /time/ {printf("\t\t\t\t%-*s\n",n, $1)}''/real/ {printf("\t\t\t\t%-*s\n",n, $0)}''/user/ {printf("\t\t\t\t%-*s\n",n, $0)}''/sys/ {printf("\t\t\t\t%-*s\n",n, $0)}' n=30 read_file > r2
+dos2unix r2 2>/dev/null
+paste r2 >> performance_file
+
+fi
+done
+
+rm -rf read_file write_file r2 w2
+
