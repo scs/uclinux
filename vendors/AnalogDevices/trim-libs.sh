@@ -9,6 +9,11 @@ vecho() { [ -z "$v" ] || echo "$*" ; }
 
 [ -n "${ROMFSDIR}" ] || exit 1
 
+if ! scanelf -V > /dev/null ; then
+	echo "ERROR: you do not have pax-utils installed"
+	exit 1
+fi
+
 cd "${ROMFSDIR}"
 libs=$(scanelf -F'%n#f' -qR bin sbin usr | sed 's:[, ]:\n:g' | sort -u)
 cd lib
