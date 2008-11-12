@@ -99,6 +99,112 @@ while 1 {
     }
 }
 
+step "Save captured image to host PC via smbmount"
+incr case_num
+set timeout 20
+send "smbmount //$serverip/users /mnt rw -o username=$name,password=$name\r"
+while 1 {
+    expect  {
+        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 20
+send "ffmpeg -r 20 -f video4linux -s 352x288 -i /dev/video0 -an -f rawvideo -pix_fmt yuv420p /mnt/$name/test.yuv\r"
+while 1 {
+    expect {
+        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
+            case_fail $case_num
+        }
+        -re "Overwrite.*\\\[.*]" {
+            send "y\r"
+            continue
+        }
+        -re "Stream mapping.*kbits/s" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 10
+
+incr case_num
+set timeout 10
+send "q"
+while 1 {
+    expect {
+        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
+            case_fail $case_num
+        }
+        -re "video.*audio.*global headers.*muxing overhead.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "ls /mnt/$name\r" 
+while 1 {
+    expect {
+        -re "test\.yuv" {         
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+send "smbumount /mnt\r" 
+while 1 {
+    expect {
+        -re $kernel_prompt {         
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 3
+send -s "ls /mnt\r"
+while 1 {
+    expect {
+        -re "$name.*$kernel_prompt" {
+            case_fail $case_num
+        }
+        timeout {
+            case_pass $case_num
+            break
+        }
+    }
+}
+
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 send_user "Ending $argv0\n"
