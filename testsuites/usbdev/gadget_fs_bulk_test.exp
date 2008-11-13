@@ -1,7 +1,7 @@
 #!/usr/bin/expect
 
 #
-# This is bulk traffic test for Gadget Zero
+# This is bulk traffic test for Gadget FS 
 #
 
 source  ../kernel_config.exp
@@ -37,6 +37,27 @@ if [ catch {exec make -f Makefile.testusb -C src} ] {
     case_fail $case_num
 } else {
     send_user "PASS: Build testusb\n"
+}
+
+if [ catch {exec make clean -f Makefile.usb -C src} ] {
+    send_user "FAIL: Make clean of usb\n"
+    case_fail $case_num
+} else {
+    send_user "PASS: Make clean of usb done\n"
+}
+
+if [ catch {exec make -f Makefile.usb -C src} ] {
+    send_user "FAIL: Build testusb\n"
+    case_fail $case_num
+} else {
+    send_user "PASS: Build usb\n"
+}
+
+if [ catch {exec rcp src/usb root@$targetip:/ } ] {
+    send_user "FAIL: Copy target to board\n"
+    case_fail $case_num
+} else {
+    send_user "PASS: Copy target to board\n"
 }
 
 
@@ -165,14 +186,15 @@ while 1 {
 set spawn_id $kermit_spawn_id
 
 incr case_num
-set timeout 5
-send "modprobe g_zero\r"
+set timeout 3
+send "mkdir /dev/gadget\r"
 while 1 {
     expect {
-        -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+        -re "mkdir:|\[eE]rror|\[fF]ail" {
             case_fail $case_num
         }
-        -re "Gadget Zero.*using musb_hdrc.*source and sink data" {
+        -re $kernel_prompt {
+            case_pass $case_num
             break
         }
         timeout {
@@ -180,13 +202,49 @@ while 1 {
         }
     }
 }
-send "lsmod\r"
+
+incr case_num
+set timeout 5
+send "mount -t gadgetfs gadgetfs /dev/gadget\r"
 while 1 {
     expect {
-        -re "(lsmod:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+        -re "mount:|\[eE]rror|\[fF]ail" {
             case_fail $case_num
         }
-        -re "g_zero.*$kernel_prompt" {
+        -re "USB Gadget filesystem.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 3
+send "ls /dev/gadget/ -l\r"
+while 1 {
+    expect {
+        -re "musb_hdrc.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "./usb -r \"1.3\" -v\r"
+while 1 {
+    expect {
+        -re "panic|\[fF]ail|\[eE]rror" {
+            case_fail $case_num
+        }
+        -re "gadgetfs: connected.*simple_source_thread start.*simple_sink_thread start.*SETUP.*" {
             case_pass $case_num
             break
         }
@@ -199,14 +257,12 @@ while 1 {
 
 set spawn_id $host_spawn_id
 
-sleep 2
-
 incr case_num
 set timeout 5
-send "lsusb\r"
+send "cat /proc/bus/usb/devices\r"
 while 1 {
     expect {
-        -re ".*#" {
+        -re "Manufacturer=Analog Devices.*Product=EZKIT-BF548.*#" {
             case_pass $case_num
             break
         }
@@ -218,7 +274,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "lsusb|grep -i \"Gadget Zero\"|awk '{print \$2\" \"\$4}'\r"
+send "lsusb|grep -i \"GadgetFS\"|awk '{print \$2\" \"\$4}'\r"
 while 1 {
     expect {
         -re "(\[0-9]+)( )(\[0-9]+)" {
@@ -483,7 +539,22 @@ set spawn_id $kermit_spawn_id
 
 incr case_num
 set timeout 5
-send "modprobe -r g_zero\r"
+send "\3"
+while 1 {
+    expect {
+        -re "disconnect.*done.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "modprobe -r gadgetfs\r"
 while 1 {
     expect {
         -re "rmmod:|\[eE]rror|\[fF]ail" {
@@ -504,7 +575,7 @@ set timeout 5
 send "lsmod\r"
 while 1 {
     expect {
-        -re "g_zero" {
+        -re "gadgetfs" {
             case_fail $case_num
         }
         -re $kernel_prompt {

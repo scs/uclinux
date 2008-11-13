@@ -308,7 +308,7 @@ set spawn_id $kermit_spawn_id
 
 incr case_num
 set timeout 5
-send "rmmod g_serial\r"
+send "modprobe -r g_serial\r"
 while 1 {
     expect {
         -re "Gadget Serial disconnected.*unbound.*unloaded.*$kernel_prompt" {
@@ -322,7 +322,7 @@ while 1 {
 }
 
 send_log "\n"
-send_log "\n$TITLE ............\[PASS\]\n" 
+send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 
