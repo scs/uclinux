@@ -8,6 +8,10 @@ int main(int argc, char* argv[]) {
   unsigned int i, * j, k, a, t1, t2, max, ave, min;
   struct timeval tim1, tim2;
   unsigned int first_ave;
+  unsigned int benchmark = 100;
+
+  if (argc == 2 )
+  	benchmark = atoi(argv[1]);
 
   k = 4 ;
   for (i = 4; i <= 1024 ; i+=k ) {
@@ -32,7 +36,7 @@ int main(int argc, char* argv[]) {
         if ( i < 128 ) k = 4;
   }
 
-  if ((ave/128 > 100) && (first_ave * 2 < ave))
+  if ((ave/128 > benchmark) && (first_ave * 2 < ave))
 	printf("TEST FAIL\n");
   else
 	printf("TEST PASS\n");
