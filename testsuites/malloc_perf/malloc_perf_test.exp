@@ -1,48 +1,60 @@
 #!/usr/bin/expect
 
-# Main entrance
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
 
 step "Spawn kermit"
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
-source ../reboot_kernel.exp 
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+source ../reboot_kernel.exp
 
 step "Start testing."
-
 set case_num 0
 
-set timeout 500
-send "malloc-perf\r"
+set timeout 5
+send "uname -a\r"
 while 1 {
-   expect {
-
-      -re "FAIL" {
-         send_log "\nTest for malloc performance fail\n"
-         case_fail $case_num
-         exit
-      }
-
-      -re "PASS" {
-         case_pass $case_num 
-         break
-      }
-
-      timeout {
-         exit
-      }
-   }
+    expect {
+        -re "SMP.*$kernel_prompt" {
+            set time 120
+            break
+        }
+        -re $kernel_prompt {
+            set time 100
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
-all_pass
+set timeout 500
+send "malloc-perf $time\r"
+while 1 {
+    expect {
+        -re "FAIL" {
+            send_log "\nTest for malloc performance fail\n"
+            case_fail $case_num
+        }
+        -re "PASS" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
 
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 send_user "Ending $argv0\n"
 
 log_file
