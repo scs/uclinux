@@ -1,0 +1,137 @@
+Index: drivers/mmc/core/sdio_io.c
+===================================================================
+--- drivers/mmc/core/sdio_io.c	(revision 5712)
++++ drivers/mmc/core/sdio_io.c	(working copy)
+@@ -300,13 +300,14 @@
+ 	int ret;
+ 
+ 	/* Do the bulk of the transfer using block mode (if supported). */
+-	if (func->card->cccr.multi_block && (size > sdio_max_byte_size(func))) {
++	if (func->card->cccr.multi_block) {
+ 		/* Blocks per command is limited by host count, host transfer
+ 		 * size (we only use a single sg entry) and the maximum for
+ 		 * IO_RW_EXTENDED of 511 blocks. */
+-		max_blocks = min(func->card->host->max_blk_count,
+-			func->card->host->max_seg_size / func->cur_blksize);
+-		max_blocks = min(max_blocks, 511u);
++		max_blocks = min(min(
++			func->card->host->max_blk_count,
++			func->card->host->max_seg_size / func->cur_blksize),
++			511u);
+ 
+ 		while (remainder > func->cur_blksize) {
+ 			unsigned blocks;
+@@ -331,7 +332,11 @@
+ 
+ 	/* Write the remainder using byte mode. */
+ 	while (remainder > 0) {
+-		size = min(remainder, sdio_max_byte_size(func));
++		size = remainder;
++		if (size > func->cur_blksize)
++			size = func->cur_blksize;
++		if (size > 512)
++			size = 512; /* maximum size for byte mode */
+ 
+ 		ret = mmc_io_rw_extended(func->card, write, func->num, addr,
+ 			 incr_addr, buf, 1, size);
+Index: drivers/mmc/host/bfin_sdh.c
+===================================================================
+--- drivers/mmc/host/bfin_sdh.c	(revision 5711)
++++ drivers/mmc/host/bfin_sdh.c	(working copy)
+@@ -458,7 +458,6 @@
+ 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+ 	mmc->f_min = get_sclk() >> 9;
+ 	mmc->f_max = get_sclk();
+-	mmc->caps = MMC_CAP_4_BIT_DATA;
+ 	host = mmc_priv(mmc);
+ 	host->mmc = mmc;
+ 
+Index: drivers/net/wireless/libertas/if_sdio.c
+===================================================================
+--- drivers/net/wireless/libertas/if_sdio.c	(revision 5711)
++++ drivers/net/wireless/libertas/if_sdio.c	(working copy)
+@@ -263,14 +263,14 @@
+ 		}
+ 		mdelay(1);
+ 	}
+-
+ 	/*
+ 	 * The transfer must be in one transaction or the firmware
+ 	 * goes suicidal. There's no way to guarantee that for all
+ 	 * controllers, but we can at least try.
+ 	 */
+ 	chunk = sdio_align_size(card->func, size);
+-
++	chunk = (chunk + card->func->cur_blksize - 1) /
++			card->func->cur_blksize * card->func->cur_blksize;
+ 	ret = sdio_readsb(card->func, card->buffer, card->ioport, chunk);
+ 	if (ret)
+ 		goto out;
+@@ -337,7 +337,6 @@
+ 	lbs_deb_enter(LBS_DEB_SDIO);
+ 
+ 	card = container_of(work, struct if_sdio_card, packet_worker);
+-
+ 	while (1) {
+ 		spin_lock_irqsave(&card->lock, flags);
+ 		packet = card->packets;
+@@ -690,14 +689,14 @@
+ 		ret = -EINVAL;
+ 		goto out;
+ 	}
+-
+ 	/*
+ 	 * The transfer must be in one transaction or the firmware
+ 	 * goes suicidal. There's no way to guarantee that for all
+ 	 * controllers, but we can at least try.
+ 	 */
+ 	size = sdio_align_size(card->func, nb + 4);
+-
++	size = (size + card->func->cur_blksize - 1) /
++			card->func->cur_blksize * card->func->cur_blksize;
+ 	packet = kzalloc(sizeof(struct if_sdio_packet) + size,
+ 			GFP_ATOMIC);
+ 	if (!packet) {
+Index: drivers/net/wireless/libertas/scan.c
+===================================================================
+--- drivers/net/wireless/libertas/scan.c	(revision 5711)
++++ drivers/net/wireless/libertas/scan.c	(working copy)
+@@ -1124,7 +1124,8 @@
+ 		goto done;
+ 	}
+ 
+-	bytesleft = le16_to_cpu(scanresp->bssdescriptsize);
++	/*bytesleft = le16_to_cpu(scanresp->bssdescriptsize);*/
++	bytesleft = get_unaligned_le16(&(scanresp->bssdescriptsize));
+ 	lbs_deb_scan("SCAN_RESP: bssdescriptsize %d\n", bytesleft);
+ 
+ 	scanrespsize = le16_to_cpu(resp->size);
+Index: drivers/net/wireless/libertas/cmdresp.c
+===================================================================
+--- drivers/net/wireless/libertas/cmdresp.c	(revision 5711)
++++ drivers/net/wireless/libertas/cmdresp.c	(working copy)
+@@ -5,7 +5,7 @@
+ #include <linux/delay.h>
+ #include <linux/if_arp.h>
+ #include <linux/netdevice.h>
+-
++#include <asm/unaligned.h>
+ #include <net/iw_handler.h>
+ 
+ #include "host.h"
+@@ -154,11 +154,11 @@
+ 	lbs_deb_enter(LBS_DEB_CMD);
+ 
+ 	/* store the non average value */
+-	priv->SNR[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->SNR);
+-	priv->NF[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->noisefloor);
++	priv->SNR[TYPE_BEACON][TYPE_NOAVG] = get_unaligned_le16(&(rssirsp->SNR));
++	priv->NF[TYPE_BEACON][TYPE_NOAVG] = get_unaligned_le16(&(rssirsp->noisefloor));
+ 
+-	priv->SNR[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgSNR);
+-	priv->NF[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgnoisefloor);
++	priv->SNR[TYPE_BEACON][TYPE_AVG] = get_unaligned_le16(&(rssirsp->avgSNR));
++	priv->NF[TYPE_BEACON][TYPE_AVG] = get_unaligned_le16(&(rssirsp->avgnoisefloor));
+ 
+ 	priv->RSSI[TYPE_BEACON][TYPE_NOAVG] =
+ 	    CAL_RSSI(priv->SNR[TYPE_BEACON][TYPE_NOAVG],

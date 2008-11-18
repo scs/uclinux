@@ -1,0 +1,397 @@
+Steps to make Marvell 8686 SDIO WIFI module work(for linux kernel version 2.6.28 only,
+needs to be updated after kernel upgrade).
+/**********1.configure the kernel**********/
+
+a.select Network stack
+Networking  ---> 
+	 [*] Networking support 
+	 Wireless  --->
+		 <*> Improved wireless configuration API  
+		[*]   nl80211 new netlink interface support
+		[*]   Old wireless static regulatory definitions 
+		-*- Wireless extensions
+		 [*] Wireless extensions sysfs files
+		 <*> Generic IEEE 802.11 Networking Stack (mac80211)
+b.select Blackfin SDH driver
+Device Drivers  ---> 
+	<*> MMC/SD card support  ---> 
+		 *** MMC/SD Card Drivers *** 
+		 <*>   MMC block device driver
+		 [*]     Use bounce buffer for simple hosts
+		 *** MMC/SD Host Controller Drivers *** 
+		<*>   Blackfin Secure Digital Host support
+		[*]     Blackfin EZkit Rev 1.3 Missing SDH_CMD Pull Up Resistor Workaround 
+c.select libertas driver
+Device Drivers  ---> 
+	 [*] Network device support  ---> 
+		 Wireless LAN  --->      
+			 [*] Wireless LAN (IEEE 802.11)
+			 <M>   Marvell 8xxx Libertas WLAN driver support 
+			 <M>     Marvell Libertas 8385 and 8686 SDIO 802.11b/g cards
+			 [*]     Enable full debugging output in the Libertas module.  
+d.remove Nand flash controller support,because the Nand flash controller use the same DMA channel as SDH
+Device Drivers  --->
+		 <*> Memory Technology Device (MTD) support  ---> 
+			 <*>   NAND Device Support  ---> 
+			 < >   Blackfin on-chip NAND Flash Controller driver 
+		     
+/**********2.patch the kernel**********/
+
+cd uclinux-dist/linux-2.6.x
+...uclinux-dist/linux-2.6.x$ patch -p0  < sdio_wifi.patch
+
+/**********3.copy firmwares and hotplug script to romfs**********/
+cd uclinux-dist
+.../uclinux-dist$mkdir romfs/lib/firmware
+.../uclinux-dist$cp .../sd8686.bin romfs/lib/firmware
+.../uclinux-dist$cp .../sd8686_helper.bin romfs/lib/firmware
+.../uclinux-dist$cp .../hotplug /romfs/sbin/
+.../uclinux-dist$cd /romfs/sbin/;chmod +x hotplug
+
+/**********4.install libertas module**********/
+
+After doing above job,then compile the source and download the image to BF548-EZKIT board
+SDIO card detection information should be showed after the image is downloaded to the board as following:
+
+mmc0: new SDIO card at address 0001
+
+root:/> echo /sbin/hotplug > /proc/sys/kernel/hotplug
+root:/> modprobe libertas                                                                      
+root:/> modprobe libertas_sdio helper_name=sd8686_helper.bin fw_name=sd8686.bin
+libertas_sdio: Libertas SDIO driver
+libertas_sdio: Copyright Pierre Ossman
+firmware: requesting sd8686_helper.bin
+firmware: requesting sd8686.bin
+libertas: 00:13:e0:a1:69:92, fw 9.70.3p24, cap 0x00000303
+libertas: unidentified region code; using the default (USA)
+libertas: PREP_CMD: command 0x00a3 failed: 2
+libertas: PREP_CMD: command 0x00a3 failed: 2
+libertas: eth1: Marvell WLAN 802.11 adapter
+
+
+/**********5.usage example**********/
+
+Following are my steps to connect the wifi module to my AP(SSID:linksys)
+root:/> iwconfig eth1
+Warning: Driver for device eth1 has been compiled with version 22
+of Wireless Extension, while this program supports up to version 17.
+Some things may be broken...
+
+g eth1 192.168.1.101 up
+route add default gw 192.168.1.1eth1      IEEE 802.11b/g  ESSID:""  
+          Mode:Managed  Frequency:2.412 GHz  Access Point: 00:00:00:00:00:00   
+          Bit Rate:0 kb/s   Tx-Power=18 dBm   
+          Retry limit:8   RTS thr=2347 B   Fragment thr=2346 B   
+          Encryption key:off
+          Power Management:off
+          Link Quality:0  Signal level:0  Noise level:0
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+
+root:/> ifconfig eth1 up
+root:/> iwlist eth1 scan
+Warning: Driver for device eth1 has been compiled with version 22
+of Wireless Extension, while this program supports up to version 17.
+Some things may be broken...
+
+eth1      Scan completed :
+          Cell 01 - Address: 00:19:A9:FD:2B:01
+                    ESSID:"ADICHINA"
+                    Mode:Managed
+                    Frequency:2.412 GHz (Channel 1)
+                    Quality=43/100  Signal level=-88 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 02 - Address: 00:1C:F9:C0:D2:E0
+                    ESSID:"ADIWLAN"
+                    Mode:Managed
+                    Frequency:2.412 GHz (Channel 1)
+                    Quality=89/100  Signal level=-61 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 03 - Address: 00:1C:F9:C0:D2:E1
+                    ESSID:"ADICHINA"
+                    Mode:Managed
+                    Frequency:2.412 GHz (Channel 1)
+                    Quality=89/100  Signal level=-61 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 04 - Address: 00:19:A9:FD:2B:00
+                    ESSID:"ADIWLAN"
+                    Mode:Managed
+                    Frequency:2.412 GHz (Channel 1)
+                    Quality=43/100  Signal level=-88 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 05 - Address: 00:1A:70:D4:94:C7
+                    ESSID:"linksys"
+                    Mode:Managed
+                    Frequency:2.437 GHz (Channel 6)
+                    Quality=98/100  Signal level=-31 dBm  Noise level=-96 dBm
+                    Encryption key:off
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:54 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:48 Mb/s
+          Cell 06 - Address: 00:1C:F9:C0:DB:E0
+                    ESSID:"ADIWLAN"
+                    Mode:Managed
+                    Frequency:2.437 GHz (Channel 6)
+                    Quality=91/100  Signal level=-59 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 07 - Address: 00:1C:F9:C0:DB:E1
+                    ESSID:"ADICHINA"
+                    Mode:Managed
+                    Frequency:2.437 GHz (Channel 6)
+                    Quality=91/100  Signal level=-59 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 08 - Address: 00:1C:F9:C0:D5:A0
+                    ESSID:"ADIWLAN"
+                    Mode:Managed
+                    Frequency:2.437 GHz (Channel 6)
+                    Quality=46/100  Signal level=-87 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 09 - Address: 00:1C:F9:C0:D5:A1
+                    ESSID:"ADICHINA"
+                    Mode:Managed
+                    Frequency:2.437 GHz (Channel 6)
+                    Quality=48/100  Signal level=-86 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 10 - Address: 00:0F:E2:90:15:50
+                    ESSID:"ChinaNet"
+                    Mode:Managed
+                    Frequency:2.437 GHz (Channel 6)
+                    Quality=50/100  Signal level=-85 dBm  Noise level=-96 dBm
+                    Encryption key:off
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+          Cell 11 - Address: 02:DD:B2:FA:D8:E5
+                    ESSID:"hpsetup"
+                    Mode:Ad-Hoc
+                    Frequency:2.457 GHz (Channel 10)
+                    Quality=68/100  Signal level=-76 dBm  Noise level=-96 dBm
+                    Encryption key:off
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:11 Mb/s
+          Cell 12 - Address: 00:1C:F9:C0:73:00
+                    ESSID:"ADIWLAN"
+                    Mode:Managed
+                    Frequency:2.462 GHz (Channel 11)
+                    Quality=89/100  Signal level=-61 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 13 - Address: 00:1C:F9:C0:73:01
+                    ESSID:"ADICHINA"
+                    Mode:Managed
+                    Frequency:2.462 GHz (Channel 11)
+                    Quality=89/100  Signal level=-61 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 14 - Address: 00:19:A9:FD:2F:01
+                    ESSID:"ADICHINA"
+                    Mode:Managed
+                    Frequency:2.462 GHz (Channel 11)
+                    Quality=57/100  Signal level=-82 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+          Cell 15 - Address: 00:50:18:1F:81:42
+                    ESSID:"Lilly"
+                    Mode:Managed
+                    Frequency:2.462 GHz (Channel 11)
+                    Quality=43/100  Signal level=-88 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:11 Mb/s
+          Cell 16 - Address: 00:19:A9:FD:2F:00
+                    ESSID:"ADIWLAN"
+                    Mode:Managed
+                    Frequency:2.462 GHz (Channel 11)
+                    Quality=54/100  Signal level=-83 dBm  Noise level=-96 dBm
+                    Encryption key:on
+                    Bit Rate:1 Mb/s
+                    Bit Rate:2 Mb/s
+                    Bit Rate:5.5 Mb/s
+                    Bit Rate:6 Mb/s
+                    Bit Rate:9 Mb/s
+                    Bit Rate:11 Mb/s
+                    Bit Rate:12 Mb/s
+                    Bit Rate:18 Mb/s
+                    Bit Rate:24 Mb/s
+                    Bit Rate:36 Mb/s
+                    Bit Rate:48 Mb/s
+                    Bit Rate:54 Mb/s
+                    (Unknown Wireless Token 0x8C05)
+
+root:/> iwconfig eth1 essid linksys
+root:/> ifconfig eth1 192.168.1.101 up
+root:/> route add default gw 192.168.1.1
+root:/> ping 192.168.1.1
+PING 192.168.1.1 (192.168.1.1): 56 data bytes
+64 bytes from 192.168.1.1: seq=0 ttl=64 time=24.000 ms
+64 bytes from 192.168.1.1: seq=1 ttl=64 time=12.000 ms
+64 bytes from 192.168.1.1: seq=2 ttl=64 time=12.000 ms
+64 bytes from 192.168.1.1: seq=3 ttl=64 time=16.000 ms
+64 bytes from 192.168.1.1: seq=4 ttl=64 time=12.000 ms
+64 bytes from 192.168.1.1: seq=5 ttl=64 time=12.000 ms
+
+ 
+
+
