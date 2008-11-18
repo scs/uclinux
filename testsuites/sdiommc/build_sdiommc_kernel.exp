@@ -38,7 +38,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "MMC/SD card support.*MMC.*\\\[.*]" {
+        -re "MMC/SD/SDIO card support \\\(MMC\\\).*\\\[.*]" {
             send "y\r"
         }
 

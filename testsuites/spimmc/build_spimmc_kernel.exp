@@ -94,11 +94,11 @@ while 1 {
             send "y\r"
         }
 
-        -re "MMC/SD card support \\\(MMC\\\).*\\\[./././.]" {
+        -re "MMC/SD/SDIO card support \\\(MMC\\\).*\\\[.*]" {
             send "y\r"
         }
 
-        -re "MMC/SD for SPI support \\\(EXPERIMENTAL\\\) \\\(SPI_MMC\\\).*\\\[./././.]" {
+        -re "MMC/SD for SPI support.*\\\(SPI_MMC\\\).*\\\[.*]" {
             send "y\r"
         }
 
