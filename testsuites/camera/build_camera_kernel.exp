@@ -10,7 +10,10 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
 cd $uclinux_path/testsuites
+step "Make clean."
+source  make_clean.exp
 
+cd $uclinux_path/testsuites
 step "Make config."
 source  make_default_config.exp
 
@@ -34,11 +37,11 @@ while 1 {
         }
 
         -re "I2C support.*I2C.*\\\[.*]" {
-            send "M\r"
+            send "Y\r"
         }
 
         -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
-            send "M\r"
+            send "Y\r"
         }
 
         -re "Uncached DMA region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
@@ -75,23 +78,6 @@ while 1 {
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             send "4\r"
-        }
-
-#samba
-        -re "SMB file system support.*SMB_FS.*\\\[.*]" {
-            send -s "Y\r"
-        }
-
-        -re "samba .*USER_SAMBA.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "smbmount .*USER_SAMBA_SMBMOUNT.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "smbumount .*USER_SAMBA_SMBUMOUNT.*\\\[.*]" {
-            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {
