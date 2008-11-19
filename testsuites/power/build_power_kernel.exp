@@ -123,14 +123,6 @@ while 1 {
             }
         }
 
-        -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-                send "M\r"
-            } else {
-                send "N\r"
-            }
-        }
-
         -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
             send "M\r"
         }
@@ -141,6 +133,14 @@ while 1 {
 
         -re "SoC SSM2602 Audio support for BF52x ezkit.*SND_BF5XX_SOC_SSM2602.*\\\[.*]" {
             if { $board_type == "BF527-EZKIT" } {
+                send "M\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "SoC AD73311 Audio support for Blackfin.*SND_BF5XX_SOC_AD73311.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
                 send "M\r"
             } else {
                 send "N\r"

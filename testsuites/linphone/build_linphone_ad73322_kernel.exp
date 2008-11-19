@@ -91,7 +91,7 @@ while 1 {
             send "n\r"
         }
 
-        -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
+        -re "SoC AD73311 Audio support for Blackfin.*SND_BF5XX_SOC_AD73311.*\\\[.*]" {
             send "n\r"
         }
 
