@@ -21,7 +21,7 @@ spawn make config
 #puts "Begin the interactive process of configuration"
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
@@ -33,11 +33,11 @@ while 1 {
             send "y\r"
         }
 
-        -re "I2C support.*I2C. \\\[.*]" {             
+        -re "I2C support.*I2C. \\\[.*]" {
             send "Y\r"
         }
 
-        -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
+        -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {
             send "Y\r"
         }
 
@@ -65,16 +65,16 @@ while 1 {
             }
         }
 
-        -re "TWI/I2C LCD support for HD44780 based LCD modules.*TWI_LCD.*\\\[.*]" {            
+        -re "TWI/I2C LCD support for HD44780 based LCD modules.*TWI_LCD.*\\\[.*]" {
             send "M\r"
         }
 
-        -re "Analog Devices AD5252 and AD5251 Digital Potentiometers.*SENSORS_AD5252.*\\\[.*]" {            
+        -re "Analog Devices AD5252 and AD5251 Digital Potentiometers.*SENSORS_AD5252.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "TWI LCD test program.*USER_BLACKFIN_TWILCDTEST.*\\\[.*]" {            
-            send "y\r"
+        -re "TWI LCD test program.*USER_BLACKFIN_TWILCDTEST.*\\\[.*]" {
+            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {

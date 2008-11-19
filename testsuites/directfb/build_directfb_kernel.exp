@@ -36,6 +36,11 @@ while 1 {
         }
 
 #TFT LCD
+        -re "Support for generic platform NAND driver.*MTD_NAND_PLATFORM.*\\\[.*]" {
+            #conflict with TFT LCD
+            send "N\r"
+        }
+
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
                 send "M\r"
@@ -90,6 +95,7 @@ while 1 {
 
 
 #Virtual terminal & frame buffer
+#Set SW5.1-SW5.3 to off, or no display on screen.
         -re "I2C support.*I2C.*\\\[.*]" {
             send "Y\r"
         }
@@ -116,6 +122,7 @@ while 1 {
 
 
 #USB mouse
+#Set SW6.4 to off, to disconnect Asynchronous Memory banks 3 from the NOR Flash on the STAMP board.
         -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
             #CONFIG_MTD_PHYSMAP claims the entire Async. Memory Space
             #need to entirely disable it while using various U-Connector boards
@@ -146,11 +153,29 @@ while 1 {
             }
         }
 
+        -re "GPIO for Interrupt.*USB_ISP1362_BFIN_GPIO_IRQ.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                #Pin15 & 16 are connected in JP3 on usb add-on board, and SW5.4 on BF537-STAMP is OFF.
+                send "55\r"
+            } else {
+                send "\r"
+            }
+        }
+
         -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
                 send "y\r"
             } else {
                 send "n\r"
+            }
+        }
+
+        -re "GPIO IRQ pin for Interrupt.*USB_SL811_BFIN_IRQ.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                #Pin17 & 18 are connected in JP3 on usb add-on board.
+                send "56\r"
+            } else {
+                send "\r"
             }
         }
 

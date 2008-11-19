@@ -63,68 +63,73 @@ while 1 {
             send "y\r"
         }
 
+        -re "Support for generic platform NAND driver.*MTD_NAND_PLATFORM.*\\\[.*]" {
+            #conflict with TFT LCD
+            send "N\r"
+        }
+
         -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Support for frame buffer devices.*FB.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" } {
-                send "m\r"
+                send "M\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
         -re "SHARP LQ035 TFT LCD.*BF537 STAMP.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "Varitronix COG-T350MCQB TFT LCD display.*FB_BFIN_T350MCQB.*\\\[.*]" {
             if { $board_type == "BF527-EZKIT" } {
-                send "m\r"
+                send "M\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
         -re "Build freetype.*LIB_FREETYPE.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "MicroWindows \\\(USER_MICROWIN\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Optimize.*USER_MICROWIN_OPTIMIZE.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Microwin \\\(USER_MICROWIN_MICROWIN\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "NanoX \\\(USER_MICROWIN_NANOX\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "MicrowinDemo \\\(USER_MICROWIN_MICROWINDEMO\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "NanoXDemo \\\(USER_MICROWIN_NANOXDEMO\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "NanoWM.*USER_MICROWIN_NANOWM.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Screeen PixType.*Packed.*choice.*\\\[.*]" {
@@ -133,35 +138,35 @@ while 1 {
         }
 
         -re "Have File IO.*USER_MICROWIN_HAVE_FILEIO.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Frame Buffer Display \\\(USER_MICROWIN_FRAMEBUFFER\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "No Mouse \\\(USER_MICROWIN_NOMOUSE\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "No Keyboard \\\(USER_MICROWIN_NOKBD\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Nano-X \\\(USER_MICROWIN_BIN_NANO_X\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "NanoWM \\\(USER_MICROWIN_BIN_NANOWM\\\) \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "NXclock.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "NXkbd.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
@@ -169,7 +174,7 @@ while 1 {
         }
 
         -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {

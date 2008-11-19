@@ -87,51 +87,56 @@ while 1 {
         }
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
-            send "n\r"
+            send "N\r"
         }
 
 #Video Output
+        -re "Support for generic platform NAND driver.*MTD_NAND_PLATFORM.*\\\[.*]" {
+            #conflict with TFT LCD
+            send "N\r"
+        }
+
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Support for frame buffer devices.*FB.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "SHARP LQ035 TFT LCD on uClinux.*BF537 STAMP.*FB_BF537_LQ035.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
-                send "m\r"
+                send "M\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
         -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" } {
-                send "m\r"
+                send "M\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
         -re "Varitronix COG-T350MCQB TFT LCD display.*FB_BFIN_T350MCQB.*\\\[.*]" {
             if { $board_type == "BF527-EZKIT" } {
-                send "m\r"
+                send "M\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
         -re "Blackfin ADV7393 Video encoder on uClinux.*FB_BFIN_7393.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
-                send "m\r"
+                send "M\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
@@ -139,15 +144,15 @@ while 1 {
         -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
 #CONFIG_MTD_PHYSMAP claims the entire Async. Memory Space
 #need to entirely disable it while using various U-Connector boards
-            send "n\r"
+            send "N\r"
         }
 
         -re "USB support.*USB_SUPPORT.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Support for Host-side USB.*USB.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
@@ -160,9 +165,9 @@ while 1 {
 
         -re "ISP1362 HCD support \\\(USB_ISP1362_HCD\\\).*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
-                send "y\r"
+                send "Y\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
@@ -178,15 +183,15 @@ while 1 {
 
 #        -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[.*]" {
 #            if { $board_type == "BF537-STAMP" } {
-#                send "y\r"
+#                send "Y\r"
 #            } else {
-#                send "n\r"
+#                send "N\r"
 #            }
 #        }
 
         -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
-                send "y\r"
+                send "Y\r"
             } else {
                 send "\r"
             }
@@ -194,24 +199,24 @@ while 1 {
 
         -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" } {
-                send "n\r"
+                send "N\r"
             } elseif { $board_type == "BF527-EZKIT" } {
-                send "y\r"
+                send "Y\r"
             } else {
                 send "\r"
             }
         }
 
         -re "USB Human Interface Device \\\(full HID\\\) support.*USB_HID.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Mouse interface.*INPUT_MOUSEDEV.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Horizontal screen resolution.*INPUT_MOUSEDEV_SCREEN_X.*\\\[.*]" {
@@ -231,15 +236,15 @@ while 1 {
         }
 
         -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Mice.*INPUT_MOUSE.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
 #Libs needed for konqueror: libZ, libpng and libjpeg. Default to be selected already.
@@ -249,7 +254,7 @@ while 1 {
         }
 
         -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {

@@ -33,12 +33,17 @@ while 1 {
             send "y\r"
         }
 
+        -re "Support for generic platform NAND driver.*MTD_NAND_PLATFORM.*\\\[.*]" {
+            #conflict with TFT LCD
+            send "N\r"
+        }
+
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "Use Landscape 320x240 instead of Portrait 240x320.*\\\[././.]" {
-            send "n\r"
+            send "N\r"
         }
 
         "\\\(*) \\\[*]" {

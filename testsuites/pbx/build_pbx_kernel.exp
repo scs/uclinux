@@ -51,7 +51,7 @@ spawn make config
 #puts "Begin the interactive process of configuration"
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
@@ -64,11 +64,11 @@ while 1 {
         }
 
         -re "PBX support.*PBX.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "asterisk PBX.*USER_ASTERISK.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
@@ -84,31 +84,30 @@ while 1 {
         }
 
         -re "Build libSSL.*LIB_LIBSSL.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
-       -re "Build libZ \\\(LIB_ZLIB\\\) \\\[\[^\r]*]" {
+        -re "Build libZ \\\(LIB_ZLIB\\\) \\\[\[^\r]*]" {
             expect {
-            -nocase -re  " (\[ym])\r\n" {
-                send_user "\n Item_value is selected  $expect_out(1,string).\n"
-            }
-            timeout {
-                send -s "Y\r"
-            }
+                -nocase -re " (\[ym])\r\n" {
+                    send_user "\n Item_value is selected $expect_out(1,string).\n"
+                }
+                timeout {
+                    send -s "Y\r"
+                }
             }
         }
 
-       -re "Build ncurses \\\(LIB_NCURSES\\\) \\\[\[^\r]*]" {
+        -re "Build ncurses \\\(LIB_NCURSES\\\) \\\[\[^\r]*]" {
             expect {
-            -nocase -re  " (\[ym])\r\n" {
-                send_user "\n Item_value is selected  $expect_out(1,string).\n"
-            }
-            timeout {
-                send -s "Y\r"
-            }
+                -nocase -re " (\[ym])\r\n" {
+                    send_user "\n Item_value is selected $expect_out(1,string).\n"
+                }
+                timeout {
+                    send -s "Y\r"
+                }
             }
         }
-
 
         "\\\(*) \\\[*]" {
             sleep .1
