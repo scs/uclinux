@@ -1,0 +1,112 @@
+#! /usr/bin/env bash
+# This script is used to tag the working directory including adjustment of version defines.
+
+error() {
+	echo "$1"
+	usage
+	exit 1
+}
+
+usage() {
+	cat << EOF
+Usage:
+    do-tag --help
+    do-tag [ --beta | --namespace <namesapce> ] [ --no-commit ] <major> <minor>
+        [ <patch> ]
+EOF
+}
+
+help() {
+	usage
+	cat << EOF
+
+Where:
+    --help: Print this help.
+    --beta:
+        Use the 'beta/' tag namespace instead of the default 'release/'
+        namespace.
+    --namespace <namesapce>:
+        Use the namespace '<namesapce>/' instead of the default 'release/'.
+    --no-commit: Ommit the commit and tag steps and only adjust the defines.
+    --edit-message: Lets you edit the default message used for the commit.
+    <major>: Major version of the release.
+    <minor>: Minor version of the release.
+    <patch>: Path number of the release. Default to '0'.
+
+Notes:
+    This script replaces the defines holding the version information in the file
+    'version.h', makes a commit with the file and tags the commit with a
+    tag name of the following form:
+    
+        <namespace> "/v" <major> "." <minor> [ "-p" <patch> ]
+    
+    The last part is ommited if the patch number is set to 0.
+EOF
+}
+
+OPT_NAMESPACE=release
+OPT_VERSION_MAJOR=
+OPT_VERSION_MINOR=
+OPT_VERSION_PATCH=0
+OPT_COMMIT=1
+OPT_EDIT_MESSAGE=
+
+while [ "$1" ] && [ "${1:0:1}" == "-" ]; do
+	if [ "$1" == "--help" ]; then
+		help
+		exit
+	elif [ "$1" == "--no-commit" ]; then
+		OPT_COMMIT=
+		shift
+	elif [ "$1" == "--edit-message" ]; then
+		OPT_EDIT_MESSAGE=1
+		shift
+	elif [ "$1" == "--beta" ]; then
+		OPT_NAMESPACE=beta
+		shift
+	elif [ "$1" == "--namespace" ]; then
+		[ "$2" ] || error "Option requires argument: $1"
+		OPT_NAMESPACE=$2
+		shift 2
+	else
+		error "Unrecognized option: $1"
+	fi
+done
+
+if [ "$OPT_EDIT_MESSAGE" ] && ! [ "$OPT_COMMIT" ]; then
+	error "--edit-message and --no-commit do not go well together."
+fi
+
+[ "$1" ] || error "No major version given!"
+OPT_VERSION_MAJOR=$1
+shift
+
+[ "$1" ] || error "No minor version given!"
+OPT_VERSION_MINOR=$1
+shift
+
+[ "$1" ] && OPT_VERSION_PATCH=$1
+shift
+
+[ "$1" ] && error "Too many arguments!"
+
+VERSION_STRING="v$OPT_VERSION_MAJOR.$OPT_VERSION_MINOR"
+[ "$OPT_VERSION_PATCH" == "0" ] || VERSION_STRING="$VERSION_STRING-p$OPT_VERSION_PATCH"
+
+# This adjusts the CONFIG_LOCALVERSION line in each file in the vendors/SCS folder named "config.linux-2.6.x".
+# Make sure that CONFIG_USER_BUSYBOX_HAVE_DOT_CONFIG=y is set in the "config.vendor-2.6.x" respective folder.
+find "vendors/SCS" -type "f" -name "config.linux-2.6.x" | while IFS= read i; do
+	sed -ri -e "s/(CONFIG_LOCALVERSION=\")[^\"]*(\")/\1-Git_$VERSION_STRING\2/" "$i"
+done
+
+if [ "$OPT_COMMIT" ]; then
+	if [ "$OPT_EDIT_MESSAGE" ]; then
+		git commit -e -m "+ Release $VERSION_STRING" "$VERSION_FILE"
+	else
+		git commit -m "+ Release $VERSION_STRING" "$VERSION_FILE"
+	fi
+	git tag "$OPT_NAMESPACE/$VERSION_STRING"
+fi
+
+
+

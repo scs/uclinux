@@ -14,7 +14,6 @@ make distclean || exit $?
 if [ "$PLATFORM" == "leanXcam" ]; then
 	make SCS/BF537_LEANXCAM_config || exit $?
 elif [ "$PLATFORM" == "indXcam" ]; then
-	exit 1 # do not use, mockup!
 	make SCS/BF537_INDXCAM_config || exit $?
 else
 	exit 1
