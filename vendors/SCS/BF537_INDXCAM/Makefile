@@ -19,45 +19,34 @@ LINUXBOOTDIR = $(ROOTDIR)/$(LINUXDIR)/arch/$(ARCH)/boot
 BLOCKS   = 8192
 INODES   = 1024
 
-ROMFS_DIRS-y = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp etc/config var/run var/lib/misc
-ETC_FILES-y = \
-	filesystems group hosts host.conf inetd.conf issue mime.types \
-	modprobe.conf passwd protocols services TZ tux-bf.gif
+ROMFS_DIRS = bin etc etc/boa home lib mnt proc sys usr var root home tmp var/run var/lib/misc home/httpd home/httpd/cgi-bin var/log/boa
 
-ROMFS_DIRS-$(CONFIG_USER_BOA_SRC_BOA_NEW) += home/httpd home/httpd/cgi-bin etc/boa var/log/boa
-ETC_FILES-$(CONFIG_USER_BOA_SRC_BOA_NEW) += boa.conf index.html tux-wink.gif tuxsit_small.gif
+ETC_FILES = filesystems group hosts host.conf inetd.conf issue mime.types modprobe.conf passwd rc fstab protocols services inittab mdev.conf boa.conf TZ fw_env.config profile
+BIN_FILES = maintenance netview fw_printenv fw_setenv
 
 all::
 
 romfs.post:: romfs.shared.libs
 
 romfs::
+	rm -rf $(ROMFSDIR)
 	mkdir -p $(ROMFSDIR)
-	cd $(ROMFSDIR) && mkdir -p $(ROMFS_DIRS-y)
+	cd $(ROMFSDIR) && mkdir -p $(ROMFS_DIRS)
 	chmod 1777 $(ROMFSDIR)/tmp
 	$(ROMFSINST) -s bin /sbin
 
-	$(ROMFSINST) /etc/rc
-	$(ROMFSINST) /etc/mdev.conf
-	$(ROMFSINST) /etc/inittab
-	$(ROMFSINST) /etc/motd
-
-	set -e ; \
-	for f in $(ETC_FILES-y) ; do \
-		$(ROMFSINST) ../common/$$f /etc/$$f ; \
+	set -e;\
+	for i in $(ETC_FILES); do\
+		$(ROMFSINST) $$i /etc/$$i || $(ROMFSINST) ../common/$$i /etc/$$i;\
+	done
+	set -e;\
+	for i in $(BIN_FILES); do\
+		$(ROMFSINST) $$i /bin/$$i || $(ROMFSINST) ../common/$$i /bin/$$i;\
 	done
 
-	# Install the printenv and setenv binaries. These are tools from U-Boot
-	# and thus do not exist in the Linux program tree.
-	$(ROMFSINST) fw_env.config /etc/fw_env.config
-	$(ROMFSINST) fw_printenv /bin/fw_printenv
-	$(ROMFSINST) -s /bin/fw_printenv /bin/fw_setenv
-
-	$(ROMFSINST) maintenance /bin/maintenance
-
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
-ifeq ($(CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG),y)
-	gzip -9c $(ROOTDIR)/config/.config > $(ROMFSDIR)/root/uclinux-config.gz
+ifeq ($(CONFIG_BLACKFIN_INSTALL_UCmp\LINUX_CONFIG),y)
+	gzip -9c $(ROOTDIR)/config/.config > $(ROMFSDIR)/etc/uclinux-config.gz
 endif
 
 BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | awk '/.bss/ {print "0x"$$4}')
@@ -66,9 +55,9 @@ ADDR     = $$(echo $$(($(BSS) + $(BSS_SIZE))))
 ENTRY    = $$($(CROSS_COMPILE)nm $(IMAGE).$$FS | awk '$$NF == "__start" {print $$1}')
 
 ifeq ($(CONFIG_USER_DEV_DYNAMIC),y)
-DEVICE_TABLE = device_table-min.txt
+DEVICE_TABLE = ../common/device_table-min.txt
 else
-DEVICE_TABLE = device_table.txt
+DEVICE_TABLE = ../common/device_table.txt
 endif
 
 image::
@@ -151,7 +140,7 @@ ifeq ($(CONFIG_BLK_DEV_INITRD),y)
 #
 
 	/bin/bash $(ROOTDIR)/$(LINUXDIR)/scripts/gen_initramfs_list.sh -u squash -g squash $(ROMFSDIR) > $(IMAGEDIR)/rootfs.initramfs.contents
-	awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) >> $(IMAGEDIR)/rootfs.initramfs.contents
+	awk -f ../common/dev-table-to-cpio.awk $(DEVICE_TABLE) >> $(IMAGEDIR)/rootfs.initramfs.contents
 	echo "slink /init /sbin/init 0755 0 0" >> $(IMAGEDIR)/rootfs.initramfs.contents
 	$(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio $(IMAGEDIR)/rootfs.initramfs.contents > $(IMAGEDIR)/rootfs.initramfs
 	gzip -c -9 $(IMAGEDIR)/rootfs.initramfs > $(IMAGEDIR)/rootfs.initramfs.gz

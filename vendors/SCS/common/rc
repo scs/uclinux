@@ -1,0 +1,99 @@
+hostname blackfin
+mount -t proc proc /proc
+mount -t ramfs ramfs /var
+mount -t sysfs sysfs /sys
+mount -t devpts devpts /dev/pts
+[ -d /proc/bus/usb ] && mount -t usbfs usbfs /proc/bus/usb
+[ -d /sys/kernel/debug ] && mount -t debugfs debugfs /sys/kernel/debug
+[ -d /proc/sys/fs/binfmt_misc ] && mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+[ -d /sys/kernel/security ] && mount -t securityfs securityfs /sys/kernel/security
+grep -qs nfsd /proc/filesystems && mount -t nfsd nfsd /proc/fs/nfsd
+if [ -e /bin/mdev ]; then
+	echo /bin/mdev 2> /dev/null > /proc/sys/kernel/hotplug
+	/bin/mdev -s 2> /dev/null
+fi
+mkdir /var/tmp /var/log /var/run /var/lock
+
+# Create meaningful soft links for /dev/mtd* 
+ln -sfn /dev/mtd1 /dev/uboot
+ln -sfn /dev/mtd2 /dev/env_uboot
+ln -sfn /dev/mtd3 /dev/env_uboot_r
+ln -sfn /dev/mtd4 /dev/linux
+ln -sfn /dev/mtd5 /dev/calib
+
+# Mount the application flash to /mnt/app
+echo "Mounting Application Flash..."
+mkdir /mnt/app
+mount -t jffs2 /dev/mtdblock6 /mnt/app
+
+# Binds the root's home directory to a directory on the application flash
+if [ -d "/mnt/app/root" ]; then
+	echo "Rebinding /mnt/app/root as the root's home directory."
+	mount -o bind "/mnt/app/root" "/root"
+fi
+
+echo "Loading Memory DMA kernel module..."
+insmod /lib/modules/`uname -r`/bfdma.ko
+
+# Default configuration. Used if everythin else.
+ipaddr="192.168.1.10"
+gatewayip="192.168.1.1"
+serverip="192.168.1.21.10"
+runscript=
+
+# This is a migration script on the application flash that gets executed to overwrite network configurations if it exists.
+[ -e "/mnt/app/config" ] && . "/mnt/app/config"
+
+for i in ipaddr gatewayip serverip ethaddr runscript; do
+	fw_printenv "$i" > /dev/null && eval `fw_printenv "$i"`
+done
+
+# Configure the network
+ifconfig eth0 down
+ifconfig eth0 hw ether "$ethaddr"
+ifconfig eth0 "$ipaddr"
+route add -net default gw "$gatewayip"
+ifconfig eth0 up
+ifconfig lo 127.0.0.1
+
+if [ "$ipaddr" = "dhcp" ]; then
+	# configured to use DHCP => Launch dhcp daemon
+	ifconfig eth0 up
+	dhcpcd &
+	echo "Using DHCP."
+else
+	# Send out two gratuitious arp request
+	arping -c 2 -w 1 "$ipaddr" &
+fi
+
+# Detect first-time-boot if not valid ethaddr u-boot environment available
+if [ ! "$ethaddr" ]; then
+	echo ">>> Fist-time-boot: ethaddr not yet defined in u-boot variables. <<<"
+	
+	ethaddr="00:20:e3:23:00:00"
+	ifconfig eth0 down
+	ifconfig eth0 hw ether "$ethaddr"
+	route add -net default gw "$gatewayip"
+	ifconfig eth0 "$ipaddr"
+	ifconfig eth0 up
+	
+	tftp "$serverip" -g -r "runinit.sh" -l "/tmp/runinit.sh"
+	[ -e "/tmp/runinit.sh" ] && chmod +x "/tmp/runinit.sh" && /tmp/runinit.sh
+fi
+
+inetd &
+
+cat /etc/motd
+
+#start webserver
+echo "Starting Webserver"
+boa -f /etc/boa.conf &
+
+#launch user specific application script
+if echo "$runscript" | grep -q "^/" && [ -x "$runscript" ]; then
+	echo "Executing $runscript..."
+	(cd /; "$runscript") &
+elif [ -x "/mnt/app/$runscript" ]; then
+	echo "Executing /mnt/app/$runscript..."
+	(cd /mnt/app; ./$runscript) &
+fi
