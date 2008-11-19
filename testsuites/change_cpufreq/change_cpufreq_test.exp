@@ -1,11 +1,8 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
 
 step "Spawn kermit"
@@ -31,168 +28,155 @@ set timeout 5
 
 send -s  "dmesg\r"
 while 1 {
-   expect {
-     -re "Processor Speed: (.*) MHz core clock and (.*) MHz System Clock" {
-                set core_clock $expect_out(1,string)
-                set system_clock $expect_out(2,string)
-                expect  -re "$kernel_prompt"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-      exit
-         }
-     }
+    expect {
+        -re "Processor Speed: (.*) MHz core clock and (.*) MHz System Clock" {
+            set core_clock $expect_out(1,string)
+            set system_clock $expect_out(2,string)
+            expect -re "$kernel_prompt"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+            exit
+        }
+    }
 }
-
 
 if { $core_clock >= 500 } {
-
-send "cd /usr/bin\r"
-while 1 {
-   expect {
-      "bin" {
-         break
-      }
-
-      timeout {
+    send "cd /usr/bin\r"
+    while 1 {
+        expect {
+            "bin" {
+                break
+            }
+            timeout {
                 case_fail $case_num
-        exit
-      }
-   }
-}
+                exit
+            }
+        }
+    }
 
+    incr case_num
+    send -s  "cpufreq-info\r" 
+    while 1 {
+        expect {
+            -re "cpufrequtils.*driver: bfin cpufreq.*cpufreq stats" {         
+                expect -re "$kernel_prompt"
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+                exit
+            }
+        }
+    }
 
-incr case_num
-send -s  "cpufreq-info\r" 
-while 1 {
-   expect {
-      -re "cpufrequtils.*driver: bfin cpufreq.*cpufreq stats" {         
+    incr case_num
+    send -s  "cat /proc/cpuinfo\r"
+    while 1 {
+        expect {
+            -re "cpu MHz\[\x20\t]+: $core_clock\.000" {
                 expect  -re "$kernel_prompt"
                 case_pass $case_num
-         break
-      }
-
-      timeout {
+                break
+            }
+            timeout {
                 case_fail $case_num
-	exit
-         }
-     }
-}
+                exit
+            }
+        }
+    }
 
-incr case_num
-send -s  "cat /proc/cpuinfo\r"
-while 1 {
-   expect {
-      -re "cpu MHz\[\x20\t]+: $core_clock\.000" {
+    set core_clock_inK [ expr $core_clock * 1000 ] 
+    set new_core_clock_inK [ expr $core_clock_inK / 2 ]
+    incr case_num
+    send -s  "cpufreq-set -f $new_core_clock_inK\r"
+    while 1 {
+        expect {
+            -re "$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+                exit
+            }
+        }
+    }
+
+    set new_core_clock [ expr $new_core_clock_inK / 1000 ] 
+
+    incr case_num
+    send -s  "cat /proc/cpuinfo\r"
+    while 1 {
+        expect {
+            -re "cpu MHz\[\x20\t]+: $new_core_clock" {
                 expect  -re "$kernel_prompt"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
+                    case_pass $case_num
+                    break
+            }
+            timeout {
                 case_fail $case_num
-        exit
-         }
-     }
-}
-
-set core_clock_inK [ expr $core_clock * 1000 ] 
-set new_core_clock_inK [ expr $core_clock_inK / 2 ]
-incr case_num
-send -s  "cpufreq-set -f $new_core_clock_inK\r"
-while 1 {
-   expect {
-      -re "$kernel_prompt" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
-}
-
-set new_core_clock [ expr $new_core_clock_inK / 1000 ] 
-
-incr case_num
-send -s  "cat /proc/cpuinfo\r"
-while 1 {
-   expect {
-      -re "cpu MHz\[\x20\t]+: $new_core_clock" {
-                expect  -re "$kernel_prompt"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
-}
-
-
+                exit
+            }
+        }
+    }
 } else {
-   send_user "The original cpu core clock is not as required.\n"
-                case_fail $case_num
+    send_user "The original cpu core clock is not as required.\n"
+    case_fail $case_num
+    exit
 }
 
 send "cd /sys/devices/system/cpu/cpu0/cpufreq/\r"
 while 1 {
-   expect {
-      "cpufreq" {
-         expect  -re "$kernel_prompt"
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-      }
-   }
+    expect {
+        "cpufreq" {
+            expect  -re "$kernel_prompt"
+            break
+        }
+        timeout {
+            case_fail $case_num
+            exit
+        }
+    }
 }
 
 incr case_num
 send -s  "cat scaling_governor\r"
 while 1 {
-   expect {
-      -re "$governor" {
-                expect  -re "$kernel_prompt"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "$governor" {
+            expect  -re "$kernel_prompt"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+            exit
+        }
+    }
 }
 
 incr case_num
 send -s  "cat stats/*\r"
 while 1 {
-   expect {
-      -re "$core_clock_inK.*$new_core_clock_inK" {
-                expect  -re "$kernel_prompt"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "$core_clock_inK.*$new_core_clock_inK" {
+            expect  -re "$kernel_prompt"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+            exit
+        }
+    }
 }
 
-
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 send_user "Ending $argv0\n"
 
 log_file
-
