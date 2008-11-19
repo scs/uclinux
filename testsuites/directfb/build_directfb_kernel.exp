@@ -155,7 +155,7 @@ while 1 {
 
         -re "GPIO for Interrupt.*USB_ISP1362_BFIN_GPIO_IRQ.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
-                #Pin15 & 16 are connected in JP3 on usb add-on board, and SW5.4 on BF537-STAMP is OFF.
+                #Pin15 & 16 are populated in JP3 on usb add-on board, and SW5.4 on BF537-STAMP is OFF.
                 send "55\r"
             } else {
                 send "\r"
@@ -172,7 +172,7 @@ while 1 {
 
         -re "GPIO IRQ pin for Interrupt.*USB_SL811_BFIN_IRQ.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
-                #Pin17 & 18 are connected in JP3 on usb add-on board.
+                #Pin17 & 18 are populated in JP5 on usb add-on board.
                 send "56\r"
             } else {
                 send "\r"
