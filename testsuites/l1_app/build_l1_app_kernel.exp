@@ -14,7 +14,7 @@ step "Make config."
 source  make_default_config.exp
 
 cd $uclinux_path
-set timeout 10
+set timeout 100
 spawn make config
 
 #puts "Begin the interactive process of configuration"
@@ -33,6 +33,7 @@ while 1 {
         }
 
         -re "Install ELF shared libraries \\\(INSTALL_ELF_SHARED_LIBS\\\) \\\[\[^\r]*]" {
+            set timeout 5
             expect {
             -nocase -re  " (\[ym])\r\n" {
                 send_user "\n Item_value is selected  $expect_out(1,string).\n"
@@ -41,6 +42,7 @@ while 1 {
                 send -s "Y\r"
             }
             }
+            set timeout 100
         }
 
         -re "taskset.*USER_BUSYBOX_TASKSET.*\\\[.*]" {
