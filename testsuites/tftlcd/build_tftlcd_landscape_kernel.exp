@@ -46,6 +46,14 @@ while 1 {
             send "Y\r"
         }
 
+        -re "ThrustMaster devices support.*THRUSTMASTER_FF.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Zeroplus based game controller support.*ZEROPLUS_FF.*\\\[.*]" {
+            send "N\r"
+        }
+
         "\\\(*) \\\[*]" {
             sleep .1
             send "\r"
