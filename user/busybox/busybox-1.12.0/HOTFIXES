@@ -1,8 +1,0 @@
-http://busybox.net/downloads/fixes-1.12.0/
-busybox-1.12.0-awk.patch
-busybox-1.12.0-crontab_vi.patch
-busybox-1.12.0-dhcp.patch
-busybox-1.12.0-grep.patch
-busybox-1.12.0-insmod.patch
-busybox-1.12.0-lineedit.patch
-busybox-1.12.0-top.patch
