@@ -7,7 +7,7 @@
 # Then just add to your package Makefile:
 # include $(ROOTDIR)/tools/autotools.mk
 
-all: build-$(VER)/Makefile
+all: build-$(VER)/Makefile $(AUTOTOOLS_ALL_DEPS)
 	$(MAKE) pre-build
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
 	$(MAKE) post-build
