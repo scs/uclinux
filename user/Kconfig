@@ -3096,7 +3096,7 @@ config USER_NULL_NULL
 
 config USER_OPROFILE
 	bool "oprofile"
-	select LIB_BFD
+	select LIB_BFD if DISABLED_FOR_BLACKFIN_SYSTEMS
 	select LIB_LIBIBERTY
 	select LIB_POPT
 	help

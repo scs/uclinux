@@ -22,9 +22,11 @@ config LIB_FLEX
 	bool "Build flex"
 	default n
 
+if DISABLED_FOR_BLACKFIN_SYSTEMS
 config LIB_BFD
 	bool "Build libbfd"
 	default n
+endif
 
 config LIB_LIBIBERTY
 	bool "Build libiberty"
