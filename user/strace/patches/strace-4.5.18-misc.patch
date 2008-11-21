@@ -44,7 +44,7 @@
 +		# DM_* stuff uses an enum
 +		(
 +		cd $dir
-+		${CPP:-cpp} -E -dD -P $(grep -l $base $files 2>/dev/null) | \
++		${CPP:-cpp} -E -dD -P $(grep -l $base $files 2>/dev/null) | sed '/^$/d' | \
 +		awk -v base="$base" '{
 +			if ($1 == "enum") {
 +				val = 0
