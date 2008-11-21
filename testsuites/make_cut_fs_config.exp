@@ -42,6 +42,22 @@ while 1 {
         -re "Real Time Clock.*RTC_CLASS.*\\\[.*]" {
             send "N\r"
         }
+        
+        -re "SPI support.*SPI.*\\\[\[^\r]*]" {
+            send "N\r"
+        }
+
+        -re "Hardware Monitoring support.*HWMON.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Ethernet.*1000 Mbit.*NETDEV_1000.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Ethernet.*10000 Mbit.*NETDEV_10000.*\\\[.*]" {
+            send "N\r"
+        }
 
         -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {
             send "N\r"
@@ -58,6 +74,32 @@ while 1 {
 
         -re "Build ncurses.*LIB_NCURSES.*\\\[.*]" {
             send "N\r"
+        }
+
+        -re "Build libZ \\\(LIB_ZLIB\\\) \\\[\[^\r]*]" {
+            set timeout 5
+            expect {
+            -nocase -re  " (\[ym])\r\n" {
+                send_user "\n Item_value is selected  $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "N\r"
+            }
+            }
+            set timeout 50
+        }
+
+        -re "Build libpng \\\(LIB_LIBPNG\\\) \\\[(\[^\r]*)]" {
+            set timeout 5
+            expect {
+             -nocase -re " (\[ym])\r\n" {
+                send_user "\n Item_value is selected $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "N\r"
+            }
+            }
+            set timeout 50
         }
 
         -re "boa.*USER_BOA_SRC_BOA.*\\\[.*]" {
@@ -86,6 +128,10 @@ while 1 {
         }
 
         -re "strace.*USER_STRACE_STRACE.*\\\[.*]" {
+            send "N\r"
+        }
+        
+        -re "dhcp.*USER_DHCP.*\\\[.*]" {
             send "N\r"
         }
 
