@@ -1,7 +1,7 @@
 /*
  *	Wireless Tools
  *
- *		Jean II - HPLB 97->99 - HPL 99->04
+ *		Jean II - HPLB 97->99 - HPL 99->07
  *
  * The changelog...
  *
@@ -532,6 +532,214 @@
  *	o Make sure gcc inline stuff properly [iwlib.h]
  *	o Update Hotplug documentation [HOTPLUG.txt]
  *	o Add support for new selector firmware [ifrename]
+ *
+ * wireless 28 :
+ * -----------
+ *	o Fix gcc inline hack when using kernel headers [iwlib.h]
+ *		(From Denis Ovsienko <pilot@altlinux.ru>)
+ *	o Allow '-n' without '-i', even though inefficient [ifrename]
+ *		(From Thomas Hood <jdthood@aglu.demon.nl>)
+ *	o Fix technical and spelling errors in Hotplug doc [HOTPLUG.txt]
+ *	---
+ *	o Include wireless.h as a local file, not a system file [iwlib.h]
+ *	o Split install targets [Makefile]
+ *		(Suggested by Jost Diederichs <jost@qdusa.com>)
+ *	o Increase scanning timeout for MadWifi [iwlib/iwlist]
+ *		(Suggested by Ned Ludd <solar@gentoo.org>)
+ *	o Multicall version of the tools for embedded [iwmulticall]
+ *	---
+ *	o Fix some install Makefile targets broken in pre2 [Makefile]
+ *	---
+ *	o Add option for stripping symbols on tools [Makefile]
+ *	o Add escaping of essid keyworks with -- in manpage [iwconfig.8]
+ *	o Update sensitivity description [iwconfig.8]
+ *	o Fix iw_print_timeval() for timezone [iwlib/iwevent]
+ *		(Suggested by Jan Minar <jjminar@FastMail.FM>)
+ *	o Escape interface name for --help/--version with -- [iwconfig]
+ *	o Allow --help/--version to be interface names [iwlist]
+ *		(From Martynas Dubauskis <martynas@gemtek.lt>)
+ *	o Fix invalid sizeof for stat memcpy in easy scanning API [iwlib.c]
+ *		(From Andreas Mohr <andi@rhlx01.fht-esslingen.de>)
+ *	o Fix my horrendous spelling [HOTPLUG.txt/PCMCIA.txt/README/*.8]
+ *	---
+ *	o Make static lib use PIC objects [Makefile]
+ *	o Add SYSFS selector support to ifrename [ifrename]
+ *	o Fix a fd leak in pcmciaslot selector [ifrename]
+ *	o Don't complain about eth0/wlan0 if takeover enabled [ifrename]
+ *	o Update man pages for sysfs and eth0/wlan0 [ifrename.8]
+ *	o Update man pages for frequ auto/off [iwconfig.8]
+ *	o More clever manual loading and docking tricks [HOTPLUG.txt]
+ *		(From Pavel Heimlich tropikhajma@seznam.cz)
+ *	o Czech (cs) man pages [cs/*]
+ *	---
+ *	o Fudge patch below for better integration [iwconfig/iwevent/iwlist]
+ *		(From Jouni Malinen <jkmaline@cc.hut.fi>)
+ *	o WE-18/WPA event display [iwevent]
+ *	o WE-18/WPA parameter display [iwconfig]
+ *	---
+ *	o Replace iw_pr_ether() with iw_saether_ntop() [iwlib]
+ *	o Replace iw_in_ether() with iw_saether_aton() [iwlib]
+ *	o Remove iw_get_mac_addr() -> unused and bad API [iwlib]
+ *	o Add iw_mac_ntop() and iw_mac_aton() for any-len mac addr [iwlib]
+ *	o Slim down iw_ether_aton() using iw_mac_ntop() [iwlib]
+ *	o Slim down iw_in_key(), avoid memcpy [iwlib]
+ *	o Add support for any-len mac addr selector [ifrename]
+ *	---
+ *	o Re-add temp output buffer in iw_in_key() to avoid corruptions [iwlib]
+ *	---
+ *	o Add WE-19 headers, compile with that as default
+ *	o IW_EV_POINT_LEN has shrunk, so invert IW_EV_POINT_OFF fixup [iwlib]
+ *	o Remove WE backward compat from iwlib.h header [iwlib]
+ *	o Add support for IW_QUAL_DBM in iw_print_stats() [iwlib]
+ *	o Add support for ARPHRD_IEEE80211 in iw_check_mac_addr_type() [iwlib]
+ *		-> iwspy work on wifi0 netdev from airo.c
+ *	---
+ *	o Set flags to 0 before asking old power settings for 'on' [iwconfig]
+ *		(Suggested by Denis Ovsienko <pilot@altlinux.ru>)
+ *	o Ignore empty lines in iface enumeration iw_enum_devices() [iwlib]
+ *		(From Pavel Roskin <proski@gnu.org>)
+ *	o Fix invalid buffer size in 'iwlist power' [iwlist]
+ *		(Suggested by Francesco Potorti` <pot@gnu.org>)
+ *	o Remove kernel headers, use glibc headers [iwlib]
+ *	---
+ *	o Show explicit state for SIOCSIWAP, not numbers [iwconfig/iwevent] 
+ *	o Add WE-18 ioctls to the stream parser in standard_ioctl_hdr [iwlib]
+ *		(From Chris Hessing <Chris.Hessing@utah.edu>)
+ *	o Add GENIE parsing support in scan resuls [iwlist]
+ *	---
+ *	o Change iw_extract_event_stream() API to add value index [iwlib]
+ *	o Scan : display bitrate values on a single line [iwlist]
+ *	---
+ *	o Revert to previous iw_extract_event_stream() API, debloat [iwlib]
+ *	o Keep track of value index in [iwlist]
+ *	---
+ *	o Check event stream 'point' payload size to avoid overflow [iwlib]
+ *	o Make all users of event stream 'point' safe to NULL [iwlist/iwevent]
+ *	o 'iwconfig txpower 1dBm' should not be 'mW' [iwconfig]
+ *	o Forward compat. to WE-21 : essid len is strlen, not +1 [iwconfig]
+ *	---
+ *	o Forgot one place where essid len was strlen+1 [iwlib]
+ *	o Update definition of 'ap' and 'sens' to reflect reality [man]
+ *	---
+ *	o Introduce WE_MAX_VERSION to take into account forward compat [iwlib]
+ *	o Add WE-20 headers, compile with that as default
+ *	---
+ *	o Fix 'inline' for gcc-4 as well. Grrr... [iwlib]
+ *
+ * wireless 29 :
+ * -----------
+ *	o Add new power value : 'power saving' [iwconfig/iwlist/iwlib]
+ *	o Optimise getting iwrange when setting TxPower [iwconfig]
+ *	o Optimise displaying current power values (better loop) [iwlist]
+ *	---
+ *	o Add modulation bitmasks ioctls [iwconfig/iwlist]
+ *	o Add short and long retries [iwconfig/iwlist/iwlib]
+ *	o Fix 'relative' power saving to not be *1000 [iwconfig/iwlib]
+ *	o iw_print_pm_value() require we_version [iwlib]
+ *	o Optimise displaying range power values (subroutine) [iwlist]
+ *	---
+ *	o Fix 'relative' retry to not be *1000 [iwconfig/iwlib]
+ *	o iw_print_retry_value() require we_version [iwlib]
+ *	o Optimise getting iwrange when setting PowerSaving [iwconfig]
+ *	o Optimise displaying current retry values (better loop) [iwlist]
+ *	o Optimise displaying range retry values (subroutine) [iwlist]
+ *	---
+ *	o Fix stupid bug in displaying range retry values [iwlist]
+ *	---
+ *	o Add support for unicast and broadcast bitrates [iwconfig/iwlist]
+ *	---
+ *	o Replace spaghetti code with real dispatcher in set_info() [iwconfig]
+ *		Code is more readable, maintainable, and save 700 bytes...
+ *	o Drop 'domain' alias for 'nwid'. Obsolete. [iwconfig]
+ *	o Make iw_usage() use dispatcher data instead of hardcoded [iwconfig]
+ *	o Factor out modifier parsing for retry/power [iwconfig]
+ *	o Fix iwmulticall to compile with new dispatcher above [iwmulticall]
+ *	o Add WE_ESSENTIAL compile option to drop 10kB [Makefile]
+ *	---
+ *	o Update manpages with new features above [man]
+ *	---
+ *	o Add temp variable to sscanf() to fix 64 bits issues [iwconfig]
+ *	o De-inline get_pm_value/get_retry_value to reduce footprint [iwlist]
+ *	o Optimise iw_print_ie_cipher/iw_print_ie_auth [iwlist]
+ *	o Add "Memory footprint reduction" section in doc [README]
+ *	o Add 'last' scan option for left-over scan [iwlist]
+ *		(From Stavros Markou <smarkou@patras.atmel.com>)
+ *	o Add 'essid' scan option for directed scan [iwlist]
+ *	---
+ *		(Bug reported by Henrik Brix Andersen <brix@gentoo.org>)
+ *	o Fix segfault on setting bitrate (parse wrong arg) [iwconfig]
+ *	---
+ *	o Revert 'CC=gcc' to normal [Makefile]
+ *	o Integrate properly patch below [iwlist]
+ *		(From Brian Eaton <eaton.lists@gmail.com>)
+ *	o More WPA support : iwlist auth/wpakeys/genie [iwlist]
+ *	---
+ *	o Tweak man pages : interface is often optional [iwlist.8/iwspy.8]
+ *	o Drop obsolete port/roam code from [iwpriv]
+ *		(From Pavel Roskin <proski@gnu.org>)
+ *	o Fix bug where all auth masks use iw_auth_capa_name [iwlist]
+ *		(From Dima Ryazanov <someone@berkeley.edu>)
+ *	o Fix iw_scan()/iw_process_scan() for non-root -> EPERM [iwlib]
+ *		(Bug reported by Arkadiusz Miskiewicz <arekm@pld-linux.org>)
+ *	o Fix "iwconfig nickname" (was abreviated) [iwconfig]
+ *		(Bug reported by Charles Plessy)
+ *	o Invalid mode from driver segfault iwlist scan [iwlist]
+ *		(From Aurelien Jacobs <aurel@gnuage.org>)
+ *	o Replace index() with strchr() [iwlib/iwconfig/iwpriv]
+ *		(From Jens Thoms Toerring)
+ *	o Parser/printf/sscanf fixes and optimisation [iwconfig]
+ *	---
+ *		(From Pavel Roskin <proski@gnu.org>)
+ *	o Fix bug extracting mountpoint of sysfs (wrong field) [ifrename]
+ *		(Suggested by Pavel Roskin <proski@gnu.org>)
+ *	o Read sysfs symlinks transparently [ifrename]
+ *	---
+ *	o Fix README header to talk about ifrename [README]
+ *	o Add 'prevname' selector for udev compatibility [ifrename]
+ *	o Read parent directory names in SYSFS selector [ifrename]
+ *	o Make dry-run output compatible with udev [ifrename]
+ *	o Update man page with useful SYSFS selectors [iftab.5]
+ *	---
+ *	o Factorise wildcard rewrite '*'->'%d' to hide it from -D -V [ifrename]
+ *	o Reorganise sysfs description, better wording [iftab.5]
+ *		(Suggested by Pavel Roskin <proski@gnu.org>)
+ *	o Enhance explanation of arp and iwproto [iftab.5]
+ *	---
+ *		(Bug reported by Johannes Berg <johannes@sipsolutions.net>)
+ *	o Band-aid for the 64->32bit iwevent/iwscan issues [iwlib]
+ *	---
+ *	o Better band-aid for the 64->32bit iwevent/iwscan issues [iwlib]
+ *		(Suggested by Kay Sievers <kay.sievers@vrfy.org>)
+ *	o Add udev compatible output, print new DEVPATH [ifrename]
+ *	---
+ *	o Fix DEVPATH output to use the real devpath from udev [ifrename]
+ *	o Add udev rules for ifrename integration [19-udev-ifrename.rules]
+ *	---
+ *	o Add largest bitrate in easy scan API [iwlib]
+ *	---
+ *	o Debug version : output IW_EV_LCP_LEN [iwlist]
+ *	---
+ *		(Bug reported by Santiago Gala/Roy Marples)
+ *	o Fix 64->32bit band-aid on 64 bits, target is local aligned [iwlib]
+ *	---
+ *		(Bug reported by Santiago Gala/Roy Marples)
+ *	o More fix to the 64->32bit band-aid on 64 bits [iwlib]
+ *	---
+ *		(Bug reported by Dimitris Kogias)
+ *	o Fix GENIE parsing os chipher/key_mngt [iwlist]
+ *		(Bug reported by Guus Sliepen <guus@debian.org>)
+ *	o Compiler warning on DEBUG code [iwlist]
+ *	---
+ *	o --version output WE_MAX_VERSION instead of WE_VERSION [iwlib]
+ *	o Change iwstats dBm range to [-192;63] in iw_print_stats() [iwlib.c]
+ *	o Implement iwstats IW_QUAL_RCPI in iw_print_stats()  [iwlib.c]
+ *		(Bug reported by Guus Sliepen <guus@sliepen.eu.org>)
+ *	o LINUX_VERSION_CODE removed, only use GENERIC_HEADERS [iwlib.h]
+ *		(Bug reported by Johan Danielsson <joda11147@gmail.com>)
+ *	o Fix OUI type check for WPA 1 IE [iwlist.c]
+ *	---
+ *		(Bug reported by Florent Daignière)
+ *	o Don't look for "fixed" out of array in set_txpower_info() [iwconfig]
  */
 
 /* ----------------------------- TODO ----------------------------- */
@@ -542,10 +750,7 @@
  * --------
  *	Make disable a per encryption key modifier if some hardware
  *	requires it.
- *
- * iwpriv :
- * ------
- *	Remove 'port' and 'roam' cruft now that we have mode in iwconfig
+ *	IW_QUAL_RCPI
  *
  * iwspy :
  * -----
@@ -559,13 +764,8 @@
  * ifrename :
  * --------
  *	Link Type should use readable form instead of numeric value
- *	Support non MAC/Eth addresses ?
  *
  * Doc & man pages :
  * ---------------
  *	Update main doc.
- *
- * Other :
- * -----
- *	What about some graphical tools ?
  */

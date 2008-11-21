@@ -1,12 +1,12 @@
 /*
  *	Wireless Tools
  *
- *		Jean II - HPLB 97->99 - HPL 99->04
+ *		Jean II - HPLB 97->99 - HPL 99->07
  *
  * Common subroutines to all the wireless tools...
  *
  * This file is released under the GPL license.
- *     Copyright (c) 1997-2004 Jean Tourrilhes <jt@hpl.hp.com>
+ *     Copyright (c) 1997-2007 Jean Tourrilhes <jt@hpl.hp.com>
  */
 
 /***************************** INCLUDES *****************************/
@@ -99,7 +99,44 @@ const char * const iw_operation_mode[] = { "Auto",
 					"Master",
 					"Repeater",
 					"Secondary",
-					"Monitor" };
+					"Monitor",
+					"Unknown/bug" };
+
+/* Modulations as human readable strings */
+const struct iw_modul_descr	iw_modul_list[] = {
+  /* Start with aggregate types, so that they display first */
+  { IW_MODUL_11AG, "11ag",
+    "IEEE 802.11a + 802.11g (2.4 & 5 GHz, up to 54 Mb/s)" },
+  { IW_MODUL_11AB, "11ab",
+    "IEEE 802.11a + 802.11b (2.4 & 5 GHz, up to 54 Mb/s)" },
+  { IW_MODUL_11G, "11g", "IEEE 802.11g (2.4 GHz, up to 54 Mb/s)" },
+  { IW_MODUL_11A, "11a", "IEEE 802.11a (5 GHz, up to 54 Mb/s)" },
+  { IW_MODUL_11B, "11b", "IEEE 802.11b (2.4 GHz, up to 11 Mb/s)" },
+
+  /* Proprietary aggregates */
+  { IW_MODUL_TURBO | IW_MODUL_11A, "turboa",
+    "Atheros turbo mode at 5 GHz (up to 108 Mb/s)" },
+  { IW_MODUL_TURBO | IW_MODUL_11G, "turbog",
+    "Atheros turbo mode at 2.4 GHz (up to 108 Mb/s)" },
+  { IW_MODUL_PBCC | IW_MODUL_11B, "11+",
+    "TI 802.11+ (2.4 GHz, up to 22 Mb/s)" },
+
+  /* Individual modulations */
+  { IW_MODUL_OFDM_G, "OFDMg",
+    "802.11g higher rates, OFDM at 2.4 GHz (up to 54 Mb/s)" },
+  { IW_MODUL_OFDM_A, "OFDMa", "802.11a, OFDM at 5 GHz (up to 54 Mb/s)" },
+  { IW_MODUL_CCK, "CCK", "802.11b higher rates (2.4 GHz, up to 11 Mb/s)" },
+  { IW_MODUL_DS, "DS", "802.11 Direct Sequence (2.4 GHz, up to 2 Mb/s)" },
+  { IW_MODUL_FH, "FH", "802.11 Frequency Hopping (2,4 GHz, up to 2 Mb/s)" },
+
+  /* Proprietary modulations */
+  { IW_MODUL_TURBO, "turbo",
+    "Atheros turbo mode, channel bonding (up to 108 Mb/s)" },
+  { IW_MODUL_PBCC, "PBCC",
+    "TI 802.11+ higher rates (2.4 GHz, up to 22 Mb/s)" },
+  { IW_MODUL_CUSTOM, "custom",
+    "Driver specific modulation (check driver documentation)" },
+};
 
 /* Disable runtime version warning in iw_get_range_info() */
 int	iw_ignore_version = 0;
@@ -177,7 +214,8 @@ iw_get_ifname(char *	name,	/* Where to store the name */
   memcpy(name, buf, (end - buf));
   name[end - buf] = '\0';
 
-  return(end + 2);
+  /* Return value currently unused, just make sure it's non-NULL */
+  return(end);
 }
 
 /*------------------------------------------------------------------*/
@@ -201,7 +239,7 @@ iw_enum_devices(int		skfd,
   int		i;
 
 #ifndef IW_RESTRIC_ENUM
-  /* Check if /proc/net/wireless is available */
+  /* Check if /proc/net/dev is available */
   fh = fopen(PROC_NET_DEV, "r");
 #else
   /* Check if /proc/net/wireless is available */
@@ -222,16 +260,23 @@ iw_enum_devices(int		skfd,
 	  char	name[IFNAMSIZ + 1];
 	  char *s;
 
+	  /* Skip empty or almost empty lines. It seems that in some
+	   * cases fgets return a line with only a newline. */
+	  if((buff[0] == '\0') || (buff[1] == '\0'))
+	    continue;
+
 	  /* Extract interface name */
 	  s = iw_get_ifname(name, sizeof(name), buff);
 
 	  if(!s)
-	    /* Failed to parse, complain and continue */
+	    {
+	      /* Failed to parse, complain and continue */
 #ifndef IW_RESTRIC_ENUM
-	    fprintf(stderr, "Cannot parse " PROC_NET_DEV "\n");
+	      fprintf(stderr, "Cannot parse " PROC_NET_DEV "\n");
 #else
-	    fprintf(stderr, "Cannot parse " PROC_NET_WIRELESS "\n");
+	      fprintf(stderr, "Cannot parse " PROC_NET_WIRELESS "\n");
 #endif
+	    }
 	  else
 	    /* Got it, print info about this interface */
 	    (*fn)(skfd, name, args, count);
@@ -399,7 +444,7 @@ iw_print_version_info(const char *	toolname)
   if(toolname != NULL)
     printf("%-8.16s  Wireless-Tools version %d\n", toolname, WT_VERSION);
   printf("          Compatible with Wireless Extension v11 to v%d.\n\n",
-	 WE_VERSION);
+	 WE_MAX_VERSION);
 
   /* Get version from kernel */
   we_kernel_version = iw_get_kernel_we_version();
@@ -510,10 +555,10 @@ iw_get_range_info(int		skfd,
 
       /* We don't like future versions of WE, because we can't cope with
        * the unknown */
-      if(range->we_version_compiled > WE_VERSION)
+      if(range->we_version_compiled > WE_MAX_VERSION)
 	{
 	  fprintf(stderr, "Warning: Driver for device %s has been compiled with version %d\n", ifname, range->we_version_compiled);
-	  fprintf(stderr, "of Wireless Extension, while this program supports up to version %d.\n", WE_VERSION);
+	  fprintf(stderr, "of Wireless Extension, while this program supports up to version %d.\n", WE_MAX_VERSION);
 	  fprintf(stderr, "Some things may be broken...\n\n");
 	}
 
@@ -673,9 +718,12 @@ iw_get_basic_config(int			skfd,
   /* Get operation mode */
   if(iw_get_ext(skfd, ifname, SIOCGIWMODE, &wrq) >= 0)
     {
-      info->mode = wrq.u.mode;
-      if((info->mode < IW_NUM_OPER_MODE) && (info->mode >= 0))
-	info->has_mode = 1;
+      info->has_mode = 1;
+      /* Note : event->u.mode is unsigned, no need to check <= 0 */
+      if(wrq.u.mode < IW_NUM_OPER_MODE)
+	info->mode = wrq.u.mode;
+      else
+	info->mode = IW_NUM_OPER_MODE;	/* Unknown/bug */
     }
 
   return(0);
@@ -790,9 +838,14 @@ iw_set_basic_config(int			skfd,
    */
   if(info->has_essid)
     {
+      int		we_kernel_version;
+      we_kernel_version = iw_get_kernel_we_version();
+
       wrq.u.essid.pointer = (caddr_t) info->essid;
-      wrq.u.essid.length = strlen(info->essid) + 1;
+      wrq.u.essid.length = strlen(info->essid);
       wrq.u.data.flags = info->essid_on;
+      if(we_kernel_version < 21)
+	wrq.u.essid.length++;
 
       if(iw_set_ext(skfd, ifname, SIOCSIWESSID, &wrq) < 0)
 	{
@@ -1203,6 +1256,7 @@ iw_print_txpower(char *			buffer,
 /*------------------------------------------------------------------*/
 /*
  * Read /proc/net/wireless to get the latest statistics
+ * Note : strtok not thread safe, not used in WE-12 and later.
  */
 int
 iw_get_stats(int		skfd,
@@ -1306,14 +1360,18 @@ iw_print_stats(char *		buffer,
    * Further, on 8 bits, 0x100 == 256 == 0.
    *
    * Relative/percent values are always encoded unsigned, between 0 and 255.
-   * Absolute/dBm values are always encoded negative, between -255 and 0.
+   * Absolute/dBm values are always encoded between -192 and 63.
+   * (Note that up to version 28 of Wireless Tools, dBm used to be
+   *  encoded always negative, between -256 and -1).
    *
-   * How do we separate relative from absolute values ? We use the
-   * range to do that. The range allow to specify the real min/max
-   * of the value. As the range struct only specify one bound of the
-   * value, we assume that the other bound is 0 (zero).
+   * How do we separate relative from absolute values ?
+   * The old way is to use the range to do that. As of WE-19, we have
+   * an explicit IW_QUAL_DBM flag in updated...
+   * The range allow to specify the real min/max of the value. As the
+   * range struct only specify one bound of the value, we assume that
+   * the other bound is 0 (zero).
    * For relative values, range is [0 ; range->max].
-   * For absolute values, range is [range->max ; 0].
+   * For absolute values, range is [range->max ; 63].
    *
    * Let's take two example :
    * 1) value is 75%. qual->value = 75 ; range->max_qual.value = 100
@@ -1323,8 +1381,12 @@ iw_print_stats(char *		buffer,
    * Jean II
    */
 
-  /* Just do it */
-  if(has_range && (qual->level != 0))
+  /* Just do it...
+   * The old way to detect dBm require both the range and a non-null
+   * level (which confuse the test). The new way can deal with level of 0
+   * because it does an explicit test on the flag. */
+  if(has_range && ((qual->level != 0)
+		   || (qual->updated & (IW_QUAL_DBM | IW_QUAL_RCPI))))
     {
       /* Deal with quality : always a relative value */
       if(!(qual->updated & IW_QUAL_QUAL_INVALID))
@@ -1336,15 +1398,17 @@ iw_print_stats(char *		buffer,
 	  buflen -= len;
 	}
 
-      /* If the statistics are in dBm or relative */
-      if(qual->level > range->max_qual.level)
+      /* Check if the statistics are in RCPI (IEEE 802.11k) */
+      if(qual->updated & IW_QUAL_RCPI)
 	{
-	  /* Deal with signal level in dBm  (absolute power measurement) */
+	  /* Deal with signal level in RCPI */
+	  /* RCPI = int{(Power in dBm +110)*2} for 0dbm > Power > -110dBm */
 	  if(!(qual->updated & IW_QUAL_LEVEL_INVALID))
 	    {
-	      len = snprintf(buffer, buflen, "Signal level%c%d dBm  ",
+	      double	rcpilevel = (qual->level / 2.0) - 110.0;
+	      len = snprintf(buffer, buflen, "Signal level%c%g dBm  ",
 			     qual->updated & IW_QUAL_LEVEL_UPDATED ? '=' : ':',
-			     qual->level - 0x100);
+			     rcpilevel);
 	      buffer += len;
 	      buflen -= len;
 	    }
@@ -1352,29 +1416,63 @@ iw_print_stats(char *		buffer,
 	  /* Deal with noise level in dBm (absolute power measurement) */
 	  if(!(qual->updated & IW_QUAL_NOISE_INVALID))
 	    {
-	      len = snprintf(buffer, buflen, "Noise level%c%d dBm",
+	      double	rcpinoise = (qual->noise / 2.0) - 110.0;
+	      len = snprintf(buffer, buflen, "Noise level%c%g dBm",
 			     qual->updated & IW_QUAL_NOISE_UPDATED ? '=' : ':',
-			     qual->noise - 0x100);
+			     rcpinoise);
 	    }
 	}
       else
 	{
-	  /* Deal with signal level as relative value (0 -> max) */
-	  if(!(qual->updated & IW_QUAL_LEVEL_INVALID))
+	  /* Check if the statistics are in dBm */
+	  if((qual->updated & IW_QUAL_DBM)
+	     || (qual->level > range->max_qual.level))
 	    {
-	      len = snprintf(buffer, buflen, "Signal level%c%d/%d  ",
-			     qual->updated & IW_QUAL_LEVEL_UPDATED ? '=' : ':',
-			     qual->level, range->max_qual.level);
-	      buffer += len;
-	      buflen -= len;
-	    }
+	      /* Deal with signal level in dBm  (absolute power measurement) */
+	      if(!(qual->updated & IW_QUAL_LEVEL_INVALID))
+		{
+		  int	dblevel = qual->level;
+		  /* Implement a range for dBm [-192; 63] */
+		  if(qual->level >= 64)
+		    dblevel -= 0x100;
+		  len = snprintf(buffer, buflen, "Signal level%c%d dBm  ",
+				 qual->updated & IW_QUAL_LEVEL_UPDATED ? '=' : ':',
+				 dblevel);
+		  buffer += len;
+		  buflen -= len;
+		}
 
-	  /* Deal with noise level as relative value (0 -> max) */
-	  if(!(qual->updated & IW_QUAL_NOISE_INVALID))
+	      /* Deal with noise level in dBm (absolute power measurement) */
+	      if(!(qual->updated & IW_QUAL_NOISE_INVALID))
+		{
+		  int	dbnoise = qual->noise;
+		  /* Implement a range for dBm [-192; 63] */
+		  if(qual->noise >= 64)
+		    dbnoise -= 0x100;
+		  len = snprintf(buffer, buflen, "Noise level%c%d dBm",
+				 qual->updated & IW_QUAL_NOISE_UPDATED ? '=' : ':',
+				 dbnoise);
+		}
+	    }
+	  else
 	    {
-	      len = snprintf(buffer, buflen, "Noise level%c%d/%d",
-			     qual->updated & IW_QUAL_NOISE_UPDATED ? '=' : ':',
-			     qual->noise, range->max_qual.noise);
+	      /* Deal with signal level as relative value (0 -> max) */
+	      if(!(qual->updated & IW_QUAL_LEVEL_INVALID))
+		{
+		  len = snprintf(buffer, buflen, "Signal level%c%d/%d  ",
+				 qual->updated & IW_QUAL_LEVEL_UPDATED ? '=' : ':',
+				 qual->level, range->max_qual.level);
+		  buffer += len;
+		  buflen -= len;
+		}
+
+	      /* Deal with noise level as relative value (0 -> max) */
+	      if(!(qual->updated & IW_QUAL_NOISE_INVALID))
+		{
+		  len = snprintf(buffer, buflen, "Noise level%c%d/%d",
+				 qual->updated & IW_QUAL_NOISE_UPDATED ? '=' : ':',
+				 qual->noise, range->max_qual.noise);
+		}
 	    }
 	}
     }
@@ -1462,6 +1560,7 @@ iw_pass_key(const char *	input,
 /*
  * Parse a key from the command line.
  * Return size of the key, or 0 (no key) or -1 (error)
+ * If the key is too long, it's simply truncated...
  */
 int
 iw_in_key(const char *		input,
@@ -1476,7 +1575,7 @@ iw_in_key(const char *		input,
       keylen = strlen(input + 2);		/* skip "s:" */
       if(keylen > IW_ENCODING_TOKEN_MAX)
 	keylen = IW_ENCODING_TOKEN_MAX;
-      strncpy(key, input + 2, keylen);
+      memcpy(key, input + 2, keylen);
     }
   else
     if(!strncmp(input, "p:", 2))
@@ -1486,55 +1585,65 @@ iw_in_key(const char *		input,
       }
     else
       {
-	char *	buff;
-	char *	hex;
-	char *	out;
-	char *	p;
+	const char *	p;
+	int		dlen;	/* Digits sequence length */
+	unsigned char	out[IW_ENCODING_TOKEN_MAX];
 
 	/* Third case : as hexadecimal digits */
-	buff = malloc(IW_ENCODING_TOKEN_MAX + strlen(input) + 1);
-	if(buff == NULL)
-	  {
-	    fprintf(stderr, "Malloc failed (string too long ?)\n");
-	    return(-1);
-	  }
-	/* Preserve original buffers (both in & out) */
-	hex = buff + IW_ENCODING_TOKEN_MAX;
-	strcpy(hex, input);				/* Size checked */
-	out = buff;
+	p = input;
+	dlen = -1;
 
-	/* Parse */
-	p = strtok(hex, "-:;.,");
-	while((p != (char *) NULL) && (keylen < IW_ENCODING_TOKEN_MAX))
+	/* Loop until we run out of chars in input or overflow the output */
+	while(*p != '\0')
 	  {
 	    int	temph;
 	    int	templ;
 	    int	count;
-	    int	len;
+	    /* No more chars in this sequence */
+	    if(dlen <= 0)
+	      {
+		/* Skip separator */
+		if(dlen == 0)
+		  p++;
+		/* Calculate num of char to next separator */
+		dlen = strcspn(p, "-:;.,");
+	      }
 	    /* Get each char separatly (and not by two) so that we don't
 	     * get confused by 'enc' (=> '0E'+'0C') and similar */
 	    count = sscanf(p, "%1X%1X", &temph, &templ);
 	    if(count < 1)
 	      return(-1);		/* Error -> non-hex char */
 	    /* Fixup odd strings such as '123' is '01'+'23' and not '12'+'03'*/
-	    len = strlen(p);
-	    if(len % 2)
+	    if(dlen % 2)
 	      count = 1;
-	    /* Put back two chars as one byte */
+	    /* Put back two chars as one byte and output */
 	    if(count == 2)
 	      templ |= temph << 4;
 	    else
 	      templ = temph;
 	    out[keylen++] = (unsigned char) (templ & 0xFF);
-	    /* Check where to get next char from */
-	    if(len > count)	/* Token not finished yet */
-	      p += count;
-	    else
-	      p = strtok((char *) NULL, "-:;.,");
+	    /* Check overflow in output */
+	    if(keylen >= IW_ENCODING_TOKEN_MAX)
+	      break;
+	    /* Move on to next chars */
+	    p += count;
+	    dlen -= count;
 	  }
+	/* We use a temporary output buffer 'out' so that if there is
+	 * an error, we don't overwrite the original key buffer.
+	 * Because of the way iwconfig loop on multiple key/enc arguments
+	 * until it finds an error in here, this is necessary to avoid
+	 * silently corrupting the encryption key... */
 	memcpy(key, out, keylen);
-	free(buff);
       }
+
+#ifdef DEBUG
+  {
+    char buf[IW_ENCODING_TOKEN_MAX * 3];
+    iw_print_key(buf, sizeof(buf), key, keylen, 0);
+    printf("Got key : %d [%s]\n", keylen, buf);
+  }
+#endif
 
   return(keylen);
 }
@@ -1566,7 +1675,7 @@ iw_in_key_full(int		skfd,
       memcpy(key, input + 2, keylen);
 
       /* Separate the two strings */
-      p = strchr(key, ':');
+      p = strchr((char *) key, ':');
       if(p == NULL)
 	{
 	  fprintf(stderr, "Error: Invalid login format\n");
@@ -1613,7 +1722,8 @@ void
 iw_print_pm_value(char *	buffer,
 		  int		buflen,
 		  int		value,
-		  int		flags)
+		  int		flags,
+		  int		we_version)
 {
   /* Check size */
   if(buflen < 25)
@@ -1643,13 +1753,25 @@ iw_print_pm_value(char *	buffer,
     }
   else
     {
-      strcpy(buffer, " period:");			/* Size checked */
-      buffer += 8;
+      if(flags & IW_POWER_SAVING)
+	{
+	  strcpy(buffer, " saving:");			/* Size checked */
+	  buffer += 8;
+	}
+      else
+	{
+	  strcpy(buffer, " period:");			/* Size checked */
+	  buffer += 8;
+	}
     }
 
   /* Display value without units */
   if(flags & IW_POWER_RELATIVE)
-    snprintf(buffer, buflen, "%g", ((double) value) / MEGA);
+    {
+      if(we_version < 21)
+	value /= MEGA;
+      snprintf(buffer, buflen, "%d", value);
+    }
   else
     {
       /* Display value with units */
@@ -1713,15 +1835,16 @@ void
 iw_print_retry_value(char *	buffer,
 		     int	buflen,
 		     int	value,
-		     int	flags)
+		     int	flags,
+		     int	we_version)
 {
   /* Check buffer size */
-  if(buflen < 18)
+  if(buflen < 20)
     {
       snprintf(buffer, buflen, "<too big>");
       return;
     }
-  buflen -= 18;
+  buflen -= 20;
 
   /* Modifiers */
   if(flags & IW_RETRY_MIN)
@@ -1734,6 +1857,16 @@ iw_print_retry_value(char *	buffer,
       strcpy(buffer, " max");				/* Size checked */
       buffer += 4;
     }
+  if(flags & IW_RETRY_SHORT)
+    {
+      strcpy(buffer, " short");				/* Size checked */
+      buffer += 6;
+    }
+  if(flags & IW_RETRY_LONG)
+    {
+      strcpy(buffer, "  long");				/* Size checked */
+      buffer += 6;
+    }
 
   /* Type lifetime of limit */
   if(flags & IW_RETRY_LIFETIME)
@@ -1742,8 +1875,12 @@ iw_print_retry_value(char *	buffer,
       buffer += 10;
 
       /* Display value without units */
-      if(flags & IW_POWER_RELATIVE)
-	snprintf(buffer, buflen, "%g", ((double) value) / MEGA);
+      if(flags & IW_RETRY_RELATIVE)
+	{
+	  if(we_version < 21)
+	    value /= MEGA;
+	  snprintf(buffer, buflen, "%d", value);
+	}
       else
 	{
 	  /* Display value with units */
@@ -1768,16 +1905,17 @@ iw_print_retry_value(char *	buffer,
  * Inspired from irdadump...
  */
 void
-iw_print_timeval(char *			buffer,
-		 int			buflen,
-		 const struct timeval *	time)
+iw_print_timeval(char *				buffer,
+		 int				buflen,
+		 const struct timeval *		timev,
+		 const struct timezone *	tz)
 {
         int s;
 
-	s = (time->tv_sec) % 86400;
-	snprintf(buffer, buflen, "%02d:%02d:%02d.%06u ", 
+	s = (timev->tv_sec - tz->tz_minuteswest * 60) % 86400;
+	snprintf(buffer, buflen, "%02d:%02d:%02d.%06u", 
 		s / 3600, (s % 3600) / 60, 
-		s % 60, (u_int32_t) time->tv_usec);
+		s % 60, (u_int32_t) timev->tv_usec);
 }
 
 /*********************** ADDRESS SUBROUTINES ************************/
@@ -1793,14 +1931,15 @@ iw_print_timeval(char *			buffer,
  */
 int
 iw_check_mac_addr_type(int		skfd,
-		       char *		ifname)
+		       const char *	ifname)
 {
   struct ifreq		ifr;
 
   /* Get the type of hardware address */
   strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
   if((ioctl(skfd, SIOCGIFHWADDR, &ifr) < 0) ||
-     (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER))
+     ((ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER)
+      && (ifr.ifr_hwaddr.sa_family != ARPHRD_IEEE80211)))
     {
       /* Deep trouble... */
       fprintf(stderr, "Interface %s doesn't support MAC addresses\n",
@@ -1809,8 +1948,11 @@ iw_check_mac_addr_type(int		skfd,
     }
 
 #ifdef DEBUG
-  printf("Hardware : %d - %s\n", ifr.ifr_hwaddr.sa_family,
-	 iw_ether_ntoa((struct ether_addr *) ifr.ifr_hwaddr.sa_data));
+  {
+    char buf[20];
+    printf("Hardware : %d - %s\n", ifr.ifr_hwaddr.sa_family,
+	   iw_saether_ntop(&ifr.ifr_hwaddr, buf));
+  }
 #endif
 
   return(0);
@@ -1823,7 +1965,7 @@ iw_check_mac_addr_type(int		skfd,
  */
 int
 iw_check_if_addr_type(int		skfd,
-		      char *		ifname)
+		      const char *	ifname)
 {
   struct ifreq		ifr;
 
@@ -1866,6 +2008,7 @@ iw_check_addr_type(int		skfd,
 }
 #endif
 
+#if 0
 /*------------------------------------------------------------------*/
 /*
  * Ask the kernel for the MAC address of an interface.
@@ -1890,13 +2033,40 @@ iw_get_mac_addr(int			skfd,
   *ptype = ifr.ifr_hwaddr.sa_family;
   return(ret);
 }
+#endif
+
+/*------------------------------------------------------------------*/
+/*
+ * Display an arbitrary length MAC address in readable format.
+ */
+char *
+iw_mac_ntop(const unsigned char *	mac,
+	    int				maclen,
+	    char *			buf,
+	    int				buflen)
+{
+  int	i;
+
+  /* Overflow check (don't forget '\0') */
+  if(buflen < (maclen * 3 - 1 + 1))
+    return(NULL);
+
+  /* First byte */
+  sprintf(buf, "%02X", mac[0]);
+
+  /* Other bytes */
+  for(i = 1; i < maclen; i++)
+    sprintf(buf + (i * 3) - 1, ":%02X", mac[i]);
+  return(buf);
+}
 
 /*------------------------------------------------------------------*/
 /*
  * Display an Ethernet address in readable format.
  */
 void
-iw_ether_ntop(const struct ether_addr* eth, char* buf)
+iw_ether_ntop(const struct ether_addr *	eth,
+	      char *			buf)
 {
   sprintf(buf, "%02X:%02X:%02X:%02X:%02X:%02X",
 	  eth->ether_addr_octet[0], eth->ether_addr_octet[1],
@@ -1906,15 +2076,93 @@ iw_ether_ntop(const struct ether_addr* eth, char* buf)
 
 /*------------------------------------------------------------------*/
 /*
- * Display an Ethernet address in readable format.
- * Same with a static buffer
+ * Display an Wireless Access Point Socket Address in readable format.
+ * Note : 0x44 is an accident of history, that's what the Orinoco/PrismII
+ * chipset report, and the driver doesn't filter it.
  */
 char *
-iw_ether_ntoa(const struct ether_addr* eth)
+iw_sawap_ntop(const struct sockaddr *	sap,
+	      char *			buf)
 {
-  static char buf[20];
-  iw_ether_ntop(eth, buf);
-  return buf;
+  const struct ether_addr ether_zero = {{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
+  const struct ether_addr ether_bcast = {{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }};
+  const struct ether_addr ether_hack = {{ 0x44, 0x44, 0x44, 0x44, 0x44, 0x44 }};
+  const struct ether_addr * ether_wap = (const struct ether_addr *) sap->sa_data;
+
+  if(!iw_ether_cmp(ether_wap, &ether_zero))
+    sprintf(buf, "Not-Associated");
+  else
+    if(!iw_ether_cmp(ether_wap, &ether_bcast))
+      sprintf(buf, "Invalid");
+    else
+      if(!iw_ether_cmp(ether_wap, &ether_hack))
+	sprintf(buf, "None");
+      else
+	iw_ether_ntop(ether_wap, buf);
+  return(buf);
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Input an arbitrary length MAC address and convert to binary.
+ * Return address size.
+ */
+int
+iw_mac_aton(const char *	orig,
+	    unsigned char *	mac,
+	    int			macmax)
+{
+  const char *	p = orig;
+  int		maclen = 0;
+
+  /* Loop on all bytes of the string */
+  while(*p != '\0')
+    {
+      int	temph;
+      int	templ;
+      int	count;
+      /* Extract one byte as two chars */
+      count = sscanf(p, "%1X%1X", &temph, &templ);
+      if(count != 2)
+	break;			/* Error -> non-hex chars */
+      /* Output two chars as one byte */
+      templ |= temph << 4;
+      mac[maclen++] = (unsigned char) (templ & 0xFF);
+
+      /* Check end of string */
+      p += 2;
+      if(*p == '\0')
+	{
+#ifdef DEBUG
+	  char buf[20];
+	  iw_ether_ntop((const struct ether_addr *) mac, buf);
+	  fprintf(stderr, "iw_mac_aton(%s): %s\n", orig, buf);
+#endif
+	  return(maclen);		/* Normal exit */
+	}
+
+      /* Check overflow */
+      if(maclen >= macmax)
+	{
+#ifdef DEBUG
+	  fprintf(stderr, "iw_mac_aton(%s): trailing junk!\n", orig);
+#endif
+	  errno = E2BIG;
+	  return(0);			/* Error -> overflow */
+	}
+
+      /* Check separator */
+      if(*p != ':')
+	break;
+      p++;
+    }
+
+  /* Error... */
+#ifdef DEBUG
+  fprintf(stderr, "iw_mac_aton(%s): invalid ether address!\n", orig);
+#endif
+  errno = EINVAL;
+  return(0);
 }
 
 /*------------------------------------------------------------------*/
@@ -1924,52 +2172,15 @@ iw_ether_ntoa(const struct ether_addr* eth)
 int
 iw_ether_aton(const char *orig, struct ether_addr *eth)
 {
-  const char *bufp;
-  int i;
-
-  i = 0;
-  for(bufp = orig; *bufp != '\0'; ++bufp) {
-	unsigned int val;
-	unsigned char c = *bufp++;
-	if (isdigit(c)) val = c - '0';
-	else if (c >= 'a' && c <= 'f') val = c - 'a' + 10;
-	else if (c >= 'A' && c <= 'F') val = c - 'A' + 10;
-	else break;
-
-	val <<= 4;
-	c = *bufp++;
-	if (isdigit(c)) val |= c - '0';
-	else if (c >= 'a' && c <= 'f') val |= c - 'a' + 10;
-	else if (c >= 'A' && c <= 'F') val |= c - 'A' + 10;
-	else break;
-
-	eth->ether_addr_octet[i] = (unsigned char) (val & 0377);
-	if(++i == ETH_ALEN) {
-		/* That's it.  Any trailing junk? */
-		if (*bufp != '\0') {
-#ifdef DEBUG
-			fprintf(stderr, "iw_ether_aton(%s): trailing junk!\n", orig);
-			errno = EINVAL;
-			return(0);
-#endif
-		}
-#ifdef DEBUG
-		fprintf(stderr, "iw_ether_aton(%s): %s\n",
-			orig, ether_ntoa(eth));
-#endif
-		return(1);
-	}
-	if (*bufp != ':')
-		break;
-  }
-
-#ifdef DEBUG
-  fprintf(stderr, "iw_ether_aton(%s): invalid ether address!\n", orig);
-#endif
-  errno = EINVAL;
-  return(0);
+  int	maclen;
+  maclen = iw_mac_aton(orig, (unsigned char *) eth, ETH_ALEN);
+  if((maclen > 0) && (maclen < ETH_ALEN))
+    {
+      errno = EINVAL;
+      maclen = 0;
+    }
+  return(maclen);
 }
-
 
 /*------------------------------------------------------------------*/
 /*
@@ -2015,12 +2226,12 @@ iw_in_inet(char *name, struct sockaddr *sap)
  */
 int
 iw_in_addr(int		skfd,
-	   char *	ifname,
+	   const char *	ifname,
 	   char *	bufp,
 	   struct sockaddr *sap)
 {
   /* Check if it is a hardware or IP address */
-  if(index(bufp, ':') == NULL)
+  if(strchr(bufp, ':') == NULL)
     {
       struct sockaddr	if_address;
       struct arpreq	arp_query;
@@ -2062,8 +2273,11 @@ iw_in_addr(int		skfd,
 	     sizeof(struct sockaddr));
 
 #ifdef DEBUG
-      printf("IP Address %s => Hw Address = %s\n",
-	     bufp, iw_ether_ntoa((struct ether_addr *) sap->sa_data));
+      {
+	char buf[20];
+	printf("IP Address %s => Hw Address = %s\n",
+	       bufp, iw_saether_ntop(sap, buf));
+      }
 #endif
     }
   else	/* If it's an hardware address */
@@ -2076,7 +2290,7 @@ iw_in_addr(int		skfd,
 	}
 
       /* Get the hardware address */
-      if(iw_in_ether(bufp, sap) < 0)
+      if(iw_saether_aton(bufp, sap) == 0)
 	{
 	  fprintf(stderr, "Invalid hardware address %s\n", bufp);
 	  return(-1);
@@ -2084,7 +2298,10 @@ iw_in_addr(int		skfd,
     }
 
 #ifdef DEBUG
-  printf("Hw Address = %s\n", iw_ether_ntoa((struct ether_addr *) sap->sa_data));
+  {
+    char buf[20];
+    printf("Hw Address = %s\n", iw_saether_ntop(sap, buf));
+  }
 #endif
 
   return(0);
@@ -2125,6 +2342,8 @@ iw_get_priv_size(int	args)
  * this case.
  */
 
+/* -------------------------- CONSTANTS -------------------------- */
+
 /* Type of headers we know about (basically union iwreq_data) */
 #define IW_HEADER_TYPE_NULL	0	/* Not available */
 #define IW_HEADER_TYPE_CHAR	2	/* char [IFNAMSIZ] */
@@ -2135,88 +2354,336 @@ iw_get_priv_size(int	args)
 #define IW_HEADER_TYPE_PARAM	9	/* struct iw_param */
 #define IW_HEADER_TYPE_QUAL	10	/* struct iw_quality */
 
-/* Headers for the various requests */
-static const char standard_ioctl_hdr[] = {
-	IW_HEADER_TYPE_NULL,	/* SIOCSIWCOMMIT */
-	IW_HEADER_TYPE_CHAR,	/* SIOCGIWNAME */
-	IW_HEADER_TYPE_PARAM,	/* SIOCSIWNWID */
-	IW_HEADER_TYPE_PARAM,	/* SIOCGIWNWID */
-	IW_HEADER_TYPE_FREQ,	/* SIOCSIWFREQ */
-	IW_HEADER_TYPE_FREQ,	/* SIOCGIWFREQ */
-	IW_HEADER_TYPE_UINT,	/* SIOCSIWMODE */
-	IW_HEADER_TYPE_UINT,	/* SIOCGIWMODE */
-	IW_HEADER_TYPE_PARAM,	/* SIOCSIWSENS */
-	IW_HEADER_TYPE_PARAM,	/* SIOCGIWSENS */
-	IW_HEADER_TYPE_NULL,	/* SIOCSIWRANGE */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWRANGE */
-	IW_HEADER_TYPE_NULL,	/* SIOCSIWPRIV */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWPRIV */
-	IW_HEADER_TYPE_NULL,	/* SIOCSIWSTATS */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWSTATS */
-	IW_HEADER_TYPE_POINT,	/* SIOCSIWSPY */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWSPY */
-	IW_HEADER_TYPE_POINT,	/* SIOCSIWTHRSPY */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWTHRSPY */
-	IW_HEADER_TYPE_ADDR,	/* SIOCSIWAP */
-	IW_HEADER_TYPE_ADDR,	/* SIOCGIWAP */
-	IW_HEADER_TYPE_NULL,	/* -- hole -- */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWAPLIST */
-	IW_HEADER_TYPE_PARAM,	/* SIOCSIWSCAN */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWSCAN */
-	IW_HEADER_TYPE_POINT,	/* SIOCSIWESSID */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWESSID */
-	IW_HEADER_TYPE_POINT,	/* SIOCSIWNICKN */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWNICKN */
-	IW_HEADER_TYPE_NULL,	/* -- hole -- */
-	IW_HEADER_TYPE_NULL,	/* -- hole -- */
-	IW_HEADER_TYPE_PARAM,	/* SIOCSIWRATE */
-	IW_HEADER_TYPE_PARAM,	/* SIOCGIWRATE */
-	IW_HEADER_TYPE_PARAM,	/* SIOCSIWRTS */
-	IW_HEADER_TYPE_PARAM,	/* SIOCGIWRTS */
-	IW_HEADER_TYPE_PARAM,	/* SIOCSIWFRAG */
-	IW_HEADER_TYPE_PARAM,	/* SIOCGIWFRAG */
-	IW_HEADER_TYPE_PARAM,	/* SIOCSIWTXPOW */
-	IW_HEADER_TYPE_PARAM,	/* SIOCGIWTXPOW */
-	IW_HEADER_TYPE_PARAM,	/* SIOCSIWRETRY */
-	IW_HEADER_TYPE_PARAM,	/* SIOCGIWRETRY */
-	IW_HEADER_TYPE_POINT,	/* SIOCSIWENCODE */
-	IW_HEADER_TYPE_POINT,	/* SIOCGIWENCODE */
-	IW_HEADER_TYPE_PARAM,	/* SIOCSIWPOWER */
-	IW_HEADER_TYPE_PARAM,	/* SIOCGIWPOWER */
+/* Handling flags */
+/* Most are not implemented. I just use them as a reminder of some
+ * cool features we might need one day ;-) */
+#define IW_DESCR_FLAG_NONE	0x0000	/* Obvious */
+/* Wrapper level flags */
+#define IW_DESCR_FLAG_DUMP	0x0001	/* Not part of the dump command */
+#define IW_DESCR_FLAG_EVENT	0x0002	/* Generate an event on SET */
+#define IW_DESCR_FLAG_RESTRICT	0x0004	/* GET : request is ROOT only */
+				/* SET : Omit payload from generated iwevent */
+#define IW_DESCR_FLAG_NOMAX	0x0008	/* GET : no limit on request size */
+/* Driver level flags */
+#define IW_DESCR_FLAG_WAIT	0x0100	/* Wait for driver event */
+
+/* ---------------------------- TYPES ---------------------------- */
+
+/*
+ * Describe how a standard IOCTL looks like.
+ */
+struct iw_ioctl_description
+{
+	__u8	header_type;		/* NULL, iw_point or other */
+	__u8	token_type;		/* Future */
+	__u16	token_size;		/* Granularity of payload */
+	__u16	min_tokens;		/* Min acceptable token number */
+	__u16	max_tokens;		/* Max acceptable token number */
+	__u32	flags;			/* Special handling of the request */
 };
-static const unsigned int standard_ioctl_num = sizeof(standard_ioctl_hdr);
+
+/* -------------------------- VARIABLES -------------------------- */
+
+/*
+ * Meta-data about all the standard Wireless Extension request we
+ * know about.
+ */
+static const struct iw_ioctl_description standard_ioctl_descr[] = {
+	[SIOCSIWCOMMIT	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_NULL,
+	},
+	[SIOCGIWNAME	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_CHAR,
+		.flags		= IW_DESCR_FLAG_DUMP,
+	},
+	[SIOCSIWNWID	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+		.flags		= IW_DESCR_FLAG_EVENT,
+	},
+	[SIOCGIWNWID	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+		.flags		= IW_DESCR_FLAG_DUMP,
+	},
+	[SIOCSIWFREQ	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_FREQ,
+		.flags		= IW_DESCR_FLAG_EVENT,
+	},
+	[SIOCGIWFREQ	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_FREQ,
+		.flags		= IW_DESCR_FLAG_DUMP,
+	},
+	[SIOCSIWMODE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_UINT,
+		.flags		= IW_DESCR_FLAG_EVENT,
+	},
+	[SIOCGIWMODE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_UINT,
+		.flags		= IW_DESCR_FLAG_DUMP,
+	},
+	[SIOCSIWSENS	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCGIWSENS	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCSIWRANGE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_NULL,
+	},
+	[SIOCGIWRANGE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= sizeof(struct iw_range),
+		.flags		= IW_DESCR_FLAG_DUMP,
+	},
+	[SIOCSIWPRIV	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_NULL,
+	},
+	[SIOCGIWPRIV	- SIOCIWFIRST] = { /* (handled directly by us) */
+		.header_type	= IW_HEADER_TYPE_NULL,
+	},
+	[SIOCSIWSTATS	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_NULL,
+	},
+	[SIOCGIWSTATS	- SIOCIWFIRST] = { /* (handled directly by us) */
+		.header_type	= IW_HEADER_TYPE_NULL,
+		.flags		= IW_DESCR_FLAG_DUMP,
+	},
+	[SIOCSIWSPY	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= sizeof(struct sockaddr),
+		.max_tokens	= IW_MAX_SPY,
+	},
+	[SIOCGIWSPY	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= sizeof(struct sockaddr) +
+				  sizeof(struct iw_quality),
+		.max_tokens	= IW_MAX_SPY,
+	},
+	[SIOCSIWTHRSPY	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= sizeof(struct iw_thrspy),
+		.min_tokens	= 1,
+		.max_tokens	= 1,
+	},
+	[SIOCGIWTHRSPY	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= sizeof(struct iw_thrspy),
+		.min_tokens	= 1,
+		.max_tokens	= 1,
+	},
+	[SIOCSIWAP	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_ADDR,
+	},
+	[SIOCGIWAP	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_ADDR,
+		.flags		= IW_DESCR_FLAG_DUMP,
+	},
+	[SIOCSIWMLME	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.min_tokens	= sizeof(struct iw_mlme),
+		.max_tokens	= sizeof(struct iw_mlme),
+	},
+	[SIOCGIWAPLIST	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= sizeof(struct sockaddr) +
+				  sizeof(struct iw_quality),
+		.max_tokens	= IW_MAX_AP,
+		.flags		= IW_DESCR_FLAG_NOMAX,
+	},
+	[SIOCSIWSCAN	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.min_tokens	= 0,
+		.max_tokens	= sizeof(struct iw_scan_req),
+	},
+	[SIOCGIWSCAN	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_SCAN_MAX_DATA,
+		.flags		= IW_DESCR_FLAG_NOMAX,
+	},
+	[SIOCSIWESSID	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_ESSID_MAX_SIZE + 1,
+		.flags		= IW_DESCR_FLAG_EVENT,
+	},
+	[SIOCGIWESSID	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_ESSID_MAX_SIZE + 1,
+		.flags		= IW_DESCR_FLAG_DUMP,
+	},
+	[SIOCSIWNICKN	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_ESSID_MAX_SIZE + 1,
+	},
+	[SIOCGIWNICKN	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_ESSID_MAX_SIZE + 1,
+	},
+	[SIOCSIWRATE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCGIWRATE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCSIWRTS	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCGIWRTS	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCSIWFRAG	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCGIWFRAG	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCSIWTXPOW	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCGIWTXPOW	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCSIWRETRY	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCGIWRETRY	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCSIWENCODE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_ENCODING_TOKEN_MAX,
+		.flags		= IW_DESCR_FLAG_EVENT | IW_DESCR_FLAG_RESTRICT,
+	},
+	[SIOCGIWENCODE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_ENCODING_TOKEN_MAX,
+		.flags		= IW_DESCR_FLAG_DUMP | IW_DESCR_FLAG_RESTRICT,
+	},
+	[SIOCSIWPOWER	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCGIWPOWER	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCSIWMODUL	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCGIWMODUL	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCSIWGENIE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_GENERIC_IE_MAX,
+	},
+	[SIOCGIWGENIE	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_GENERIC_IE_MAX,
+	},
+	[SIOCSIWAUTH	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCGIWAUTH	- SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_PARAM,
+	},
+	[SIOCSIWENCODEEXT - SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.min_tokens	= sizeof(struct iw_encode_ext),
+		.max_tokens	= sizeof(struct iw_encode_ext) +
+				  IW_ENCODING_TOKEN_MAX,
+	},
+	[SIOCGIWENCODEEXT - SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.min_tokens	= sizeof(struct iw_encode_ext),
+		.max_tokens	= sizeof(struct iw_encode_ext) +
+				  IW_ENCODING_TOKEN_MAX,
+	},
+	[SIOCSIWPMKSA - SIOCIWFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.min_tokens	= sizeof(struct iw_pmksa),
+		.max_tokens	= sizeof(struct iw_pmksa),
+	},
+};
+static const unsigned int standard_ioctl_num = (sizeof(standard_ioctl_descr) /
+						sizeof(struct iw_ioctl_description));
 
 /*
  * Meta-data about all the additional standard Wireless Extension events
  * we know about.
  */
-static const char	standard_event_hdr[] = {
-	IW_HEADER_TYPE_ADDR,	/* IWEVTXDROP */
-	IW_HEADER_TYPE_QUAL,	/* IWEVQUAL */
-	IW_HEADER_TYPE_POINT,	/* IWEVCUSTOM */
-	IW_HEADER_TYPE_ADDR,	/* IWEVREGISTERED */
-	IW_HEADER_TYPE_ADDR,	/* IWEVEXPIRED */
+static const struct iw_ioctl_description standard_event_descr[] = {
+	[IWEVTXDROP	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_ADDR,
+	},
+	[IWEVQUAL	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_QUAL,
+	},
+	[IWEVCUSTOM	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_CUSTOM_MAX,
+	},
+	[IWEVREGISTERED	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_ADDR,
+	},
+	[IWEVEXPIRED	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_ADDR, 
+	},
+	[IWEVGENIE	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_GENERIC_IE_MAX,
+	},
+	[IWEVMICHAELMICFAILURE	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT, 
+		.token_size	= 1,
+		.max_tokens	= sizeof(struct iw_michaelmicfailure),
+	},
+	[IWEVASSOCREQIE	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_GENERIC_IE_MAX,
+	},
+	[IWEVASSOCRESPIE	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= IW_GENERIC_IE_MAX,
+	},
+	[IWEVPMKIDCAND	- IWEVFIRST] = {
+		.header_type	= IW_HEADER_TYPE_POINT,
+		.token_size	= 1,
+		.max_tokens	= sizeof(struct iw_pmkid_cand),
+	},
 };
-static const unsigned int standard_event_num = sizeof(standard_event_hdr);
+static const unsigned int standard_event_num = (sizeof(standard_event_descr) /
+						sizeof(struct iw_ioctl_description));
 
 /* Size (in bytes) of various events */
 static const int event_type_size[] = {
-	IW_EV_LCP_LEN,		/* IW_HEADER_TYPE_NULL */
+	IW_EV_LCP_PK_LEN,	/* IW_HEADER_TYPE_NULL */
 	0,
-	IW_EV_CHAR_LEN,		/* IW_HEADER_TYPE_CHAR */
+	IW_EV_CHAR_PK_LEN,	/* IW_HEADER_TYPE_CHAR */
 	0,
-	IW_EV_UINT_LEN,		/* IW_HEADER_TYPE_UINT */
-	IW_EV_FREQ_LEN,		/* IW_HEADER_TYPE_FREQ */
-	IW_EV_ADDR_LEN,		/* IW_HEADER_TYPE_ADDR */
+	IW_EV_UINT_PK_LEN,	/* IW_HEADER_TYPE_UINT */
+	IW_EV_FREQ_PK_LEN,	/* IW_HEADER_TYPE_FREQ */
+	IW_EV_ADDR_PK_LEN,	/* IW_HEADER_TYPE_ADDR */
 	0,
-	IW_EV_POINT_LEN,	/* Without variable payload */
-	IW_EV_PARAM_LEN,	/* IW_HEADER_TYPE_PARAM */
-	IW_EV_QUAL_LEN,		/* IW_HEADER_TYPE_QUAL */
+	IW_EV_POINT_PK_LEN,	/* Without variable payload */
+	IW_EV_PARAM_PK_LEN,	/* IW_HEADER_TYPE_PARAM */
+	IW_EV_QUAL_PK_LEN,	/* IW_HEADER_TYPE_QUAL */
 };
-
-/* Forward compatibility with WE-19 */
-#define IW_EV_POINT_OFF (((char *) &(((struct iw_point *) NULL)->length)) - \
-			  (char *) NULL)
 
 /*------------------------------------------------------------------*/
 /*
@@ -2245,35 +2712,33 @@ iw_extract_event_stream(struct stream_descr *	stream,	/* Stream of events */
 			struct iw_event *	iwe,	/* Extracted event */
 			int			we_version)
 {
+  const struct iw_ioctl_description *	descr = NULL;
   int		event_type = 0;
   unsigned int	event_len = 1;		/* Invalid */
   char *	pointer;
   /* Don't "optimise" the following variable, it will crash */
   unsigned	cmd_index;		/* *MUST* be unsigned */
 
-  /* Unused for now. Will be later on... */
-  we_version = we_version;
-
   /* Check for end of stream */
-  if((stream->current + IW_EV_LCP_LEN) > stream->end)
+  if((stream->current + IW_EV_LCP_PK_LEN) > stream->end)
     return(0);
 
-#if 0
+#ifdef DEBUG
   printf("DBG - stream->current = %p, stream->value = %p, stream->end = %p\n",
 	 stream->current, stream->value, stream->end);
 #endif
 
   /* Extract the event header (to get the event id).
    * Note : the event may be unaligned, therefore copy... */
-  memcpy((char *) iwe, stream->current, IW_EV_LCP_LEN);
+  memcpy((char *) iwe, stream->current, IW_EV_LCP_PK_LEN);
 
-#if 0
+#ifdef DEBUG
   printf("DBG - iwe->cmd = 0x%X, iwe->len = %d\n",
 	 iwe->cmd, iwe->len);
 #endif
 
   /* Check invalid events */
-  if(iwe->len <= IW_EV_LCP_LEN)
+  if(iwe->len <= IW_EV_LCP_PK_LEN)
     return(-1);
 
   /* Get the type and length of that event */
@@ -2281,36 +2746,38 @@ iw_extract_event_stream(struct stream_descr *	stream,	/* Stream of events */
     {
       cmd_index = iwe->cmd - SIOCIWFIRST;
       if(cmd_index < standard_ioctl_num)
-	event_type = standard_ioctl_hdr[cmd_index];
+	descr = &(standard_ioctl_descr[cmd_index]);
     }
   else
     {
       cmd_index = iwe->cmd - IWEVFIRST;
       if(cmd_index < standard_event_num)
-	event_type = standard_event_hdr[cmd_index];
+	descr = &(standard_event_descr[cmd_index]);
     }
-  /* Unknown events -> event_type=0 => IW_EV_LCP_LEN */
+  if(descr != NULL)
+    event_type = descr->header_type;
+  /* Unknown events -> event_type=0 => IW_EV_LCP_PK_LEN */
   event_len = event_type_size[event_type];
-  /* Fixup for later version of WE */
-  if((we_version > 18) && (event_type == IW_HEADER_TYPE_POINT))
-    event_len -= IW_EV_POINT_OFF;
+  /* Fixup for earlier version of WE */
+  if((we_version <= 18) && (event_type == IW_HEADER_TYPE_POINT))
+    event_len += IW_EV_POINT_OFF;
 
   /* Check if we know about this event */
-  if(event_len <= IW_EV_LCP_LEN)
+  if(event_len <= IW_EV_LCP_PK_LEN)
     {
       /* Skip to next event */
       stream->current += iwe->len;
       return(2);
     }
-  event_len -= IW_EV_LCP_LEN;
+  event_len -= IW_EV_LCP_PK_LEN;
 
   /* Set pointer on data */
   if(stream->value != NULL)
     pointer = stream->value;			/* Next value in event */
   else
-    pointer = stream->current + IW_EV_LCP_LEN;	/* First value in event */
+    pointer = stream->current + IW_EV_LCP_PK_LEN;	/* First value in event */
 
-#if 0
+#ifdef DEBUG
   printf("DBG - event_type = %d, event_len = %d, pointer = %p\n",
 	 event_type, event_len, pointer);
 #endif
@@ -2322,7 +2789,8 @@ iw_extract_event_stream(struct stream_descr *	stream,	/* Stream of events */
       stream->current += iwe->len;
       return(-2);
     }
-  /* Fixup for later version of WE */
+  /* Fixup for WE-19 and later : pointer no longer in the stream */
+  /* Beware of alignement. Dest has local alignement, not packed */
   if((we_version > 18) && (event_type == IW_HEADER_TYPE_POINT))
     memcpy((char *) iwe + IW_EV_LCP_LEN + IW_EV_POINT_OFF,
 	   pointer, event_len);
@@ -2336,9 +2804,66 @@ iw_extract_event_stream(struct stream_descr *	stream,	/* Stream of events */
   if(event_type == IW_HEADER_TYPE_POINT)
     {
       /* Check the length of the payload */
-      if((iwe->len - (event_len + IW_EV_LCP_LEN)) > 0)
-	/* Set pointer on variable part (warning : non aligned) */
-	iwe->u.data.pointer = pointer;
+      unsigned int	extra_len = iwe->len - (event_len + IW_EV_LCP_PK_LEN);
+      if(extra_len > 0)
+	{
+	  /* Set pointer on variable part (warning : non aligned) */
+	  iwe->u.data.pointer = pointer;
+
+	  /* Check that we have a descriptor for the command */
+	  if(descr == NULL)
+	    /* Can't check payload -> unsafe... */
+	    iwe->u.data.pointer = NULL;	/* Discard paylod */
+	  else
+	    {
+	      /* Those checks are actually pretty hard to trigger,
+	       * because of the checks done in the kernel... */
+
+	      unsigned int	token_len = iwe->u.data.length * descr->token_size;
+
+	      /* Ugly fixup for alignement issues.
+	       * If the kernel is 64 bits and userspace 32 bits,
+	       * we have an extra 4+4 bytes.
+	       * Fixing that in the kernel would break 64 bits userspace. */
+	      if((token_len != extra_len) && (extra_len >= 4))
+		{
+		  __u16		alt_dlen = *((__u16 *) pointer);
+		  unsigned int	alt_token_len = alt_dlen * descr->token_size;
+		  if((alt_token_len + 8) == extra_len)
+		    {
+#ifdef DEBUG
+		      printf("DBG - alt_token_len = %d\n", alt_token_len);
+#endif
+		      /* Ok, let's redo everything */
+		      pointer -= event_len;
+		      pointer += 4;
+		      /* Dest has local alignement, not packed */
+		      memcpy((char *) iwe + IW_EV_LCP_LEN + IW_EV_POINT_OFF,
+			     pointer, event_len);
+		      pointer += event_len + 4;
+		      iwe->u.data.pointer = pointer;
+		      token_len = alt_token_len;
+		    }
+		}
+
+	      /* Discard bogus events which advertise more tokens than
+	       * what they carry... */
+	      if(token_len > extra_len)
+		iwe->u.data.pointer = NULL;	/* Discard paylod */
+	      /* Check that the advertised token size is not going to
+	       * produce buffer overflow to our caller... */
+	      if((iwe->u.data.length > descr->max_tokens)
+		 && !(descr->flags & IW_DESCR_FLAG_NOMAX))
+		iwe->u.data.pointer = NULL;	/* Discard paylod */
+	      /* Same for underflows... */
+	      if(iwe->u.data.length < descr->min_tokens)
+		iwe->u.data.pointer = NULL;	/* Discard paylod */
+#ifdef DEBUG
+	      printf("DBG - extra_len = %d, token_len = %d, token = %d, max = %d, min = %d\n",
+		     extra_len, token_len, iwe->u.data.length, descr->max_tokens, descr->min_tokens);
+#endif
+	    }
+	}
       else
 	/* No data */
 	iwe->u.data.pointer = NULL;
@@ -2348,6 +2873,25 @@ iw_extract_event_stream(struct stream_descr *	stream,	/* Stream of events */
     }
   else
     {
+      /* Ugly fixup for alignement issues.
+       * If the kernel is 64 bits and userspace 32 bits,
+       * we have an extra 4 bytes.
+       * Fixing that in the kernel would break 64 bits userspace. */
+      if((stream->value == NULL)
+	 && ((((iwe->len - IW_EV_LCP_PK_LEN) % event_len) == 4)
+	     || ((iwe->len == 12) && ((event_type == IW_HEADER_TYPE_UINT) ||
+				      (event_type == IW_HEADER_TYPE_QUAL))) ))
+	{
+#ifdef DEBUG
+	  printf("DBG - alt iwe->len = %d\n", iwe->len - 4);
+#endif
+	  pointer -= event_len;
+	  pointer += 4;
+	  /* Beware of alignement. Dest has local alignement, not packed */
+	  memcpy((char *) iwe + IW_EV_LCP_LEN, pointer, event_len);
+	  pointer += event_len;
+	}
+
       /* Is there more value in the event ? */
       if((pointer + event_len) <= (stream->current + iwe->len))
 	/* Go to next value */
@@ -2439,9 +2983,9 @@ iw_process_scanning_token(struct iw_event *		event,
     case SIOCGIWESSID:
       wscan->b.has_essid = 1;
       wscan->b.essid_on = event->u.data.flags;
+      memset(wscan->b.essid, '\0', IW_ESSID_MAX_SIZE+1);
       if((event->u.essid.pointer) && (event->u.essid.length))
 	memcpy(wscan->b.essid, event->u.essid.pointer, event->u.essid.length);
-      wscan->b.essid[event->u.essid.length] = '\0';
       break;
     case SIOCGIWENCODE:
       wscan->b.has_key = 1;
@@ -2455,11 +2999,17 @@ iw_process_scanning_token(struct iw_event *		event,
     case IWEVQUAL:
       /* We don't get complete stats, only qual */
       wscan->has_stats = 1;
-      memcpy(&wscan->stats.qual, &event->u.qual, sizeof(iwstats));
+      memcpy(&wscan->stats.qual, &event->u.qual, sizeof(struct iw_quality));
       break;
     case SIOCGIWRATE:
-      /* Scan may return a list of bitrates. Should we really bother with
-       * an array of bitrates ? Or only the maximum bitrate ? Jean II */
+      /* Scan may return a list of bitrates. As we have space for only
+       * a single bitrate, we only keep the largest one. */
+      if((!wscan->has_maxbitrate) ||
+	 (event->u.bitrate.value > wscan->maxbitrate.value))
+	{
+	  wscan->has_maxbitrate = 1;
+	  memcpy(&(wscan->maxbitrate), &(event->u.bitrate), sizeof(iwparam));
+	}
     case IWEVCUSTOM:
       /* How can we deal with those sanely ? Jean II */
     default:
@@ -2489,9 +3039,9 @@ iw_process_scan(int			skfd,
   int			buflen = IW_SCAN_MAX_DATA; /* Min for compat WE<17 */
   unsigned char *	newbuf;
 
-  /* Don't waste too much time on interfaces (50 * 100 = 5s) */
+  /* Don't waste too much time on interfaces (150 * 100 = 15s) */
   context->retry++;
-  if(context->retry > 50)
+  if(context->retry > 150)
     {
       errno = ETIME;
       return(-1);
@@ -2504,7 +3054,9 @@ iw_process_scan(int			skfd,
       wrq.u.data.pointer = NULL;		/* Later */
       wrq.u.data.flags = 0;
       wrq.u.data.length = 0;
-      if(iw_set_ext(skfd, ifname, SIOCSIWSCAN, &wrq) < 0)
+      /* Remember that as non-root, we will get an EPERM here */
+      if((iw_set_ext(skfd, ifname, SIOCSIWSCAN, &wrq) < 0)
+	 && (errno != EPERM))
 	return(-1);
       /* Success : now, just wait for event or results */
       return(250);	/* Wait 250 ms */
@@ -2570,7 +3122,7 @@ iw_process_scan(int			skfd,
       struct stream_descr	stream;
       struct wireless_scan *	wscan = NULL;
       int			ret;
-#if 0
+#ifdef DEBUG
       /* Debugging code. In theory useless, because it's debugged ;-) */
       int	i;
       printf("Scan result [%02X", buffer[0]);
@@ -2580,7 +3132,7 @@ iw_process_scan(int			skfd,
 #endif
 
       /* Init */
-      iw_init_event_stream(&stream, buffer, wrq.u.data.length);
+      iw_init_event_stream(&stream, (char *) buffer, wrq.u.data.length);
       /* This is dangerous, we may leak user data... */
       context->result = NULL;
 

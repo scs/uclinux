@@ -1,14 +1,14 @@
 /*
  *	Wireless Tools
  *
- *		Jean II - HPLB 97->99 - HPL 99->04
+ *		Jean II - HPLB 97->99 - HPL 99->07
  *
  * Main code for "iwconfig". This is the generic tool for most
  * manipulations...
  * You need to link this code against "iwlib.c" and "-lm".
  *
  * This file is released under the GPL license.
- *     Copyright (c) 1997-2004 Jean Tourrilhes <jt@hpl.hp.com>
+ *     Copyright (c) 1997-2007 Jean Tourrilhes <jt@hpl.hp.com>
  */
 
 #include "iwlib.h"		/* Header */
@@ -241,8 +241,6 @@ static void
 iw_usage(void)
 {
   fprintf(stderr, "Usage: iwpriv interface [private-command [private-arguments]]\n");
-  fprintf(stderr, "              interface [roam {on|off}]\n");
-  fprintf(stderr, "              interface [port {ad-hoc|managed|N}]\n");
 }
 
 /************************* SETTING ROUTINES **************************/
@@ -269,7 +267,7 @@ set_private_cmd(int		skfd,		/* Socket */
   int		offset = 0;	/* Space for sub-ioctl index */
 
   /* Check if we have a token index.
-   * Do it now so that sub-ioctl takes precendence, and so that we
+   * Do it now so that sub-ioctl takes precedence, and so that we
    * don't have to bother with it later on... */
   if((count >= 1) && (sscanf(args[0], "[%i]", &temp) == 1))
     {
@@ -386,9 +384,9 @@ set_private_cmd(int		skfd,		/* Socket */
 		printf("Invalid float [%s]...\n", args[i]);
 		return(-1);
 	      }    
-	    if(index(args[i], 'G')) freq *= GIGA;
-	    if(index(args[i], 'M')) freq *= MEGA;
-	    if(index(args[i], 'k')) freq *= KILO;
+	    if(strchr(args[i], 'G')) freq *= GIGA;
+	    if(strchr(args[i], 'M')) freq *= MEGA;
+	    if(strchr(args[i], 'k')) freq *= KILO;
 	    sscanf(args[i], "%i", &temp);
 	    iw_float2freq(freq, ((struct iw_freq *) buffer) + i);
 	  }
@@ -412,14 +410,14 @@ set_private_cmd(int		skfd,		/* Socket */
 	  break;
 
 	default:
-	  fprintf(stderr, "Not yet implemented...\n");
+	  fprintf(stderr, "Not implemented...\n");
 	  return(-1);
 	}
 	  
       if((priv[k].set_args & IW_PRIV_SIZE_FIXED) &&
 	 (wrq.u.data.length != (priv[k].set_args & IW_PRIV_SIZE_MASK)))
 	{
-	  printf("The command %s need exactly %d argument...\n",
+	  printf("The command %s needs exactly %d argument(s)...\n",
 		 cmdname, priv[k].set_args & IW_PRIV_SIZE_MASK);
 	  return(-1);
 	}
@@ -453,7 +451,7 @@ set_private_cmd(int		skfd,		/* Socket */
 	}
       else
 	{
-	  /* Thirst case : args won't fit in wrq, or variable number of args */
+	  /* Third case : args won't fit in wrq, or variable number of args */
 	  wrq.u.data.pointer = (caddr_t) buffer;
 	  wrq.u.data.flags = subcmd;
 	}
@@ -538,7 +536,7 @@ set_private_cmd(int		skfd,		/* Socket */
 		if(j)
 		  printf("           %.*s", 
 			 (int) strlen(cmdname), "                ");
-		printf("%s\n", iw_pr_ether(scratch, hwa->sa_data));
+		printf("%s\n", iw_saether_ntop(hwa, scratch));
 	      }
 	  }
 	  break;
@@ -620,7 +618,7 @@ print_priv_info(int		skfd,
     }
   else
     {
-      printf("%-8.16s  Available private ioctl :\n", ifname);
+      printf("%-8.16s  Available private ioctls :\n", ifname);
       /* Print them all */
       for(k = 0; k < n; k++)
 	if(priv[k].name[0] != '\0')
@@ -692,6 +690,7 @@ print_priv_all(int		skfd,
  * Convenient access to some private ioctls of some devices
  */
 
+#if 0
 /*------------------------------------------------------------------*/
 /*
  * Set roaming mode on and off
@@ -907,6 +906,7 @@ port_type(int		skfd,		/* Socket */
   free(priv);
   return(-1);
 }
+#endif
 
 /******************************* MAIN ********************************/
 
@@ -956,6 +956,7 @@ main(int	argc,
 	       (!strcmp(argv[2], "--all")))
 	      print_priv_all(skfd, argv[1], NULL, 0);
 	    else
+#if 0
 	      /* Roaming */
 	      if(!strncmp(argv[2], "roam", 4))
 		goterr = set_roaming(skfd, argv + 3, argc - 3, argv[1]);
@@ -964,6 +965,7 @@ main(int	argc,
 		if(!strncmp(argv[2], "port", 4))
 		  goterr = port_type(skfd, argv + 3, argc - 3, argv[1]);
 		else
+#endif
 		  /*-------------*/
 		  /* Otherwise, it's a private ioctl */
 		  goterr = set_private(skfd, argv + 2, argc - 2, argv[1]);

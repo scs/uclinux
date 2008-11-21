@@ -2,26 +2,35 @@
 ## Please check the configurion parameters below
 ##
 
-## Installation directory. By default, go in /usr/local
+## Installation directory. By default, go in /usr/local.
 ## Distributions should probably use /, but they probably know better...
 ifndef PREFIX
   PREFIX = /usr/local
 endif
 
 ## Compiler to use (modify this for cross compile)
-# CC = gcc
+#CC = gcc
 ## Other tools you need to modify for cross compile (static lib only)
-# AR = ar
-# RANLIB = ranlib
+#AR = ar
+#RANLIB = ranlib
 
-## Uncomment this to build tools using static version of the library
+## Uncomment this to build tools using static version of the library.
 ## Mostly useful for embedded platforms without ldd, or to create
 ## a local version (non-root).
-#BUILD_STATIC = y
+BUILD_STATIC = y
 
-## Uncomment this to build without using libm (less efficient)
+## Uncomment this to build without using libm (less efficient).
 ## This is mostly useful for embedded platforms without maths.
 # BUILD_NOLIBM = y
+
+## Uncomment this to strip binary from symbols. This reduce binary size.
+## by a few percent but make debug worse...
+# BUILD_STRIPPING = y
+
+## Uncomment this to build with only essential functionality.
+## This leaves out the less used features and cut in half the tools.
+## This is mostly useful for embedded platforms without limited feature needs.
+# BUILD_WE_ESSENTIAL = y
 
 # ***************************************************************************
 # ***** Most users should not need to change anything beyond this point *****
@@ -43,26 +52,18 @@ PROGS= iwconfig iwlist iwpriv iwspy iwgetid iwevent ifrename
 MANPAGES8=iwconfig.8 iwlist.8 iwpriv.8 iwspy.8 iwgetid.8 iwevent.8 ifrename.8
 MANPAGES7=wireless.7
 MANPAGES5=iftab.5
-EXTRAPROGS= macaddr
+EXTRAPROGS= macaddr iwmulticall
 
 # Composition of the library :
 OBJS = iwlib.o
 
 # Select which library to build and to link tool with
-#ifdef BUILD_STATIC
-#  IWLIB=$(STATIC)
-#  IWLIB_INSTALL=install-static
-#else
-#  IWLIB=$(DYNAMIC)
-#  IWLIB_INSTALL=install-dynamic
-#endif
-
-ifdef CONFIG_FMT_USE_FDPIC_ELF
-  IWLIB=$(DYNAMIC)
-  IWLIB_INSTALL=install-dynamic
-else
+ifdef BUILD_STATIC
   IWLIB=$(STATIC)
   IWLIB_INSTALL=install-static
+else
+  IWLIB=$(DYNAMIC)
+  IWLIB_INSTALL=install-dynamic
 endif
 
 # Standard name for dynamic library so that the dynamic linker can pick it.
@@ -77,30 +78,42 @@ INSTALL_MAN= $(PREFIX)/man/
 
 # Various commands
 RM = rm -f
-RM_CMD = $(RM) *.BAK *.bak *.d *.o *.so ,* *~ *.a *.orig *.rej *.out *.gdb
+RM_CMD = $(RM) *.BAK *.bak *.d *.o *.so *.so.? *.so.?? ,* *~ *.a *.orig *.rej *.out
 LDCONFIG = ldconfig
 
 # Do we want to build with or without libm ?
 ifdef BUILD_NOLIBM
-  LIBS=
-  WELIB_FLAG = -DWE_NOLIBM=y
+  LIBS+=
+  WELIB_FLAG= -DWE_NOLIBM=y
 else
-  LIBS= -lm
+  LIBS+= -lm
+endif
+
+# Stripping or not ?
+ifdef BUILD_STRIPPING
+  STRIPFLAGS= -Wl,-s
+else
+  STRIPFLAGS=
+endif
+
+# Do we want to build with only essential functionality ?
+ifdef BUILD_WE_ESSENTIAL
+  WEDEF_FLAG= -DWE_ESSENTIAL=y
 endif
 
 # Other flags
-# CFLAGS=-Os -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow \
-	-Wpointer-arith -Wcast-qual -Winline -I.
+#CFLAGS=-Os -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow \
+#	-Wpointer-arith -Wcast-qual -Winline -I.
 #CFLAGS=-O2 -W -Wall -Wstrict-prototypes -I.
 DEPFLAGS=-MMD
-XCFLAGS=$(CFLAGS) -I. $(DEPFLAGS) $(WARN) $(HEADERS) $(WELIB_FLAG)
+XCFLAGS=$(CFLAGS) $(WARN) $(HEADERS) $(WELIB_FLAG) $(WEDEF_FLAG)
 PICFLAG=-fPIC
 
 # Standard compilation targets
 all:: $(IWLIB) $(PROGS)
 
 %: %.o
-	$(CC) $(LDFLAGS) $(XCFLAGS) -o $@ $^ $(LIBS)
+	$(CC) $(LDFLAGS) $(XCFLAGS) -o $@ $^ $(LIBS) $(LDLIBS$(LDLIBS_$@))
 %.o: %.c wireless.h
 	$(CC) $(XCFLAGS) -c $<
 %.so: %.c wireless.h
@@ -122,16 +135,19 @@ ifrename: ifrename.o $(IWLIB)
 
 macaddr: macaddr.o $(IWLIB)
 
+# Always do symbol stripping here
+iwmulticall: iwmulticall.o
+	$(CC) $(LDFLAGS) -Wl,-s $(XCFLAGS) -o $@ $^ $(LIBS)
+
 # It's a kind of magic...
 wireless.h:
 	cp $(WEXT_HEADER) wireless.h
 
 # Compilation of the dynamic library
 $(DYNAMIC): $(OBJS:.o=.so)
-	$(CC) -shared -o $@ -Wl,-soname,$@ $(LIBS) -lc $^
+	$(CC) -shared $(LDFLAGS) -o $@ -Wl,-soname,$@ $(LIBS) -lc $^ $(LDLIBS$(LDLIBS_$@))
 
 romfs:
-	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF /lib/$(IWLIB)
 	$(ROMFSINST) -e CONFIG_USER_WIRELESS_TOOLS_IWCONFIG /bin/iwconfig
 	$(ROMFSINST) -e CONFIG_USER_WIRELESS_TOOLS_IWLIST   /bin/iwlist
 	$(ROMFSINST) -e CONFIG_USER_WIRELESS_TOOLS_IWPRIV   /bin/iwpriv
@@ -140,25 +156,14 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_WIRELESS_TOOLS_IWEVENT  /bin/iwevent
 
 # Compilation of the static library
-$(STATIC): $(OBJS)
+$(STATIC): $(OBJS:.o=.so)
 	$(RM) $@
 	$(AR) cru $@ $^
 	$(RANLIB) $@
 
-# So crude but so effective ;-)
+# Installation : So crude but so effective ;-)
 # Less crude thanks to many contributions ;-)
-install:: all $(IWLIB_INSTALL)
-	install -m 755 -d $(INSTALL_DIR)
-	install -m 755 $(PROGS) $(INSTALL_DIR)
-	install -m 755 -d $(INSTALL_INC)
-	install -m 644 iwlib.h $(INSTALL_INC)
-	install -m 644 wireless.h $(INSTALL_INC)
-	install -m 755 -d $(INSTALL_MAN)/man8/
-	install -m 644 $(MANPAGES8) $(INSTALL_MAN)/man8/
-	install -m 755 -d $(INSTALL_MAN)/man7/
-	install -m 644 $(MANPAGES7) $(INSTALL_MAN)/man7/
-	install -m 755 -d $(INSTALL_MAN)/man5/
-	install -m 644 $(MANPAGES5) $(INSTALL_MAN)/man5/
+install:: $(IWLIB_INSTALL) install-bin install-hdr install-man
 
 # Install the dynamic library
 install-dynamic:: $(DYNAMIC)
@@ -173,10 +178,36 @@ install-static:: $(STATIC)
 	install -m 755 -d $(INSTALL_LIB)
 	install -m 644 $(STATIC) $(INSTALL_LIB)
 
-clean::
-	$(RM_CMD) 
+# All the binaries. Careful, no dependancy on install-dynamic
+install-bin:: all
+	install -m 755 -d $(INSTALL_DIR)
+	install -m 755 $(PROGS) $(INSTALL_DIR)
 
-realclean::
+# Headers to go with the wireless lib (dev)
+install-hdr:: wireless.h
+	install -m 755 -d $(INSTALL_INC)
+	install -m 644 iwlib.h $(INSTALL_INC)
+	install -m 644 wireless.h $(INSTALL_INC)
+
+# How could you live without those manapages ?
+install-man::
+	install -m 755 -d $(INSTALL_MAN)/man8/
+	install -m 644 $(MANPAGES8) $(INSTALL_MAN)/man8/
+	install -m 755 -d $(INSTALL_MAN)/man7/
+	install -m 644 $(MANPAGES7) $(INSTALL_MAN)/man7/
+	install -m 755 -d $(INSTALL_MAN)/man5/
+	install -m 644 $(MANPAGES5) $(INSTALL_MAN)/man5/
+
+install-iwmulticall:: iwmulticall
+	install -m 755 -d $(INSTALL_DIR)
+	install -m 755 $< $(INSTALL_DIR)/iwconfig
+	( cd $(INSTALL_DIR) ; \
+	  ln -f -s iwconfig iwlist ; \
+	  ln -f -s iwconfig iwspy ; \
+	  ln -f -s iwconfig iwpriv ; \
+	  ln -f -s iwconfig iwgetid )
+
+clean::
 	$(RM_CMD) 
 	$(RM) $(STATIC) $(DYNAMIC) $(PROGS) $(EXTRAPROGS) libiw* wireless.h
 
