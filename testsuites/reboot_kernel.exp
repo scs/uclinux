@@ -195,8 +195,8 @@ while 1 {
          }
 
          timeout {
-            send_user "Failed to reboot the linux kernel"	  
-            exit
+            send_user "Reboot the linux kernel timeout!\n"
+            break	  
          }
       }
 }
