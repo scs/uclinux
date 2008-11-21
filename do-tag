@@ -96,17 +96,24 @@ VERSION_STRING="v$OPT_VERSION_MAJOR.$OPT_VERSION_MINOR"
 # This adjusts the CONFIG_LOCALVERSION line in each file in the vendors/SCS folder named "config.linux-2.6.x".
 # Make sure that CONFIG_USER_BUSYBOX_HAVE_DOT_CONFIG=y is set in the "config.vendor-2.6.x" respective folder.
 find "vendors/SCS" -type "f" -name "config.linux-2.6.x" | while IFS= read i; do
-	sed -ri -e "s/(CONFIG_LOCALVERSION=\")[^\"]*(\")/\1-Git_$VERSION_STRING\2/" "$i"
+	if [ "$OPT_NAMESPACE" == "release" ]; then
+		sed -ri -e "s/(CONFIG_LOCALVERSION=\")[^\"]*(\")/\1-Git_$VERSION_STRING\2/" "$i"
+	else
+		sed -ri -e "s/(CONFIG_LOCALVERSION=\")[^\"]*(\")/\1-Git_$OPT_NAMESPACE\/$VERSION_STRING\2/" "$i"
+	fi
+	git add "$i"
 done
 
 if [ "$OPT_COMMIT" ]; then
-	if [ "$OPT_EDIT_MESSAGE" ]; then
-		git commit -e -m "+ Release $VERSION_STRING" "$VERSION_FILE"
+	if [ "$OPT_NAMESPACE" == "release" ]; then
+		COMMIT_MESSAGE="+ Release $VERSION_STRING"
 	else
-		git commit -m "+ Release $VERSION_STRING" "$VERSION_FILE"
+		COMMIT_MESSAGE="+ \"$OPT_NAMESPACE\" release $VERSION_STRING"
+	fi
+	if [ "$OPT_EDIT_MESSAGE" ]; then
+		git commit -e -m "$COMMIT_MESSAGE"
+	else
+		git commit -m "$COMMIT_MESSAGE"
 	fi
 	git tag "$OPT_NAMESPACE/$VERSION_STRING"
 fi
-
-
-
