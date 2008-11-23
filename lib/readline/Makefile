@@ -1,26 +1,18 @@
-VER = readline-5.2_p12
+VER = readline-5.2_p13
 
-TARGETS-y =
-TARGETS-$(CONFIG_FMT_USE_FDPIC_ELF) += install-shared
+CONF_OPTS = $(CONFIGURE_SHARED_ENABLE)
 
-all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER) install $(TARGETS-y) DESTDIR=$(STAGEDIR)
+include $(ROOTDIR)/tools/autotools.mk
+
+pre-build::
+	$(MAKE) -C build-$(VER)
+
+post-build::
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	$(MAKE) -C build-$(VER) install-shared
+endif
 	rm -f $(STAGEDIR)/usr/lib/*.old
-
-build-$(VER)/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	CROSS_COMPILE="" \
-	../$(VER)/configure $(CONFIGURE_OPTS)
-
-clean:
-	rm -rf build-*
 
 romfs:
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libreadline.so.5 /lib/
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libhistory.so.5 /lib/
-
-.PHONY: all clean romfs
