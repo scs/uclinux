@@ -1,3 +1,3 @@
 for i in serverip; do
-	export fw_printenv "$i" > /dev/null && eval export `fw_printenv "$i"`
+	fw_printenv "$i" > /dev/null && eval export `fw_printenv "$i"`
 done
