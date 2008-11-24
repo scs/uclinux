@@ -63,7 +63,7 @@ if [ "$ipaddr" = "dhcp" ]; then
 	echo "Using DHCP."
 else
 	# Send out two gratuitious arp request
-	arping -c 2 -w 1 "$ipaddr" &
+	arping -c 2 -w 1 "$ipaddr" > /dev/null 2>&1 &
 fi
 
 # Detect first-time-boot if not valid ethaddr u-boot environment available
@@ -87,7 +87,7 @@ cat /etc/motd
 
 #start webserver
 echo "Starting Webserver"
-boa -f /etc/boa.conf &
+boa -f /etc/boa.conf > /dev/null 2>&1 &
 
 #launch user specific application script
 if echo "$runscript" | grep -q "^/" && [ -f "$runscript" ] && [ -x "$runscript" ]; then
