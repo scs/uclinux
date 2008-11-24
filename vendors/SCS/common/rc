@@ -90,10 +90,10 @@ echo "Starting Webserver"
 boa -f /etc/boa.conf &
 
 #launch user specific application script
-if echo "$runscript" | grep -q "^/" && [ -x "$runscript" ]; then
-	echo "Executing $runscript..."
+if echo "$runscript" | grep -q "^/" && [ -f "$runscript" ] && [ -x "$runscript" ]; then
+	echo "Executing $runscript ..."
 	(cd /; "$runscript") &
-elif [ -x "/mnt/app/$runscript" ]; then
-	echo "Executing /mnt/app/$runscript..."
-	(cd /mnt/app; ./$runscript) &
+elif [ -f "/mnt/app/$runscript" ] && [ -x "/mnt/app/$runscript" ]; then
+	echo "Executing /mnt/app/$runscript ..."
+	(cd /mnt/app; "./$runscript") &
 fi
