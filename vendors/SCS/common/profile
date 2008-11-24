@@ -1,3 +1,4 @@
 for i in serverip; do
 	fw_printenv "$i" > /dev/null && eval export `fw_printenv "$i"`
 done
+i=

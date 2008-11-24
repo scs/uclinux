@@ -1,4 +1,4 @@
-hostname blackfin
+hostname leanxcam
 mount -t proc proc /proc
 mount -t ramfs ramfs /var
 mount -t sysfs sysfs /sys
@@ -81,13 +81,13 @@ if [ ! "$ethaddr" ]; then
 	[ -e "/tmp/runinit.sh" ] && chmod +x "/tmp/runinit.sh" && /tmp/runinit.sh
 fi
 
-inetd &
+echo "Starting dameons"
+syslogd -n -b 1 -s 128 -O > /dev/null 2>&1 &
+klogd -n > /dev/null 2>&1 &
+boa -f /etc/boa.conf > /dev/null 2>&1 &
+inetd > /dev/null 2>&1 &
 
 cat /etc/motd
-
-#start webserver
-echo "Starting Webserver"
-boa -f /etc/boa.conf > /dev/null 2>&1 &
 
 #launch user specific application script
 if echo "$runscript" | grep -q "^/" && [ -f "$runscript" ] && [ -x "$runscript" ]; then

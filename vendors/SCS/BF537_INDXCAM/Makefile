@@ -21,7 +21,7 @@ INODES   = 1024
 
 ROMFS_DIRS = bin etc etc/boa home lib mnt proc sys usr var root home tmp var/run var/lib/misc home/httpd home/httpd/cgi-bin var/log/boa
 
-ETC_FILES = filesystems group hosts host.conf inetd.conf issue mime.types modprobe.conf passwd rc fstab protocols services inittab mdev.conf boa.conf TZ fw_env.config profile
+ETC_FILES = TZ boa.conf filesystems fstab fw_env.config group host.conf hosts inetd.conf inittab issue mdev.conf motd mime.types modprobe.conf passwd profile protocols rc services
 BIN_FILES = maintenance netview fw_printenv fw_setenv
 
 all::
