@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+    <title>OProfile JIT agent developer guide</title>
+    <meta name="generator" content="DocBook XSL Stylesheets V1.69.1" />
+  </head>
+  <body>
+    <div class="book" lang="en" xml:lang="en">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h1 class="title"><a id="oprofile-devel-guide"></a>OProfile JIT agent developer guide</h1>
+          </div>
+          <div>
+            <div class="authorgroup">
+              <div class="author">
+                <h3 class="author"><span class="firstname">Maynard</span> <span class="surname">Johnson</span></h3>
+                <div class="affiliation">
+                  <div class="address">
+                    <p>
+                      <code class="email">&lt;<a href="mailto:maynardj@us.ibm.com">maynardj@us.ibm.com</a>&gt;</code>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="copyright">Copyright © 2007 IBM Corporation</p>
+          </div>
+        </div>
+        <hr />
+      </div>
+      <div class="toc">
+        <p>
+          <b>Table of Contents</b>
+        </p>
+        <dl>
+          <dt>
+            <span class="chapter">
+              <a href="#developing">1. Developing a new JIT agent</a>
+            </span>
+          </dt>
+          <dd>
+            <dl>
+              <dt>
+                <span class="sect1">
+                  <a href="#jit-devel-overview">1. Overview</a>
+                </span>
+              </dt>
+              <dt>
+                <span class="sect1">
+                  <a href="#jit-interface">2. Implementing JIT support for a new virtual machine</a>
+                </span>
+              </dt>
+            </dl>
+          </dd>
+          <dt>
+            <span class="chapter">
+              <a href="#jit-api">2. The JIT support API</a>
+            </span>
+          </dt>
+          <dd>
+            <dl>
+              <dt>
+                <span class="sect1">
+                  <a href="#op_open_agent">1. op_open_agent</a>
+                </span>
+              </dt>
+              <dt>
+                <span class="sect1">
+                  <a href="#op_close_agent">2. op_close_agent</a>
+                </span>
+              </dt>
+              <dt>
+                <span class="sect1">
+                  <a href="#op_write_native_code">3. op_write_native_code</a>
+                </span>
+              </dt>
+              <dt>
+                <span class="sect1">
+                  <a href="#op_write_debug_line_info">4. op_write_debug_line_info</a>
+                </span>
+              </dt>
+              <dt>
+                <span class="sect1">
+                  <a href="#op_unload_native_code">5. op_unload_native_code</a>
+                </span>
+              </dt>
+            </dl>
+          </dd>
+        </dl>
+      </div>
+      <div class="chapter" lang="en" xml:lang="en">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title"><a id="developing"></a>Chapter 1. Developing a new JIT agent</h2>
+            </div>
+          </div>
+        </div>
+        <div class="toc">
+          <p>
+            <b>Table of Contents</b>
+          </p>
+          <dl>
+            <dt>
+              <span class="sect1">
+                <a href="#jit-devel-overview">1. Overview</a>
+              </span>
+            </dt>
+            <dt>
+              <span class="sect1">
+                <a href="#jit-interface">2. Implementing JIT support for a new virtual machine</a>
+              </span>
+            </dt>
+          </dl>
+        </div>
+        <p>
+	OProfile includes a header file and library that are intended to be used by
+	developers who wish to extend OProfile's JIT support to other non-supported
+	virtual machines.  This developer guide describes these development files and how
+	to use them.
+	</p>
+        <div class="sect1" lang="en" xml:lang="en">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h2 class="title" style="clear: both"><a id="jit-devel-overview"></a>1. Overview</h2>
+              </div>
+            </div>
+          </div>
+          <p>
+	OProfile already includes some implementations that use the JIT support,
+	e.g., the Java Virtual Machine Toolkit Interface (JVMTI) library,
+	libjvmti_oprofile.so.  In developing a new implementation, you will
+	likely follow a similar (if not identical) procedure as was used in
+	developing the JVMTI library.  Following are the high level steps to follow:
+	</p>
+          <div class="orderedlist">
+            <ol type="1">
+              <li>Ensure your virtual machine provides an API that, at minimum,
+	can provide the following information about dynamically compiled code:
+		<div class="itemizedlist"><ul type="disc"><li>Notification when compilation occurs</li><li>Name of the symbol (i.e., function or class/method, etc.)</li><li>Address in anonymous memory where the compiled code was loaded</li><li>Length of the compiled code segment</li></ul></div></li>
+              <li>Write an agent library that communicates with your VM to obtain
+	compiled code notifications.  Invoke the required functions from opagent.h
+	(<a href="#jit-interface" title="2. Implementing JIT support for a new virtual machine">Section 2, &#8220;Implementing JIT support for a new virtual machine&#8221;</a>) and link your library with libopagent.so
+	(installed at <code class="filename">&lt;oprofile_install_dir&gt;/lib/oprofile</code>).
+	</li>
+            </ol>
+          </div>
+          <p>
+
+	</p>
+        </div>
+        <div class="sect1" lang="en" xml:lang="en">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h2 class="title" style="clear: both"><a id="jit-interface"></a>2. Implementing JIT support for a new virtual machine</h2>
+              </div>
+            </div>
+          </div>
+          <p>
+	The JIT support API for OProfile is defined 
+	in <code class="filename">&lt;oprofile-install-dir&gt;/include/opagent.h</code>.
+	Some parts of the API are mandatory for an agent library to use; other
+	parts are optional.  The mandatory functions are shown below.
+	</p>
+          <table xmlns="" border="0" style="background: #E0E0E0;" width="90%">
+            <tr>
+              <td>
+                <pre class="screen">
+op_agent_t op_open_agent(void);
+
+void op_close_agent(op_agent_t hdl);
+
+int op_write_native_code(op_agent_t hdl, char const * symbol_name,
+                         uint64_t vma, const void * code,
+                         const unsigned int code_size);
+</pre>
+              </td>
+            </tr>
+          </table>
+          <p>
+	To implement this part of your library, you must perform the
+	following steps:
+	</p>
+          <div class="orderedlist">
+            <ol type="1">
+              <li>Implement a function to set up initial communication with the VM.
+	Once communication to the VM is established, your agent library should call
+	<code class="function">op_op_agent()</code> and cache the returned <code class="code">op_agent_t</code> handle for use in
+	future calls.</li>
+              <li>Perform any necessary steps to register with the VM to be notified of
+	compiled code load events.  Registration must include a callback function you
+	will implement in the library to handle the compiled code load events.</li>
+              <li>The callback function mentioned above must obtain all required
+	information from the VM to pass to libopagent via <code class="function">op_write_native_code()</code>.</li>
+              <li>When disconnecting from the VM, your library should call
+	<code class="function">op_agent_close()</code>.</li>
+            </ol>
+          </div>
+          <p>
+	</p>
+          <p>Use of the functions below are optional, depending on the kinds of information your VM
+	can provide to your agent library.  See the JVMTI agent library for an example of how to use
+	these functions.
+</p>
+          <table xmlns="" border="0" style="background: #E0E0E0;" width="90%">
+            <tr>
+              <td>
+                <pre class="screen">
+int op_unload_native_code(op_agent_t hdl, uint64_t vma);
+
+int op_write_debug_line_info(op_agent_t hdl, void const * code,
+                             size_t nr_entry,
+                             struct debug_line_info const * compile_map);
+</pre>
+              </td>
+            </tr>
+          </table>
+          <p>
+	</p>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3>While the libopagent functions are thread-safe, you should not use them in
+	signal handlers.
+	</div>
+        </div>
+      </div>
+      <div class="chapter" lang="en" xml:lang="en">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title"><a id="jit-api"></a>Chapter 2. The JIT support API</h2>
+            </div>
+          </div>
+        </div>
+        <div class="toc">
+          <p>
+            <b>Table of Contents</b>
+          </p>
+          <dl>
+            <dt>
+              <span class="sect1">
+                <a href="#op_open_agent">1. op_open_agent</a>
+              </span>
+            </dt>
+            <dt>
+              <span class="sect1">
+                <a href="#op_close_agent">2. op_close_agent</a>
+              </span>
+            </dt>
+            <dt>
+              <span class="sect1">
+                <a href="#op_write_native_code">3. op_write_native_code</a>
+              </span>
+            </dt>
+            <dt>
+              <span class="sect1">
+                <a href="#op_write_debug_line_info">4. op_write_debug_line_info</a>
+              </span>
+            </dt>
+            <dt>
+              <span class="sect1">
+                <a href="#op_unload_native_code">5. op_unload_native_code</a>
+              </span>
+            </dt>
+          </dl>
+        </div>
+        <p>
+	This chapter describes the JIT support API.  See opagent.h for more details.
+        </p>
+        <div class="sect1" lang="en" xml:lang="en">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h2 class="title" style="clear: both"><a id="op_open_agent"></a>1. op_open_agent</h2>
+              </div>
+            </div>
+          </div>
+          <div class="funcsynopsis">Initializes the agent library.
+<pre class="funcsynopsisinfo">#include &lt;opagent.h&gt;</pre><p><code class="funcdef">op_agent_t <b class="fsfunc">op_open_agent</b>(</code><code>)</code>;<br />void;</p></div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Description</h3>
+This function must be called by agents before any other function.
+Creates and opens a JIT dump file in <code class="filename">/var/lib/oprofile/jitdump</code>
+using the naming convention <code class="filename">&lt;process_id&gt;.dump</code>.
+</div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Parameters</h3>
+None
+</div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+            <h3 class="title">Return value</h3>
+            <p>Returns a valid <code class="code">op_agent_t</code> handle or NULL.
+If NULL is returned, <code class="code">errno</code> is set to indicate the nature of the error. For a list
+of possible <code class="code">errno</code> values, see the man pages for:</p>
+            <code class="code">
+stat, creat, gettimeofday, fdopen, fwrite
+</code>
+          </div>
+        </div>
+        <div class="sect1" lang="en" xml:lang="en">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h2 class="title" style="clear: both"><a id="op_close_agent"></a>2. op_close_agent</h2>
+              </div>
+            </div>
+          </div>
+          <div class="funcsynopsis">Uninitialize the agent library.
+<pre class="funcsynopsisinfo">#include &lt;opagent.h&gt;</pre><p><code class="funcdef">int <b class="fsfunc">op_close_agent</b>(</code><var class="pdparam">hdl</var><code>)</code>;<br />op_agent_t <var class="pdparam">hdl</var>;</p></div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Description</h3>
+Frees all resources and closes open file handles.
+</div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Parameters</h3><em class="parameter"><code>hdl : </code></em>Handle returned from an earlier call to
+<code class="function">op_open_agent()</code></div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+            <h3 class="title">Return value</h3>
+            <p>Returns 0 on success; -1 otherwise. If -1 is returned, <code class="code">errno</code> is set
+to indicate the nature of the error. 
+<code class="code">errno</code> is set to EINVAL if an invalid <code class="code">op_agent_t</code>
+handle is passed. For a list of other possible <code class="code">errno</code> values, see the man pages for:</p>
+            <code class="code">gettimeofday, fwrite</code>
+          </div>
+        </div>
+        <div class="sect1" lang="en" xml:lang="en">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h2 class="title" style="clear: both"><a id="op_write_native_code"></a>3. op_write_native_code</h2>
+              </div>
+            </div>
+          </div>
+          <div class="funcsynopsis">Write information about compiled code to a JIT dump file.
+<pre class="funcsynopsisinfo">#include &lt;opagent.h&gt;</pre><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td><code class="funcdef">int <b class="fsfunc">op_write_native_code</b>(</code></td><td><var class="pdparam">hdl</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">symbol_name</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">vma</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">code</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">code_size</var><code>)</code>;</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>op_agent_t </td><td><var class="pdparam">hdl</var>;</td></tr><tr><td>char const * </td><td><var class="pdparam">symbol_name</var>;</td></tr><tr><td>uint64_t </td><td><var class="pdparam">vma</var>;</td></tr><tr><td>void const * </td><td><var class="pdparam">code</var>;</td></tr><tr><td>const unsigned int </td><td><var class="pdparam">code_size</var>;</td></tr></table></div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Description</h3>
+Signal the dynamic generation of native code from a virtual machine.
+Writes a JIT dump record to the open JIT dump file using the passed information.
+</div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+            <h3 class="title">Parameters</h3>
+            <p>
+<em class="parameter"><code>hdl : </code></em>Handle returned from an earlier call to
+<code class="function">op_open_agent()</code>
+</p>
+            <p>
+<em class="parameter"><code>symbol_name : </code></em>The name of the symbol being dynamically compiled.
+ This name can (and should) contain all necessary information to disambiguate it from
+ symbols of the same name; e.g., class, method signature.
+</p>
+            <p>
+<em class="parameter"><code>vma : </code></em>Virtual memory address of the executable code
+</p>
+            <p>
+<em class="parameter"><code>code : </code></em>Pointer to the location of the compiled code.
+	Theoretically, this may be a different location from
+	that given by the vma argument.  For some JIT compilers,
+	obtaining the code may be impractical.  For this (or any other)
+	reason, the agent can choose to pass NULL for this paraemter.
+	If NULL is passed, no code will be copied into the JIT dump
+	file.
+</p>
+            <p>
+<em class="parameter"><code>code_size : </code></em>Size of the compiled code
+</p>
+          </div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+            <h3 class="title">Return value</h3>
+            <p>Returns 0 on success; -1 otherwise. If -1 is returned, <code class="code">errno</code> is set
+to indicate the nature of the error. 
+<code class="code">errno</code> is set to EINVAL if an invalid <code class="code">op_agent_t</code>
+handle is passed. For a list of other possible <code class="code">errno</code> values, see the man pages for:</p>
+            <code class="code">gettimeofday, fwrite</code>
+          </div>
+        </div>
+        <div class="sect1" lang="en" xml:lang="en">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h2 class="title" style="clear: both"><a id="op_write_debug_line_info"></a>4. op_write_debug_line_info</h2>
+              </div>
+            </div>
+          </div>
+          <div class="funcsynopsis">Write debug information about compiled code to a JIT dump file.
+<pre class="funcsynopsisinfo">#include &lt;opagent.h&gt;</pre><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td><code class="funcdef">int <b class="fsfunc">op_write_debug_line_info</b>(</code></td><td><var class="pdparam">hdl</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">code</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">nr_entry</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">compile_map</var><code>)</code>;</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>op_agent_t </td><td><var class="pdparam">hdl</var>;</td></tr><tr><td>void const * </td><td><var class="pdparam">code</var>;</td></tr><tr><td>size_t </td><td><var class="pdparam">nr_entry</var>;</td></tr><tr><td>struct debug_line_info const * </td><td><var class="pdparam">compile_map</var>;</td></tr></table></div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Description</h3>
+Add debug line information to a piece of code. An <code class="function">op_write_native_code()</code>
+with the same code pointer should have occurred before this call. It's not
+necessary to provide one lineno information entry per machine instruction;
+the array can contain hole.
+</div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+            <h3 class="title">Parameters</h3>
+            <p>
+<em class="parameter"><code>hdl : </code></em>Handle returned from an earlier call to
+<code class="function">op_open_agent()</code>
+</p>
+            <p>
+<em class="parameter"><code>code : </code></em>Pointer to the location of the code with debug info
+</p>
+            <p>
+<em class="parameter"><code>nr_entry : </code></em>Number of entries in compile_map
+</p>
+            <p>
+<em class="parameter"><code>compile_map : </code></em>Array of struct debug_line_info.  See the JVMTI agent
+library implementation for an example of what information should be retrieved
+from a VM to fill out this data structure.
+</p>
+          </div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+            <h3 class="title">Return value</h3>
+            <p>Returns 0 on success; -1 otherwise. If -1 is returned, <code class="code">errno</code> is set
+to indicate the nature of the error. 
+<code class="code">errno</code> is set to EINVAL if an invalid <code class="code">op_agent_t</code>
+handle is passed. For a list of other possible <code class="code">errno</code> values, see the man pages for:</p>
+            <code class="code">gettimeofday, ftell, fwrite</code>
+          </div>
+        </div>
+        <div class="sect1" lang="en" xml:lang="en">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h2 class="title" style="clear: both"><a id="op_unload_native_code"></a>5. op_unload_native_code</h2>
+              </div>
+            </div>
+          </div>
+          <div class="funcsynopsis">Write information to the JIT dump file about invalidated compiled code.
+<pre class="funcsynopsisinfo">#include &lt;opagent.h&gt;</pre><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td><code class="funcdef">int <b class="fsfunc">op_unload_native_code</b>(</code></td><td><var class="pdparam">hdl</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">vma</var><code>)</code>;</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>op_agent_t </td><td><var class="pdparam">hdl</var>;</td></tr><tr><td>uint64_t </td><td><var class="pdparam">vma</var>;</td></tr></table></div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Description</h3>
+Signal the invalidation of native code from a virtual machine.</div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+            <h3 class="title">Parameters</h3>
+            <p>
+<em class="parameter"><code>hdl : </code></em>Handle returned from an earlier call to
+<code class="function">op_open_agent()</code> 
+</p>
+            <p>
+<em class="parameter"><code>vma : </code></em>Virtual memory address of the compiled code being unloaded.
+An <code class="function">op_write_native_code()</code> with the same vma should have occurred before this call.
+</p>
+          </div>
+          <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+            <h3 class="title">Return value</h3>
+            <p>Returns 0 on success; -1 otherwise. If -1 is returned, <code class="code">errno</code> is set
+to indicate the nature of the error. 
+<code class="code">errno</code> is set to EINVAL if an invalid <code class="code">op_agent_t</code>
+handle is passed. For a list of other possible <code class="code">errno</code> values, see the man pages for:</p>
+            <code class="code">gettimeofday, fwrite</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

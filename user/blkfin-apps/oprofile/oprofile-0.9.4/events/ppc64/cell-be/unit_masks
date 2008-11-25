@@ -1,0 +1,74 @@
+# Cell Broadband Engine possible unit masks
+#
+# Copyright OProfile authors
+#
+#(C) COPYRIGHT International Business Machines Corp. 2006
+# Contributed by Maynard Johnson <maynardj@us.ibm.com>
+#
+#
+name:zero type:mandatory default:0x0
+	0x000 Count cycles				[mandatory]
+name:PPU_0_cycles type:bitmask default:0x013
+	0x001 Count cycles				[mandatory]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x010 PPU Bus Word 0				[mandatory]
+name:PPU_0_edges type:bitmask default:0x012
+	0x000 Count edges				[mandatory]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x010 PPU Bus Word 0				[mandatory]
+name:PPU_2_cycles type:bitmask default:0x043
+	0x001 Count cycles				[mandatory]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x040 PPU Bus Word 2				[mandatory]
+name:PPU_2_edges type:bitmask default:0x042
+	0x000 Count edges				[mandatory]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x040 PPU Bus Word 2				[mandatory]
+name:PPU_01_cycles type:bitmask default:0x023
+	0x001 Count cycles				[mandatory]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x010 PPU Bus Word 0				[optional ]
+	0x020 PPU Bus Word 1				[default  ]
+name:PPU_01_edges type:bitmask default:0x022
+	0x000 Count edges				[mandatory]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x010 PPU Bus Word 0				[optional ]
+	0x020 PPU Bus Word 1				[default  ]
+name:PPU_01_cycles_or_edges type:bitmask default:0x023
+	0x000 Count edges				[optional ]
+	0x001 Count cycles				[default  ]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x010 PPU Bus Word 0				[optional ]
+	0x020 PPU Bus Word 1				[default  ]
+name:PPU_02_cycles type:bitmask default:0x013
+	0x001 Count cycles				[mandatory]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x010 PPU Bus Word 0				[default  ]
+	0x040 PPU Bus Word 2				[optional ]
+name:PPU_02_edges type:bitmask default:0x012
+	0x000 Count edges				[mandatory]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x010 PPU Bus Word 0				[default  ]
+	0x040 PPU Bus Word 2				[optional ]
+name:PPU_02_cycles_or_edges type:bitmask default:0x013
+	0x000 Count edges				[optional ]
+	0x001 Count cycles				[default  ]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x010 PPU Bus Word 0				[default  ]
+	0x040 PPU Bus Word 2				[optional ]
+name:PPU_0123_cycles type:bitmask default:0x033
+	0x001 Count cycles				[mandatory]
+	0x000 Negative polarity				[optional ]
+	0x002 Positive polarity				[default  ]
+	0x030 PPU Bus Word 0/1				[default  ]
+	0x0c0 PPU Bus Word 2/3				[optional ]
