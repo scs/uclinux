@@ -268,7 +268,6 @@ dir_$(CONFIG_USER_OGGPLAY_OGG123)           += oggplay
 dir_$(CONFIG_USER_OPENSSL_APPS)             += openssl
 dir_$(CONFIG_USER_OPENSWAN)                 += openswan
 dir_$(CONFIG_USER_OPENVPN_OPENVPN)          += openvpn
-dir_$(CONFIG_USER_OPROFILE)                 += oprofile
 dir_$(CONFIG_USER_P7ZIP_7ZA)                += p7zip
 dir_$(CONFIG_USER_PALMBOT_PALMBOT)          += palmbot
 dir_$(CONFIG_USER_PAM_LDAP)                 += pam_ldap
