@@ -43,10 +43,6 @@ while 1 {
             send "N\r"
         }
         
-        -re "SPI support.*SPI.*\\\[\[^\r]*]" {
-            send "N\r"
-        }
-
         -re "Hardware Monitoring support.*HWMON.*\\\[.*]" {
             send "N\r"
         }
@@ -75,33 +71,7 @@ while 1 {
         -re "Build ncurses.*LIB_NCURSES.*\\\[.*]" {
             send "N\r"
         }
-
-        -re "Build libZ \\\(LIB_ZLIB\\\) \\\[\[^\r]*]" {
-            set timeout 5
-            expect {
-            -nocase -re  " (\[ym])\r\n" {
-                send_user "\n Item_value is selected  $expect_out(1,string).\n"
-            }
-            timeout {
-                send -s "N\r"
-            }
-            }
-            set timeout 50
-        }
-
-        -re "Build libpng \\\(LIB_LIBPNG\\\) \\\[(\[^\r]*)]" {
-            set timeout 5
-            expect {
-             -nocase -re " (\[ym])\r\n" {
-                send_user "\n Item_value is selected $expect_out(1,string).\n"
-            }
-            timeout {
-                send -s "N\r"
-            }
-            }
-            set timeout 50
-        }
-
+        
         -re "boa.*USER_BOA_SRC_BOA.*\\\[.*]" {
             send "N\r"
         }
@@ -132,6 +102,10 @@ while 1 {
         }
         
         -re "dhcp.*USER_DHCP.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "pngview.*USER_PNGVIEW.*\\\[.*]" {
             send "N\r"
         }
 
@@ -188,3 +162,83 @@ while 1 {
         }
     }
 }
+##############################################################################
+##############################################################################
+# Since SPI is selected by sound driver which is underneath and turned on, so
+# it is impossible to unselected it in the first round. Spawn another make config
+# to disable it. The same situation for libpng and libjpeg.
+##############################################################################
+
+spawn make config
+
+while 1 {
+    expect {
+        -re "Vendor/Product Selection.* (\[0-9]+). AnalogDevices.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+################################################################################
+
+
+        -re "SPI support.*SPI.*\\\[\[^\r]*]" {
+            send "N\r"
+        }
+
+        -re "Build libpng \\\(LIB_LIBPNG\\\) \\\[(\[^\r]*)]" {
+            set timeout 5
+            expect {
+             -nocase -re " (\[ym])\r\n" {
+                send_user "\n Item_value is selected $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "N\r"
+            }
+            }
+            set timeout 50
+        }
+
+        -re "Build libjpeg \\\(LIB_LIBJPEG\\\) \\\[(\[^\r]*)]" {
+            set timeout 5
+            expect {
+             -nocase -re " (\[ym])\r\n" {
+                send_user "\n Item_value is selected $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "N\r"
+            }
+            }
+            set timeout 50
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
