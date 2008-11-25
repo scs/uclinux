@@ -82,7 +82,7 @@ if [ ! "$ethaddr" ]; then
 fi
 
 echo "Starting dameons"
-syslogd -n -b 1 -s 128 -O > /dev/null 2>&1 &
+syslogd -n -b 1 -s 128 -O /var/log/log > /dev/null 2>&1 &
 klogd -n > /dev/null 2>&1 &
 boa -f /etc/boa.conf > /dev/null 2>&1 &
 inetd > /dev/null 2>&1 &
