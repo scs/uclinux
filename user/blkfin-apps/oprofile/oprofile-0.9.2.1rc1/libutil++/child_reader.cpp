@@ -60,7 +60,7 @@ void child_reader::exec_command(string const & cmd, vector<string> const & args)
 		return;
 	}
 
-	pid = fork();
+	pid = vfork();
 	switch (pid) {
 		case -1:
 			first_error = errno;

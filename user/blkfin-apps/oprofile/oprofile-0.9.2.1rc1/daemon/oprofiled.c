@@ -118,7 +118,7 @@ void opd_open_logfile(void)
  */
 static void opd_fork(void)
 {
-	switch (fork()) {
+	switch (vfork()) {
 		case -1:
 			perror("oprofiled: fork() failed: ");
 			exit(EXIT_FAILURE);

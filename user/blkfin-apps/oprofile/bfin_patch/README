@@ -1,0 +1,3 @@
+$ cp oprofile-$(ver).patch ../oprofile-$(ver)/
+$ cd ../oprofile-$(ver)/
+$ patch -p1 < oprofile-$(ver).patch

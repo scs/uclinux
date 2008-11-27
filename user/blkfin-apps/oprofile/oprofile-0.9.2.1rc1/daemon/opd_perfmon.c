@@ -407,7 +407,7 @@ void perfmon_init(void)
 			exit(EXIT_FAILURE);
 		}
 
-		ret = fork();
+		ret = vfork();
 		if (ret == -1) {
 			fprintf(stderr, "Couldn't fork perfmon child.\n");
 			exit(EXIT_FAILURE);

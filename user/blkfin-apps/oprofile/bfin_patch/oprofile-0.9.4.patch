@@ -1,0 +1,39 @@
+Index: oprofile-0.9.4/libutil++/child_reader.cpp
+===================================================================
+--- oprofile-0.9.4/libutil++/child_reader.cpp	（版本 7392）
++++ oprofile-0.9.4/libutil++/child_reader.cpp	（工作副本）
+@@ -63,7 +63,7 @@
+ 		return;
+ 	}
+ 
+-	pid = fork();
++	pid = vfork();
+ 	switch (pid) {
+ 		case -1:
+ 			first_error = errno;
+Index: oprofile-0.9.4/daemon/opd_perfmon.c
+===================================================================
+--- oprofile-0.9.4/daemon/opd_perfmon.c	（版本 7392）
++++ oprofile-0.9.4/daemon/opd_perfmon.c	（工作副本）
+@@ -426,7 +426,7 @@
+ 			exit(EXIT_FAILURE);
+ 		}
+ 
+-		ret = fork();
++		ret = vfork();
+ 		if (ret == -1) {
+ 			fprintf(stderr, "Couldn't fork perfmon child.\n");
+ 			exit(EXIT_FAILURE);
+Index: oprofile-0.9.4/daemon/oprofiled.c
+===================================================================
+--- oprofile-0.9.4/daemon/oprofiled.c	（版本 7392）
++++ oprofile-0.9.4/daemon/oprofiled.c	（工作副本）
+@@ -121,7 +121,7 @@
+  */
+ static void opd_fork(void)
+ {
+-	switch (fork()) {
++	switch (vfork()) {
+ 		case -1:
+ 			perror("oprofiled: fork() failed: ");
+ 			exit(EXIT_FAILURE);
