@@ -38,6 +38,7 @@ for h in ${hotfixes} ; do
 		echo "APPLYING"
 		patch ${popts} >/dev/null < hotfixes/${h}
 		echo ${h} >> HOTFIXES
+		svn add -q HOTFIXES
 		svn commit -m "apply upstream ${url}${h}"
 	else
 		echo "!! FAIL !!"
