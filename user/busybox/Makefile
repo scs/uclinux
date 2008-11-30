@@ -1,4 +1,4 @@
-VER = busybox-1.12.2
+VER = busybox-1.13.1
 
 export KBUILD_OUTPUT = $(ROOTDIR)/user/busybox/build-$(VER)
 
