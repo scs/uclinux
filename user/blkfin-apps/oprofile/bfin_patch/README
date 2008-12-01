@@ -1,3 +1,6 @@
+These patches include the modifies since uclinux-dist commit [#7387]
+To revert the modifies, just do,
+
 $ cp oprofile-$(ver).patch ../oprofile-$(ver)/
 $ cd ../oprofile-$(ver)/
-$ patch -p1 < oprofile-$(ver).patch
+$ patch -p1 -R < oprofile-$(ver).patch
