@@ -159,7 +159,7 @@ static void opd_do_jitdumps(void)
 		return;
 	jit_conversion_running = 1;
 
-	childpid = fork();
+	childpid = vfork();
 	switch (childpid) {
 		case -1:
 			perror("Error forking JIT dump process!");

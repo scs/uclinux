@@ -37,3 +37,16 @@ Index: oprofile-0.9.4/daemon/oprofiled.c
  		case -1:
  			perror("oprofiled: fork() failed: ");
  			exit(EXIT_FAILURE);
+Index: oprofile-0.9.4/daemon/init.c
+===================================================================
+--- oprofile-0.9.4/daemon/init.c	（版本 7392）
++++ oprofile-0.9.4/daemon/init.c	（工作副本）
+@@ -159,7 +159,7 @@
+ 		return;
+ 	jit_conversion_running = 1;
+ 
+-	childpid = fork();
++	childpid = vfork();
+ 	switch (childpid) {
+ 		case -1:
+ 			perror("Error forking JIT dump process!");
