@@ -64,15 +64,15 @@ while 1 {
             send "y\r"
         }
 
-        -re "Profiling support \\\(EXPERIMENTAL\\\) \\\(PROFILING\\\) \\\[././.]" {
+        -re "Profiling support.*PROFILING.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "OProfile system profiling \\\(EXPERIMENTAL\\\) \\\(OPROFILE\\\) \\\[./././.]" {
+        -re "OProfile system profiling.*OPROFILE.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "oprofile \\\(USER_OPROFILE\\\) \\\[././.]" {
+        -re "oprofile.*USER_OPROFILE.*\\\[.*]" {
             send "y\r"
         }
 
