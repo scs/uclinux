@@ -1,23 +1,19 @@
-DIRS = $(dir $(wildcard */configure))
+VER = links-2.2
 
-DIRS_makefiles = $(patsubst %,build-%/Makefile,$(DIRS))
+CONF_OPTS = \
+	$(call USE_ENABLE,LIB_LIBPNG,graphics) \
+	--without-svgalib \
+	--without-x \
+	--with-fb \
+	$(call USE_WITH,LIB_DIRECTFB,directfb) \
+	--without-gpm \
+	$(call USE_WITH,LIB_LIBJPEG,libjpeg) \
+	$(call USE_WITH,LIB_LIBTIFF,libtiff) \
+	$(call USE_WITH,LIB_LIBSSL,ssl) \
+	$(call USE_WITH,LIB_ZLIB,zlib) \
+	$(call USE_WITH,LIB_LIBBZ2,bzip2)
 
-all: $(DIRS_makefiles)
-	for d in $(DIRS) ; do $(MAKE) -C build-$$d || exit $$? ; done
-
-%/Makefile:
-	set -e ; \
-	VER=$(patsubst build-%/Makefile,%,$@) ; \
-	find $${VER} -type f -print0 | xargs -0 touch -r $${VER}/configure ; \
-	rm -rf build-$${VER} ; \
-	mkdir build-$${VER} ; \
-	cd build-$${VER} ; \
-	DIRECTFB_CONFIG=$(STAGEDIR)/usr/bin/directfb-config \
-	../$${VER}/configure $(CONFIGURE_OPTS) --without-x --enable-graphics
-
-clean:
-	rm -rf build-*
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
-	$(ROMFSINST) build-links-2.1pre32/links /bin/links
-.PHONY: all clean romfs
+	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/links /usr/bin/links
