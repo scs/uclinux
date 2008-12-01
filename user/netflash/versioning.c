@@ -33,7 +33,7 @@
 #include <sys/mount.h>
 #include <string.h>
 #ifndef VERSIONTEST
-#include <linux/autoconf.h>
+/* #include <linux/autoconf.h> */
 #include <config/autoconf.h>
 #endif
 #include <ctype.h>

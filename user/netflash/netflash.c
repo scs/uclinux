@@ -43,7 +43,7 @@
 #include <netinet/in.h>
 #include <stdarg.h>
 
-#include <linux/autoconf.h>
+/* #include <linux/autoconf.h> */
 #include <linux/version.h>
 #include <config/autoconf.h>
 #include <linux/major.h>
@@ -677,13 +677,15 @@ int decompress(void *data, int length)
 
 	fb_seek_set(zoffset);
     for (;;) {
-		z.next_in = fb_read_block(&fblength);
-		if (!z.next_in) {
-			error("unexpected end of file for decompression");
-			exit_failed(BAD_DECOMP);
+		if (z.avail_in == 0) {
+			z.next_in = fb_read_block(&fblength);
+			if (!z.next_in) {
+				error("unexpected end of file for decompression");
+				exit_failed(BAD_DECOMP);
+			}
+			z.avail_in = fblength;
+			zoffset = fb_tell();
 		}
-		z.avail_in = fblength;
-		zoffset = fb_tell();
 
 		rc = inflate(&z, Z_SYNC_FLUSH);
 		if (rc == Z_OK) {
@@ -1177,7 +1179,13 @@ void kill_processes_partial(void)
 	atexit(restartinit);		/* If exit prematurely, restart init */
 	sync();
 
-	killprocpid("/var/run/ifmond.pid", SIGKILL);
+	if (!dothrow) {
+		/*
+		 * Only kill ifmond if we're NOT in throw away mode and 
+		 * need all the memory we can get.
+		 */
+		killprocpid("/var/run/ifmond.pid", SIGKILL);
+	}
 
 	/* Ask them nicely. */
 	count = 0;
@@ -2194,14 +2202,6 @@ int netflashmain(int argc, char *argv[])
 		}
 	}
 
-	if (dofilesave) {
-		/*
-		 * We fake out the file size here so that the percentage
-		 * display looks correct as output.
-		 */
-		devsize = fb_len();
-	}
-
 	if (fb_len() == 0) {
 		error("failed to load new image");
 		exit_failed(NO_IMAGE);
@@ -2338,6 +2338,14 @@ int netflashmain(int argc, char *argv[])
 #else
 	image_length = fb_len();
 #endif
+
+	if (dofilesave) {
+		/*
+		 * We fake out the file size here so that the percentage
+		 * display looks correct as output.
+		 */
+		devsize = image_length;
+	}
 
 	/*
 	 * A firmware image will always be bigger than 512K, and bootloader
