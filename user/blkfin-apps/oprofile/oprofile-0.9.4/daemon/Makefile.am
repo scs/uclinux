@@ -1,4 +1,4 @@
-SUBDIRS = liblegacy .
+SUBDIRS = .
 
 oprofiled_SOURCES = \
 	init.c \
@@ -42,7 +42,6 @@ AM_CFLAGS = @OP_CFLAGS@ -fno-omit-frame-pointer
 bin_PROGRAMS = oprofiled
 
 oprofiled_LDADD = \
-	liblegacy/liblegacy.a \
 	../libabi/libabi.a \
 	../libdb/libodb.a \
 	../libop/libop.a \

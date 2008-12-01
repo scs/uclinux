@@ -72,6 +72,7 @@ typedef enum {
 	CPU_PPC64_POWER5pp,  /**< ppc64 Power5++ family */
 	CPU_PPC_E300, /**< e300 */
 	CPU_AVR32, /**< AVR32 */
+	CPU_BLACKFIN_533,  /*bf533*/
 	MAX_CPU_TYPE
 } op_cpu;
 

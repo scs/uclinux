@@ -71,7 +71,6 @@ static char * binary_name_filter;
 static char * events;
 static int showvers;
 static struct oprofiled_ops * opd_ops;
-extern struct oprofiled_ops opd_24_ops;
 extern struct oprofiled_ops opd_26_ops;
 
 #define OPD_IMAGE_FILTER_HASH_SIZE 32
@@ -447,9 +446,6 @@ static void opd_options(int argc, char const * argv[])
 static struct oprofiled_ops * get_ops(void)
 {
 	switch (op_get_interface()) {
-		case OP_INTERFACE_24:
-			printf("Using 2.4 OProfile kernel interface.\n");
-			return &opd_24_ops;
 		case OP_INTERFACE_26:
 			printf("Using 2.6+ OProfile kernel interface.\n");
 			return &opd_26_ops;

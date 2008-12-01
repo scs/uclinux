@@ -1,4 +1,4 @@
-SUBDIRS = liblegacy .
+SUBDIRS = .
 
 oprofiled_SOURCES = \
 	init.c \
@@ -40,7 +40,6 @@ bin_PROGRAMS = oprofiled
 
 if enable_abi
 oprofiled_LDADD = \
-	liblegacy/liblegacy.a \
 	../libabi/libabi.a \
 	../libdb/libodb.a \
 	../libop/libop.a \
@@ -48,7 +47,6 @@ oprofiled_LDADD = \
 LINKER=$(CXX)
 else
 oprofiled_LDADD = \
-	liblegacy/liblegacy.a \
 	../libdb/libodb.a \
 	../libop/libop.a \
 	../libutil/libutil.a
