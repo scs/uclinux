@@ -1,7 +1,7 @@
 # Makefile for dma_memcpy test
 
 CC	= bfin-uclinux-gcc
-CFLAGS += -Wall
+CFLAGS += -Wall -g
 LDFLAGS += -Wl,-elf2flt
 
 SRCS	= dmacopy.c
