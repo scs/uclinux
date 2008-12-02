@@ -4,12 +4,5 @@ Last update: 2007-12-19
 
 This patch is for blackfin uclinux 2008R1 release.
 It is based on adeos-ipipe-2.6.23-bf5xx-1.7-00.patch in xenomai-2.4.0 release.
-For usage, please refer to: http://docs.blackfin.uclinux.org/doku.php?id=linux-kernel:adeos.
+For usage, please refer to: http://docs.blackfin.uclinux.org/doku.php?id=linux-kernel:adeos
 For question, please go to blackfin uclinux forum, or the xenomai mailing list.
-
-
-
-
-
- 
-
