@@ -26,12 +26,6 @@ echo "Mounting Application Flash..."
 mkdir /mnt/app
 mount -t jffs2 /dev/mtdblock6 /mnt/app
 
-# Binds the root's home directory to a directory on the application flash
-if [ -d "/mnt/app/root" ]; then
-	echo "Rebinding /mnt/app/root as the root's home directory."
-	mount -o bind "/mnt/app/root" "/root"
-fi
-
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
 
@@ -81,11 +75,12 @@ if [ ! "$ethaddr" ]; then
 	[ -e "/tmp/runinit.sh" ] && chmod +x "/tmp/runinit.sh" && /tmp/runinit.sh
 fi
 
-echo "Starting dameons"
-syslogd -n -b 1 -s 128 -O /var/log/log > /dev/null 2>&1 &
-klogd -n > /dev/null 2>&1 &
-boa -f /etc/boa.conf > /dev/null 2>&1 &
-inetd > /dev/null 2>&1 &
+# Binds the root's home directory to a directory on the application flash
+if [ -d "/mnt/app" ]; then
+	echo "Rebinding /mnt/app as the root's home directory."
+	mount -o bind "/mnt/app" "/root"
+	mkdir -p "/mnt/app/.ssh" # graciously creating a .ssh directory for people intending to store their public key(s) on the camera.
+fi
 
 cat /etc/motd
 
@@ -97,3 +92,5 @@ elif [ -f "/mnt/app/$runscript" ] && [ -x "/mnt/app/$runscript" ]; then
 	echo "Executing /mnt/app/$runscript ..."
 	(cd /mnt/app; "./$runscript") &
 fi
+
+exit
