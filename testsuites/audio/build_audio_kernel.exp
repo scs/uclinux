@@ -45,77 +45,85 @@ while 1 {
         }
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
-            send "n\r"
+            send "N\r"
         }
 
         -re "Sound card support.*SOUND.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\\\).*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
             if { $audio_dev == "audio_ad1836" } {
-                send "y\r"
+                send "Y\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
         -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
-            if { $audio_dev == "audio_ad73311" || $audio_dev == "audio_ad73322" || $audio_dev == "audio_ad1836" } {
-                send "n\r"
+            if { $audio_dev == "audio_ad73322" || $audio_dev == "audio_ad1836" } {
+                send "N\r"
             } else {
-                send "y\r"
+                send "Y\r"
             }
         }
 
         -re "SoC I2S Audio for the ADI BF5xx chip.*SND_BF5XX_I2S.*\\\[.*]" {
-            send "y\r"
+            if { $audio_dev == "audio_ssm2602" || $audio_dev == "audio_ad73311" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
         }
 
         -re "SoC SSM2602 Audio support for BF52x ezkit.*SND_BF5XX_SOC_SSM2602.*\\\[.*]" {
             if { $audio_dev == "audio_ssm2602" } {
-                send "y\r"
+                send "Y\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
         -re "SoC AD73311 Audio support for Blackfin.*SND_BF5XX_SOC_AD73311.*\\\[.*]" {
             if { $audio_dev == "audio_ad73311" } {
-                send "y\r"
+                send "Y\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
         -re "SoC AC97 Audio for the ADI BF5xx chip.*SND_BF5XX_AC97.*\\\[.*]" {
-            send "y\r"
+            if { $audio_dev == "audio_ad1980" || $audio_dev == "audio_ad1981b" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
         }
 
         -re "SoC AD1980/1 Audio support for BF5xx.*SND_BF5XX_SOC_AD1980.*\\\[.*]" {
             if { $audio_dev == "audio_ad1980" || $audio_dev == "audio_ad1981b" } {
-                send "y\r"
+                send "Y\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
 #ad73322
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             if { $audio_dev == "audio_ad73322" } {
-                send "m\r"
+                send "M\r"
             } else {
                 send "\r"
             }
@@ -123,9 +131,9 @@ while 1 {
 
         -re "Cascaded AD73322 Audio support for BF53x.*SND_BFIN_AD73322.*\\\[.*]" {
             if { $audio_dev == "audio_ad73322" } {
-                send "y\r"
+                send "Y\r"
             } else {
-                send "n\r"
+                send "N\r"
             }
         }
 
@@ -151,23 +159,23 @@ while 1 {
         }
 
         -re "ALSA utils.*USER_ALSA_UTILS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "mp3play.*USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "vplay.*USER_VPLAY_VPLAY.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "vrec.*USER_VPLAY_VREC.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {

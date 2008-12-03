@@ -37,23 +37,23 @@ while 1 {
         }
 
         -re "Sound card support.*SOUND.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\\\).*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "Blackfin Audio SPORT port.*SND_BLACKFIN_SPORT.*\\\[.]" {
@@ -70,11 +70,11 @@ while 1 {
         }
 
         -re "ALSA utils.*USER_ALSA_UTILS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Build eXosip.*LIB_LIBEXOSIP.*\\\[.*]" {
@@ -82,7 +82,7 @@ while 1 {
         }
 
         -re "Linphone, a SIP compatible VoIP phone.*USER_BLACKFIN_LINPHONE.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {

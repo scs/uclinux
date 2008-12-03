@@ -119,7 +119,12 @@ while 1 {
         }
 
         -re "SoC I2S Audio for the ADI BF5xx chip.*SND_BF5XX_I2S.*\\\[.*]" {
-            send "M\r"
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" || $board_type == "BF527-EZKIT" } {
+                send "M\r"
+            } else {
+                send "N\r"
+            }
+
         }
 
         -re "SoC SSM2602 Audio support for BF52x ezkit.*SND_BF5XX_SOC_SSM2602.*\\\[.*]" {
@@ -139,7 +144,11 @@ while 1 {
         }
 
         -re "SoC AC97 Audio for the ADI BF5xx chip.*SND_BF5XX_AC97.*\\\[.*]" {
-            send "M\r"
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" || $board_type == "BF548-EZKIT" } {
+                send "M\r"
+            } else {
+                send "N\r"
+            }
         }
 
         -re "SoC AD1980/1 Audio support for BF5xx.*SND_BF5XX_SOC_AD1980.*\\\[.*]" {
