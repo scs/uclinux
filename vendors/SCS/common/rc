@@ -85,14 +85,13 @@ fi
 cat /etc/motd
 
 #launch user specific application script
-if echo "$runscript" | grep -q "^/" && [ -f "$runscript" ] && [ -x "$runscript" ]; then
+echo "$runscript" | grep -q "^/" || runscript="/mnt/app/$runscript"
+
+if [ -f "$runscript" ] && [ -x "$runscript" ]; then
 	echo "Executing $runscript ..."
 	(cd /; "$runscript") &
-elif [ -f "/mnt/app/$runscript" ] && [ -x "/mnt/app/$runscript" ]; then
-	echo "Executing /mnt/app/$runscript ..."
-	(cd /mnt/app; "./$runscript") &
 else
-	[ "$runscript" ] && echo "Cannot run runscript: $runscript"
+	"Cannot run runscript: $runscript"
 fi
 
 exit
