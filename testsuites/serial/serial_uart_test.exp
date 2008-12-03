@@ -24,7 +24,7 @@ set ttyBFdev /dev/ttyBF0
 set bootargs             $bootargs_param7
 set ttyBFdev /dev/ttyBF1
 }
-
+set boot_image uImage
 source ../reboot_kernel.exp
 
 send_log "\nStarting test for Serial UART 1...\n"
