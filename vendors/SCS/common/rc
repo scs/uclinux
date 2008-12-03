@@ -91,6 +91,8 @@ if echo "$runscript" | grep -q "^/" && [ -f "$runscript" ] && [ -x "$runscript" 
 elif [ -f "/mnt/app/$runscript" ] && [ -x "/mnt/app/$runscript" ]; then
 	echo "Executing /mnt/app/$runscript ..."
 	(cd /mnt/app; "./$runscript") &
+else
+	[ "$runscript" ] && echo "Cannot run runscript: $runscript"
 fi
 
 exit
