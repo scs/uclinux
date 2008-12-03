@@ -1,19 +1,33 @@
 #! /usr/bin/env bash
-# This script is used to tag the working directory including adjustment of version defines.
+# This script is used to tag the working directory including adjustment of version #defines.
 
-error() {
-	echo "$1"
-	usage
-	exit 1
-}
+# Information about adapting this script:
+#
+#	This script reads the version string form the command line, parses is and calls the function 'update_files' with the version string, the major and minor version, patch and release candidate number as arguments. The function should update all files that hold this information for the application and put theire pathes on standard out. This script then commits these files and makes a tag according to the version string.
+#
+# 	The version argument is parsed according to the following EBNF expression:
+#		
+#		version := "v" <major> : non-negative-number "." <minor> : non-negative-number [ "-p" <patch> : positive-number ] [ "-RC" <rc> : positive-number ]
+#			non-negative-number := "0" | positive-number
+#			positive-number := ( digit { digit } ) ^ ( "0" ? )
+#			digit := "0" .. "9"
+#	
+#		Or this regular expression:
+#			v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-p([1-9][0-9]*))?(-RC([1-9][0-9]*))?
+
+print() { echo "$1" >&2; }
+inform() { print "$0: $1"; }
+warn() { print "Warning: $1"; }
+error() { inform "Error: $1"; }
+fail() { [ "$1" ] && error "$1"; exit 1; }
 
 usage() {
 	cat << EOF
 Usage:
     do-tag --help
-    do-tag [ --beta | --namespace <namesapce> ] [ --no-commit ] <major> <minor>
-        [ <patch> ]
+    do-tag <version>
 EOF
+[ "$1" ] && fail "$1"
 }
 
 help() {
@@ -22,98 +36,64 @@ help() {
 
 Where:
     --help: Print this help.
-    --beta:
-        Use the 'beta/' tag namespace instead of the default 'release/'
-        namespace.
-    --namespace <namesapce>:
-        Use the namespace '<namesapce>/' instead of the default 'release/'.
-    --no-commit: Ommit the commit and tag steps and only adjust the defines.
-    --edit-message: Lets you edit the default message used for the commit.
-    <major>: Major version of the release.
-    <minor>: Minor version of the release.
-    <patch>: Path number of the release. Default to '0'.
+    <version>: v<major>.-<patch>-RC<rc>
+    <major>: Major version number.
+    <minor>: Minor version number.
+    <patch>: Optional patch number.
+    <rc>: Optional release candidate number.
 
 Notes:
-    This script replaces the defines holding the version information in the file
-    'version.h', makes a commit with the file and tags the commit with a
-    tag name of the following form:
+    This script replaces the defines holding the version information, makes a
+    commit with the file and tags the commit with a  tag name of the following
+    form:
     
-        <namespace> "/v" <major> "." <minor> [ "-p" <patch> ]
-    
-    The last part is ommited if the patch number is set to 0.
+        "release/v" <major> "." <minor> [ "-p" <patch> ]
+        | "beta/v" <major> "." <minor> [ "-p" <patch> ] "-RC" <rc>
 EOF
 }
 
-OPT_NAMESPACE=release
-OPT_VERSION_MAJOR=
-OPT_VERSION_MINOR=
-OPT_VERSION_PATCH=0
-OPT_COMMIT=1
-OPT_EDIT_MESSAGE=
-
-while [ "$1" ] && [ "${1:0:1}" == "-" ]; do
-	if [ "$1" == "--help" ]; then
-		help
-		exit
-	elif [ "$1" == "--no-commit" ]; then
-		OPT_COMMIT=
-		shift
-	elif [ "$1" == "--edit-message" ]; then
-		OPT_EDIT_MESSAGE=1
-		shift
-	elif [ "$1" == "--beta" ]; then
-		OPT_NAMESPACE=beta
-		shift
-	elif [ "$1" == "--namespace" ]; then
-		[ "$2" ] || error "Option requires argument: $1"
-		OPT_NAMESPACE=$2
-		shift 2
-	else
-		error "Unrecognized option: $1"
-	fi
-done
-
-if [ "$OPT_EDIT_MESSAGE" ] && ! [ "$OPT_COMMIT" ]; then
-	error "--edit-message and --no-commit do not go well together."
-fi
-
-[ "$1" ] || error "No major version given!"
-OPT_VERSION_MAJOR=$1
-shift
-
-[ "$1" ] || error "No minor version given!"
-OPT_VERSION_MINOR=$1
-shift
-
-[ "$1" ] && OPT_VERSION_PATCH=$1
-shift
-
-[ "$1" ] && error "Too many arguments!"
-
-VERSION_STRING="v$OPT_VERSION_MAJOR.$OPT_VERSION_MINOR"
-[ "$OPT_VERSION_PATCH" == "0" ] || VERSION_STRING="$VERSION_STRING-p$OPT_VERSION_PATCH"
-
-# This adjusts the CONFIG_LOCALVERSION line in each file in the vendors/SCS folder named "config.linux-2.6.x".
-# Make sure that CONFIG_USER_BUSYBOX_HAVE_DOT_CONFIG=y is set in the "config.vendor-2.6.x" respective folder.
-find "vendors/SCS" -type "f" -name "config.linux-2.6.x" | while IFS= read i; do
-	if [ "$OPT_NAMESPACE" == "release" ]; then
+update_files() {
+	VERSION_STRING=$1
+	VERSION_MAJOR=$2
+	VERSION_MINOR=$3
+	VERSION_PATCH=$4
+	VERSION_RC=$5
+	
+	# This adjusts the CONFIG_LOCALVERSION line in each file in the vendors/SCS folder named "config.linux-2.6.x".
+	# Make sure that CONFIG_USER_BUSYBOX_HAVE_DOT_CONFIG=y is set in the "config.vendor-2.6.x" respective folder.
+	find "vendors/SCS" -type "f" -name "config.linux-2.6.x" | while IFS= read i; do
 		sed -ri -e "s/(CONFIG_LOCALVERSION=\")[^\"]*(\")/\1-Git_$VERSION_STRING\2/" "$i"
-	else
-		sed -ri -e "s/(CONFIG_LOCALVERSION=\")[^\"]*(\")/\1-Git_$OPT_NAMESPACE\/$VERSION_STRING\2/" "$i"
-	fi
-	git add "$i"
-done
+		echo "$i"
+	done
+}
 
-if [ "$OPT_COMMIT" ]; then
-	if [ "$OPT_NAMESPACE" == "release" ]; then
-		COMMIT_MESSAGE="+ Release $VERSION_STRING"
-	else
-		COMMIT_MESSAGE="+ \"$OPT_NAMESPACE\" release $VERSION_STRING"
-	fi
-	if [ "$OPT_EDIT_MESSAGE" ]; then
-		git commit -e -m "$COMMIT_MESSAGE"
-	else
-		git commit -m "$COMMIT_MESSAGE"
-	fi
-	git tag "$OPT_NAMESPACE/$VERSION_STRING"
+[ "$1" == "--help" ] && { help; exit; }
+
+[ "$1" ] && ARG_VERSION=$1 || usage "Version specification missing!"
+[ "$2" ] && usage "Too many arguments!"
+
+VERSION_PARSER="v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-p([1-9][0-9]*))?(-RC([1-9][0-9]*))?"
+echo "$ARG_VERSION" | grep -qxE "$VERSION_PARSER" || fail "Invalid version specification: $ARG_VERSION"
+VERSION_PARSED=$(echo "$ARG_VERSION" | sed -r "s/$VERSION_PARSER/\1 \2 \4 \6/")
+
+VERSION_MAJOR=$(echo "$VERSION_PARSED" | cut -d " " -f 1)
+VERSION_MINOR=$(echo "$VERSION_PARSED" | cut -d " " -f 2)
+VERSION_PATCH=$(echo "$VERSION_PARSED" | cut -d " " -f 3)
+VERSION_RC=$(echo "$VERSION_PARSED" | cut -d " " -f 4)
+
+[ "$VERSION_PATCH" ] || VERSION_PATCH=0
+[ "$VERSION_RC" ] || VERSION_RC=0
+
+UPDATED_FILES=$(update_files "$ARG_VERSION" "$VERSION_MAJOR" "$VERSION_MINOR" "$VERSION_PATCH" "$VERSION_RC")
+
+if [ $VERSION_RC -eq 0 ]; then
+	TAG_NAME="release/$ARG_VERSION"
+	COMMIT_MESSAGE="+ Release $ARG_VERSION"
+else
+	TAG_NAME="beta/$ARG_VERSION"
+	COMMIT_MESSAGE="+ Beta version $ARG_VERSION"
 fi
+
+git tag -l | grep -qxF "$TAG_NAME" && fail "Tag $TAG_NAME already exists"
+git commit --allow-empty -m "$COMMIT_MESSAGE" $UPDATED_FILES || exit $?
+git tag "$TAG_NAME" || exit $?
