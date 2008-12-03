@@ -1,0 +1,14 @@
+if test $# -lt 1
+then
+        echo $0 "Usage: <file> [<Server IP>]"
+        echo "Load <file> by tftp from <Server IP>, otherwise from u-boot variable serverip."
+        exit
+fi
+
+if test $# -eq 1
+then
+        tftp `fw_printenv | grep "serverip=" | sed -e s/serverip=//g` -g -l $1 -r $1
+else
+        tftp $2 -g -l $1 -r $1
+fi
+

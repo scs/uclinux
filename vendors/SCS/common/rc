@@ -82,12 +82,6 @@ if [ -d "/mnt/app" ]; then
 	mkdir -p "/mnt/app/.ssh" # graciously creating a .ssh directory for people intending to store their public key(s) on the camera.
 fi
 
-echo "Starting daemons ..."
-syslogd -n -b 1 -s 128 -O /var/log/log > /dev/null 2>&1 &
-klogd -n > /dev/null 2>&1 &
-boa -f /etc/boa.conf > /dev/null 2>&1 &
-inetd > /dev/null 2>&1 &
-
 cat /etc/motd
 
 #launch user specific application script
