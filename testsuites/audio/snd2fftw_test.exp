@@ -1,0 +1,238 @@
+#!/usr/bin/expect
+
+#
+# audio test in frequency power spectrum
+#
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+
+proc spectrum_analysis { file_suffix sample_freq } {
+    global case_num
+    global result
+    global output_dir
+
+#transform wav file to power spectrum
+    incr case_num
+    set timeout 10
+    send "./snd2fftw/plot.sh $output_dir/$file_suffix.wav dft ./snd2fftw/plt ps\r"
+    while 1 {
+        expect {
+            -re "FAIL.*>" {
+                lappend result "FAIL"
+                return
+            }
+            -re "Audio DFT finish.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                lappend result "FAIL"
+                return
+            }
+        }
+    }
+
+#power at the sample freqency should be big enough
+    incr case_num
+    set timeout 10
+    send "grep \"^$sample_freq\..*\[\[:space:]]\[1-5]\[0-9]\\{4,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
+    expect ">"
+    send "grep -c \"^$sample_freq\..*\[\[:space:]]\[1-5]\[0-9]\\{4,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
+    while 1 {
+        expect {
+            -re "\r\n0\r\n.*>" {
+                lappend result "FAIL"
+                return
+            }
+            -re "\r\n1\r\n.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                lappend result "FAIL"
+                return
+            }
+        }
+    }
+
+#power at othe freqency should be small enough
+#If the power of other freqency is more than 10% of the sample frequency, case should fail.
+    incr case_num
+    set timeout 10
+    send "grep -c \"\[\[:space:]]\[1-9]\[0-9]\\{3\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
+    while 1 {
+        expect {
+            -re "\r\n(\[1-9])+(\[0-9])?\r\n.*>" {
+                lappend result "FAIL"
+                return
+            }
+            -re "\r\n0\r\n.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                lappend result "FAIL"
+                return
+            }
+        }
+    }
+
+    lappend result "PASS"
+}
+
+
+step "Start testing."
+set file_info ""
+set file_num 0
+set final_result "PASS"
+set case_num 0
+set output_dir audio_data
+
+#find all the wav files in current directory and add them to a list
+#add sleep when execute awk as slow down the output stream to expect
+spawn /bin/bash
+set host_spawn_id $spawn_id
+
+incr case_num
+set timeout 5
+send "ls $output_dir|awk '{system(\"sleep 0.1\"); print \$1}'\r"
+while 1 {
+    expect {
+        -re "No such file or directory.*>" {
+            case_fail $case_num
+        }
+        -re "((\[0-9]+)Hz.*)\.wav" {
+            lappend file_info "$expect_out(1,string) $expect_out(2,string)"
+            exp_continue
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+set file_num [llength $file_info]
+if { $file_num == 0 } {
+    case_fail $case_num
+} else {
+    send_user "file_num=$file_num\n"
+    case_pass $case_num
+}
+
+#make snd2fftw source
+incr case_num
+if [ catch {exec make clean -C snd2fftw/src/} ] {
+    send_user "FAIL: Make clean of snd2fftw/src\n"
+    case_fail $case_num
+} else {
+    send_user "PASS: Make clean of snd2fftw/src\n"
+}
+
+if [ catch {exec make -C snd2fftw/src/} ] {
+    send_user "FAIL: Make snd2fftw/src\n"
+    case_fail $case_num
+} else {
+    send_user "PASS: Make snd2fftw/src\n"
+}
+
+#install snd2fftw
+set timeout 5
+send "sudo make install -C snd2fftw/src\r"
+while 1 {
+    expect {
+        -re "\[pP]assword:" {
+            send -s "$password\r"
+            while 1 {
+                expect {
+                    -re "\[eE]rror|\[fF]ail" {
+                        case_fail $case_num
+                    }
+                    -re ">" {
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            break
+        }
+        -re "\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "Entering.*cp.*Leaving.*>" {
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+#check if snd2fftw is installed properly
+incr case_num
+set timeout 5
+send "snd2fftw\r"
+while 1 {
+    expect {
+        -re "Input file missing.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+for {set count 0} {$count < $file_num} {incr count} {
+    sleep 2
+    set file_suffix [lindex [lindex $file_info $count] 0]
+    set sample_freq [lindex [lindex $file_info $count] 1]
+
+    step "Spectrum test with $file_suffix.wav, frequency $sample_freq"
+    spectrum_analysis $file_suffix $sample_freq
+}
+
+incr case_num
+set timeout 5
+send "mv *dft* $output_dir\r"
+while 1 {
+    expect {
+        -re "(\[eE]rror|\[fF]ail|No such).*>" {
+            case_fail $case_num
+        }
+        -re ">" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+
+step "Test Results"
+for {set count 0} {$count < $file_num} {incr count} {
+    send_user "[lindex [lindex $file_info $count] 0]\t[lindex $result $count]\n"
+    if { [lindex $result $count] == "FAIL" } {
+        set final_result FAIL
+    }
+}
+
+incr case_num
+if { $final_result == "FAIL" } {
+    case_fail $case_num
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+
+log_file

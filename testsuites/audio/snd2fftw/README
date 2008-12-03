@@ -1,0 +1,34 @@
+#########
+src & plt
+#########
+Source code is ported from project snd2fftw at the bellow page.
+You can also find usage and examples here.
+http://snd2fftw.sourceforge.net
+
+You need to install fftw3-devel, fftw3-threads, gd, plotutils and gunplot packages.
+
+PLT files are parameters used to generate pictures via gnuplot.
+http://www.gnuplot.info/
+
+
+#######
+samples
+#######
+Now only wave format are supported by snd2fftw.
+Bellow is the features of test samples.
+
+Wave type       : Sine wav
+Format          : wave, signed 16 bit, little endian
+Sample Rate     : 44100Hz
+Channel         : Mono
+Duration        : 5s
+
+Test frequencies includes:
+   100  Hz
+   250  Hz
+   440  Hz
+ 1,000  Hz
+10,000  Hz
+
+The range of hearing for a healthy human being is 20Hz to 20kHz.
+So more frequencies to be added.

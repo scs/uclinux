@@ -1,0 +1,203 @@
+#!/usr/bin/expect
+
+#
+#This program is to record audio on and from PC, using mainly sine waveform.
+#
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+
+proc rec_at_pc { freq magnitude } {
+    global case_num
+    global kermit_spawn_id
+    global host_spawn_id
+    global kernel_prompt
+    global output_dir
+
+#Generate sine wave at $freq with magnitude of $magnitude on target board.
+    set spawn_id $kermit_spawn_id
+
+    incr case_num
+    set timeout 10
+    send "tone -s -f $freq -m $magnitude\n"
+    while 1 {
+        expect {
+            -re "TONE: generating sine wave at (\[0-9])+ Hz" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send "\3"
+                expect $kernel_prompt
+                case_fail $case_num
+            }
+        }
+    }
+
+
+#In PC, record output sound from target board with signed 16 bit little endian format, 44100 sample rate and mono.
+    set spawn_id $host_spawn_id
+
+    incr case_num
+    set timeout 10
+    send "arecord -t wav -c 1 -f S16_LE -r 44100 -d 5 $output_dir/${freq}Hz_44100Hz_16bit_05sec_PC.wav\n"
+    while 1 {
+        expect {
+            -re "Signed 16 bit Little Endian, Rate 44100 Hz, Mono.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send "\3"
+                expect $kernel_prompt
+                case_fail $case_num
+            }
+        }
+    }
+
+
+#Stop playing sound on target board.
+    set spawn_id $kermit_spawn_id
+
+    incr case_num
+    set timeout 5
+    send "\3"
+    while 1 {
+        expect {
+            -re $kernel_prompt {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+proc rec_from_pc { freq } {
+    global case_num
+    global kermit_spawn_id
+    global host_spawn_id
+    global kernel_prompt
+    global targetip
+    global output_dir
+
+#In PC, play sample sound to target board.
+    set spawn_id $host_spawn_id
+
+    incr case_num
+    set timeout 10
+    send "aplay snd2fftw/samples/${freq}Hz_44100Hz_16bit_05sec.wav\n"
+    while 1 {
+        expect {
+            -re "Signed 16 bit Little Endian, Rate 44100 Hz, Mono.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send "\3"
+                expect $kernel_prompt
+                case_fail $case_num
+            }
+        }
+    }
+
+#In target board, record sample sound from PC with signed 16 bit little endian format, 44100 sample rate and mono.
+    set spawn_id $kermit_spawn_id
+
+    incr case_num
+    set timeout 10
+    send "arecord -t wav -c 1 -f S16_LE -r 44100 -d 5 ${freq}Hz_44100Hz_16bit_05sec_BFIN.wav\n"
+    while 1 {
+        expect {
+            -re "Signed 16 bit Little Endian, Rate 44100 Hz, Mono.*$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send "\3"
+                expect $kernel_prompt
+                case_fail $case_num
+            }
+        }
+    }
+
+
+#Stop playing sound on PC.
+    set spawn_id $host_spawn_id
+
+    incr case_num
+    set timeout 5
+    send "\3"
+    while 1 {
+        expect {
+            -re ">" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+
+    incr case_num
+    if [ catch {exec rcp root@$targetip:/${freq}Hz_44100Hz_16bit_05sec_BFIN.wav $output_dir} ] {
+        send_user "FAIL: copy recorded file to PC\n"
+        case_fail $case_num
+    } else {
+        send_user "PASS: copy recorded file to PC\n"
+        case_pass $case_num
+    }
+}
+
+
+step "Start test"
+set case_num 0
+set timeout 5
+set output_dir audio_data
+
+sleep 5
+send "\r"
+expect -re $kernel_prompt
+
+spawn /bin/bash
+set host_spawn_id $spawn_id
+send "\r"
+expect ">"
+
+incr case_num
+if [ catch {exec mkdir -p $output_dir} ] {
+    send_user "FAIL: Create the DIRECTORY\n"
+    case_fail $case_num
+} else {
+    send_user "PASS: Create the DIRECTORY\n"
+    case_pass $case_num
+}
+
+rec_at_pc 100   125
+rec_at_pc 250   125
+rec_at_pc 440   125
+rec_at_pc 1000  125
+rec_at_pc 10000 125
+
+rec_from_pc 100
+rec_from_pc 250
+rec_from_pc 440
+rec_from_pc 1000
+rec_from_pc 10000
+
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+log_file
