@@ -38,7 +38,7 @@ case "$1" in
 		;;	
 	--start-daemon)
 		cd /usr/bin/
-		./oprofiled --events=${event_name}:${event_type}:${counter}:${counter_count}:${unit_mask}:${kernel}:${user}, --vmlinux=${kernel_image} --kernel-range=0x1000,0x10000 &
+		./oprofiled --events=${event_name}:${event_type}:${counter}:${counter_count}:${unit_mask}:${kernel}:${user} --vmlinux=${kernel_image} --kernel-range=0x1000,0x10000 &
 		;;
 	--start)
 		echo 1 > /dev/oprofile/enable

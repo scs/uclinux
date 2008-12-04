@@ -1,4 +1,5 @@
 VER = oprofile-0.9.2.1rc1
+#VER = oprofile-0.9.1
 CONF_OPTS= --with-kernel-support
 FILE_IMAGE = $(ROOTDIR)/$(LINUXDIR)/vmlinux
 
@@ -13,8 +14,8 @@ romfs:
 	$(ROMFSINST)    $(STAGEDIR)/usr/bin/ophelp /usr/bin/ophelp
 	$(ROMFSINST)    $(STAGEDIR)/usr/bin/opcontrol /usr/bin/opcontrol
 	$(ROMFSINST)    $(STAGEDIR)/usr/bin/opreport /usr/bin/opreport
-	$(ROMFSINST) -d $(STAGEDIR)/usr/share/oprofile/arm/xscale2/events /usr/share/oprofile/arm/xscale2/events
-	$(ROMFSINST) -d $(STAGEDIR)/usr/share/oprofile/arm/xscale2/unit_masks /usr/share/oprofile/arm/xscale2/unit_masks
+	#$(ROMFSINST) -d $(STAGEDIR)/usr/share/oprofile/arm/xscale2/events /usr/share/oprofile/arm/xscale2/events
+	#$(ROMFSINST) -d $(STAGEDIR)/usr/share/oprofile/arm/xscale2/unit_masks /usr/share/oprofile/arm/xscale2/unit_masks
 	$(ROMFSINST) -S $(FILE_IMAGE) /vmlinux
 	range_info=`objdump -h $(FILE_IMAGE) 2>/dev/null | grep " .text "`; \
 	tmp1=`echo $$range_info | awk '{print $$4}'`; \
@@ -23,4 +24,4 @@ romfs:
 	sed "/--vmlinux=/s:kernel-range=.* :kernel-range=$$tmp1,$$tmp2 :" bfin_opcontrol > build-$(VER)/bfin_opcontrol; \
 	chmod a+x build-$(VER)/bfin_opcontrol; \
 	$(ROMFSINST)    build-$(VER)/bfin_opcontrol /usr/bin/bfin_opcontrol; \
-	$(ROMFSINST) -a "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" /etc/rc
+	#$(ROMFSINST) -a "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" /etc/rc
