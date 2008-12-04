@@ -32,7 +32,7 @@ insmod /lib/modules/`uname -r`/bfdma.ko
 # Default configuration. Used if everythin else.
 ipaddr="192.168.1.10"
 gatewayip="192.168.1.1"
-serverip="192.168.1.21.10"
+serverip="192.168.1.10"
 runscript=
 
 # This is a migration script on the application flash that gets executed to overwrite network configurations if it exists.
