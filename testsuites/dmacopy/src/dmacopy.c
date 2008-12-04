@@ -75,7 +75,7 @@ static void xfree(void *ptr)
 int is_l1_inst(void *paddr)
 {
 	unsigned long addr = (unsigned long)paddr;
-	if ((addr & 0xffa00000) == 0xffa00000)
+	if ((addr & 0xfff00000) == 0xffa00000)
 		return 1;
 	else
 		return 0;
