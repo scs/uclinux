@@ -60,7 +60,7 @@ while 1 {
 set timeout 500
 expect {
 
-	"EEPROM*write*done" {
+	"done" {
 	set write_eeprom_flag $TEST_PASS
 	break
 	}
@@ -105,7 +105,7 @@ while 1 {
 	set timeout 500
 	expect {
 
-	    "EEPROM*write*done" {
+	    "done" {
 		set write_eeprom_flag $TEST_PASS
 		break
 	    }
@@ -125,7 +125,7 @@ while 1 {
 	set timeout 500
 	expect {
 
-	    "EEPROM*read*done" {
+	    "done" {
 		set read_eeprom_flag $TEST_PASS
 		break
 	    }

@@ -1,13 +1,7 @@
 #!/usr/bin/expect
 #
-#To use dataflash(df), remember to edit .type in linux-2.6.x/arch/blackfin/mach-bf537/boards/stamp.c to at45df321d like:
+#To use dataflash(df), remember to pass in "df"  as the second parameter like: ./spi_flash.exp BF537-STAMP df
 #
-#static struct flash_platform_data bfin_spi_flash_data = {
-#        .name = "m25p80",
-#        .parts = bfin_spi_flash_partitions,
-#        .nr_parts = ARRAY_SIZE(bfin_spi_flash_partitions),
-#        .type = "at45df321d",
-#};
 # Add-on board jumper is IC3.
 
 source ../kernel_config.exp
@@ -22,9 +16,11 @@ set erase_size 65536
 if { $argc >= 2} {
 set spi_board_type [lindex $argv 1]
 append TITLE " ($spi_board_type)"
-set spi_rootfs_num 0
-set page_size  512
-set erase_size 4096
+  if { $spi_board_type == "df" } {
+      set spi_rootfs_num 2
+      set page_size  512
+      set erase_size 8192
+}
 }
 
 step "Start kermit."
