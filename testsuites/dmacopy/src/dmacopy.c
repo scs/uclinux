@@ -72,6 +72,15 @@ static void xfree(void *ptr)
 	free(ret);
 }
 
+int is_l1_inst(void *paddr)
+{
+	unsigned long addr = (unsigned long)paddr;
+	if ((addr & 0xffa00000) == 0xffa00000)
+		return 1;
+	else
+		return 0;
+}
+
 /* Do the actual test:
  *  - set buffers to values known to be different
  *  - copy src to chk
@@ -81,12 +90,12 @@ static void xfree(void *ptr)
 int _do_test(char *src_desc, char *dst_desc, char *src, char *dst, char *chk, int size)
 {
 	static int test_num = 1;
-	int ret = 0;
+	int ret = 0, i;
 	void *ptr;
 
 	memset(src, 's', size);
 	memset(dst, 'd', size);
-	if (((ulong)chk & 0xffa00000) != 0xffa00000)
+	if (!is_l1_inst(chk))
 		memset(chk, 'c', size);
 
 	ptr = dma_memcpy(chk, src, size);
@@ -95,17 +104,37 @@ int _do_test(char *src_desc, char *dst_desc, char *src, char *dst, char *chk, in
 	else
 		printf("FAIL: dma_memcpy %s[s] to %s[c]\n", src_desc, dst_desc), ++ret;
 
+	if (!is_l1_inst(chk)) {
+		i = memcmp(chk, src, size);
+		if (!i)
+			printf("PASS: dma_memcpy(chk, src) test case %i, memcmp result is %d\n", test_num, i);
+		else {
+			printf("FAIL: dma_memcpy(chk, src) test case %i, memcmp result is %d\n", test_num, i), ++ret;
+			dump_diff(chk, src, size);
+		}
+	}
+
 	ptr = dma_memcpy(dst, chk, size);
 	if (ptr)
 		printf("PASS: dma_memcpy %s[c] to %s[d]\n", dst_desc, src_desc);
 	else
 		printf("FAIL: dma_memcpy %s[c] to %s[d]\n", dst_desc, src_desc), ++ret;
 
-	int i = memcmp(dst, src, size);
+	if (!is_l1_inst(chk)) {
+		i = memcmp(dst, chk, size);
+		if (!i)
+			printf("PASS: dma_memcpy(dst, chk) test case %i, memcmp result is %d\n", test_num, i);
+		else {
+			printf("FAIL: dma_memcpy(dst, chk) test case %i, memcmp result is %d\n", test_num, i), ++ret;
+			dump_diff(dst, chk, size);
+		}
+	}
+
+	i = memcmp(dst, src, size);
 	if (!i)
-		printf("PASS: dma_memcpy test case %i, memcmp result is %d\n", test_num, i);
+		printf("PASS: dma_memcpy(dst, src) test case %i, memcmp result is %d\n", test_num, i);
 	else {
-		printf("FAIL: dma_memcpy test case %i, memcmp result is %d\n", test_num, i), ++ret;
+		printf("FAIL: dma_memcpy(dst, src) test case %i, memcmp result is %d\n", test_num, i), ++ret;
 		dump_diff(dst, src, size);
 	}
 
@@ -201,9 +230,9 @@ int has_l2(void)
 int main(void)
 {
 	int ret = 0, i;
-	int sml_range[] = { 0x10, 0x1000 };
-	int mid_range[] = { 0x10, 0x1000, 0x10000, 0x12340 };
-	int lrg_range[] = { 0x10, 0x1000, 0x10000, 0x12340, 0x54320, 0x123450 };
+	int sml_range[] = { 4, 0x10, 0x1000 };
+	int mid_range[] = { 4, 0x10, 0x1000, 0x10000, 0x12340 };
+	int lrg_range[] = { 4, 0x10, 0x1000, 0x10000, 0x12340, 0x22340, 0x32340, 0x42340, 0x54320, 0x323450 };
 
 	TEST_RANGE(sml, sram_test, "L1 INST", L1_INST_SRAM);
 	TEST_RANGE(sml, sram_test, "L1 DATA", L1_DATA_SRAM);
