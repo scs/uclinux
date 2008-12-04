@@ -70,7 +70,7 @@ while 1 {
         }
 
         -re "5\.1 Channels or 3 Separate Stereos.*SND_BLACKFIN_AD1836_5P1.*\[cC]hoice\\\[.*]:" {
-            send "Y\r"
+            send "2\r"
         }
 
         -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
