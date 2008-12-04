@@ -87,9 +87,6 @@ if { $pass_num == [expr $case_number + 1] } {
 }
 
 
-send_log "\n"
-send_log "\n$TITLE ............\[PASS\]\n" 
-
 send_user "Ending $argv0\n"
 
 log_file
