@@ -63,6 +63,8 @@ static unsigned int tables_size(odb_data_t const * data, odb_node_nr_t node_nr)
 odb_index_t odb_hash_add_node(odb_t * odb)
 {
 	odb_data_t * data = odb->data;
+	char * filename;
+	int new_fd;
 
 	if (data->descr->current_size >= data->descr->size) {
 		unsigned int old_file_size;
@@ -73,21 +75,45 @@ odb_index_t odb_hash_add_node(odb_t * odb)
 		old_file_size = tables_size(data, data->descr->size);
 		new_file_size = tables_size(data, data->descr->size * 2);
 
-		if (ftruncate(data->fd, new_file_size))
+		/* uClinux don't support mremap() a size increased file. */
+		/*if (ftruncate(data->fd, new_file_size))
 			return ODB_NODE_NR_INVALID;
 		
-		/*
-		 * ugly workaround
-		 */
-#ifndef __uClinux__
 		new_map = mremap(data->base_memory,
 				old_file_size, new_file_size, MREMAP_MAYMOVE);
 
 		if (new_map == MAP_FAILED)
-			return ODB_NODE_NR_INVALID;
-#else
-		return ODB_NODE_NR_INVALID;
-#endif
+			return ODB_NODE_NR_INVALID; */
+
+		/* Ugly create a new file with new size, 
+		 * copy the old data to new file,
+		 * then rename it to the original file.
+		 */
+		filename = malloc(strlen(data->base_memory)+5);
+		filename = strdup(data->base_memory);
+		strcat(filename, "tmp");
+
+		new_fd = open(filename, (O_CREAT | O_RDWR), 0644);
+		if (new_fd < 0) {
+			return 1;
+		}
+		if (ftruncate(new_fd, new_file_size))
+			return 1;
+		new_map = mmap(0, new_file_size, (PROT_READ | PROT_WRITE),
+						MAP_SHARED, new_fd, 0);
+		memcpy(new_map, data->base_memory, old_file_size);
+	
+		/* print it to oprofile.log */
+		fprintf(stderr, "size:%x->%x\tbase_memory:%x->%x\tfile:%x->%x.\n",
+			old_file_size, new_file_size, data->base_memory,
+			new_map, data->fd, new_fd);
+
+		munmap(data->base_memory, old_file_size);
+		close(data->fd);
+		rename(filename, data->filename);
+		data->fd = new_fd;
+		free(filename);
+
 
 		data->base_memory = new_map;
 		data->descr = odb_to_descr(data);
