@@ -48,6 +48,24 @@ while 1 {
             send "N\r"
         }
 
+#some sound card need blackfin I2C driver
+        -re "I2C support \\\(I2C\\\).*\\\[.*]" {
+            if { $audio_dev == "audio_ssm2602" || $audio_dev == "audio_ad73311" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
+            if { $audio_dev == "audio_ssm2602" || $audio_dev == "audio_ad73311" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+#sound card
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "Y\r"
         }
