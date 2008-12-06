@@ -5,22 +5,15 @@ ifdef CONFIG_IPV6
 CONF_OPTS += --enable-ipv6
 endif
 
-all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
+export ac_cv_linux_vers=2
+export ac_cv_lbl_unaligned_fail=yes
 
-build-$(VER)/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	ac_cv_linux_vers=2 \
-	ac_cv_lbl_unaligned_fail=yes \
-	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
+include $(ROOTDIR)/tools/autotools.mk
 
-clean:
-	rm -rf build*
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+post-build::
+	$(MAKE) -C build-$(VER) install-shared DESTDIR=$(STAGEDIR)
+endif
 
 romfs:
-
-.PHONY: all clean romfs
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libpcap.so.0 /usr/lib/libpcap.so.0
