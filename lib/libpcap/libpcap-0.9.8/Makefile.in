@@ -114,14 +114,14 @@ shared: libpcap.$(DYEXT)
 #
 libpcap.so: $(OBJ)
 	@rm -f $@
-	$(CC) -shared -o $@.`cat VERSION` $(OBJ) $(DAGLIBS)
+	$(CC) -Wl,-soname,$@.so.0 -shared -o $@.`cat $(srcdir)/VERSION` $(OBJ) $(DAGLIBS)
 
 # the following rule succeeds, but the result is untested.
 libpcap.dylib: $(OBJ)
 	rm -f libpcap*.dylib
-	$(CC) -dynamiclib -undefined error -o libpcap.`cat VERSION`.dylib $(OBJ) \
-		-install_name $(libdir)/libpcap.0.dylib -compatibility_version `cat VERSION` \
-		-current_version `cat VERSION`
+	$(CC) -dynamiclib -undefined error -o libpcap.`cat $(srcdir)/VERSION`.dylib $(OBJ) \
+		-install_name $(libdir)/libpcap.0.dylib -compatibility_version `cat $(srcdir)/VERSION` \
+		-current_version `cat $(srcdir)/VERSION`
 
 
 scanner.c: $(srcdir)/scanner.l
@@ -191,10 +191,11 @@ install: libpcap.a
 
 install-shared: install-shared-$(DYEXT)
 install-shared-so: libpcap.so
-	$(INSTALL_PROGRAM) libpcap.so.`cat VERSION` $(DESTDIR)$(libdir)/libpcap.so.`cat VERSION`
+	$(INSTALL_PROGRAM) libpcap.so.`cat $(srcdir)/VERSION` $(DESTDIR)$(libdir)/libpcap.so.`cat $(srcdir)/VERSION`
+	ln -s libpcap.so.`cat $(srcdir)/VERSION` $(DESTDIR)$(libdir)/libpcap.so.0
 install-shared-dylib: libpcap.dylib
-	$(INSTALL_PROGRAM) libpcap.`cat VERSION`.dylib $(DESTDIR)$(libdir)/libpcap.`cat VERSION`.dylib
-	VER=`cat VERSION`; cd $(DESTDIR)$(libdir) && ln -sf libpcap.$$VER.dylib libpcap.0.dylib;  ln -sf libpcap.0.dylib libpcap.dylib
+	$(INSTALL_PROGRAM) libpcap.`cat $(srcdir)/VERSION`.dylib $(DESTDIR)$(libdir)/libpcap.`cat $(srcdir)/VERSION`.dylib
+	VER=`cat $(srcdir)/VERSION`; cd $(DESTDIR)$(libdir) && ln -sf libpcap.$$VER.dylib libpcap.0.dylib;  ln -sf libpcap.0.dylib libpcap.dylib
 
 uninstall:
 	rm -f $(DESTDIR)$(libdir)/libpcap.a
