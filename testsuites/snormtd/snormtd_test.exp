@@ -7,12 +7,6 @@
 source ../kernel_config.exp
 source ../board_info.exp
 
-log_file [log_file_name "$argv0"]
-send_user "Starting $argv0\n"
-set TITLE [title "$argv0"]
-set page_size  4096
-set erase_size 65536
-
 if { $argc >= 2} {
 set spi_board_type [lindex $argv 1]
 append TITLE " ($spi_board_type)"
@@ -22,6 +16,12 @@ append TITLE " ($spi_board_type)"
       set erase_size 8192
 }
 }
+log_file [log_file_name "$argv0.$spi_board_type"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+set page_size  4096
+set erase_size 65536
+
 
 step "Start kermit."
 source ../spawn_kermit.exp
@@ -169,7 +169,7 @@ send_log " \n2)create test file\n"
 send -s "echo This is test for mtd driver > rootfs/test\r"
 expect  -re $kernel_prompt
 send_log " \n3)create JFFS2 image\n"
-send -s "mkfs.jffs2 -r rootfs -s $page_size -e $erase_size -o mtd.img\r"
+send -s "mkfs.jffs2 -n -r rootfs -s $page_size -e $erase_size -o mtd.img\r"
 expect ">"
 
 incr case_num

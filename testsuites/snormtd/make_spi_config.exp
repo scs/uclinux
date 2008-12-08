@@ -1,6 +1,6 @@
 #!/usr/bin/expect
 
-set spi_board_type NORMAL
+set spi_board_type normal
 
 if { $argc >= 2} {
 set spi_board_type [lindex $argv 1]
@@ -68,7 +68,7 @@ while 1 {
             }
         }
         -re "Support most SPI Flash chips.*MTD_M25P80.*\\\[.*]" {
-            if { $spi_board_type == "NORMAL" } {
+            if { $spi_board_type == "normal" } {
                 send "Y\r"
             } else {
                 send "N\r"
@@ -76,7 +76,7 @@ while 1 {
         }
 
         -re "Use FAST_READ OPCode allowing SPI CLK <= 50MHz.*M25PXX_USE_FAST_READ.*\\\[.*]" {
-            if { $spi_board_type == "NORMAL" } {
+            if { $spi_board_type == "normal" } {
                 send "Y\r"
             } else {
                 send "N\r"

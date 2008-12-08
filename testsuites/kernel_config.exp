@@ -25,7 +25,7 @@ set bootaddr_low 0x1000000
 set bootaddr_high 0x2000000
 set name test
 set STRDATA "abcdefghijklmnopqrstuvwxyz0123456789"
-#set file names
+set spi_board_type normal
 
 set kernel_only_image   vmlinux
 set compressed_kernel_only_image  vmImage

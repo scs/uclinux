@@ -3,7 +3,10 @@
 source  ../kernel_config.exp
 source  ../board_info.exp
 
-log_file [log_file_name "$argv0"]
+if { $argc >= 2} {
+set spi_board_type [lindex $argv 1]
+}
+log_file [log_file_name "$argv0.$spi_board_type"]
 
 send_user "Starting $argv0\n"
 
