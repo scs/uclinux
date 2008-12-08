@@ -35,11 +35,13 @@ gatewayip="192.168.1.1"
 serverip="192.168.1.10"
 runscript=
 
-# This is a migration script on the application flash that gets executed to overwrite network configurations if it exists.
-[ -e "/mnt/app/config" ] && . "/mnt/app/config"
+[ -f "/mnt/app/migration" ] && . "/mnt/app/migration"
 
 for i in ipaddr gatewayip serverip ethaddr runscript; do
-	fw_printenv "$i" > /dev/null && eval `fw_printenv "$i"`
+	eval `fw_printenv "$i" 2> /dev/null`
+	
+	VALUE=`grep "^$i" "/mnt/app/config" 2> /dev/null | cut -d " " -f 2`
+	[ $VALUE ] && eval "$i=$VALUE"
 done
 
 # Configure the network
@@ -85,13 +87,20 @@ fi
 cat /etc/motd
 
 #launch user specific application script
-echo "$runscript" | grep -q "^/" || runscript="/mnt/app/$runscript"
+if [ "$runscript" ]; then
+	runfolder="/"
+	
+	if echo "$runscript" | grep -qv "^/"; then
+		runscript="/mnt/app/$runscript"
+		runfolder="/mnt/app"
+	fi
 
-if [ -f "$runscript" ] && [ -x "$runscript" ]; then
-	echo "Executing $runscript ..."
-	(cd /; "$runscript") &
-else
-	"Cannot run runscript: $runscript"
+	if [ -f "$runscript" ] && [ -x "$runscript" ]; then
+		echo "Executing $runscript ..."
+		(cd "$runfolder"; "$runscript" &)
+	else
+		echo "Cannot run runscript: $runscript"
+	fi
 fi
 
-exit
+exit 0
