@@ -1,22 +1,22 @@
 # version is based on current git snapshot from here (since releases are not
 # really made anymore by the mtd guys):
 # http://git.infradead.org/?p=mtd-utils.git;a=summary
-VER = d769da93a56590c23ce9430a1d970e31e835ae88
+VER = c918deda83f257d379dc62d36ab176a1b5f5c619
 
-RAWTARGETS-y :=
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_ERASE)        += flash_erase
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_ERASEALL)     += flash_eraseall
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_FTL_CHECK)    += ftl_check
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_FTL_FORMAT)   += ftl_format
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_NFTL_FORMAT)  += nftl_format
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_NFTLDUMP)     += nftldump
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_NANDDUMP)     += nanddump
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_NANDTEST)     += nandtest
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_NANDWRITE)    += nandwrite
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_DOC_LOADBIOS) += doc_loadbios
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_DOC_LOADIPL)  += doc_loadipl
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_MKFSJFFS)     += mkfs.jffs
-RAWTARGETS-$(CONFIG_USER_MTDUTILS_MKFSJFFS2)    += mkfs.jffs2
+TARGETS-y :=
+TARGETS-$(CONFIG_USER_MTDUTILS_ERASE)        += flash_erase
+TARGETS-$(CONFIG_USER_MTDUTILS_ERASEALL)     += flash_eraseall
+TARGETS-$(CONFIG_USER_MTDUTILS_FTL_CHECK)    += ftl_check
+TARGETS-$(CONFIG_USER_MTDUTILS_FTL_FORMAT)   += ftl_format
+TARGETS-$(CONFIG_USER_MTDUTILS_NFTL_FORMAT)  += nftl_format
+TARGETS-$(CONFIG_USER_MTDUTILS_NFTLDUMP)     += nftldump
+TARGETS-$(CONFIG_USER_MTDUTILS_NANDDUMP)     += nanddump
+TARGETS-$(CONFIG_USER_MTDUTILS_NANDTEST)     += nandtest
+TARGETS-$(CONFIG_USER_MTDUTILS_NANDWRITE)    += nandwrite
+TARGETS-$(CONFIG_USER_MTDUTILS_DOC_LOADBIOS) += doc_loadbios
+TARGETS-$(CONFIG_USER_MTDUTILS_DOC_LOADIPL)  += doc_loadipl
+TARGETS-$(CONFIG_USER_MTDUTILS_MKFSJFFS)     += mkfs.jffs
+TARGETS-$(CONFIG_USER_MTDUTILS_MKFSJFFS2)    += mkfs.jffs2
 
 # Host based builds needed for constructing host images
 BUILDTARGETS-m :=
@@ -26,12 +26,23 @@ BUILDTARGETS-$(CONFIG_JFFS2_FS) += mkfs.jffs2
 BUILDTARGETS-$(CONFIG_JFFS2_SUMMARY) += sumtool
 BUILDTARGETS = $(BUILDTARGETS-m) $(BUILDTARGETS-y)
 
-MAKE_MTD = $(MAKE) -C $(VER) WITHOUT_XATTR=1
-all:
-	unset CC CFLAGS CPPFLAGS CROSS LDFLAGS; $(MAKE_MTD) BUILDDIR=$$PWD/build-$(VER)-host RAWTARGETS="$(BUILDTARGETS)"
-	for f in $(BUILDTARGETS-y) ; do ln -sf build-$(VER)-host/$$f $$f ; done
+UBI_BUILDTARGETS-m :=
+UBI_BUILDTARGETS-y :=
+UBI_BUILDTARGETS-$(CONFIG_UBIFS_FS) += mkfs.ubifs
+UBI_BUILDTARGETS = $(UBI_BUILDTARGETS-m) $(UBI_BUILDTARGETS-y)
 
-	$(MAKE_MTD) BUILDDIR=$$PWD/build-$(VER) RAWTARGETS="$(RAWTARGETS-y)"
+define MAKE_MTD
+	$(MAKE) -C $(VER)/$(2) WITHOUT_XATTR=1 SUBDIRS= BUILDDIR=$$PWD/build-$(VER)$(3)/$(2) TARGETS="$(1)"
+endef
+define MAKE_HOST_MTD
+	unset CC CFLAGS CPPFLAGS CROSS LDFLAGS; $(call MAKE_MTD,$(1),$(2),-host)
+	for f in $(1) ; do ln -sf build-$(VER)-host/$(2)/$$f $$f ; done
+endef
+all:
+	$(call MAKE_HOST_MTD,$(BUILDTARGETS))
+	$(call MAKE_HOST_MTD,$(UBI_BUILDTARGETS),mkfs.ubifs)
+
+	$(call MAKE_MTD,$(TARGETS-y))
 
 clean:
 	rm -rf build-$(VER)*
