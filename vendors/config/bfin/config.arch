@@ -48,6 +48,7 @@ MKFS_EXT2   = $(ROOTDIR)/user/genext2fs/build-host/genext2fs
 MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/mkfs.jffs2
 MTD_SUMTOOL = $(ROOTDIR)/user/mtd-utils/sumtool
 MKFS_ROMFS  = $(ROOTDIR)/user/genromfs/genromfs
+MKFS_UBIFS  = $(ROOTDIR)/user/mtd-utils/mkfs.ubifs
 MKFS_YAFFS  = $(ROOTDIR)/user/yaffs-utils/mkfs.yaffs
 MKFS_YAFFS2 = $(ROOTDIR)/user/yaffs-utils/mkfs.yaffs2
 
