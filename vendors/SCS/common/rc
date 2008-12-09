@@ -29,19 +29,16 @@ mount -t jffs2 /dev/mtdblock6 /mnt/app
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
 
-# Default configuration. Used if everythin else.
+# Default configuration. Used if everything else fails.
 ipaddr="192.168.1.10"
 gatewayip="192.168.1.1"
-serverip="192.168.1.10"
+serverip="192.168.1.2"
 runscript=
 
-[ -f "/mnt/app/migration" ] && . "/mnt/app/migration"
+[ -f "/mnt/app/.rc.local" ] && . "/mnt/app/.rc.local"
 
 for i in ipaddr gatewayip serverip ethaddr runscript; do
 	eval `fw_printenv "$i" 2> /dev/null`
-	
-	VALUE=`grep "^$i" "/mnt/app/config" 2> /dev/null | cut -d " " -f 2`
-	[ $VALUE ] && eval "$i=$VALUE"
 done
 
 # Configure the network
