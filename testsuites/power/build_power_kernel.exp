@@ -112,7 +112,7 @@ while 1 {
             if { $board_type == "BF533-EZKIT" } {
                 send "N\r"
             } else {
-                send "M\r"
+                send "Y\r"
             }
         }
 
