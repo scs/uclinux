@@ -62,35 +62,35 @@ while 1 {
             send "y\r"
         }
 
-        -re "Sound card support \\\(SOUND\\\).*\\\[./././.]" {
+        -re "Sound card support.*SOUND.*\\\[.*]" {
             send "n\r"
         }
 
-        -re "MSDOS fs support \\\(MSDOS_FS\\\).*\\\[./././.]" {
+        -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Second extended fs support.*\\\(EXT2_FS\\\).*\\\[./././.]" {
+        -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "VFAT \\\(Windows-95\\\) fs support \\\(VFAT_FS\\\).*\\\[./././.]" {
+        -re "VFAT \\\(Windows-95\\\) fs support.*VFAT_FS.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Default codepage for FAT \\\(FAT_DEFAULT_CODEPAGE\\\).*\\\[.*]" {
+        -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[.*]" {
             send "850\r"
         }
 
-        -re "Codepage 437 \\\(United States, Canada\\\) \\\(NLS_CODEPAGE_437\\\).*\\\[./././.]" {
+        -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Codepage 850 \\\(Europe\\\) \\\(NLS_CODEPAGE_850\\\).*\\\[./././.]" {
+        -re "Codepage 850.*Europe.*NLS_CODEPAGE_850.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "NLS ISO 8859-1  \\\(Latin 1; Western European Languages\\\) \\\(NLS_ISO8859_1\\\).*\\\[./././.]" {
+        -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[.*]" {
             send "y\r"
         }
 
@@ -98,15 +98,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "MMC/SD for SPI support.*\\\(SPI_MMC\\\).*\\\[.*]" {
-            send "y\r"
-        }
-
-        -re "SPI chip select signal for MMC/SD card \\\(SPI_MMC_CS_CHAN\\\).*\\\[.*]" {
-            send "4\r"
-        }
-
-        -re "MMC/SD Card detect support.*\\\(SPI_MMC_CARD_DETECT\\\).*\\\[././.]" {
+        -re "MMC/SD/SDIO over SPI.*MMC_SPI.*\\\[.*]" {
             send "y\r"
         }
 
@@ -135,7 +127,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 
