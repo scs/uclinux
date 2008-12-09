@@ -35,11 +35,11 @@ gatewayip="192.168.1.1"
 serverip="192.168.1.2"
 runscript=
 
-[ -f "/mnt/app/.rc.local" ] && . "/mnt/app/.rc.local"
-
 for i in ipaddr gatewayip serverip ethaddr runscript; do
 	eval `fw_printenv "$i" 2> /dev/null`
 done
+
+[ -f "/mnt/app/.rc.local" ] && . "/mnt/app/.rc.local"
 
 # Configure the network
 ifconfig eth0 down
