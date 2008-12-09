@@ -75,7 +75,7 @@ odb_index_t odb_hash_add_node(odb_t * odb)
 		old_file_size = tables_size(data, data->descr->size);
 		new_file_size = tables_size(data, data->descr->size * 2);
 
-		/* uClinux don't support mremap() a size increased file. */
+		/* uClinux don't support mremap() that have mmaped wiht MAP_SHARED. */
 		/*if (ftruncate(data->fd, new_file_size))
 			return ODB_NODE_NR_INVALID;
 		
