@@ -45,7 +45,8 @@ build-$(VER)/Makefile: build-host-$(VER)/Makefile FORCE
 
 build-host-$(VER)/Makefile: FORCE
 ifeq ($(AUTOTOOLS_BUILD_HOST),true)
-	@export CC=$(HOSTCC) CPPFLAGS="" CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="" CONFIG_SITE="" \
+	@export AR="" CC=$(HOSTCC) CXX="" LD="" RANLIB="" \
+		CPPFLAGS="" CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="" CONFIG_SITE="" \
 	$(call if_changed,configure,$(BUILD_CONFIGURE_OPTS) $(BUILD_CONF_OPTS),host-)
 	$(MAKE) host-build
 endif
