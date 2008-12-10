@@ -12,6 +12,7 @@ all: $(VER)/Makefile
 	done
 
 	# create symlinks for stupid packages (like mplayer)
+	rm -f $(STAGEDIR)/usr/lib/live
 	ln -s $(ROOTDIR)/lib/live/$(VER) $(STAGEDIR)/usr/lib/live
 
 $(VER)/Makefile:
