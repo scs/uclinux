@@ -20,10 +20,13 @@ set case_num 0
 incr case_num
 
 set timeout 60
-send "modprobe pehci\r"
+send "modprobe isp1760\r"
 while 1 {
     expect {
-       -re "ISP1761.*USB hub found.*USB Mass Storage devices.*sda: sda1.*Attached SCSI removable disk" {
+       -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
+           case_fail $case_num
+       }
+       -re "ISP1760.*USB Mass Storage devices.*sda: sda1.*Attached SCSI removable disk" {
            send "\r"
            expect ">"
            case_pass $case_num
