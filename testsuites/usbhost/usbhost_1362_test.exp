@@ -165,7 +165,22 @@ set timeout 10
 send "dmesg\r"
 while 1 {
     expect {
-       -re "sda: sda1.*device scan complete.*sdb: sdb1.*device scan complete.*>" {
+       -re "sda.*device scan complete.*sdb.*device scan complete.*>" {
+           case_pass $case_num
+           break
+       }
+       timeout {
+           case_fail $case_num
+       }
+    }
+}
+
+incr case_num
+set timeout 10
+send "ls /dev/sd*\r"
+while 1 {
+    expect {
+       -re "sda.*sda1.*sdb.*sdb1.*>" {
            case_pass $case_num
            break
        }
