@@ -30,6 +30,7 @@
 #include <asm/types.h>
 #endif
 
+#define _ASM_GENERIC_FCNTL_H /* [#4647] */
 #include <linux/inotify.h>
 #include <asm/unistd.h>
 
