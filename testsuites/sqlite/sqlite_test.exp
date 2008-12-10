@@ -1,11 +1,8 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
 
 step "Spawn kermit"
@@ -15,57 +12,51 @@ step "Reboot the kernel."
 source ../reboot_kernel.exp
 
 sleep 5
-
 set case_num 0
 
 step "Start Sqlite testing"
 
 incr case_num
-set timeout 2
-send "sqlite3 wishlist.db < /usr/wishlist.sql\r"
-expect  -re $kernel_prompt
+set timeout 5
+send "taskset 1 sqlite3 wishlist.db < /usr/wishlist.sql\r"
+expect -re $kernel_prompt
 
-send "sqlite3 wishlist.db \".dump\"\r"
+send "taskset 1 sqlite3 wishlist.db \".dump\"\r"
 while 1 {
-expect {
-         -re $kernel_prompt {
-         case_pass $case_num
-         break
-         }
-         -re "Trace:.*\r\n\r\n" {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        -re "Trace:.*\r\n\r\n" {
             expect -re "$kernel_prompt"
             send_user "\nShow up dump info\n"
             case_fail $case_num
             exit
-         }
-         timeout {
-         case_fail $case_num
-         }
-
-
-}
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
-send "sqlite_test \"foo\"\r"
-
+send "taskset 1 sqlite_test \"foo\"\r"
 while 1 {
-   expect {
-      -re ".*foo <foo@test>.*" {
-         case_pass $case_num
-         break
-      }
-
-      -re "Trace:.*\r\n\r\n" {
+    expect {
+        -re ".*foo <foo@test>.*" {
+            case_pass $case_num
+                break
+        }
+        -re "Trace:.*\r\n\r\n" {
             expect -re "$kernel_prompt"
             send_user "\nShow up dump info\n"
             case_fail $case_num
             exit
-      }
-
-      timeout {
-         case_fail $case_num
-      }
-   }
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 all_pass
