@@ -15,6 +15,9 @@
 #include "string_manip.h"
 #include "cverb.h"
 
+#include <cstdlib>
+#include <cstring>
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
