@@ -46,12 +46,18 @@ while 1 {
    expect {
       "root:/bin" {         
                 case_pass $case_num
-         break
+                break
       }
+
+      -re "No|\[Uu]nable|\[Ff]ailed.*\r" {
+                expect -re "\[\r]"
+                case_fail $case_num
+                exit
+        }
 
       timeout {
                 case_fail $case_num
-	exit
+        	exit
          }
      }
 }

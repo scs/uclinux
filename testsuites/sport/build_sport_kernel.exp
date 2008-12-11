@@ -37,7 +37,7 @@ while 1 {
             send "N\r"
         }
 
-        -re "Blackfin BF53x SPORT support.*BFIN_SPORT.*\\\[.*]" {
+        -re "Blackfin SPORT driver for direct raw access.*BFIN_SPORT.*\\\[.*]" {
             send "Y\r"
         }
 
