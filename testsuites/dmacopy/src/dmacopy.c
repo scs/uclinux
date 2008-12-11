@@ -1,7 +1,8 @@
+#include <bfin_sram.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <bfin_sram.h>
+#include <sys/wait.h>
 
 static inline void show_diff(int first, int last)
 {
@@ -219,7 +220,7 @@ int sdram_test(int size)
 int has_l2(void)
 {
 	/* if the part does not have L2, then don't try to use it */
-	return system("grep -qs '^L2 SRAM[[:space:]]*:[[:space:]]*0' /proc/cpuinfo");
+	return WEXITSTATUS(system("grep -qs '^L2 SRAM[[:space:]]*:[[:space:]]*0' /proc/cpuinfo"));
 }
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*arr))
