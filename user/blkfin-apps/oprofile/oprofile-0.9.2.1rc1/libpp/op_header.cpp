@@ -9,11 +9,17 @@
  * @author Philippe Elie
  */
 
+#include <cstring>
 #include <iostream>
 #include <cstdlib>
 #include <iomanip>
 #include <set>
 #include <sstream>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "op_exception.h"
 #include "odb.h"

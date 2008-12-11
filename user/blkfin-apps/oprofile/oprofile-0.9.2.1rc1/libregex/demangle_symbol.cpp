@@ -8,6 +8,8 @@
  * @author John Levon
  */
 
+#include <cstdlib>
+
 #include "config.h"
 
 #include "demangle_symbol.h"

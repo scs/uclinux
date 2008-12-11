@@ -17,6 +17,8 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <cstring>
+#include <cstdlib>
 
 #include <sys/types.h>
 #include <sys/stat.h>

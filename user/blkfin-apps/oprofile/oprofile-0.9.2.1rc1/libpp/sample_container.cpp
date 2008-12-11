@@ -9,6 +9,7 @@
  * @author John Levon
  */
 
+#include <climits>
 #include <set>
 #include <numeric>
 #include <algorithm>

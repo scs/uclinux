@@ -15,6 +15,8 @@
 #include <dirent.h>
 #include <fnmatch.h>
 #include <utime.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include <cstdio>
 #include <cerrno>
