@@ -61,6 +61,7 @@ $(VER)/config.mak: $(FFM_LIB_DIRS)
 		--mandir=/usr/share/man \
 		--enable-fbdev \
 		--disable-mp3lib \
+		--disable-ivtv \
 		$(CONF_OPTS) $(CONF_OPTS-y) $(CONF_OPTS-m)
 
 clean:
