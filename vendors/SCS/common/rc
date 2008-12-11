@@ -29,6 +29,8 @@ mount -t jffs2 /dev/mtdblock6 /mnt/app
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
 
+fw_printenv "ethaddr" > /dev/null 2>&1 || FIRST_TIME_BOOT=1
+
 # Default configuration. Used if everything else fails.
 ipaddr="192.168.1.10"
 gatewayip="192.168.1.1"
@@ -36,9 +38,11 @@ serverip="192.168.1.2"
 ethaddr="00:20:e3:23:00:00"
 runscript=
 
-for i in ipaddr gatewayip serverip ethaddr runscript; do
-	eval `fw_printenv "$i" 2> /dev/null`
-done
+if [ ! "$FIRST_TIME_BOOT" ]; then
+	for i in ipaddr gatewayip serverip ethaddr runscript; do
+		eval `fw_printenv "$i" 2> /dev/null`
+	done
+fi
 
 [ -f "/mnt/app/.rc.local" ] && . "/mnt/app/.rc.local"
 
@@ -64,7 +68,7 @@ else
 fi
 
 # Detect first-time-boot if not valid ethaddr u-boot environment available
-if fw_printenv "ethaddr" > /dev/null 2>&1; [ $? -ne 0 ]; then
+if [ "$FIRST_TIME_BOOT" ]; then
 	echo ">>> Fist-time-boot: ethaddr not yet defined in u-boot variables. <<<"
 	
 	tftp "$serverip" -g -r "runinit.sh" -l "/tmp/runinit.sh"
@@ -88,7 +92,7 @@ if [ "$runscript" ]; then
 		runscript="/mnt/app/$runscript"
 		runfolder="/mnt/app"
 	fi
-
+	
 	if [ -f "$runscript" ] && [ -x "$runscript" ]; then
 		echo "Executing $runscript ..."
 		(cd "$runfolder"; "$runscript" &)
