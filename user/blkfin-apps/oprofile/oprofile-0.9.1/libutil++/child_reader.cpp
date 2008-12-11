@@ -11,10 +11,13 @@
 
 #include <unistd.h>
 #include <sys/wait.h>
+#include <limits.h>
 
 #include <cerrno>
 #include <sstream>
 #include <iostream>
+#include <cstring>
+#include <cstdlib>
 
 #include <linux/limits.h>
 

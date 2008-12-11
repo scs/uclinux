@@ -9,6 +9,8 @@
  * @author Philippe Elie
  */
 
+#include <cstdlib>
+
 #include <vector>
 #include <list>
 #include <iterator>

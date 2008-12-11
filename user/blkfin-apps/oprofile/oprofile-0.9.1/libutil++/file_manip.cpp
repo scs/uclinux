@@ -13,6 +13,8 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <fnmatch.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include <cstdio>
 #include <cerrno>

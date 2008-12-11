@@ -13,6 +13,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <cstring>
 
 #include "cverb.h"
 
