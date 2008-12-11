@@ -24,7 +24,7 @@
 /* $Id: boa.c,v 1.99.2.26 2005/02/22 14:11:29 jnelson Exp $*/
 
 #include "boa.h"
-
+#include <sys/wait.h>
 /* globals */
 int backlog = SO_MAXCONN;
 time_t start_time;
@@ -51,7 +51,7 @@ static int do_fork = 1;
 
 int main(int argc, char *argv[])
 {
-    int server_s;               /* boa socket */
+    int server_s,child_status;               /* boa socket */
     pid_t pid;
 
     /* set umask to u+rw, u-x, go-rwx */
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 
     /* background ourself */
     if (do_fork) {
-        pid = fork();
+        pid = vfork();
     } else {
         pid = getpid();
     }
@@ -106,6 +106,13 @@ int main(int argc, char *argv[])
         break;
     default:
         /* parent, success */
+        if (do_fork) {
+            waitpid(pid, &child_status, 0);
+                 if (WEXITSTATUS(child_status) != 0) {
+                     perror("child process exit abnormally.");
+                 }
+        }
+
         if (pid_file != NULL) {
             FILE *PID_FILE = fopen(pid_file, "w");
             if (PID_FILE != NULL) {

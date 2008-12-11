@@ -34,6 +34,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "compat.h"
+#include <sys/wait.h>
 
 int open_pipe_fd(const char *command);
 int open_net_fd(const char *spec);
@@ -43,12 +44,12 @@ int open_gen_fd(const char *spec);
 int open_pipe_fd(const char *command)
 {
     int pipe_fds[2];
-    int pid;
+    int pid,status;
     /* "man pipe" says "filedes[0] is for reading,
      * filedes[1] is for writing. */
     if (pipe(pipe_fds) == -1)
         return -1;
-    pid = fork();
+    pid = vfork();
     if (pid == 0) {             /* child */
         close(pipe_fds[1]);
         if (pipe_fds[0] != 0) {
@@ -58,6 +59,7 @@ int open_pipe_fd(const char *command)
         execl("/bin/sh", "sh", "-c", command, (char *) 0);
         exit(EXIT_FAILURE);
     }
+    waitpid(pid, &status, 0);
     close(pipe_fds[0]);
     if (pid < 0) {
         close(pipe_fds[1]);

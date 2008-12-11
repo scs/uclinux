@@ -24,6 +24,7 @@
 /* $Id: cgi.c,v 1.83.2.28 2005/02/22 14:11:29 jnelson Exp $ */
 
 #include "boa.h"
+#include <sys/wait.h>
 
 static char *env_gen_extra(const char *key, const char *value,
                            unsigned int extra);
@@ -404,7 +405,7 @@ static void create_argv(request * req, char **aargv)
 
 int init_cgi(request * req)
 {
-    int child_pid;
+    int child_pid,child_status;
     int pipes[2];
     int use_pipes = 0;
 
@@ -445,7 +446,7 @@ int init_cgi(request * req)
         }
     }
 
-    child_pid = fork();
+    child_pid = vfork();
     switch (child_pid) {
     case -1:
         /* fork unsuccessful */
@@ -645,6 +646,11 @@ int init_cgi(request * req)
 
     default:
         /* parent */
+        waitpid(child_pid, &child_status, 0);
+           if (WEXITSTATUS(child_status) != 0) {
+                 perror("child process exit abnormally.");
+           }
+
         /* if here, fork was successful */
         if (verbose_cgi_logs) {
             log_error_time();
