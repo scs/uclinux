@@ -135,7 +135,7 @@ CONFIG_BF537=y
 # CONFIG_BF_REV_0_0 is not set
 # CONFIG_BF_REV_0_1 is not set
 # CONFIG_BF_REV_0_2 is not set
-CONFIG_BF_REV_0_2=y
+CONFIG_BF_REV_0_3=y
 # CONFIG_BF_REV_0_4 is not set
 # CONFIG_BF_REV_0_5 is not set
 # CONFIG_BF_REV_ANY is not set
