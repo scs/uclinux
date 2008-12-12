@@ -30,7 +30,7 @@ CONFIG_INIT_ENV_ARG_LIMIT=32
 #
 # General setup
 #
-CONFIG_LOCALVERSION="-Git_v1.0-p1-RC1"
+CONFIG_LOCALVERSION="-Git_v1.0-p4"
 CONFIG_LOCALVERSION_AUTO=y
 # CONFIG_SYSVIPC is not set
 # CONFIG_POSIX_MQUEUE is not set
@@ -135,7 +135,7 @@ CONFIG_BF537=y
 # CONFIG_BF_REV_0_0 is not set
 # CONFIG_BF_REV_0_1 is not set
 # CONFIG_BF_REV_0_2 is not set
-CONFIG_BF_REV_0_2=y
+CONFIG_BF_REV_0_3=y
 # CONFIG_BF_REV_0_4 is not set
 # CONFIG_BF_REV_0_5 is not set
 # CONFIG_BF_REV_ANY is not set

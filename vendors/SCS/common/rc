@@ -29,47 +29,47 @@ mount -t jffs2 /dev/mtdblock6 /mnt/app
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
 
-# Default configuration. Used if everythin else.
+fw_printenv "ethaddr" > /dev/null 2>&1 || FIRST_TIME_BOOT=1
+
+# Default configuration. Used if everything else fails.
 ipaddr="192.168.1.10"
 gatewayip="192.168.1.1"
-serverip="192.168.1.10"
+serverip="192.168.1.2"
+ethaddr="00:20:e3:23:00:00"
 runscript=
 
-# This is a migration script on the application flash that gets executed to overwrite network configurations if it exists.
-[ -e "/mnt/app/config" ] && . "/mnt/app/config"
+if [ ! "$FIRST_TIME_BOOT" ]; then
+	for i in ipaddr gatewayip serverip ethaddr runscript; do
+		eval `fw_printenv "$i" 2> /dev/null`
+	done
+fi
 
-for i in ipaddr gatewayip serverip ethaddr runscript; do
-	fw_printenv "$i" > /dev/null && eval `fw_printenv "$i"`
-done
+[ -f "/mnt/app/.rc.local" ] && . "/mnt/app/.rc.local"
 
 # Configure the network
 ifconfig eth0 down
 ifconfig eth0 hw ether "$ethaddr"
-ifconfig eth0 "$ipaddr"
-route add -net default gw "$gatewayip"
-ifconfig eth0 up
 ifconfig lo 127.0.0.1
 
-if [ "$ipaddr" = "dhcp" ]; then
-	# configured to use DHCP => Launch dhcp daemon
+if [ "$ipaddr" == "dhcp" ]; then
 	ifconfig eth0 up
+	
+	# configured to use DHCP => Launch dhcp daemon
 	dhcpcd &
 	echo "Using DHCP."
 else
+	ifconfig eth0 "$ipaddr"
+	ifconfig eth0 up
+	
+	route add -net default gw "$gatewayip"
+	
 	# Send out two gratuitious arp request
 	arping -c 2 -w 1 "$ipaddr" > /dev/null 2>&1 &
 fi
 
 # Detect first-time-boot if not valid ethaddr u-boot environment available
-if [ ! "$ethaddr" ]; then
+if [ "$FIRST_TIME_BOOT" ]; then
 	echo ">>> Fist-time-boot: ethaddr not yet defined in u-boot variables. <<<"
-	
-	ethaddr="00:20:e3:23:00:00"
-	ifconfig eth0 down
-	ifconfig eth0 hw ether "$ethaddr"
-	route add -net default gw "$gatewayip"
-	ifconfig eth0 "$ipaddr"
-	ifconfig eth0 up
 	
 	tftp "$serverip" -g -r "runinit.sh" -l "/tmp/runinit.sh"
 	[ -e "/tmp/runinit.sh" ] && chmod +x "/tmp/runinit.sh" && /tmp/runinit.sh
@@ -85,13 +85,20 @@ fi
 cat /etc/motd
 
 #launch user specific application script
-echo "$runscript" | grep -q "^/" || runscript="/mnt/app/$runscript"
-
-if [ -f "$runscript" ] && [ -x "$runscript" ]; then
-	echo "Executing $runscript ..."
-	(cd /; "$runscript") &
-else
-	"Cannot run runscript: $runscript"
+if [ "$runscript" ]; then
+	runfolder="/"
+	
+	if echo "$runscript" | grep -qv "^/"; then
+		runscript="/mnt/app/$runscript"
+		runfolder="/mnt/app"
+	fi
+	
+	if [ -f "$runscript" ] && [ -x "$runscript" ]; then
+		echo "Executing $runscript ..."
+		(cd "$runfolder"; "$runscript" &)
+	else
+		echo "Cannot run runscript: $runscript"
+	fi
 fi
 
-exit
+exit 0
