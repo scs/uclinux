@@ -1,4 +1,4 @@
-VER = libosip2-3.1.0
+VER = libosip2-3.2.0
 
 include $(ROOTDIR)/tools/autotools.mk
 
