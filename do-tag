@@ -84,16 +84,22 @@ VERSION_RC=$(echo "$VERSION_PARSED" | cut -d " " -f 4)
 [ "$VERSION_PATCH" ] || VERSION_PATCH=0
 [ "$VERSION_RC" ] || VERSION_RC=0
 
-UPDATED_FILES=$(update_files "$ARG_VERSION" "$VERSION_MAJOR" "$VERSION_MINOR" "$VERSION_PATCH" "$VERSION_RC")
-
-if [ $VERSION_RC -eq 0 ]; then
-	TAG_NAME="release/$ARG_VERSION"
-	COMMIT_MESSAGE="+ Release $ARG_VERSION"
-else
-	TAG_NAME="beta/$ARG_VERSION"
-	COMMIT_MESSAGE="+ Beta version $ARG_VERSION"
-fi
-
-git tag -l | grep -qxF "$TAG_NAME" && fail "Tag $TAG_NAME already exists"
-git commit --allow-empty -m "$COMMIT_MESSAGE" $UPDATED_FILES || exit $?
-git tag "$TAG_NAME" || exit $?
+update_files "$ARG_VERSION" "$VERSION_MAJOR" "$VERSION_MINOR" "$VERSION_PATCH" "$VERSION_RC" | {
+	while IFS= read i; do
+		print "$i"
+		UPDATED_FILES=("${UPDATED_FILES[@]}" "$i")
+		echo "$VERSION_MAJOR"
+	done
+	
+	if [ $VERSION_RC -eq 0 ]; then
+		TAG_NAME="release/$ARG_VERSION"
+		COMMIT_MESSAGE="+ Release $ARG_VERSION"
+	else
+		TAG_NAME="beta/$ARG_VERSION"
+		COMMIT_MESSAGE="+ Beta version $ARG_VERSION"
+	fi
+	
+	git tag -l | grep -qxF "$TAG_NAME" && fail "Tag $TAG_NAME already exists"
+	git commit --allow-empty -m "$COMMIT_MESSAGE" "${UPDATED_FILES[@]}" || exit $?
+	git tag "$TAG_NAME" || exit $?
+} || exit $?
