@@ -199,6 +199,12 @@ while 1 {
             send "N\r"
         }
 
+        #workaround for bug #4714
+
+        -re "mtd-utils.*USER_MTDUTILS.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "Virtual terminal.*VT.*\\\[.*]" {
             send "N\r"
         }
