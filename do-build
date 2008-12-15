@@ -22,4 +22,4 @@ fi
 
 make || exit $?
 
-cp "images/uImage" "$RESULTS_DIR/uImage" || exit $?
+cp "images/uImage" "VERSIONS" "$RESULTS_DIR" || exit $?
