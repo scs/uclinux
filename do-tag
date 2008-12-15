@@ -16,7 +16,8 @@
 #			v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-p([1-9][0-9]*))?(-RC([1-9][0-9]*))?
 
 # Known bugs:
-#	If no files are changed by the update_files function and no release note has been added then staged files are commited instead of an empty commit.
+#	- If no files are changed by the update_files function and no release note has been added then staged files are commited instead of an empty commit.
+#	- Only files that are allready present in the HEAD's tree can be updated by the update_files function.
 
 print() { echo "$1" >&2; }
 inform() { print "$0: $1"; }
@@ -35,7 +36,7 @@ EOF
 
 help() {
 	usage
-	cat << EOF
+	cat << 'EOF'
 
 Where:
     --help: Print this help.
@@ -52,6 +53,10 @@ Notes:
     
         "release/v" <major> "." <minor> [ "-p" <patch> ]
         | "beta/v" <major> "." <minor> [ "-p" <patch> ] "-RC" <rc>
+    
+    This scripts maintains a 'HISTORY' file in the root tree. For every non-RC
+    version it asks the user to enter a release note via the $EDITOR environment
+    variable or the core.editor git configuration and prepends the release note to the 'HISTORY' file.
 EOF
 }
 
