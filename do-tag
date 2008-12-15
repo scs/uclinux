@@ -15,6 +15,9 @@
 #		Or this regular expression:
 #			v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-p([1-9][0-9]*))?(-RC([1-9][0-9]*))?
 
+# Known bugs:
+#	If no files are changed by the update_files function and no release note has been added then staged files are commited instead of an empty commit.
+
 print() { echo "$1" >&2; }
 inform() { print "$0: $1"; }
 warn() { print "Warning: $1"; }
@@ -84,22 +87,65 @@ VERSION_RC=$(echo "$VERSION_PARSED" | cut -d " " -f 4)
 [ "$VERSION_PATCH" ] || VERSION_PATCH=0
 [ "$VERSION_RC" ] || VERSION_RC=0
 
+[ $VERSION_RC -eq 0 ] && TAG_NAME="release/$ARG_VERSION" || TAG_NAME="beta/$ARG_VERSION"
+git tag -l | grep -qxF "$TAG_NAME" && fail "Tag $TAG_NAME already exists"
+
 update_files "$ARG_VERSION" "$VERSION_MAJOR" "$VERSION_MINOR" "$VERSION_PATCH" "$VERSION_RC" | {
 	while IFS= read i; do
-		print "$i"
 		UPDATED_FILES=("${UPDATED_FILES[@]}" "$i")
-		echo "$VERSION_MAJOR"
 	done
 	
+	VERSIONS_FILE="HISTORY"
+	TEMP_FILE="HISTORY.add"
+	
 	if [ $VERSION_RC -eq 0 ]; then
-		TAG_NAME="release/$ARG_VERSION"
-		COMMIT_MESSAGE="+ Release $ARG_VERSION"
+		[ "$EDITOR" ] || EDITOR=$(git config "core.editor")
+		[ "$EDITOR" ] || fail "\$EDITOR is not set. Please set the EDITOR environment variable to input the release notes."
+		
+		if ! [ -e "$TEMP_FILE" ]; then
+			NEWEST_RELEASE=$(git tag | grep -E "release/.*" | while IFS= read i; do echo "$(git rev-list "$i..HEAD" | wc -l | grep -oE "[0-9]+") $i"; done | sort -n | head -n 1 | cut -d " " -f 2-)
+			
+			cat << EOF >> "$TEMP_FILE"
++ Release $ARG_VERSION
+
+
+# Please enter your release note above under the line with the version
+# information. This message without the commented text will be included as the
+# commit message for this release and added to the '$VERSIONS_FILE' file.
+
+# To abort the commit, empty this file before exiting your editor.
+EOF
+			if [ "$NEWEST_RELEASE" ]; then
+				cat << EOF >> "$TEMP_FILE"
+
+# Changes since the last release, $NEWEST_RELEASE:
+#
+EOF
+				git diff --stat | sed -r "s/^/#/" >> "$TEMP_FILE"
+			fi
+		fi
+		
+		$EDITOR "$TEMP_FILE"
+		
+		RELEASE_NOTE=$(grep -vE "^ *#" < "$TEMP_FILE")
+	 	if ! [ "$(echo "$RELEASE_NOTE" | sed -r "s/\t/ /g" | grep -vE "^ *(#.*)?$")" ]; then
+	 		rm -f "$TEMP_FILE"
+	 		fail "Commit aborted due to empty commit message."
+	 	fi
+	 	
+		echo "$RELEASE_NOTE" > "$VERSIONS_FILE"
+	 	if git show "HEAD:$VERSIONS_FILE" > /dev/null 2>&1; then
+	 		echo -e '\n' >> $VERSIONS_FILE
+	 		git show "HEAD:$VERSIONS_FILE" >> $VERSIONS_FILE
+	 	fi
+		
+		git add "$VERSIONS_FILE" || exit $?
+		UPDATED_FILES=("${UPDATED_FILES[@]}" "$VERSIONS_FILE")
 	else
-		TAG_NAME="beta/$ARG_VERSION"
-		COMMIT_MESSAGE="+ Beta version $ARG_VERSION"
+		RELEASE_NOTE="+ Beta version $ARG_VERSION"
 	fi
 	
-	git tag -l | grep -qxF "$TAG_NAME" && fail "Tag $TAG_NAME already exists"
-	git commit --allow-empty -m "$COMMIT_MESSAGE" "${UPDATED_FILES[@]}" || exit $?
+	git commit --allow-empty -m "$RELEASE_NOTE" "${UPDATED_FILES[@]}" || exit $?
 	git tag "$TAG_NAME" || exit $?
+	[ -e "$TEMP_FILE" ] && rm -f "$TEMP_FILE"
 } || exit $?
