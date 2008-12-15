@@ -1,5 +1,10 @@
 VER = bluez-utils-2.25
 
+CONF_OPTS-y =
+CONF_SBIN-y =
+CONF_OPTS-$(CONFIG_LIB_LIBUSB) += --enable-bccmd
+CONF_SBIN-$(CONFIG_LIB_LIBUSB) += bccmd
+
 CONF_OPTS = \
 	--with-bluez=$(STAGEDIR) \
 	--without-openobex \
@@ -7,12 +12,13 @@ CONF_OPTS = \
 	--without-fuse \
 	--enable-test-programs \
 	--with-alsa=$(STAGEDIR) \
-	--with-usb=$(STAGEDIR)
+	--with-usb=$(STAGEDIR) \
+	$(CONF_OPTS-y)
 
 include $(ROOTDIR)/tools/autotools.mk
 
 BIN = bluepin ciptool dund hcitool hidd l2ping pand rfcomm sdptool
-SBIN = hciattach hciconfig hcid sdpd
+SBIN = hciattach hciconfig hcid sdpd $(CONF_SBIN-y)
 ETC = hcid.conf pin rfcomm.conf
 romfs:
 	set -e ; \
