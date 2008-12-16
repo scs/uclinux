@@ -81,6 +81,7 @@ file_copy()
 				if [ -n "$strip" ]; then
 					${STRIPTOOL} ${ROMFSDIR}${dst}/$t 2>/dev/null
 					${STRIPTOOL} -R .comment -R .note ${ROMFSDIR}${dst}/$t 2>/dev/null
+					${SSTRIPTOOL} ${ROMFSDIR}${dst}/$t 2>/dev/null
 				fi
 			done
 		)
@@ -105,6 +106,7 @@ file_copy()
 		if [ $rc -eq 0 -a -n "$strip" ]; then
 			${STRIPTOOL} ${dstfile} 2>/dev/null
 			${STRIPTOOL} -R .comment -R .note ${dstfile} 2>/dev/null
+			${SSTRIPTOOL} ${dstfile} 2>/dev/null
 		fi
 	fi
 	return $rc
@@ -248,6 +250,10 @@ if [ -z "$STRIPTOOL" ]
 then
 	STRIPTOOL=strip
 fi	
+if [ -z "$SSTRIPTOOL" ]
+then
+	SSTRIPTOOL=sstrip
+fi
 
 shift `expr $OPTIND - 1`
 

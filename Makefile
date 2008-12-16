@@ -89,7 +89,7 @@ export BUILD_START_STRING
 export HOST_NCPU
 
 .PHONY: tools
-tools: ucfront cksum
+tools: ucfront cksum sstrip staging
 	chmod +x tools/romfs-inst.sh tools/modules-alias.sh
 
 .PHONY: ucfront
@@ -105,6 +105,11 @@ cksum: tools/cksum
 tools/cksum: tools/sg-cksum/*.c
 	$(MAKE) -C tools/sg-cksum
 	ln -sf $(ROOTDIR)/tools/sg-cksum/cksum tools/cksum
+
+.PHONY: sstrip
+sstrip: tools/sstrip
+tools/sstrip: tools/sstrip.c
+	$(HOSTCC) -Wall -O2 -g -o $@ $<
 
 .PHONY: staging
 ifneq ($(CROSS_COMPILE),)
