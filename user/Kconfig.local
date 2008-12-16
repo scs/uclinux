@@ -163,9 +163,15 @@ config USER_USBUTILS
 config USER_BLUEZ
 	bool "Bluez-utils"
 	select LIB_BLUEZ
+config USER_BLUEZ_BCCMD
+	bool "Bluez bccmd util"
+	depends on USER_BLUEZ
+	select LIB_LIBUSB
+	help
+	  Utility for the CSR BCCMD interface
 config USER_BTSCO
 	bool "Bluetooth ALSA utility"
-	select USER_BLUEZ
+	depends on USER_BLUEZ
 	select USER_ALSA_UTILS
 config USER_PCMCIAUTILS
 	bool "pcmciautils"
