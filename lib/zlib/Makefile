@@ -68,10 +68,7 @@ endif
 	install -m0644 zconf.h zlib.h $(STAGEDIR)/usr/include
 
 romfs:
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	$(ROMFSINST) $(SHAREDLIBV) /lib
-	$(ROMFSINST) -s $(SHAREDLIBV) /lib/$(SHAREDLIBM)
-endif
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(SHAREDLIBV) /lib/$(SHAREDLIBM)
 
 check: test
 test: all
