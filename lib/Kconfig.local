@@ -124,6 +124,14 @@ config LIB_ORTP
 config LIB_POPT
 	bool "Build popt"
 
+config LIB_QT
+	bool "Build QT"
+	select LIB_ZLIB
+
+config LIB_QT_EXAMPLES
+	bool "Build QT examples"
+	depends on LIB_QT
+
 config LIB_READLINE
 	bool "Build readline"
 

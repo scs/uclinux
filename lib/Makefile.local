@@ -48,3 +48,5 @@ dir_5_$(CONFIG_LIB_SDL_IMAGE)        += SDL_image       # requires libsdl(3) lib
 dir_5_$(CONFIG_LIB_SDL_MIXER)        += SDL_mixer       # requires libsdl(3) tremor(3) SMPEG(?) libmad(3)
 dir_5_$(CONFIG_LIB_SDL_NET)          += SDL_net         # requires libsdl(3)
 dir_5_$(CONFIG_LIB_SDL_TTF)          += SDL_ttf         # requires libsdl(3) freetype(4)
+
+dir_6_$(CONFIG_LIB_QT)               += qt-embedded     # requires directfb(5) and others

@@ -1,0 +1,594 @@
+--- a/mkspecs/linux-g++/qplatformdefs.h
++++ b/mkspecs/linux-g++/qplatformdefs.h
+@@ -63,7 +63,6 @@
+ #include <grp.h>
+ #include <pwd.h>
+ #include <signal.h>
+-#include <dlfcn.h>
+ 
+ #include <sys/types.h>
+ #include <sys/ioctl.h>
+--- /dev/null
++++ b/mkspecs/qws/linux-bfin-fdpic-g++/qmake.conf
+@@ -0,0 +1,17 @@
++#
++# qmake configuration for linux-bfin-g++
++#
++
++include(../linux-generic-g++/qmake.conf)
++
++QMAKE_CC          = bfin-linux-uclibc-gcc
++QMAKE_CFLAGS     += -DQT_NOMMU
++QMAKE_CXX         = bfin-linux-uclibc-g++
++QMAKE_LINK        = bfin-linux-uclibc-g++
++QMAKE_LINK_SHLIB  = bfin-linux-uclibc-g++
++QMAKE_AR          = bfin-linux-uclibc-ar cqs
++QMAKE_RANLIB      = bfin-linux-uclibc-ranlib
++QMAKE_OBJCOPY     = bfin-linux-uclibc-objcopy
++QMAKE_STRIP       = bfin-linux-uclibc-strip
++
++load(qt_config)
+--- /dev/null
++++ b/mkspecs/qws/linux-bfin-fdpic-g++/qplatformdefs.h
+@@ -0,0 +1,38 @@
++/****************************************************************************
++**
++** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
++** Contact: Qt Software Information (qt-info@nokia.com)
++**
++** This file is part of the qmake spec of the Qt Toolkit.
++**
++** Commercial Usage
++** Licensees holding valid Qt Commercial licenses may use this file in
++** accordance with the Qt Commercial License Agreement provided with the
++** Software or, alternatively, in accordance with the terms contained in
++** a written agreement between you and Nokia.
++**
++**
++** GNU General Public License Usage
++** Alternatively, this file may be used under the terms of the GNU
++** General Public License versions 2.0 or 3.0 as published by the Free
++** Software Foundation and appearing in the file LICENSE.GPL included in
++** the packaging of this file.  Please review the following information
++** to ensure GNU General Public Licensing requirements will be met:
++** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
++** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
++** exception, Nokia gives you certain additional rights. These rights
++** are described in the Nokia Qt GPL Exception version 1.3, included in
++** the file GPL_EXCEPTION.txt in this package.
++**
++** Qt for Windows(R) Licensees
++** As a special exception, Nokia, as the sole copyright holder for Qt
++** Designer, grants users of the Qt/Eclipse Integration plug-in the
++** right for the Qt/Eclipse Integration to link to functionality
++** provided by Qt Designer and its related libraries.
++**
++** If you are unsure which license is appropriate for your use, please
++** contact the sales department at qt-sales@nokia.com.
++**
++****************************************************************************/
++
++#include "../../linux-g++/qplatformdefs.h"
+--- /dev/null
++++ b/mkspecs/qws/linux-bfin-flat-g++/qmake.conf
+@@ -0,0 +1,17 @@
++#
++# qmake configuration for linux-bfin-g++
++#
++
++include(../linux-generic-g++/qmake.conf)
++
++QMAKE_CC          = bfin-uclinux-gcc
++QMAKE_CFLAGS     += -DQT_NOMMU
++QMAKE_CXX         = bfin-uclinux-g++
++QMAKE_LINK        = bfin-uclinux-g++
++QMAKE_LINK_SHLIB  = bfin-uclinux-g++
++QMAKE_AR          = bfin-uclinux-ar cqs
++QMAKE_RANLIB      = bfin-uclinux-ranlib
++QMAKE_OBJCOPY     = bfin-uclinux-objcopy
++QMAKE_STRIP       = bfin-uclinux-strip
++
++load(qt_config)
+--- /dev/null
++++ b/mkspecs/qws/linux-bfin-flat-g++/qplatformdefs.h
+@@ -0,0 +1,38 @@
++/****************************************************************************
++**
++** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
++** Contact: Qt Software Information (qt-info@nokia.com)
++**
++** This file is part of the qmake spec of the Qt Toolkit.
++**
++** Commercial Usage
++** Licensees holding valid Qt Commercial licenses may use this file in
++** accordance with the Qt Commercial License Agreement provided with the
++** Software or, alternatively, in accordance with the terms contained in
++** a written agreement between you and Nokia.
++**
++**
++** GNU General Public License Usage
++** Alternatively, this file may be used under the terms of the GNU
++** General Public License versions 2.0 or 3.0 as published by the Free
++** Software Foundation and appearing in the file LICENSE.GPL included in
++** the packaging of this file.  Please review the following information
++** to ensure GNU General Public Licensing requirements will be met:
++** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
++** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
++** exception, Nokia gives you certain additional rights. These rights
++** are described in the Nokia Qt GPL Exception version 1.3, included in
++** the file GPL_EXCEPTION.txt in this package.
++**
++** Qt for Windows(R) Licensees
++** As a special exception, Nokia, as the sole copyright holder for Qt
++** Designer, grants users of the Qt/Eclipse Integration plug-in the
++** right for the Qt/Eclipse Integration to link to functionality
++** provided by Qt Designer and its related libraries.
++**
++** If you are unsure which license is appropriate for your use, please
++** contact the sales department at qt-sales@nokia.com.
++**
++****************************************************************************/
++
++#include "../../linux-g++/qplatformdefs.h"
+--- a/src/3rdparty/webkit/JavaScriptCore/kjs/collector.cpp
++++ b/src/3rdparty/webkit/JavaScriptCore/kjs/collector.cpp
+@@ -59,7 +59,7 @@
+ #ifdef __UCLIBC__
+ // versions of uClibc 0.9.28 and below do not have
+ // pthread_getattr_np or pthread_attr_getstack.
+-#if __UCLIBC_MAJOR__ == 0 && \
++#if 1 || __UCLIBC_MAJOR__ == 0 && \
+     (__UCLIBC_MINOR__ < 9 || \
+      (__UCLIBC_MINOR__ == 9 && __UCLIBC_SUBLEVEL__ < 29))
+ #define UCLIBC_USE_PROC_SELF_MAPS 1
+--- a/src/corelib/arch/bfin/arch.pri
++++ b/src/corelib/arch/bfin/arch.pri
+@@ -1,3 +1,5 @@
+ # 
+ # Blackfin architecture
+ #
++
++unix:SOURCES += qatomic_bfin_unix.cpp
+--- /dev/null
++++ b/src/corelib/arch/bfin/qatomic_bfin_unix.cpp
+@@ -0,0 +1,121 @@
++/****************************************************************************
++**
++** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
++** Contact: Qt Software Information (qt-info@nokia.com)
++**
++** This file is part of the QtCore module of the Qt Toolkit.
++**
++** Commercial Usage
++** Licensees holding valid Qt Commercial licenses may use this file in
++** accordance with the Qt Commercial License Agreement provided with the
++** Software or, alternatively, in accordance with the terms contained in
++** a written agreement between you and Nokia.
++**
++**
++** GNU General Public License Usage
++** Alternatively, this file may be used under the terms of the GNU
++** General Public License versions 2.0 or 3.0 as published by the Free
++** Software Foundation and appearing in the file LICENSE.GPL included in
++** the packaging of this file.  Please review the following information
++** to ensure GNU General Public Licensing requirements will be met:
++** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
++** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
++** exception, Nokia gives you certain additional rights. These rights
++** are described in the Nokia Qt GPL Exception version 1.3, included in
++** the file GPL_EXCEPTION.txt in this package.
++**
++** Qt for Windows(R) Licensees
++** As a special exception, Nokia, as the sole copyright holder for Qt
++** Designer, grants users of the Qt/Eclipse Integration plug-in the
++** right for the Qt/Eclipse Integration to link to functionality
++** provided by Qt Designer and its related libraries.
++**
++** If you are unsure which license is appropriate for your use, please
++** contact the sales department at qt-sales@nokia.com.
++**
++****************************************************************************/
++
++#ifndef QATOMIC_BFIN_H
++#define QATOMIC_BFIN_H
++
++#include "qplatformdefs.h"
++
++#include <QtCore/qatomic.h>
++
++QT_BEGIN_INCLUDE_NAMESPACE
++#include <bfin_fixed_code.h>
++QT_END_INCLUDE_NAMESPACE
++
++Q_CORE_EXPORT
++bool QBasicAtomicInt_testAndSetOrdered(volatile int *_q_value, int expectedValue, int newValue)
++{
++    int oldValue = (int)bfin_atomic_cas32((uint32_t *)_q_value, expectedValue, newValue);
++    return oldValue == expectedValue ? true : false;
++}
++
++Q_CORE_EXPORT
++int QBasicAtomicInt_fetchAndStoreOrdered(volatile int *_q_value, int newValue)
++{
++    return bfin_atomic_xchg32((uint32_t *)_q_value, newValue);
++}
++
++Q_CORE_EXPORT
++int QBasicAtomicInt_fetchAndAddOrdered(volatile int *_q_value, int valueToAdd)
++{
++    /*return bfin_atomic_add32(_q_value, valueToAdd) - valueToAdd;*/
++    int oldValue;
++    __asm__ __volatile__(
++        "CALL (%[add32])"
++        : "=q1" (oldValue), "=m" (*_q_value), "+&q0" (valueToAdd)
++        : [add32] "a" (ATOMIC_ADD32), "qA" (_q_value), "m" (*_q_value)
++        : "RETS", "memory"
++    );
++    return oldValue;
++}
++
++Q_CORE_EXPORT
++bool QBasicAtomicPointer_testAndSetOrdered(void * volatile *_q_value,
++                                           void *expectedValue,
++                                           void *newValue)
++{
++    /*void *oldValue = (void *)bfin_atomic_cas32((uint32_t *)_q_value, expectedValue, newValue);*/
++    void *oldValue;
++    __asm__ __volatile__(
++        "CALL (%[cas32])"
++        : "=q0" (oldValue), "=m" (*_q_value)
++        : [cas32] "a" (ATOMIC_CAS32), "q1" (expectedValue), "q2" (newValue),
++          "qA" (_q_value), "m" (*_q_value)
++        : "RETS", "memory"
++    );
++    return oldValue == expectedValue ? true : false;
++}
++
++Q_CORE_EXPORT
++void *QBasicAtomicPointer_fetchAndStoreOrdered(void * volatile *_q_value, void *newValue)
++{
++    void *oldValue;
++    __asm__ __volatile__(
++        "CALL (%[xchg32])"
++        : "=q0" (oldValue), "=m" (*_q_value)
++        : [xchg32] "a" (ATOMIC_XCHG32), "q1" (newValue),
++          "qA" (_q_value), "m" (*_q_value)
++        : "RETS", "memory"
++    );
++    return oldValue;
++}
++
++Q_CORE_EXPORT
++void *QBasicAtomicPointer_fetchAndAddOrdered(void * volatile *_q_value, qptrdiff valueToAdd)
++{
++    /*return bfin_atomic_add32(_q_value, valueToAdd) - valueToAdd;*/
++    void *oldValue;
++    __asm__ __volatile__(
++        "CALL (%[add32])"
++        : "=q1" (oldValue), "=m" (*_q_value), "+&q0" (valueToAdd)
++        : [add32] "a" (ATOMIC_ADD32), "qA" (_q_value), "m" (*_q_value)
++        : "RETS", "memory"
++    );
++    return oldValue;
++}
++
++#endif
+--- a/src/corelib/arch/qatomic_bfin.h
++++ b/src/corelib/arch/qatomic_bfin.h
+@@ -1,315 +1 @@
+-/****************************************************************************
+-**
+-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+-** Contact: Qt Software Information (qt-info@nokia.com)
+-**
+-** This file is part of the QtCore module of the Qt Toolkit.
+-**
+-** Commercial Usage
+-** Licensees holding valid Qt Commercial licenses may use this file in
+-** accordance with the Qt Commercial License Agreement provided with the
+-** Software or, alternatively, in accordance with the terms contained in
+-** a written agreement between you and Nokia.
+-**
+-**
+-** GNU General Public License Usage
+-** Alternatively, this file may be used under the terms of the GNU
+-** General Public License versions 2.0 or 3.0 as published by the Free
+-** Software Foundation and appearing in the file LICENSE.GPL included in
+-** the packaging of this file.  Please review the following information
+-** to ensure GNU General Public Licensing requirements will be met:
+-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
+-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
+-** exception, Nokia gives you certain additional rights. These rights
+-** are described in the Nokia Qt GPL Exception version 1.3, included in
+-** the file GPL_EXCEPTION.txt in this package.
+-**
+-** Qt for Windows(R) Licensees
+-** As a special exception, Nokia, as the sole copyright holder for Qt
+-** Designer, grants users of the Qt/Eclipse Integration plug-in the
+-** right for the Qt/Eclipse Integration to link to functionality
+-** provided by Qt Designer and its related libraries.
+-**
+-** If you are unsure which license is appropriate for your use, please
+-** contact the sales department at qt-sales@nokia.com.
+-**
+-****************************************************************************/
+-
+-#ifndef QATOMIC_BFIN_H
+-#define QATOMIC_BFIN_H
+-
+-QT_BEGIN_HEADER
+-
+-QT_BEGIN_NAMESPACE
+-
+-#define Q_ATOMIC_INT_REFERENCE_COUNTING_IS_NOT_NATIVE
+-
+-inline bool QBasicAtomicInt::isReferenceCountingNative()
+-{ return false; }
+-inline bool QBasicAtomicInt::isReferenceCountingWaitFree()
+-{ return false; }
+-
+-#define Q_ATOMIC_INT_TEST_AND_SET_IS_NOT_NATIVE
+-
+-inline bool QBasicAtomicInt::isTestAndSetNative()
+-{ return false; }
+-inline bool QBasicAtomicInt::isTestAndSetWaitFree()
+-{ return false; }
+-
+-#define Q_ATOMIC_INT_FETCH_AND_STORE_IS_NOT_NATIVE
+-
+-inline bool QBasicAtomicInt::isFetchAndStoreNative()
+-{ return false; }
+-inline bool QBasicAtomicInt::isFetchAndStoreWaitFree()
+-{ return false; }
+-
+-#define Q_ATOMIC_INT_FETCH_AND_ADD_IS_NOT_NATIVE
+-
+-inline bool QBasicAtomicInt::isFetchAndAddNative()
+-{ return false; }
+-inline bool QBasicAtomicInt::isFetchAndAddWaitFree()
+-{ return false; }
+-
+-#define Q_ATOMIC_POINTER_TEST_AND_SET_IS_NOT_NATIVE
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::isTestAndSetNative()
+-{ return false; }
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::isTestAndSetWaitFree()
+-{ return false; }
+-
+-#define Q_ATOMIC_POINTER_FETCH_AND_STORE_IS_NOT_NATIVE
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::isFetchAndStoreNative()
+-{ return false; }
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::isFetchAndStoreWaitFree()
+-{ return false; }
+-
+-#define Q_ATOMIC_POINTER_FETCH_AND_ADD_IS_NOT_NATIVE
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::isFetchAndAddNative()
+-{ return false; }
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::isFetchAndAddWaitFree()
+-{ return false; }
+-
+-#if defined(Q_OS_LINUX) && defined(Q_CC_GNU)
+-
+-QT_BEGIN_INCLUDE_NAMESPACE
+-#include <asm/fixed_code.h>
+-QT_END_INCLUDE_NAMESPACE
+-
+-inline bool QBasicAtomicInt::ref()
+-{
+-    int ret;
+-    asm volatile("R0 = 1;\n\t"
+-		 "P0 = %3;\n\t"
+-                 "CALL (%2);\n\t"
+-                 "%0 = R0;"
+-                 : "=da" (ret), "=m" (_q_value)
+-                 : "a" (ATOMIC_ADD32), "da" (&_q_value), "m" (_q_value)
+-                 : "R0", "R1", "P0", "RETS", "memory");
+-    return ret != 0;
+-}
+-
+-inline bool QBasicAtomicInt::deref()
+-{
+-    int ret;
+-    asm volatile("R0 = 1;\n\t"
+-		 "P0 = %3;\n\t"
+-                 "CALL (%2);\n\t"
+-                 "%0 = R0;"
+-                 : "=da" (ret), "=m" (_q_value)
+-                 : "a" (ATOMIC_SUB32), "da" (&_q_value), "m" (_q_value)
+-                 : "R0", "R1", "P0", "RETS", "memory");
+-    return ret != 0;
+-}
+-
+-inline int QBasicAtomicInt::testAndSetOrdered(int expectedValue, int newValue)
+-{
+-    long int readval;
+-    asm volatile ("P0 = %2;\n\t"
+-		  "R1 = %3;\n\t"
+-		  "R2 = %4;\n\t"
+-		  "CALL (%5);\n\t"
+-		  "%0 = R0;\n\t"
+-		  : "=da" (readval), "=m" (_q_value)
+-		  : "da" (&_q_value),
+-		  "da" (expectedValue),
+-		  "da" (newValue),
+-		  "a" (ATOMIC_CAS32),
+-		  "m" (_q_value)
+-		  : "P0", "R0", "R1", "R2", "RETS", "memory", "cc");
+-    return readval == expectedValue;
+-}
+-
+-inline int QBasicAtomicInt::fetchAndStoreOrdered(int newValue)
+-{
+-    asm volatile("R1 = %2;\n\t"
+-		 "P0 = %4;\n\t"
+-                 "CALL (%3);\n\t"
+-                 "%0 = R0;"
+-                 : "=da" (newValue), "=m" (_q_value)
+-                 : "da" (newValue), "a" (ATOMIC_XCHG32), "da" (&_q_value), "m" (_q_value)
+-                 : "R0", "R1", "P0", "RETS", "memory");
+-    return newValue;
+-}
+-
+-#error "QBasicAtomicInt::fetchAndAddOrdered() not implemented"
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetOrdered(T *expectedValue, T *newValue)
+-{
+-    T *readval;
+-    asm volatile ("P0 = %2;\n\t"
+-		  "R1 = %3;\n\t"
+-		  "R2 = %4;\n\t"
+-		  "CALL (%5);\n\t"
+-		  "%0 = R0;\n\t"
+-		  : "=da" (readval), "=m" (_q_value)
+-		  : "da" (&_q_value),
+-		  "da" (expectedValue),
+-		  "da" (newValue),
+-		  "a" (ATOMIC_CAS32),
+-		  "m" (_q_value)
+-		  : "P0", "R0", "R1", "R2", "RETS", "memory", "cc");
+-    return readval == expectedValue;
+-}
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreOrdered(T *newValue)
+-{
+-    asm volatile("R1 = %2;\n\t"
+-		 "P0 = %4;\n\t"
+-                 "CALL (%3);\n\t"
+-                 "%0 = R0;"
+-                 : "=da" (newValue), "=m" (_q_value)
+-                 : "da" (newValue), "a" (ATOMIC_XCHG32), "da" (&_q_value), "m" (_q_value)
+-                 : "R0", "R1", "P0", "RETS", "memory");
+-    return newValue;
+-}
+-
+-#error "QBasicAtomicPointer<T>::fetchAndAddOrdered() not implemented"
+-
+-#endif // Q_OS_LINUX && Q_CC_GNU
+-
+-// Test and set for integers
+-
+-inline bool QBasicAtomicInt::testAndSetRelaxed(int expectedValue, int newValue)
+-{
+-    return testAndSetOrdered(expectedValue, newValue);
+-}
+-
+-inline bool QBasicAtomicInt::testAndSetAcquire(int expectedValue, int newValue)
+-{
+-    return testAndSetOrdered(expectedValue, newValue);
+-}
+-
+-inline bool QBasicAtomicInt::testAndSetRelease(int expectedValue, int newValue)
+-{
+-    return testAndSetOrdered(expectedValue, newValue);
+-}
+-
+-// Fetch and store for integers
+-
+-inline int QBasicAtomicInt::fetchAndStoreRelaxed(int newValue)
+-{
+-    return fetchAndStoreOrdered(newValue);
+-}
+-
+-inline int QBasicAtomicInt::fetchAndStoreAcquire(int newValue)
+-{
+-    return fetchAndStoreOrdered(newValue);
+-}
+-
+-inline int QBasicAtomicInt::fetchAndStoreRelease(int newValue)
+-{
+-    return fetchAndStoreOrdered(newValue);
+-}
+-
+-// Fetch and add for integers
+-
+-inline int QBasicAtomicInt::fetchAndAddRelaxed(int valueToAdd)
+-{
+-    return fetchAndAddOrdered(valueToAdd);
+-}
+-
+-inline int QBasicAtomicInt::fetchAndAddAcquire(int valueToAdd)
+-{
+-    return fetchAndAddOrdered(valueToAdd);
+-}
+-
+-inline int QBasicAtomicInt::fetchAndAddRelease(int valueToAdd)
+-{
+-    return fetchAndAddOrdered(valueToAdd);
+-}
+-
+-// Test and set for pointers
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetRelaxed(T *expectedValue, T *newValue)
+-{
+-    return testAndSetOrdered(expectedValue, newValue);
+-}
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetAcquire(T *expectedValue, T *newValue)
+-{
+-    return testAndSetOrdered(expectedValue, newValue);
+-}
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetRelease(T *expectedValue, T *newValue)
+-{
+-    return testAndSetOrdered(expectedValue, newValue);
+-}
+-
+-// Fetch and store for pointers
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreRelaxed(T *newValue)
+-{
+-    return fetchAndStoreOrdered(newValue);
+-}
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreAcquire(T *newValue)
+-{
+-    return fetchAndStoreOrdered(newValue);
+-}
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreRelease(T *newValue)
+-{
+-    return fetchAndStoreOrdered(newValue);
+-}
+-
+-// Fetch and add for pointers
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndAddRelaxed(qptrdiff valueToAdd)
+-{
+-    return fetchAndAddOrdered(valueToAdd);
+-}
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndAddAcquire(qptrdiff valueToAdd)
+-{
+-    return fetchAndAddOrdered(valueToAdd);
+-}
+-
+-template <typename T>
+-Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndAddRelease(qptrdiff valueToAdd)
+-{
+-    return fetchAndAddOrdered(valueToAdd);
+-}
+-
+-QT_END_NAMESPACE
+-
+-QT_END_HEADER
+-
+-#endif // QATOMIC_BFIN_H
++#include "qatomic_generic.h"

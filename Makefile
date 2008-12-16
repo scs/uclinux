@@ -39,6 +39,7 @@ ROMFSDIR = $(ROOTDIR)/romfs
 ROMFSINST= romfs-inst.sh
 SCRIPTSDIR = $(ROOTDIR)/config/kconfig
 STAGEDIR = $(ROOTDIR)/staging
+DOWNLOADDIR = $(ROOTDIR)/download
 TFTPDIR    = /tftpboot
 BUILD_START_STRING ?= $(shell date "+%a, %d %b %Y %T %z")
 ifndef NON_SMP_BUILD
