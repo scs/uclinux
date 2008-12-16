@@ -1,4 +1,4 @@
-VER = libpcap-0.9.8
+VER = libpcap-1.0.0
 
 CONF_OPTS = --with-pcap=linux
 ifdef CONFIG_IPV6
