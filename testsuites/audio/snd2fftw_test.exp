@@ -39,21 +39,23 @@ proc spectrum_analysis { file_suffix sample_freq } {
 #power at the sample freqency should be big enough
     incr case_num
     set timeout 10
-    send "grep \"^$sample_freq\..*\[\[:space:]]\[1-5]\[0-9]\\{4,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
+    send "grep \"^$sample_freq\..*\[\[:space:]]\[1-9]\[0-9]\\{4,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
     expect ">"
-    send "grep -c \"^$sample_freq\..*\[\[:space:]]\[1-5]\[0-9]\\{4,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
+    send "grep -c \"^$sample_freq\..*\[\[:space:]]\[1-9]\[0-9]\\{4,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
     while 1 {
         expect {
             -re "\r\n0\r\n.*>" {
                 lappend result "FAIL"
+                send_user "low power at freqency $sample_freq\n"
                 return
             }
-            -re "\r\n1\r\n.*>" {
+            -re "\r\n\[1-5]\r\n.*>" {
                 case_pass $case_num
                 break
             }
             timeout {
                 lappend result "FAIL"
+                send_user "timeout\n"
                 return
             }
         }
@@ -63,11 +65,12 @@ proc spectrum_analysis { file_suffix sample_freq } {
 #If the power of other freqency is more than 10% of the sample frequency, case should fail.
     incr case_num
     set timeout 10
-    send "grep -c \"\[\[:space:]]\[1-9]\[0-9]\\{3\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
+    send "grep -c \"\[\[:space:]]\[5-9]\[0-9]\\{3\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
     while 1 {
         expect {
             -re "\r\n(\[1-9])+(\[0-9])?\r\n.*>" {
                 lappend result "FAIL"
+                send_user "too much power at unwanted freqency\n"
                 return
             }
             -re "\r\n0\r\n.*>" {
@@ -76,6 +79,7 @@ proc spectrum_analysis { file_suffix sample_freq } {
             }
             timeout {
                 lappend result "FAIL"
+                send_user "timeout\n"
                 return
             }
         }
@@ -196,6 +200,7 @@ for {set count 0} {$count < $file_num} {incr count} {
 
     step "Spectrum test with $file_suffix.wav, frequency $sample_freq"
     spectrum_analysis $file_suffix $sample_freq
+    send_user "\nThis round of test [lindex $result $count]\n"
 }
 
 incr case_num

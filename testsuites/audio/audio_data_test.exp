@@ -28,7 +28,7 @@ proc rec_at_pc { freq magnitude } {
 
     incr case_num
     set timeout 10
-    send "tone -s -f $freq -m $magnitude\n"
+    send "tone -s -m $magnitude $freq\n"
     while 1 {
         expect {
             -re "TONE: generating sine wave at (\[0-9])+ Hz" {
@@ -100,7 +100,7 @@ proc rec_from_pc { freq } {
     send "aplay snd2fftw/samples/${freq}Hz_44100Hz_16bit_05sec.wav\n"
     while 1 {
         expect {
-            -re "Signed 16 bit Little Endian, Rate 44100 Hz, Mono.*>" {
+            -re "Signed 16 bit Little Endian, Rate 44100 Hz, Mono" {
                 case_pass $case_num
                 break
             }
@@ -167,6 +167,7 @@ set case_num 0
 set timeout 5
 set output_dir audio_data
 
+send "ifconfig eth0 $targetip\r"
 sleep 5
 send "\r"
 expect -re $kernel_prompt
