@@ -19655,14 +19655,13 @@ else
 fi
 
 
-CFLAGS="-O2"
 if test "$debug_level" != ""; then
 
 cat >>confdefs.h <<_ACEOF
 #define OBEX_DEBUG $debug_level
 _ACEOF
 
-	CFLAGS="-g -O1"
+	CFLAGS="$CFLAGS -g -O1"
 fi
 
 
