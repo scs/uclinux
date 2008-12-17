@@ -220,7 +220,7 @@ int sdram_test(int size)
 int has_l2(void)
 {
 	/* if the part does not have L2, then don't try to use it */
-	return WEXITSTATUS(system("grep -qs '^L2 SRAM[[:space:]]*:[[:space:]]*0' /proc/cpuinfo"));
+	return WEXITSTATUS(system("grep -qs '^L2 SRAM[[:space:]]*:[[:space:]]*[1-9]' /proc/cpuinfo")) == 0;
 }
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*arr))
