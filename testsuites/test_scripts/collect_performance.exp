@@ -1,0 +1,203 @@
+#!/usr/bin/expect
+log_file collect_performance_log
+send_user "Starting collect_performance.exp\n"
+
+set log_path /home/test/work/cruise/test_scripts/uclinux-dist/logs
+set collect_path  /home/test/performance_log 
+exec mkdir -p /home/test/performance_log 
+
+set find_performance_file_name  performance_file  
+set move_time [exec date +%Y_%b_%d_%H_%M ]
+set collect_performance_file_name  performance_$move_time  
+set sh_prompt sh.*\[$>#\]
+set user test
+set user_password "test"
+set password "blackfin"
+set send_slow {1 .02}
+
+set ipaddr(0) 10.99.29.50
+set ipaddr(1) 10.99.29.52
+set ipaddr(2) 10.99.29.54
+set ipaddr(3) 10.99.29.55
+set ipaddr(4) 10.99.29.56
+set ipaddr(5) 10.99.29.57
+set ipaddr(6) 10.99.29.58
+set ipaddr(7) 10.99.29.59
+set ipaddr(8) 10.99.29.60
+set ipaddr(9) 10.99.29.61
+set ipaddr(10) 10.99.29.62
+set ipaddr(11) 10.99.29.63
+set ipaddr(12) 10.99.29.64
+set ipaddr(13) 10.99.29.65
+set ipaddr(14) 10.99.29.66
+set ipaddr(15) 10.99.29.67
+set ipaddr(16) 10.99.29.71
+set ipaddr(17) 10.99.29.72
+set ipaddr(18) 10.99.29.73
+set ipaddr(19) 10.99.29.74
+set ipaddr(20) 10.99.29.75
+set ipaddr(21) 10.99.29.76
+set ipaddr(22) 10.99.29.77
+
+set fail(0) 0
+set fail(1) 0 
+set fail(2) 0
+set fail(3) 0
+set fail(4) 0
+set fail(5) 0
+set fail(6) 0
+set fail(7) 0
+set fail(8) 0
+set fail(9) 0
+set fail(10) 0
+set fail(11) 0  
+set fail(12) 0 
+set fail(13) 0 
+set fail(14) 0 
+set fail(15) 0 
+set fail(16) 0 
+set fail(17) 0 
+set fail(18) 0 
+set fail(19) 0 
+set fail(20) 0 
+set fail(21) 0 
+set fail(22) 0 
+
+set machine_number 5
+
+spawn /bin/sh
+
+expect -re "$sh_prompt"
+
+set timeout 20
+send -s "cd $collect_path \r"
+while (1) {
+expect {
+             -re "$sh_prompt" {
+                 break   }
+             timeout { send_user "Failed to cd $collect_path.\n"
+                 break  }
+       }
+}
+
+for { set count 0 } { $count < $machine_number } { incr count 1 } {
+
+send_user "\n################ Starting on $ipaddr($count) ###################\n"
+
+set timeout 200
+send -s "ssh -l test $ipaddr($count)  find $log_path -name $find_performance_file_name \\| xargs ls -tr \\| tail -1 \r"
+while (1) {
+expect {
+                "Are you sure you want to continue connecting" { send -s "yes\r" }
+                "Password:" { break }
+                "No route to host" {
+                 set fail($count) 1
+                 expect -re "$sh_prompt"
+                 break
+                 }
+                 timeout { send_user "Failed ssh\n"
+                 set fail($count) 1
+                 expect -re "$sh_prompt"
+                 break } 
+       }
+}
+
+if { $fail($count) == 1 } {
+continue
+}
+send -s "$user_password\r"
+while (1) {
+expect {
+             -re "($log_path.*)\r\n(.*)$sh_prompt" {
+                 set latest_performance_file $expect_out(1,string) 
+                 #puts "\r\n $latest_performance_file "
+                 break  }
+             timeout { send_user "Failed ssh.\n"
+                 set fail($count) 1
+                 expect -re "$sh_prompt"
+                 break }
+       }
+}
+
+if { $fail($count) == 1 } {
+continue
+}
+
+send -s "scp test@$ipaddr($count):$latest_performance_file $collect_path/$find_performance_file_name.$ipaddr($count) \r"
+while (1) {
+expect {
+                "Are you sure you want to continue connecting" { send -s "yes\r" }
+                "Password:" { break }
+                "No route to host" {
+                 set fail($count) 1
+                 expect -re "$sh_prompt"
+                 break
+                 }
+                 timeout { send_user "Failed scp\n"
+                 set fail($count) 1
+                 expect -re "$sh_prompt"
+                 break }
+       }
+}
+
+if { $fail($count) == 1 } {
+continue
+}
+send -s "$user_password\r"
+while (1) {
+expect {
+             -re "$sh_prompt" {
+                 break  }
+             timeout { send_user "Failed scp.\n"
+                 set fail($count) 1
+                 break  }
+       }
+}
+
+if { $fail($count) == 1 } {
+continue
+}
+
+send -s "cat $collect_path/$find_performance_file_name.$ipaddr($count) >> $collect_path/$collect_performance_file_name \r"
+while (1) {
+expect {
+                -re "$sh_prompt" { 
+                #puts "Successfull!"
+                sleep 1
+                set fail($count) 0
+                break }
+                timeout { send_user "Failed cat\n"
+                set fail($count) 1
+                break }
+       }
+}
+
+send_user "\n##################    End $ipaddr($count)   #####################\n"
+}
+
+send_user "\nFailed to ssh to following machines:\n"
+
+for { set count 0 } { $count < $machine_number } { incr count 1 } {
+
+if { $fail($count) == 1 } {
+
+send_user "$ipaddr($count)\n"
+
+} 
+
+}
+
+send_user "\nSuccessful on the following machines:\n"
+
+for { set count 0 } { $count < $machine_number } { incr count 1 } {
+
+if { $fail($count) == 0 } {
+
+send_user "$ipaddr($count)\n"
+
+}
+
+}
+
+log_file
+
