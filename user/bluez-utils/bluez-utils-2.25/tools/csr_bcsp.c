@@ -2,7 +2,7 @@
  *
  *  BlueZ - Bluetooth protocol stack for Linux
  *
- *  Copyright (C) 2004-2006  Marcel Holtmann <marcel@holtmann.org>
+ *  Copyright (C) 2004-2008  Marcel Holtmann <marcel@holtmann.org>
  *
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -136,7 +136,8 @@ int csr_open_bcsp(char *device)
 
 void put_uart(uint8_t ch)
 {
-	write(fd, &ch, 1);
+	if (write(fd, &ch, 1) < 0)
+		fprintf(stderr, "UART write error\n");
 }
 
 uint8_t get_uart(uint8_t *ch)
@@ -187,19 +188,6 @@ static int do_command(uint16_t command, uint16_t seqnum, uint16_t varid, uint8_t
 	while (1) {
 		delay = ubcsp_poll(&activity);
 
-		if (activity & UBCSP_PACKET_RECEIVED) {
-			if (sent && receive_packet.channel == 5 &&
-					receive_packet.payload[0] == 0xff) {
-				memcpy(rp, receive_packet.payload,
-							receive_packet.length);
-				break;
-			}
-
-			receive_packet.length = 512;
-			ubcsp_receive_packet(&receive_packet);
-			timeout = 0;
-		}
-
 		if (activity & UBCSP_PACKET_SENT) {
 			switch (varid) {
 			case CSR_VARID_COLD_RESET:
@@ -210,6 +198,19 @@ static int do_command(uint16_t command, uint16_t seqnum, uint16_t varid, uint8_t
 			}
 
 			sent = 1;
+			timeout = 0;
+		}
+
+		if (activity & UBCSP_PACKET_RECEIVED) {
+			if (sent && receive_packet.channel == 5 &&
+					receive_packet.payload[0] == 0xff) {
+				memcpy(rp, receive_packet.payload,
+							receive_packet.length);
+				break;
+			}
+
+			receive_packet.length = 512;
+			ubcsp_receive_packet(&receive_packet);
 			timeout = 0;
 		}
 
