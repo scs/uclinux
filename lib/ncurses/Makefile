@@ -18,8 +18,7 @@ AUTOTOOLS_BUILD_HOST = true
 BUILD_CONF_OPTS = \
 	--disable-termcap \
 	--without-ada \
-	--disable-shared \
-	--enable-static
+	--without-shared
 export PATH := $(ROOTDIR)/lib/ncurses/build-host-$(VER)/progs:$(PATH)
 
 include $(ROOTDIR)/tools/autotools.mk
