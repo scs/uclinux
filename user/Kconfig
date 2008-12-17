@@ -1694,6 +1694,14 @@ config USER_LRPSTAT_LRPSTAT
 	help
 	  Real time bandwidth and CPU monitoring Java applet.
 
+config USER_LYNX
+	bool "lynx"
+	select LIB_NCURSES
+	help
+	  An excellent console-based web browser with optional ssl support
+
+	  http://lynx.browser.org/
+
 config USER_SMTP_SMTPCLIENT
 	bool "mail"
 	help

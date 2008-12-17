@@ -214,6 +214,7 @@ dir_$(CONFIG_USER_LRPSTAT_LRPSTAT)          += lrpstat
 dir_$(CONFIG_USER_LRZSZ_LRZSZ)              += lrzsz
 dir_$(CONFIG_USER_LSOF_LSOF)                += lsof
 dir_$(CONFIG_USER_LUA_LUA)                  += lua
+dir_$(CONFIG_USER_LYNX)                     += lynx
 dir_$(CONFIG_USER_MADPLAY_MADPLAY)          += madplay
 dir_$(CONFIG_USER_MAIL_MAIL_IP)             += mail
 dir_$(CONFIG_USER_MATH_TEST)                += mathtest
