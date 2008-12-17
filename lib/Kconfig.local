@@ -128,8 +128,18 @@ config LIB_QT
 	bool "Build QT"
 	select LIB_ZLIB
 
+config LIB_QT_WEBKIT
+	bool "Build WebKit"
+	depends on LIB_QT
+	help
+	  WebKit is the HTML rendering engine
+
+config LIB_QT_QVFB
+	bool "Build QT Virtual Framebuffer"
+	depends on LIB_QT
+
 config LIB_QT_EXAMPLES
-	bool "Build QT examples"
+	bool "Build demos/examples"
 	depends on LIB_QT
 
 config LIB_READLINE

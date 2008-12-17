@@ -12,18 +12,31 @@ CONF_XPLATFORM  = qws/linux-bfin-flat-g++
 endif
 
 CONFIG_QT_DEPTH ?= 8,16,24,32
+
 CONF_OPTS = \
 	-confirm-license \
 	-prefix /usr \
+	-plugindir /usr/lib/qt \
+	-datadir /usr/share/qt \
+	-translationdir /usr/share/qt/translations \
+	-sysconfdir /etc \
+	-examplesdir /usr/qt/examples \
+	-demosdir /usr/qt/demos \
+	\
 	-embedded bfin \
 	-xplatform $(CONF_XPLATFORM) \
 	-little-endian \
+	\
 	$(CONF_SHARED_OPT) \
 	-depths $(CONFIG_QT_DEPTH) \
 	-no-qt3support \
-	-nomake docs \
-	$(call USE_ECHO,LIB_QT_EXAMPLES,,-nomake demos -nomake examples) \
-	-nomake translations \
+	$(call USE_ECHO,LIB_QT_WEBKIT,-webkit,-no-webkit) \
+	\
+	$(call USE_ECHO,LIB_QT_EXAMPLES,,-nomake demos -nomake docs -nomake examples) \
+	-nomake translations
+
+# QT requires zlib
+CONF_OPTS += \
 	-system-zlib \
 	-qt-gif \
 	$(call USE_ECHO,LIB_LIBTIFF,-system-libtiff,-no-libtiff) \
@@ -36,6 +49,29 @@ CONF_OPTS = \
 	-no-dbus \
 	$(call USE_ECHO,LIB_FREETYPE,-system-freetype,-no-freetype) \
 	$(call USE_ECHO,LIB_GLIB,-glib,-no-glib)
+
+# ahi/hybrid - non-Blackfin PDAs
+# svgalib - x86-only display driver
+CONF_OPTS += \
+	$(call USE_ECHO,LIB_DIRECTFB,-plugin-gfx-directfb,) \
+	$(call USE_ECHO,FB,-qt-gfx-linuxfb,-no-gfx-linuxfb) \
+	$(call USE_ECHO,LIB_QT_QVFB,-qt-gfx-qvfb,-no-gfx-qvfb) \
+	-plugin-gfx-transformed \
+	-plugin-gfx-vnc
+
+# sl5000/vr41xx/yopy - non-Blackfin PDAs
+CONF_OPTS += \
+	-no-kbd-sl5000 -no-kbd-vr41xx -no-kbd-yopy \
+	$(call USE_ECHO,LIB_QT_QVFB,-qt-kbd-qvfb,-no-kbd-qvfb) \
+	$(call USE_ECHO,VT,-qt-kbd-tty,-no-kbd-tty) \
+	$(call USE_ECHO,USB,-qt-kbd-usb,-no-kbd-usb)
+
+# vr41xx/yopy - non-Blackfin PDAs
+# linuxtp - old style touchpad (/dev/ts)
+CONF_OPTS += \
+	-no-mouse-bus -no-mouse-linuxtp -no-mouse-vr41xx -no-mouse-yopy \
+	$(call USE_ECHO,LIB_QT_QVFB,-qt-mouse-qvfb,-no-mouse-qvfb) \
+	$(call USE_ECHO,LIB_TSLIB,-qt-mouse-tslib,-no-mouse-tslib)
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) INSTALL_ROOT=$(STAGEDIR) install
@@ -56,25 +92,13 @@ build-$(VER)/Makefile: $(VER)/.unpacked
 	unset CC CXX CFLAGS CXXFLAGS LDFLAGS ; \
 	../$(VER)/configure $(CONF_OPTS)
 
-old_$(VER)/Makefile:
-	cd $(VER) && \
-	./configure \
-		-embedded bfin \
-		-depths 16 \
-		-shared \
-		-prefix /home/dave/Blackfin/qt-4.2.2-TC0702 \
-		-qt-mouse-tslib \
-		-no-separate-debug-info \
-		-no-cups \
-		-no-nis \
-		-DQT_NO_SOUND \
-		-DQT_NO_QWS_MULTIPROCESS \
-		-I/home/dave/Blackfin/SVN/uclinux-dist-trunk/lib/tslib-1.0/src \
-		-L/home/dave/Blackfin/SVN/uclinux-dist-trunk/lib/tslib-1.0/build/src/.libs \
-		-xplatform qws/linux-bfin-g++
-
 clean:
 	rm -rf build*
+	rm -rf \
+		$(STAGEDIR)/usr/lib/libQt* \
+		$(STAGEDIR)/usr/qt \
+		$(STAGEDIR)/usr/lib/qt \
+		$(STAGEDIR)/usr/share/qt
 
 romfs:
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
@@ -82,6 +106,28 @@ ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 	for l in $$(cd $(STAGEDIR)/usr/lib ; echo libQt*.so.?) ; do \
 		$(ROMFSINST) -d $(STAGEDIR)/usr/lib/$$l /usr/lib/$$l ; \
 	done
+	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/qt /usr/lib/qt
 endif
+
+	mkdir -p $(ROMFSDIR)/usr/lib/fonts
+	cp $(STAGEDIR)/usr/lib/fonts/fixed_*.qpf $(STAGEDIR)/usr/lib/fonts/helvetica_*.qpf $(ROMFSDIR)/usr/lib/fonts/
+
+ifeq (0,1) # this installs 13megs ... make people pick demos themselves
+ifeq ($(CONFIG_LIB_QT_EXAMPLES),y)
+	rm -rf $(ROMFSDIR)/usr/qt
+	mkdir -p $(ROMFSDIR)/usr/qt
+	cp -r $(STAGEDIR)/usr/qt/* $(ROMFSDIR)/usr/qt/
+	find $(ROMFSDIR)/usr/qt/ \
+		'(' \
+			-name '*.demo' -o \
+			-name '*.[ch]' -o \
+			-name '*.pro' -o \
+			-name '*.qrc' -o \
+			-name README \
+		')' -print0 | xargs -0 rm -f
+endif
+endif
+
+#	$(ROMFSINST) -d $(STAGEDIR)/usr/share/qt/translations /usr/share/qt/translations
 
 .PHONY: all clean romfs
