@@ -239,6 +239,12 @@ config USER_UVC_VIDEO
 	select LIB_TSLIB	
 config USER_CPUFREQUTILS
 	bool "cpufrequtils"
+config USER_PICTUREFLOW
+	bool "pictureflow"
+	select LIB_QT
+	help
+	  The pictureflow demo app
+	  http://code.google.com/p/pictureflow/
 endmenu
 
 
