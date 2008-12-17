@@ -252,7 +252,7 @@ then
 fi	
 if [ -z "$SSTRIPTOOL" ]
 then
-	SSTRIPTOOL=sstrip
+	SSTRIPTOOL= #sstrip
 fi
 
 shift `expr $OPTIND - 1`
