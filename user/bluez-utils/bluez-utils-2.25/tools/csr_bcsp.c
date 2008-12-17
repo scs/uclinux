@@ -51,7 +51,8 @@ int csr_open_bcsp(char *device)
 	struct termios ti;
 	uint8_t delay, activity = 0x00;
 	int timeout = 0;
-
+	char* str;
+	
 	if (!device)
 		device = "/dev/ttyS0";
 
@@ -84,7 +85,13 @@ int csr_open_bcsp(char *device)
 	ti.c_cc[VMIN] = 1;
 	ti.c_cc[VTIME] = 0;
 
-	cfsetospeed(&ti, B38400);
+    	str = getenv( "BCSP_USE_B115200");
+
+    	if (str == NULL)
+		cfsetospeed(&ti, B38400);
+	else
+		cfsetospeed(&ti, B115200);	
+
 
 	if (tcsetattr(fd, TCSANOW, &ti) < 0) {
 		fprintf(stderr, "Can't change port settings: %s (%d)\n",
@@ -124,7 +131,7 @@ int csr_open_bcsp(char *device)
 		if (delay) {
 			usleep(delay * 100);
 
-			if (timeout++ > 100) {
+			if (timeout++ > 400) {
 				fprintf(stderr, "Initialization timed out\n");
 				return -1;
 			}
