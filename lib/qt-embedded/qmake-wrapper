@@ -1,0 +1,32 @@
+#!/bin/sh
+# XXX: this does not handle the "-o" option or any other crazy stuff
+
+error() {
+	echo "qmake-wrapper error: $*" 1>&2
+	exit 1
+}
+
+: ${STAGEDIR=@STAGEDIR@}
+
+qmake=${STAGEDIR}/usr/bin/qmake
+
+if [ ! -x "${qmake}" ] ; then
+	error qmake not found: ${qmake}
+fi
+
+specs=${STAGEDIR}/usr/share/qt/mkspecs/qws/
+targ=${0##*/}
+if [ "${targ}" = "bfin-linux-uclibc-qmake" ] ; then
+	specs=${specs}/linux-bfin-fdpic-g++
+elif [ "${targ}" = "bfin-linux-uclibc-qmake" ] ; then
+	specs=${specs}/linux-bfin-flat-g++
+else
+	error unknown target: ${targ}
+fi
+
+${qmake} -spec "${specs}" "$@" || exit $?
+
+sed -i \
+	-e "s:-I/usr/include:-I${STAGEDIR}/usr/include:g" \
+	-e "s:-L/usr/lib:-Wl,-rpath-link,${STAGEDIR}/usr/lib -L${STAGEDIR}/usr/lib:g" \
+	Makefile
