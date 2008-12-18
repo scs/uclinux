@@ -63,7 +63,7 @@ set fail(20) 0
 set fail(21) 0 
 set fail(22) 0 
 
-set machine_number 5
+set machine_number 22
 
 spawn /bin/sh
 
@@ -85,6 +85,43 @@ for { set count 0 } { $count < $machine_number } { incr count 1 } {
 send_user "\n################ Starting on $ipaddr($count) ###################\n"
 
 set timeout 200
+send -s "ssh -l test $ipaddr($count)  find $log_path -name $find_performance_file_name \\| wc -l \r"
+while (1) {
+expect {
+                "Are you sure you want to continue connecting" { send -s "yes\r" }
+                "Password:" { break }
+                "No route to host" {
+                 set fail($count) 1
+                 expect -re "$sh_prompt"
+                 break
+                 }
+                 timeout { send_user "Failed ssh\n"
+                 set fail($count) 1
+                 expect -re "$sh_prompt"
+                 break } 
+       }
+}
+
+if { $fail($count) == 1 } {
+continue
+}
+send -s "$user_password\r"
+while (1) {
+expect {
+             -re "(\[0-9]+)\r\n(.*)$sh_prompt" {
+                 set performance_file_number $expect_out(1,string) 
+                 #puts "\r\n $performance_file_number "
+                 break  }
+             timeout { send_user "Failed ssh.\n"
+                 set fail($count) 1
+                 expect -re "$sh_prompt"
+                 break }
+       }
+}
+
+if { $fail($count) == 1 || $performance_file_number == 0 } {
+continue
+}
 send -s "ssh -l test $ipaddr($count)  find $log_path -name $find_performance_file_name \\| xargs ls -tr \\| tail -1 \r"
 while (1) {
 expect {
