@@ -169,6 +169,8 @@ config USER_BLUEZ_BCCMD
 	select LIB_LIBUSB
 	help
 	  Utility for the CSR BCCMD interface
+config USER_BFBLUET_EZEXT_UTIL
+	bool "BFBLUET-EZEXT Boot Mode Utility"
 config USER_BTSCO
 	bool "Bluetooth ALSA utility"
 	depends on USER_BLUEZ
