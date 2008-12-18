@@ -112,23 +112,15 @@ set timeout 15
 send "./dmacopy\r"
 while 1 {
     expect {
-        -re "CURRENT PROCESS.*Call Trace.*" {
+        -re "CURRENT PROCESS.*Call Trace.*|Kernel panic.*" {
             case_fail $case_num
             break
         }
-        -re "PASS: dma_memcpy test case 1, memcmp result is 0" {
-            case_pass $case_num
-            incr case_num
-        }
-        -re "FAIL: dma_memcpy test case 1, memcmp result is .*" {
-            case_fail $case_num
-            break
-        }
-        -re "PASS: dma_memcpy test case 2, memcmp result is 0" {
+        -re "SUMMARY: all tests passed.*$kernel_prompt" {
             case_pass $case_num
             break
         }
-        -re "FAIL: dma_memcpy test case 2, memcmp result is .*" {
+        -re "SUMMARY: \[0-9]+ tests failed" {
             case_fail $case_num
             break
         }
