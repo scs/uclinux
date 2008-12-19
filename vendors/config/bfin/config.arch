@@ -42,6 +42,8 @@ STRIP     = $(STRIPTOOL)
 CC_FOR_BUILD = gcc
 CONFIG_SITE = $(ROOTDIR)/vendors/config/config.site
 
+QMAKE     = $(CROSS_COMPILE)qmake
+
 MKIMAGE     = $(ROOTDIR)/$(LINUXDIR)/scripts/mkuboot.sh
 MKFS_CRAMFS = $(ROOTDIR)/user/cramfs/host_build/mkcramfs
 MKFS_EXT2   = $(ROOTDIR)/user/genext2fs/build-host/genext2fs
