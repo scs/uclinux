@@ -79,7 +79,7 @@ all: build-$(VER)/Makefile
 	sed -i "s:@STAGEDIR@:$(STAGEDIR):" $(ROOTDIR)/tools/$(CROSS_COMPILE)qmake
 
 $(DOWNLOADDIR)/$(VER).tar.gz:
-	wget $(URI) -P $(DOWNLOADDIR)
+	wget $(URL) -P $(DOWNLOADDIR)
 
 $(VER)/.unpacked: $(DOWNLOADDIR)/$(VER).tar.gz
 	tar xf $<
