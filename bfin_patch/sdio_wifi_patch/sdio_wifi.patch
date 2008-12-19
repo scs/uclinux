@@ -1,6 +1,6 @@
 Index: drivers/mmc/core/sdio_io.c
 ===================================================================
---- drivers/mmc/core/sdio_io.c	(revision 5712)
+--- drivers/mmc/core/sdio_io.c	(revision 5896)
 +++ drivers/mmc/core/sdio_io.c	(working copy)
 @@ -300,13 +300,14 @@
  	int ret;
@@ -34,21 +34,9 @@ Index: drivers/mmc/core/sdio_io.c
  
  		ret = mmc_io_rw_extended(func->card, write, func->num, addr,
  			 incr_addr, buf, 1, size);
-Index: drivers/mmc/host/bfin_sdh.c
-===================================================================
---- drivers/mmc/host/bfin_sdh.c	(revision 5711)
-+++ drivers/mmc/host/bfin_sdh.c	(working copy)
-@@ -458,7 +458,6 @@
- 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
- 	mmc->f_min = get_sclk() >> 9;
- 	mmc->f_max = get_sclk();
--	mmc->caps = MMC_CAP_4_BIT_DATA;
- 	host = mmc_priv(mmc);
- 	host->mmc = mmc;
- 
 Index: drivers/net/wireless/libertas/if_sdio.c
 ===================================================================
---- drivers/net/wireless/libertas/if_sdio.c	(revision 5711)
+--- drivers/net/wireless/libertas/if_sdio.c	(revision 5896)
 +++ drivers/net/wireless/libertas/if_sdio.c	(working copy)
 @@ -263,14 +263,14 @@
  		}
@@ -94,7 +82,7 @@ Index: drivers/net/wireless/libertas/if_sdio.c
  	if (!packet) {
 Index: drivers/net/wireless/libertas/scan.c
 ===================================================================
---- drivers/net/wireless/libertas/scan.c	(revision 5711)
+--- drivers/net/wireless/libertas/scan.c	(revision 5896)
 +++ drivers/net/wireless/libertas/scan.c	(working copy)
 @@ -1124,7 +1124,8 @@
  		goto done;
@@ -108,7 +96,7 @@ Index: drivers/net/wireless/libertas/scan.c
  	scanrespsize = le16_to_cpu(resp->size);
 Index: drivers/net/wireless/libertas/cmdresp.c
 ===================================================================
---- drivers/net/wireless/libertas/cmdresp.c	(revision 5711)
+--- drivers/net/wireless/libertas/cmdresp.c	(revision 5896)
 +++ drivers/net/wireless/libertas/cmdresp.c	(working copy)
 @@ -5,7 +5,7 @@
  #include <linux/delay.h>
