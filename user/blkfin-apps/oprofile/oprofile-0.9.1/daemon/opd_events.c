@@ -81,6 +81,8 @@ void opd_parse_events(char const * events)
 	char * c;
 	size_t cur = 0;
 
+	cpu_speed = op_cpu_frequency();
+
 	if (cpu_type == CPU_TIMER_INT) {
 		struct opd_event * event = &opd_events[0];
 		event->name = xstrdup("TIMER");
@@ -120,8 +122,6 @@ void opd_parse_events(char const * events)
 	}
 
 	free(ev);
-
-	cpu_speed = op_cpu_frequency();
 }
 
 
