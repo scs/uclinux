@@ -30,9 +30,6 @@ exec patch -p0  < ../bfin_patch/kgdb_patch/kgdboe_bfin_linux-2.6.x.patch
 
 }
 
-exec patch -p1  < ../testsuites/kgdb/kgdb_bfin_linux-2.6.x_test.patch
-
-
 cd $uclinux_path/testsuites
 
 step "Make config."
