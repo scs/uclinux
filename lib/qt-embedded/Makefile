@@ -48,7 +48,9 @@ CONF_OPTS += \
 	-no-cups \
 	-no-dbus \
 	$(call USE_ECHO,LIB_FREETYPE,-system-freetype,-no-freetype) \
-	$(call USE_ECHO,LIB_GLIB,-glib,-no-glib)
+	$(call USE_ECHO,LIB_GLIB,-glib,-no-glib) \
+	-no-sql-sqlite2 \
+	$(call USE_ECHO,LIB_SQLITE,-system-sqlite,-no-sql-sqlite)
 
 # ahi/hybrid - non-Blackfin PDAs
 # svgalib - x86-only display driver
