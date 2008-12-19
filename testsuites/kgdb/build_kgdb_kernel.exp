@@ -75,6 +75,10 @@ while 1 {
         -re "KGDB: On ethernet.*KGDBOE.*\\\[.*]" {
             send "Y\r"
         }
+        
+        -re "KGDB: internal test suite.*KGDB_TESTS.*\\\[.*]" {
+            send "M\r"
+        }
 
         -re "Compile the kernel with debug info.*DEBUG_INFO.*\\\[.*]" {
             send "Y\r"
