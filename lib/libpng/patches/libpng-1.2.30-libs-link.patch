@@ -1,5 +1,5 @@
---- libpng-1.2.30/scripts/libpng.pc-configure.in.orig	2008-08-15 21:08:07.000000000 -0400
-+++ libpng-1.2.30/scripts/libpng.pc-configure.in	2008-08-15 21:08:14.000000000 -0400
+--- libpng-1.2.30/scripts/libpng.pc-configure.in.orig
++++ libpng-1.2.30/scripts/libpng.pc-configure.in
 @@ -6,6 +6,6 @@
  Name: libpng
  Description: Loads and saves PNG files
