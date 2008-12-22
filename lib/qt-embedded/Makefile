@@ -80,13 +80,7 @@ all: build-$(VER)/Makefile
 	cp qmake-wrapper $(ROOTDIR)/tools/$(CROSS_COMPILE)qmake
 	sed -i "s:@STAGEDIR@:$(STAGEDIR):" $(ROOTDIR)/tools/$(CROSS_COMPILE)qmake
 
-$(DOWNLOADDIR)/$(VER).tar.gz:
-	wget $(URL) -P $(DOWNLOADDIR)
-
-$(VER)/.unpacked: $(DOWNLOADDIR)/$(VER).tar.gz
-	tar xf $<
-	for p in $$PWD/patches/*.patch ; do cd $(VER) && patch -p1 < $$p || exit $$? ; done
-	touch $(VER)/.unpacked
+include $(ROOTDIR)/tools/download.mk
 
 build-$(VER)/Makefile: $(VER)/.unpacked
 	set -e ; \

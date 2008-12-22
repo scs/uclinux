@@ -17,6 +17,8 @@ all: build-$(VER)/Makefile $(AUTOTOOLS_ALL_DEPS)
 pre-build::
 post-build::
 
+include $(ROOTDIR)/tools/download.mk
+
 ifneq ($(findstring s,$(MAKEFLAGS)),)
 echo-cmd = :
 else
