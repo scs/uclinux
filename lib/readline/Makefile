@@ -9,7 +9,7 @@ pre-build::
 
 post-build::
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	$(MAKE) -C build-$(VER) install-shared
+	$(MAKE) -C build-$(VER) install-shared DESTDIR=$(STAGEDIR)
 endif
 	rm -f $(STAGEDIR)/usr/lib/*.old
 
