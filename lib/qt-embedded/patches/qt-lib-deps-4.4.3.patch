@@ -1,0 +1,34 @@
+http://trolltech.com/developer/task-tracker/index_html?id=239108&method=entry
+
+--- a/configure
++++ b/configure
+@@ -5211,6 +5211,9 @@ fi
+ if [ "$CFG_INOTIFY" = "yes" ]; then
+     QT_CONFIG="$QT_CONFIG inotify"
+ fi
++if [ "$CFG_LIBJPEG" = "no" ]; then
++    CFG_JPEG="no"
++fi
+ if [ "$CFG_LIBJPEG" = "system" ]; then
+     QT_CONFIG="$QT_CONFIG system-jpeg"
+ fi
+@@ -5219,6 +5222,9 @@ if [ "$CFG_JPEG" = "no" ]; then
+ elif [ "$CFG_JPEG" = "yes" ]; then
+     QT_CONFIG="$QT_CONFIG jpeg"
+ fi
++if [ "$CFG_LIBMNG" = "no" ]; then
++    CFG_MNG="no"
++fi
+ if [ "$CFG_LIBMNG" = "system" ]; then
+     QT_CONFIG="$QT_CONFIG system-mng"
+ fi
+@@ -5243,6 +5249,9 @@ if [ "$CFG_GIF" = "no" ]; then
+ elif [ "$CFG_GIF" = "yes" ]; then
+     QT_CONFIG="$QT_CONFIG gif"
+ fi
++if [ "$CFG_LIBTIFF" = "no" ]; then
++    CFG_TIFF="no"
++fi
+ if [ "$CFG_LIBTIFF" = "system" ]; then
+     QT_CONFIG="$QT_CONFIG system-tiff"
+ fi

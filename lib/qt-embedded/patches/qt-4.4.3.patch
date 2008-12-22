@@ -1,45 +1,5 @@
---- a/configure
-+++ b/configure
-@@ -5211,6 +5211,9 @@ fi
- if [ "$CFG_INOTIFY" = "yes" ]; then
-     QT_CONFIG="$QT_CONFIG inotify"
- fi
-+if [ "$CFG_LIBJPEG" = "no" ]; then
-+    CFG_JPEG="no"
-+fi
- if [ "$CFG_LIBJPEG" = "system" ]; then
-     QT_CONFIG="$QT_CONFIG system-jpeg"
- fi
-@@ -5219,6 +5222,9 @@ if [ "$CFG_JPEG" = "no" ]; then
- elif [ "$CFG_JPEG" = "yes" ]; then
-     QT_CONFIG="$QT_CONFIG jpeg"
- fi
-+if [ "$CFG_LIBMNG" = "no" ]; then
-+    CFG_MNG="no"
-+fi
- if [ "$CFG_LIBMNG" = "system" ]; then
-     QT_CONFIG="$QT_CONFIG system-mng"
- fi
-@@ -5243,6 +5249,9 @@ if [ "$CFG_GIF" = "no" ]; then
- elif [ "$CFG_GIF" = "yes" ]; then
-     QT_CONFIG="$QT_CONFIG gif"
- fi
-+if [ "$CFG_LIBTIFF" = "no" ]; then
-+    CFG_TIFF="no"
-+fi
- if [ "$CFG_LIBTIFF" = "system" ]; then
-     QT_CONFIG="$QT_CONFIG system-tiff"
- fi
---- a/mkspecs/linux-g++/qplatformdefs.h
-+++ b/mkspecs/linux-g++/qplatformdefs.h
-@@ -63,7 +63,6 @@
- #include <grp.h>
- #include <pwd.h>
- #include <signal.h>
--#include <dlfcn.h>
- 
- #include <sys/types.h>
- #include <sys/ioctl.h>
+http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
+
 --- /dev/null
 +++ b/mkspecs/qws/linux-bfin-fdpic-g++/qmake.conf
 @@ -0,0 +1,18 @@
