@@ -9,6 +9,15 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
+set driver [lindex $argv 1]
+send_log "\nVideo Capture Driver is $driver\n"
+
+if { $argc < 2} {
+    puts "Please input: board_type, driver name(VS6624 or ADV7183)"
+    exit
+}
+
+
 cd $uclinux_path/testsuites
 step "Make clean."
 source  make_clean.exp
@@ -40,8 +49,20 @@ while 1 {
             send "Y\r"
         }
 
+        -re "GPIO-based bitbanging I2C.*I2C_GPIO.*\\\[.*]" {
+            if { $driver == "ADV7183" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            }
+        }
+
         -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
-            send "Y\r"
+            if { $driver == "VS6624" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "Uncached DMA region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
@@ -53,7 +74,11 @@ while 1 {
         }
 
         -re "Use L1 memory for rx\\\/tx packets.*BFIN_MAC_USE_L1.*\\\[.*]" {
-            send "n\r"
+            if { $driver == "VS6624" } {
+                send "N\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "Video capture adapters.*VIDEO_CAPTURE_DRIVERS.*\\\[.*]" {
@@ -61,15 +86,27 @@ while 1 {
         }
 
         -re "Blackfin Camera driver.*VIDEO_BLACKFIN_CAM.*\\\[.*]" {
-            send "M\r"
+            if { $driver == "VS6624" } {
+                send "M\r"
+            } else {
+                send "Y\r"
+            }
         }
 
-        -re "Target Sensor.*VS6624.*\[cC]hoice\\\[.*]:" {
-            send "3\r"
+        -re "Target Sensor.*VS6624.*ADV7183B.*\[cC]hoice\\\[.*]:" {
+            if { $driver == "VS6624" } {
+                send "3\r"
+            } else {
+                send "5\r"
+            }
         }
 
         -re "Video For Linux.*VIDEO_DEV.*\\\[.*]" {
-            send "M\r"
+            if { $driver == "VS6624" } {
+                send "M\r"
+            } else {
+                send "Y\r"
+            }
         }
 
         -re "FFmpeg and FFserver.*USER_FFMPEG_APPS.*\\\[.*]" {
@@ -81,7 +118,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 

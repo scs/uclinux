@@ -1,0 +1,102 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+sleep 5
+send "\r"
+expect -re $kernel_prompt
+
+step "Start testing"
+set case_num 0
+
+incr case_num
+set timeout 5
+send "modprobe videodev\r"
+while 1 {
+    expect {
+        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
+            case_fail $case_num
+        }
+        -re "Linux video capture interface.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "modprobe blackfin-cam\r"
+while 1 {
+    expect {
+        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
+            case_fail $case_num
+        }
+        -re "detecting client.*V4L driver Blackfin CMOS Camera now ready.*i2c driver ready.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 20
+send "ffmpeg -f video4linux -r 10.0 -s 720x288 -i /dev/video0 -qscale 6 -f mjpeg udp:$serverip:1234\r"
+while 1 {
+    expect {
+        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
+            case_fail $case_num
+        }
+        -re "Stream mapping.*kbits/s" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 15
+
+incr case_num
+set timeout 10
+send "q"
+while 1 {
+    expect {
+        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
+            case_fail $case_num
+        }
+        -re "video.*audio.*global headers.*muxing overhead.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+send_user "Ending $argv0\n"
+
+log_file
