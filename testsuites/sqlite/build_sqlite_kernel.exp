@@ -15,7 +15,7 @@ step "Make config."
 source  make_default_config.exp
 # Following make specific configuration for this case.
 
-set timeout 5
+set timeout 300
 spawn make config
 
 while 1 {
@@ -29,6 +29,7 @@ while 1 {
         }
 
         -re "Build sqlite \\\(LIB_SQLITE\\\) \\\[\[^\r]*]" {
+            set timeout 5
             expect {
                 -nocase -re " (\[ym])\r\n" {
                     send_user "\n Item_value is selected  $expect_out(1,string).\n"
@@ -37,6 +38,7 @@ while 1 {
                     send -s "Y\r"
                 }
             }
+            set timeout 300
         }
 
         -re "Sqlite test program \\\(USER_SQLITE_TEST\\\) \\\[.*]" {

@@ -42,7 +42,7 @@ while 1 {
 }
 
 cd $uclinux_path
-set timeout 5
+set timeout 300
 set baud_rate_done_flag 0
 spawn make config
 
@@ -70,6 +70,7 @@ while 1 {
         }
 
         -re "Build libZ \\\(LIB_ZLIB\\\) \\\[\[^\r]*]" {
+            set timeout 5 
             expect {
             -nocase -re  " (\[ym])\r\n" {
                 send_user "\n Item_value is selected  $expect_out(1,string).\n"
@@ -78,9 +79,11 @@ while 1 {
                 send -s "Y\r"
             }
             }
+            set timeout 300 
         }
 
         -re "Build libpng \\\(LIB_LIBPNG\\\) \\\[(\[^\r]*)]" {
+            set timeout 5 
             expect {
              -nocase -re " (\[ym])\r\n" {
                 send_user "\n Item_value is selected $expect_out(1,string).\n"
@@ -89,6 +92,7 @@ while 1 {
                 send -s "Y\r"
             }
             }
+            set timeout 300 
         }
 
         -re "Networked Software Defined Storage Oscilloscope.*USER_NDSO.*\\\[.*]" {
