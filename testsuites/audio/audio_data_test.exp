@@ -177,6 +177,12 @@ set host_spawn_id $spawn_id
 send "\r"
 expect ">"
 
+if [ catch {exec rm -fr $output_dir} ] {
+    send_user "FAIL: Remove the old DIRECTORY\n"
+} else {
+    send_user "PASS: Remove the old DIRECTORY\n"
+}
+
 incr case_num
 if [ catch {exec mkdir -p $output_dir} ] {
     send_user "FAIL: Create the DIRECTORY\n"
