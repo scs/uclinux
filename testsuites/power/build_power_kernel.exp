@@ -128,6 +128,10 @@ while 1 {
             send "Y\r"
         }
 
+        -re "Generic sound devices.*SND_DRIVERS.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
                 send "M\r"
