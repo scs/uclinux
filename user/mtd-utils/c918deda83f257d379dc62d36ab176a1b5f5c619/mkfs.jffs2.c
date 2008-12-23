@@ -565,7 +565,10 @@ static int interpret_table_entry(struct filesystem_entry *root, char *line)
 		 * try and find our parent now) */
 		tmp = strdup(name);
 		dir = dirname(tmp);
-		parent = find_filesystem_entry(root, dir, S_IFDIR);
+		if (!strcmp(dir, "/"))
+			parent = root;
+		else
+			parent = find_filesystem_entry(root, dir, S_IFDIR);
 		free(tmp);
 		if (parent == NULL) {
 			error_msg ("skipping device_table entry '%s': no parent directory!", name);
