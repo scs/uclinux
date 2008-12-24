@@ -331,7 +331,7 @@ Index: lib/Kconfig.kgdb
 ===================================================================
 --- lib/Kconfig.kgdb	(revision 5191)
 +++ lib/Kconfig.kgdb	(working copy)
-@@ -27,6 +27,17 @@
+@@ -27,6 +27,23 @@
  	  Share a serial console with kgdb. Sysrq-g must be used
  	  to break in initially.
  
@@ -345,6 +345,12 @@ Index: lib/Kconfig.kgdb
 +	  In order for this to work, the ethernet interface specified must
 +	  support the NETPOLL API, and this must be initialized at boot.
 +	  See the documentation for syntax.
++
++config KGDB_TESTCASE
++       tristate "KGDB: for test case in expect"
++       default n
++       help
++         This is a kgdb test case for automated testing.
 +
  config KGDB_TESTS
  	bool "KGDB: internal test suite"
