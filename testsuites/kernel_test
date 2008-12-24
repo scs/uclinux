@@ -111,6 +111,13 @@ if [ $# -gt 13 ] ; then
   echo "##### VCO_MULT: $VCO_MULT, CCLK_DIV: $CCLK_DIV, SCLK_DIV: $SCLK_DIV."
 fi
 
+cat <<EOF
+echo "************* Tested uclinux-dist svn info *************"
+`cd $UCLINUX_DIST_PATH ;svn info`
+echo "************* Tested linux svn info ********************"
+`cd $UCLINUX_DIST_PATH/linux-2.6.x  ;svn info`
+EOF
+
 echo "Testing on $BOARD_CONFIG ($CPU) $BINARY_FORMAT $ALLOCATOR ICACHE($ICACHE) DCACHE($DCACHE) $POLICY $UART_MODE SMP($SMP) MPU($MPU)"
 
 ###### See if uclinux-dist has been checked out.##################################################
