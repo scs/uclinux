@@ -11,10 +11,9 @@ exit
 }
 
 if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-set kernel_start_addr 0x20040000
-set kernel_end_addr  0x2011ffff
-set rootfs_start_addr 0x20120000
-set rootfs_end_addr 0x203effff
+set uboot_size 0x40000
+set kernel_size 0xe0000
+set rootfs_size 0x2d0000
 set spi_kernel_start_addr 0x40000
 set spi_rootfs_start_addr 0x120000
 set spi_rootfs_size 0x6dffff
@@ -24,17 +23,15 @@ set nand_rootfs_num 1
 
 } elseif { $board_type == "BF561-EZKIT" } {
 
-set kernel_start_addr 0x20040000
-set kernel_end_addr 0x201fffff
-set rootfs_start_addr 0x20200000
-set rootfs_end_addr 0x207fffff
+set uboot_size 0x40000
+set kernel_size 0x1c0000
+set rootfs_size 0x600000
 set pnor_rootfs_num 2
 
 } elseif { $board_type == "BF548-EZKIT" } {
-set kernel_start_addr 0x20040000
-set kernel_end_addr 0x201fffff
-set rootfs_start_addr 0x20200000
-set rootfs_end_addr 0x205fffff
+set uboot_size 0x40000
+set kernel_size 0x400000
+set rootfs_size 0xbc0000 
 set spi_rootfs_start_addr 0x40000
 set spi_rootfs_size 0x1bffff
 set pnor_rootfs_num 2
@@ -42,10 +39,9 @@ set spi_rootfs_num 6
 set nand_rootfs_num 1
  
 } elseif { $board_type == "BF527-EZKIT" } {
-set kernel_start_addr 0x20040000
-set kernel_end_addr 0x201fffff
-set rootfs_start_addr 0x20200000
-set rootfs_end_addr 0x203fffff
+set uboot_size 0x40000
+set kernel_size 0x1c0000
+set rootfs_size 0x200000
 set spi_rootfs_start_addr 0x40000
 set spi_rootfs_size 0x1bffff
 set pnor_rootfs_num 2
@@ -53,6 +49,12 @@ set spi_rootfs_num 1
 set nand_rootfs_num 2
 }
 
+set mtd_base_addr 0x20000000
+set kernel_start_addr [format "%08x" [expr $mtd_base_addr + $uboot_size]]
+set kernel_end_addr [format "%08x" [expr $mtd_base_addr + $uboot_size + $kernel_size - 1]] 
+set rootfs_start_addr [format "%08x" [expr $mtd_base_addr +$uboot_size + $kernel_size]]
+set rootfs_end_addr [format "%08x" [expr $mtd_base_addr + $uboot_size + $kernel_size + $rootfs_size - 1]]
+ 
 if { $board_type == "BF537-STAMP" } {
   set  cpu       BF537
 } elseif { $board_type == "BF533-STAMP" } {

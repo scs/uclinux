@@ -15,12 +15,12 @@ step "Reset the uboot."
 source ../reset_to_uboot.exp
 
 set bootargs  $bootargs_param1
+set send_slow {1 .2}
 
 send -s "set bootargs $bootargs\r"
 expect   ">" 
 send -s "save\r"
 expect   ">" 
-
 step "Flash images."
 
 set timeout 1200   
