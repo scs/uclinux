@@ -9,9 +9,9 @@ prefix=@prefix@
 eprefix=@exec_prefix@
 #MORE_WARNINGS=-Weffc++ -Wcast-align
 WFLAGS=-Wall -W -Wshadow -Wpointer-arith -Wwrite-strings -pedantic -ffor-scope $(MORE_WARNINGS)
-CFLAGS=-O2 @debug@ -DNDEBUG $(WFLAGS) $(MORECFLAGS)
+CFLAGS+=-O2 @debug@ -DNDEBUG $(WFLAGS) $(MORECFLAGS)
 CXX=@CXX@ $(CFLAGS)
-LINK=@CXX@
+LINK=@CXX@ $(LDFLAGS)
 THREAD_LFLAGS=@thread_ldflags@
 
 INSTALL=@INSTALL@

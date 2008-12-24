@@ -1,4 +1,6 @@
 #include "port.h"
+#include <cstdlib>
+#include <cstring>
 #ifndef WIN32
 #include <unistd.h>
 #endif

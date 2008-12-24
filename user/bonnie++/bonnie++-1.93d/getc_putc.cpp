@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <vector>
+#include <cstring>
 
 #include "duration.h"
 #include "getc_putc.h"

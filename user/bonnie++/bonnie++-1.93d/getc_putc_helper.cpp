@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include "duration.h"
 #include <vector>
+#include <cstring>
 #include "getc_putc.h"
 
 int main(int argc, char *argv[])
