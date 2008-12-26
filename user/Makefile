@@ -46,6 +46,7 @@ dir_$(CONFIG_USER_AT_ATRUN)                 += at
 dir_$(CONFIG_USER_BASH_BASH)                += bash
 dir_$(CONFIG_USER_BIND_BIND)                += bind
 dir_$(CONFIG_USER_BOA_SRC_BOA)              += boa
+dir_$(CONFIG_USER_BONNIE)		    += bonnie++
 dir_$(CONFIG_USER_BOOTTOOLS_LOADER)         += boottools
 dir_$(CONFIG_USER_BOOTTOOLS_HIMEMLOADER)    += boottools
 dir_$(CONFIG_USER_BOOTTOOLS_PRINTBENV)      += boottools

@@ -2904,11 +2904,6 @@ config USER_CAL_DATE
 	  Print the date
 	  Approx. binary size: 5k
 
-config USER_DHRYSTONE_DHRYSTONE
-	bool "dhrystone"
-	help
-	  The dhrystone CPU benchmark program.
-
 config USER_DE2TSCAL_DE2TSCAL
 	bool "de2ts-cal"
 
@@ -3460,11 +3455,21 @@ config USER_LRZSZ_LSZ
 
 comment "Benchmarks"
 
-config USER_WHETSTONE_WHETSTONE
-	bool "whetstone benchmark"
+config USER_BONNIE
+	bool "bonnie++"
+	help
+	  Benchmark for hard drive and file system performance.
+
+config USER_DHRYSTONE_DHRYSTONE
+	bool "dhrystone"
+	help
+	  The dhrystone CPU benchmark program.
 
 config USER_NBENCH_NBENCH
 	bool "nbench benchmark"
+
+config USER_WHETSTONE_WHETSTONE
+	bool "whetstone benchmark"
 
 
 comment "LIRC"
