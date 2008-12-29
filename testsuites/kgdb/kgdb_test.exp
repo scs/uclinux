@@ -90,6 +90,29 @@ while 1 {
      }
 }
 
+incr case_num
+send -s "modprobe  kgdb_test\r"
+    expect {
+        -re "$kernel_prompt" {
+                case_pass $case_num
+		}
+		timeout {
+                case_fail $case_num
+			exit
+		}
+}
+send -s "cat  /proc/modules\r"
+    expect {
+        -re "kgdb_test.*(0x\[0-9a-fA-F]+)\r\n$kernel_prompt" {
+                set kgdb_test_symbol_addr $expect_out(1,string) 
+                case_pass $case_num
+		}
+		timeout {
+                case_fail $case_num
+			exit
+		}
+}
+
 if { $debug_port == "uart" } {
 send -s "\x81"
 send -s "b"
@@ -173,6 +196,23 @@ while 1 {
         }
         }
 	incr case_num
+	send -s "add-symbol-file $uclinux_path/linux-2.6.x/arch/blackfin/kernel/kgdb_test.ko $kgdb_test_symbol_addr \r"
+	expect {
+               "add symbol table from file*(y or n)" {
+                send -s "y\r"
+                case_pass $case_num
+                        expect {
+                                "(gdb) " {
+                                }
+                        }
+                }
+		timeout {
+                clean_host_gdb
+                case_fail $case_num
+			exit
+		}
+	}
+	incr case_num
 	send "break kgdb_test\r"
 	expect {
 		"Breakpoint 1" {
@@ -232,7 +272,7 @@ while 1 {
 		}
 	}
         incr case_num
-        send "hbreak 80\r"
+        send "hbreak 56\r"
         expect {
                 "Hardware assisted breakpoint 2*(gdb) " {
                 case_pass $case_num
@@ -403,7 +443,7 @@ while 1 {
 		}
 	}
         incr case_num
-        send "break 57\r"
+        send "break 31\r"
         expect {
               -re  "Breakpoint 4 at 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 expect {
@@ -801,7 +841,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 		}
 	}
         incr case_num
-        send "hbreak 71\r"
+        send "hbreak 44\r"
         expect {
               -re  "Hardware assisted breakpoint 6 at 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 expect {
