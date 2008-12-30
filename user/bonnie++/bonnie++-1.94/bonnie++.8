@@ -1,12 +1,12 @@
-.TH bonnie++ 1 
+.TH bonnie++ 8
 .SH "NAME"
 bonnie++ \- program to test hard drive performance.
 
 .SH "SYNOPSIS"
 .B bonnie++
-.I [\-d dir] [\-s size(Mb)[:chunk\-size(b)]]
+.I [\-d dir] [\-s size(MiB)[:chunk\-size(b)]]
 .I [\-n number\-to\-stat(*1024)[:max\-size[:min\-size][:num\-directories[:chunk\-size]]]]
-.I [\-m machine\-name] [\-r ram\-size\-in\-Mb] [\-x number\-of\-tests]
+.I [\-m machine\-name] [\-r ram\-size\-in\-MiB] [\-x number\-of\-tests]
 .I [\-u uid\-to\-use:gid\-to\-use] [\-g gid\-to\-use]
 .I [\-q] [\-f size\-for\-char\-io] [\-b] [\-p processes | \-y p|s ]
 .I [\-z seed\-num|\-Z random\-file]
@@ -105,7 +105,8 @@ tests have been completed, or it is killed.
 .TP
 .B \-u
 user\-id to use.  When running as root specify the UID to use for the tests.  It
-is not recommended to use root, so if you really want to run as root then use
+is not recommended to use root (since the occasion when a Bonnie++ bug wiped
+out someone's system), so if you really want to run as root then use
 .B \-u root.
 Also if you want to specify the group to run as then use the
 .B user:group
@@ -165,6 +166,17 @@ random number seed to repeat the same test.
 file containing random data in network byte order.
 .P
 
+.SH "MULTIPLE PROCESSES"
+Run the following commands to run three copies of Bonnie++ simultaneously:
+.P
+bonnie++ -p3
+.P
+bonnie++ -y > out1 &
+.P
+bonnie++ -y > out2 &
+.P
+bonnie++ -y > out3 &
+
 .SH "OUTPUT"
 The primary output is plain\-text in 80 columns which is designed to fit well
 when pasted into email and which will work well with Braille displays.
@@ -185,7 +197,7 @@ can't be calculated accurately due to rounding errors and I would rather
 display no result than a wrong result.
 
 .SH "AUTHOR"
-This program, it's manual page, and the Debian package were written by
+This program, its manual page, and the Debian package were written by
 Russell Coker <russell@coker.com.au>, parts of the program are based on the
 work of Tim Bray <tbray@textuality.com>.
 .P
@@ -195,7 +207,7 @@ under joint copyright with Tim Bray.
 
 .SH "SIGNALS"
 Handles SIGINT and does a cleanup (which may take some time), a second SIGINT
-or a SIGQUIT will cause it to immidiately die.
+or a SIGQUIT will cause it to immediately die.
 .P
 SIGXCPU and SIGXFSZ act like SIGINT.
 .P
@@ -206,6 +218,11 @@ Ignores SIGHUP.
 The random file sizes will add up to different values for different test runs.
 I plan to add some code that checks the sum and ensures that the sum of the
 values will be the same on seperate runs.
+
+.SH "AVAILABILITY"
+The source is available from http://www.coker.com.au/bonnie++ .
+.P
+See http://etbe.coker.com.au/category/benchmark for further information.
 
 .SH "SEE ALSO"
 .BR zcav (8),

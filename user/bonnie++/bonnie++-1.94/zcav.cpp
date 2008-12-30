@@ -16,7 +16,7 @@
 void usage()
 {
   fprintf(stderr
-       , "Usage: zcav [-b block-size] [-c count] [-s max-size] [-w]\n"
+       , "Usage: zcav [-b block-size[:chunk-size]] [-c count] [-n number of megs to read] [-w]\n"
 #ifndef NON_UNIX
          "            [-u uid-to-use:gid-to-use] [-g gid-to-use]\n"
 #endif
@@ -76,6 +76,13 @@ public:
       usage();
   }
 
+  void setSkipRate(int skip_rate)
+  {
+    m_skip_rate = skip_rate;
+    if(skip_rate < 2 || skip_rate > 20)
+      usage();
+  }
+
 private:
   virtual Thread *newThread(int threadNum)
                   { return new MultiZcav(threadNum, this); }
@@ -83,7 +90,7 @@ private:
   vector<const char *> m_fileNames, m_logNames;
   vector<ZcavRead *> *m_readers;
 
-  int m_block_size, m_max_loops, m_max_size;
+  int m_block_size, m_max_loops, m_max_size, m_skip_rate;
   int m_chunk_size, m_do_write;
 
   MultiZcav(const MultiZcav &m);
@@ -92,9 +99,10 @@ private:
 
 MultiZcav::MultiZcav()
 {
-  m_block_size = 200;
+  m_block_size = 256;
   m_max_loops = 1;
   m_max_size = 0;
+  m_skip_rate = 1;
   m_chunk_size = DEFAULT_CHUNK_SIZE;
   m_do_write = 0;
   m_readers = new vector<ZcavRead *>;
@@ -106,13 +114,14 @@ MultiZcav::MultiZcav(int threadNum, const MultiZcav *parent)
  , m_block_size(parent->m_block_size)
  , m_max_loops(parent->m_max_loops)
  , m_max_size(parent->m_max_size)
+ , m_skip_rate(parent->m_skip_rate)
 {
 }
 
 int MultiZcav::action(PVOID)
 {
   ZcavRead *zc = (*m_readers)[getThreadNum() - 1];
-  int rc = zc->Read(m_max_loops, m_max_size / m_block_size, m_write);
+  int rc = zc->Read(m_max_loops, m_max_size / m_block_size, m_write, m_skip_rate);
   zc->Close();
   return rc;
 }
@@ -171,7 +180,10 @@ int main(int argc, char *argv[])
   int do_write = 0;
   const char *log = "-";
   const char *file = "";
-  while(-1 != (c = getopt(argc, argv, "-c:b:f:l:s:w"
+  while(-1 != (c = getopt(argc, argv, "-c:b:f:l:n:w"
+#ifdef _LARGEFILE64_SOURCE
+				     "s:"
+#endif
 #ifndef NON_UNIX
                                      "u:g:"
 #endif
@@ -196,9 +208,14 @@ int main(int argc, char *argv[])
       case 'l':
         log = optarg;
       break;
-      case 's':
+      case 'n':
         mz.setMaxSize(atoi(optarg));
       break;
+#ifdef _LARGEFILE64_SOURCE
+      case 's':
+        mz.setSkipRate(atoi(optarg));
+      break;
+#endif
 #ifndef NON_UNIX
       case 'g':
         if(groupName)
@@ -221,9 +238,6 @@ int main(int argc, char *argv[])
         }
       }
 #endif
-      break;
-      case 'n':
-        mz.setMaxSize(atoi(optarg));
       break;
       case 'w':
         mz.setWrite(1);
@@ -259,5 +273,4 @@ int main(int argc, char *argv[])
   sleep(2); // time for all threads to complete
   return rc;
 }
-
 

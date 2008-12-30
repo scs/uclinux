@@ -1,11 +1,11 @@
-.TH zcav 1 
+.TH zcav 8
 .SH "NAME"
 zcav \- program to test raw hard drive throughput.
 
 .SH "SYNOPSIS"
 .B zcav
-.I [\-b block\-size[:chunk\-size]] [\-c count] [\-n num_blocks] [\-w] [\-s max\-size]
-.I [\-u uid\-to\-use:gid\-to\-use] [\-g gid\-to\-use]
+.I [\-b block\-size[:chunk\-size]] [\-c count] [\-n num_blocks] [\-w]
+.I [\-s skip\-rate] [\-u uid\-to\-use:gid\-to\-use] [\-g gid\-to\-use]
 .I [\-l log\-file] [\-f] file\-name
 .I [\-l log\-file [\-f] file\-name]...
 
@@ -53,12 +53,12 @@ the number of times to read/write the entire disk.
 
 .TP
 .B \-n
-the amount of data (in Meg) to read/write on each pass (default the entire device).
+the amount of data (in Meg) to read/write on each pass (default the entire device).  Useful if you want to quickly test the start of a large drive.
 
 .TP
 .B \-s
-the maximum amount of data (in megs) to read from a disk, useful if you want to
-quickly test the start of a large drive.
+skip rate.  The option \-s 10 will cause it to read every 10th block and skip
+the rest.
 
 .TP
 .B \-f
@@ -95,3 +95,7 @@ write zero blocks to the disk instead of reading from the disk - will destroy da
 This program, it's manual page, and the Debian package were written by
 Russell Coker <russell@coker.com.au>.
 
+.SH "AVAILABILITY"
+The source is available from http://www.coker.com.au/bonnie++ .
+.P
+See http://etbe.coker.com.au/category/benchmark for further information.

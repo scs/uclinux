@@ -400,7 +400,7 @@ void CFileOp::Close()
  * However, it would be wrong to put the update percentage in as a
  *  parameter - the effect is too nonlinear.  Need a profile
  *  of what Oracle or Ingres or some such actually does.
- * Be warned - there is a *sharp* elbow in this curve - on a 1-Mb file,
+ * Be warned - there is a *sharp* elbow in this curve - on a 1-MiB file,
  *  most substantial unix systems show >2000 random I/Os per second -
  *  obviously they've cached the whole thing and are just doing buffer
  *  copies.

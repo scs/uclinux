@@ -33,7 +33,7 @@ public:
   int Open(bool *finished, int block_size, const char *file, const char *log
          , int chunk_size, int do_write);
   void Close();
-  int Read(int max_loops, int max_size, int writeCom);
+  int Read(int max_loops, int max_size, int writeCom, int skip_rate);
 
 private:
   ssize_t access_all(int count);
@@ -43,7 +43,7 @@ private:
 
   // Read the m_block_count megabytes of data from the fd and return the
   // amount of time elapsed in seconds.
-  double access_data();
+  double access_data(int skip);
   void printavg(int position, double avg, int block_size);
 
   bool *m_finished;

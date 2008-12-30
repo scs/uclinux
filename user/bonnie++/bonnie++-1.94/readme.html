@@ -47,7 +47,7 @@ I/O-intensive applications, in particular the text database work done in
 connection with the New Oxford English Dictionary Project at the University
 of Waterloo.<BR>
 It initially performs a series of tests on a file (or files) of known size.
-By default, that size is 200 Mb (but that's not enough - see below). For
+By default, that size is 200 MiB (but that's not enough - see below). For
 each test, Bonnie reports the number of Kilo-bytes processed per elapsed
 second, and the % CPU usage (sum of user and system). If a size &gt;1G is
 specified then we will use a number of files of size 1G or less. This way
@@ -114,8 +114,8 @@ The size of the file has a strong nonlinear effect on the results of
 this test. Many Unix systems that have the memory available will make
 aggressive efforts to cache the whole thing, and report random I/O rates
 in the thousands per second, which is ridiculous. As an extreme
-example, an IBM RISC 6000 with 64 Mb of memory reported 3,722 per second
-on a 50 Mb file. Some have argued that bypassing the cache is artificial
+example, an IBM RISC 6000 with 64 MiB of memory reported 3,722 per second
+on a 50 MiB file. Some have argued that bypassing the cache is artificial
 since the cache is just doing what it's designed to. True, but in any
 application that requires rapid random access to file(s) significantly
 larger than main memory which is running on a system which is doing

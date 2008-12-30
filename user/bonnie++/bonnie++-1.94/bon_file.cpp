@@ -83,8 +83,7 @@ COpenTest::~COpenTest()
           io_error("rmdir");
       }
     }
-    sys_chdir("..");
-    if(sys_rmdir(m_dirname))
+    if(sys_chdir("..") || sys_rmdir(m_dirname))
       io_error("rmdir");
     delete m_dirname;
   }
@@ -445,8 +444,7 @@ int COpenTest::delete_random(BonTimer &timer)
     }
 #endif
   }
-  chdir("..");
-  if(sys_rmdir(m_dirname))
+  if(chdir("..") || sys_rmdir(m_dirname))
   {
     io_error("rmdir");
     return -1;
@@ -496,7 +494,10 @@ int COpenTest::delete_sequential(BonTimer &timer)
     {
       fprintf(stderr, "Can't open directory.\n");
       if(m_number_directories != 1)
-        chdir("..");
+      {
+        if(chdir(".."))
+          fprintf(stderr, "Can't chdir().\n");
+      }
       return -1;
     }
     dur.start();
@@ -530,7 +531,10 @@ int COpenTest::delete_sequential(BonTimer &timer)
     {
       fprintf(stderr, "Can't open directory.\n");
       if(m_number_directories != 1)
-        chdir("..");
+      {
+        if(chdir(".."))
+          fprintf(stderr, "Can't chdir().\n");
+      }
       return -1;
     }
     dirent *file_ent;
@@ -570,16 +574,14 @@ int COpenTest::delete_sequential(BonTimer &timer)
 #endif
     if(m_number_directories != 1)
     {
-      chdir("..");
-      if(sys_rmdir(buf))
+      if(chdir("..") || sys_rmdir(buf))
       {
         io_error("rmdir");
         return -1;
       }
     }
   }
-  chdir("..");
-  if(sys_rmdir(m_dirname))
+  if(chdir("..") || sys_rmdir(m_dirname))
   {
     io_error("rmdir");
     return -1;
@@ -706,7 +708,10 @@ int COpenTest::stat_sequential(BonTimer &timer)
     {
       fprintf(stderr, "Can't open directory.\n");
       if(m_number_directories != 1)
-        chdir("..");
+      {
+        if(chdir(".."))
+          fprintf(stderr, "Can't chdir().\n");
+      }
       return -1;
     }
     dur.start();
@@ -727,7 +732,10 @@ int COpenTest::stat_sequential(BonTimer &timer)
         {
           dur.stop();
           if(m_number_directories != 1)
-            chdir("..");
+          {
+            if(chdir(".."))
+              fprintf(stderr, "Can't chdir().\n");
+          }
           return -1;
         }
         count++;
@@ -752,7 +760,10 @@ int COpenTest::stat_sequential(BonTimer &timer)
     {
       fprintf(stderr, "Can't open directory.\n");
       if(m_number_directories != 1)
-        chdir("..");
+      {
+        if(chdir(".."))
+          fprintf(stderr, "Can't chdir().\n");
+      }
       return -1;
     }
     dirent *file_ent;
@@ -776,7 +787,13 @@ int COpenTest::stat_sequential(BonTimer &timer)
         if(-1 == stat_file(file_ent->d_name))
         {
           if(m_number_directories != 1)
-            chdir("..");
+          {
+            if(chdir(".."))
+            {
+              fprintf(stderr, "Can't chdir().\n");
+              return -1;
+            }
+          }
           dur.stop();
           return -1;
         }

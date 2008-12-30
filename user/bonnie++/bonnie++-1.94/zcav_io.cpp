@@ -84,28 +84,29 @@ int ZcavRead::writeStatus(int fd, char c)
   return 0;
 }
 
-int ZcavRead::Read(int max_loops, int max_size, int writeCom)
+int ZcavRead::Read(int max_loops, int max_size, int writeCom, int skip_rate)
 {
   int i;
   bool exiting = false;
+  if(max_loops == 1)
+    fprintf(m_log, "#block offset (GiB), MiB/s, time\n");
   for(int loops = 0; !exiting && loops < max_loops; loops++)
   {
     if(lseek(m_fd, 0, SEEK_SET))
     {
-      fprintf(stderr, "Can't llseek().\n");
+      fprintf(stderr, "Can't lseek().\n");
       writeStatus(writeCom, eSEEK);
       return 1;
     }
+
     // i is block index
+    double total_read_time = 0.0;
     bool nextLoop = false;
     for(i = 0; !nextLoop && (!max_size || i < max_size)
               && (loops == 0 || m_times[i][0] != -1.0)
               && (!max_size || i < max_size); i++)
     {
-      if(loops == 0)
-        m_times.push_back(new double[max_loops]);
-      double read_time = access_data();
-      m_times[i][loops] = read_time;
+      double read_time = access_data(i ? skip_rate - 1 : 0);
       if(read_time < 0.0)
       {
         if(i == 0)
@@ -115,20 +116,43 @@ int ZcavRead::Read(int max_loops, int max_size, int writeCom)
           return 1;
         }
         nextLoop = true;
+        break;
       }
-      if(loops == 0)
-        m_count.push_back(0);
-      m_count[i]++;
+      total_read_time += read_time;
+      if(max_loops == 1)
+      {
+        printavg(i * skip_rate, read_time, m_block_size);
+      }
+      else
+      {
+        if(loops == 0)
+        {
+          m_times.push_back(new double[max_loops]);
+          m_count.push_back(0);
+        }
+        m_times[i][loops] = read_time;
+        m_count[i]++;
+      }
     } // end loop for reading blocks
+
+    time_t now = time(NULL);
+    struct tm *cur_time = localtime(&now);
+    fprintf(stderr, "# Finished loop %d, on device %s at %d:%02d:%02d\n"
+          , loops + 1, m_name, cur_time->tm_hour, cur_time->tm_min
+          , cur_time->tm_sec);
+    fprintf(m_log, "# Read %d megs in %d seconds, %d megabytes per second.\n"
+         , i * m_block_size, int(total_read_time)
+         , int(double(i * m_block_size) / total_read_time));
+
     if(exiting)
       return 1;
   } // end loop for multiple disk reads
-  fprintf(m_log, "#loops: %d\n", max_loops);
-  fprintf(m_log, "#block K/s time\n");
-//  for(i = 0; (!max_size || i < max_size) && m_count[i]; i++)
-  for(i = 0; m_times[i][0] != -1.0; i++)
+  if(max_loops > 1)
   {
-    printavg(i, average(m_times[i], m_count[i]), m_block_size);
+    fprintf(m_log, "#loops: %d\n", max_loops);
+    fprintf(m_log, "#block offset (GiB), MiB/s, time\n");
+    for(i = 0; m_times[i]; i++)
+      printavg(i * skip_rate, average(m_times[i], m_count[i]), m_block_size);
   }
   writeStatus(writeCom, eEND);
   return 0;
@@ -136,11 +160,10 @@ int ZcavRead::Read(int max_loops, int max_size, int writeCom)
 
 void ZcavRead::printavg(int position, double avg, int block_size)
 {
-  double num_k = double(block_size * 1024);
   if(avg < 1.0)
-    fprintf(m_log, "#%d ++++ %f\n", position * block_size, avg);
+    fprintf(m_log, "#%.2f ++++ %.3f\n", float(position) * float(block_size) / 1024.0, avg);
   else
-    fprintf(m_log, "%d %d %f\n", position * block_size, int(num_k / avg), avg);
+    fprintf(m_log, "%.2f %.2f %.3f\n", float(position) * float(block_size) / 1024.0, double(block_size) / avg, avg);
 }
 
 int compar(const void *a, const void *b)
@@ -194,10 +217,18 @@ ssize_t ZcavRead::access_all(int count)
 }
 
 // Read/write a block of data
-double ZcavRead::access_data()
+double ZcavRead::access_data(int skip)
 {
-  m_dur.start();
+#ifdef _LARGEFILE64_SOURCE
+  if(skip)
+  {
+    OFF_TYPE real_offset = OFF_TYPE(skip) * OFF_TYPE(m_block_size) * OFF_TYPE(1<<20);
+    if(file_lseek(m_fd, real_offset, SEEK_CUR) == OFF_TYPE(-1))
+      return -1.0;
+  }
+#endif
 
+  m_dur.start();
   for(int i = 0; i < m_block_size; i+= m_chunk_size)
   {
     int access_size = m_chunk_size;

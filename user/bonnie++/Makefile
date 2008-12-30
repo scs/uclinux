@@ -13,9 +13,10 @@ clean:
 	for d in $(DIRS) ; do \
 		cd $(DIRS) ;\
 		$(MAKE) realclean ;\
+		rm -f *.gdb ;\
 	done
 
 romfs:
-	$(ROMFSINST) -d ./bonnie++-1.93d/bonnie++ /usr/bin/bonnie++
+	$(ROMFSINST) -d ./bonnie++-1.94/bonnie++ /usr/bin/bonnie++
 
 .PHONY: all clean romfs

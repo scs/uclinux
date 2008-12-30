@@ -1,10 +1,10 @@
-.TH getc_putc 1 
+.TH getc_putc 8
 .SH "NAME"
 getc_putc \- program to test hard drive performance.
 
 .SH "SYNOPSIS"
 .B getc_putc
-.I [\-d dir] [\-s size(Kb)] [-m machine-name]
+.I [\-d dir] [\-s size(KiB)] [-m machine-name]
 .I [\-u uid\-to\-use:gid\-to\-use] [\-g gid\-to\-use]
 
 .SH "DESCRIPTION"
@@ -35,7 +35,7 @@ the directory to use for the tests.
 the size of the file for byte IO performance measured in kilobytes.  NB You can
 specify the size in mega\-bytes if you add 'm' to the end of the number.
 
-The default for this test is to test with a 40MB file.  Of the file only 1/32
+The default for this test is to test with a 40MiB file.  Of the file only 1/32
 of it will be used for write() and read() system calls (anything else takes
 too long), and only 1/4 of it will be used for locked getc() and putc().
 
@@ -79,7 +79,7 @@ when pasted into email and which will work well with Braille displays.
 The second type of output is CSV (Comma Seperated Values).  This can easily be
 imported into any spread\-sheet or database program.
 .P
-For every test the result is a speed in KB/s.  I do not display the CPU time
+For every test the result is a speed in KiB/s.  I do not display the CPU time
 because it presumably is 99% of the power of a single CPU (or something very
 close to that).
 
@@ -99,6 +99,10 @@ SIGXCPU and SIGXFSZ act like SIGINT.
 .P
 Ignores SIGHUP.
 
+.SH "AVAILABILITY"
+The source is available from http://www.coker.com.au/bonnie++ .
+.P
+See http://etbe.coker.com.au/category/benchmark for further information.
 
 .SH "SEE ALSO"
 .BR bonnie++ (8),

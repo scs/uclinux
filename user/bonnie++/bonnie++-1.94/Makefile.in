@@ -9,7 +9,7 @@ prefix=@prefix@
 eprefix=@exec_prefix@
 #MORE_WARNINGS=-Weffc++ -Wcast-align
 WFLAGS=-Wall -W -Wshadow -Wpointer-arith -Wwrite-strings -pedantic -ffor-scope $(MORE_WARNINGS)
-CFLAGS+=-O2 @debug@ -DNDEBUG $(WFLAGS) $(MORECFLAGS)
+CFLAGS += -O2 @debug@ -DNDEBUG $(WFLAGS) $(MORECFLAGS)
 CXX=@CXX@ $(CFLAGS)
 LINK=@CXX@ $(LDFLAGS)
 THREAD_LFLAGS=@thread_ldflags@
@@ -71,8 +71,8 @@ clean:
 	rm -f debian/{substvars,files} config.log depends.bak
 
 realclean: clean
-	rm -f config.* Makefile bonnie++.spec port-unix.h
-	rm -f bon_csv2txt bon_csv2html.1 sun/pkginfo
+	rm -f config.* Makefile bonnie++.spec port-unix.h conf.h configure.lineno
+	rm -f bon_csv2txt bon_csv2html.1 sun/pkginfo bonnie.h
 
 dep:
 	makedepend -Y -f depends *.cpp 2> /dev/null

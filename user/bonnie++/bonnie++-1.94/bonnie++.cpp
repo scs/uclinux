@@ -764,7 +764,7 @@ TestDirOps(int directory_size, int max_size, int min_size
   if(globals.ram && directory_size * MaxDataPerFile * 2 > (globals.ram << 10))
   {
     fprintf(stderr
-         , "When testing %dK of files in %d MB of RAM the system is likely to\n"
+        , "When testing %dK of files in %d MiB of RAM the system is likely to\n"
            "start paging Bonnie++ data and the test will give suspect\n"
            "results, use less files or install more RAM for this test.\n"
           , directory_size, globals.ram);
@@ -813,9 +813,9 @@ void
 usage()
 {
   fprintf(stderr, "usage:\n"
-    "bonnie++ [-d scratch-dir] [-c concurrency] [-s size(Mb)[:chunk-size(b)]]\n"
+    "bonnie++ [-d scratch-dir] [-c concurrency] [-s size(MiB)[:chunk-size(b)]]\n"
     "      [-n number-to-stat[:max-size[:min-size][:num-directories[:chunk-size]]]]\n"
-    "      [-m machine-name] [-r ram-size-in-Mb]\n"
+    "      [-m machine-name] [-r ram-size-in-MiB]\n"
     "      [-x number-of-tests] [-u uid-to-use:gid-to-use] [-g gid-to-use]\n"
     "      [-q] [-f] [-b] [-p processes | -y] [-z seed | -Z random-file]\n"
     "\nVersion: " BON_VERSION "\n");

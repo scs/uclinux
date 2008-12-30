@@ -34,7 +34,7 @@
 static void usage()
 {
   fprintf(stderr, "usage:\n"
-    "getc_putc [-d scratch-dir] [-s size(Kb)] [-m machine-name]\n"
+    "getc_putc [-d scratch-dir] [-s size(KiB)] [-m machine-name]\n"
     "[-u uid-to-use:gid-to-use] [-g gid-to-use]\n"
     "\nVersion: " BON_VERSION "\n");
   exit(eParam);
