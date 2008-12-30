@@ -75,7 +75,7 @@ while 1 {
 
 incr case_num
 set timeout 60
-send "time dd if=/dev/zero of=/mnt/mmc/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
+send "time dd conv=fsync if=/dev/zero of=/mnt/mmc/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
    expect {
       -re "records in.*records out.*real.*user.*sys.*>" {
@@ -265,7 +265,7 @@ while 1 {
 
 incr case_num
 set timeout 60
-send "time dd if=/dev/zero of=/mnt/mmc1/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
+send "time dd conv=fsync if=/dev/zero of=/mnt/mmc1/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
    expect {
       -re "records in.*records out.*real.*user.*sys.*>" {
@@ -298,7 +298,7 @@ while 1 {
 
 incr case_num
 set timeout 60
-send "time dd if=/dev/zero of=/mnt/mmc2/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
+send "time dd conv=fsync if=/dev/zero of=/mnt/mmc2/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
    expect {
       -re "records in.*records out.*real.*user.*sys.*>" {
@@ -421,7 +421,7 @@ incr case_num
 set timeout 5
 send "mkdir /mnt/rootfs\r"
 expect -re $kernel_prompt
-send "mount -o sync /dev/mmcblk0p1 /mnt/rootfs\r"
+send "mount /dev/mmcblk0p1 /mnt/rootfs\r"
 expect -re $kernel_prompt
 send "ifconfig eth0 $targetip up\r"
 expect -re $kernel_prompt
