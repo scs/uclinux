@@ -69,7 +69,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "mount -t ext2 -o sync /dev/$usb_dev1 /mnt\r"
+send "mount -t ext2 /dev/$usb_dev1 /mnt\r"
 while 1 {
     expect {
         -re "(mount:|\[fF]ail|\[eE]rror).*$kernel_prompt" {
@@ -117,7 +117,7 @@ while 1 {
 
 incr case_num
 set timeout 400
-send "time dd if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
+send "time dd conv=fsync if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
 while 1 {
     expect {
         -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
@@ -217,7 +217,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "mount -o sync /dev/$usb_dev2 /mnt\r"
+send "mount /dev/$usb_dev2 /mnt\r"
 while 1 {
     expect {
         -re "(mount:|\[fF]ail|\[eE]rror).*$kernel_prompt" {
@@ -265,7 +265,7 @@ while 1 {
 
 incr case_num
 set timeout 400
-send "time dd if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
+send "time dd conv=fsync if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
 while 1 {
     expect {
         -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {

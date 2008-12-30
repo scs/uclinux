@@ -67,7 +67,7 @@ proc usb_test {device mnt_point} {
 
     incr case_num
     set timeout 20
-    send "time dd if=/dev/zero of=$mnt_point/10m.bin bs=1M count=10\r"
+    send "time dd conv=fsync if=/dev/zero of=$mnt_point/10m.bin bs=1M count=10\r"
     while 1 {
         expect {
             -re "records in.*records out.*real.*user.*sys.*>" {

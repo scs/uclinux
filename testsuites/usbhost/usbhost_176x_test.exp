@@ -93,7 +93,7 @@ while 1 {
 
 incr case_num
 set timeout 20
-send "time dd if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
+send "time dd conv=fsync if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
 while 1 {
     expect {
         -re "records in.*records out.*real.*user.*sys.*>" {
@@ -109,7 +109,7 @@ while 1 {
 
 incr case_num
 set timeout 40
-send "time dd if=/dev/zero of=/mnt/100m.bin bs=1M count=100\r"
+send "time dd conf=fsync if=/dev/zero of=/mnt/100m.bin bs=1M count=100\r"
 while 1 {
     expect {
         -re "records in.*records out.*real.*user.*sys.*>" {
