@@ -2051,8 +2051,8 @@ if [ catch {exec ./build_ltp.sh $cvs_server_addr > build_ltp_log} ] {
 #set LTP_SOURCE_DIR		"$cwd/ltp/$LTP_SUB_DIR"
 #set LTP_TESTCASES_DIR           "$cwd/ltp/$LTP_SUB_DIR/testcases/bin"
 #set LTP_SUB_DIR			[exec cat ltp/current]
-set LTP_SOURCE_DIR		"$cwd/ltp-full-20071031"
-set LTP_TESTCASES_DIR           "$cwd/ltp-full-20071031/testcases/bin"
+set LTP_SOURCE_DIR		"$cwd/ltp-full-20081130"
+set LTP_TESTCASES_DIR           "$cwd/ltp-full-20081030/testcases/bin"
 
 cd $LTP_SOURCE_DIR
 #exec make uclinux

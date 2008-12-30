@@ -7,7 +7,7 @@ if [ $# -ne 1 ]; then
 fi       
 cvs_server_addr=$1
 
-LTP_SUB_DIR=ltp-full-20071031
+LTP_SUB_DIR=ltp-full-20081130
 if [ -d $LTP_SUB_DIR ]
 then
 	rm -rf $LTP_SUB_DIR
@@ -36,7 +36,7 @@ fi
 
 # Checkout ltp source directory
 #LTP_WORKING_DIR=`cat ltp/current`
-#LTP_SUB_DIR=ltp-full-20071031
+#LTP_SUB_DIR=ltp-full-20081130
 CWD=`pwd`
 
 #echo "$0:	Get ltp working directory [$LTP_WORKING_DIR]"
