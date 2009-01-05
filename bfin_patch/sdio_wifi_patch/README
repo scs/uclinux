@@ -20,7 +20,8 @@ Device Drivers  --->
 		 [*]     Use bounce buffer for simple hosts
 		 *** MMC/SD Host Controller Drivers *** 
 		<*>   Blackfin Secure Digital Host support
-		[*]     Blackfin EZkit Rev 1.3 Missing SDH_CMD Pull Up Resistor Workaround 
+		[*]     Blackfin EZkit Missing SDH_CMD Pull Up Resistor Workaround 
+		[*]     Enable sdio irq for sdio device  
 c.select libertas driver
 Device Drivers  ---> 
 	 [*] Network device support  ---> 
