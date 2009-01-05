@@ -27,6 +27,7 @@ fi
 ${qmake} -spec "${specs}" "$@" || exit $?
 
 sed -i \
+	-e "s:/usr/bin/moc:${STAGEDIR}/usr/bin/moc:g" \
 	-e "s:-I/usr/include:-I${STAGEDIR}/usr/include:g" \
 	-e "s:-L/usr/lib:-Wl,-rpath-link,${STAGEDIR}/usr/lib -L${STAGEDIR}/usr/lib:g" \
 	Makefile
