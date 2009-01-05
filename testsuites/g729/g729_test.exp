@@ -23,6 +23,14 @@ source ../reboot_kernel.exp
 step "test preparation"
 set TEST_PROG "g729ab_test g729ab_testsimgot g729ab_testfdpic g729ab_testfdpic_so"
 
+set case_num 0
+incr case_num
+set timeout 10
+
+send "ifconfig eth0 $targetip\n"
+expect -re $kernel_prompt
+
+send_user "rcp -r $uclinux_path/lib/libbfgdots/g729/test/test_data root@$targetip:/var\n"
 if [ catch { exec rcp -r $uclinux_path/lib/libbfgdots/g729/test/test_data root@$targetip:/var } ] {
     send_user "FAIL: copy test_data folder to target board\n"
     case_fail $case_num
@@ -30,6 +38,7 @@ if [ catch { exec rcp -r $uclinux_path/lib/libbfgdots/g729/test/test_data root@$
     send_user "PASS: copy test_data folder to target board\n"
 }
 
+send_user "rcp $uclinux_path/lib/libbfgdots/g729/test/alltests.sh root@$targetip:/var\n"
 if [ catch { exec rcp $uclinux_path/lib/libbfgdots/g729/test/alltests.sh root@$targetip:/var } ] {
     send_user "FAIL: copy test scripts to target board\n"
     case_fail $case_num
@@ -37,6 +46,7 @@ if [ catch { exec rcp $uclinux_path/lib/libbfgdots/g729/test/alltests.sh root@$t
     send_user "PASS: copy test scripts to target board\n"
 }
 
+send_user "rcp $uclinux_path/lib/libbfgdots/g729/src.fdpic/libg729ab.so root@$targetip:/lib\n"
 if [ catch { exec rcp $uclinux_path/lib/libbfgdots/g729/src.fdpic/libg729ab.so root@$targetip:/lib } ] {
     send_user "FAIL: copy g729 lib to target board\n"
     case_fail $case_num
@@ -45,6 +55,7 @@ if [ catch { exec rcp $uclinux_path/lib/libbfgdots/g729/src.fdpic/libg729ab.so r
 }
 
 foreach element $TEST_PROG {
+    send_user "rcp $uclinux_path/lib/libbfgdots/g729/test/$element root@$targetip:/var\n"
     if [ catch { exec rcp $uclinux_path/lib/libbfgdots/g729/test/$element root@$targetip:/var } ] {
         send_user "FAIL: copy $element to target board\n"
         case_fail $case_num
@@ -56,7 +67,6 @@ foreach element $TEST_PROG {
 
 step "Start testing."
 sleep 5
-set case_num 0
 send "cd /var\r"
 expect -re "var>"
 
