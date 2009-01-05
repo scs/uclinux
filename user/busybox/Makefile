@@ -1,4 +1,4 @@
-VER = busybox-1.13.1
+VER = busybox-1.13.2
 
 export KBUILD_OUTPUT = $(ROOTDIR)/user/busybox/build-$(VER)
 
@@ -12,7 +12,7 @@ build-$(VER)/.config: $(ROOTDIR)/config/.config
 	mkdir -p build-$(VER)
 	sed -n -e '/CONFIG_USER_BUSYBOX_/s:CONFIG_USER_BUSYBOX_:CONFIG_:p' $< > $@.uclinux-dist.new
 	set -e ; \
-	if ! cmp -s $@.uclinux-dist.new $@.uclinux-dist.old ; then \
+	if [ ! -e $@ ] || ! cmp -s $@.uclinux-dist.new $@.uclinux-dist.old ; then \
 		cp $@.uclinux-dist.new $@.uclinux-dist.old ; \
 		cp $@.uclinux-dist.old $@ ; \
 		yes "" | $(MAKE) -C $(VER) oldconfig ; \
