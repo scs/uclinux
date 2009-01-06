@@ -1,0 +1,157 @@
+#!/usr/bin/expect
+
+#
+# This usb device test script is for Gadget audio dirver on bf548-ezkit with Linux host PC
+#
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+step "Start testing."
+set case_num 0
+
+set timeout 10
+send "ifconfig eth0 $targetip\r"
+expect -re $kernel_prompt
+
+incr case_num
+set timeout 10
+send "modprobe g_audio\r"
+while 1 {
+    expect {
+        -re "modprobe:|\[eE]rror|\[fF]ail|Hardware Trace" {
+            case_fail $case_num
+        }
+        -re "g_audio ready.*high speed config.*Linux USB Audio Gadget" {
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "lsmod:|\[eE]rror|\[fF]ail|Hardware Trace" {
+            case_fail $case_num
+        }
+        -re "g_audio.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "cat /proc/asound/cards\r"
+while 1 {
+    expect {
+        -re "\[nN]o such|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "bf5xx-board \\\(AD1980\\\).*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+spawn /bin/bash
+set host_spawn_id $spawn_id
+
+incr case_num
+set timeout 5
+send "dmesg |tail -10\r"
+while 1 {
+    expect {
+        -re "Product: Linux USB Audio Gadget.*Manufacturer: Linux.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "aplay -D plug:hw:1 ../audio/snd2fftw/samples/1000Hz_44100Hz_16bit_05sec.wav\r"
+while 1 {
+    expect {
+        -re "Playing WAVE.*Rate 44100 Hz, Mono.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+
+set spawn_id $kermit_spawn_id
+
+incr case_num
+set timeout 5
+send "modprobe -r g_audio\r"
+while 1 {
+    expect {
+        -re "modprobe:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+
+set spawn_id $host_spawn_id
+
+incr case_num
+set timeout 5
+send "dmesg |tail -2\r"
+while 1 {
+    expect {
+        -re "USB disconnect, address.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+
+log_file
