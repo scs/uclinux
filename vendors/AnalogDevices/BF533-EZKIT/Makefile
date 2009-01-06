@@ -12,10 +12,13 @@ EXT2_INODES = 1024
 
 ROMFS_DIRS-y = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp etc/config var/run var/lib/misc
 ETC_FILES-y = \
-	filesystems group hosts host.conf inetd.conf issue mime.types \
-	modprobe.conf motd passwd protocols services TZ tux-bf.gif \
-	rc mdev.conf
+	filesystems group issue mdev.conf mime.types modprobe.conf motd \
+	passwd rc TZ tux-bf.gif
 WEB_FILES-y =
+
+ETC_FILES-$(CONFIG_NET) += hosts host.conf protocols services
+ETC_FILES-$(CONFIG_USER_INETD_INETD) += inetd.conf
+ETC_FILES-$(CONFIG_USER_BUSYBOX_INETD) += inetd.conf
 
 ROMFS_DIRS-$(CONFIG_USER_BOA_SRC_BOA) += home/httpd home/httpd/cgi-bin etc/boa var/log/boa
 ETC_FILES-$(CONFIG_USER_BOA_SRC_BOA) += boa.conf
