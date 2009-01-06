@@ -35,39 +35,39 @@ while 1 {
         }
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
-            send "n\r"
+            send "N\r"
         }
 
         -re "USB support.*USB_SUPPORT.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Support for Host-side USB.*USB.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "USB device filesystem.*USB_DEVICEFS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "USB device class-devices.*USB_DEVICE_CLASS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "USB Gadget Support.*USB_GADGET.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "USB Gadget Drivers \\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "USB testing driver.*USB_TEST.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 
@@ -105,63 +105,59 @@ while 1 {
         }
 
         -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
-        -re "Driver Mode.*USB Host.*USB Peripheral.*USB_MUSB_PERIPHERAL.*\[cC]hoice\\\[.*]:" {
-            send "2\r"
+        -re "Driver Mode.*(\[0-9]+). USB Peripheral.*USB_MUSB_PERIPHERAL.*\[cC]hoice\\\[.*]" {
+            send "$expect_out(1,string)\r"
         }
 
-        -re "Logging Level.*USB_MUSB_LOGLEVEL.*\\\[.*]" {
-            send "0\r"
-        }
-
-        -re "USB Peripheral Controller.*Inventra HDRC USB.*USB_GADGET_MUSB_HDRC.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "3\r"
-            } elseif { $board_type == "BF527-EZKIT" } {
-                send "2\r"
-            }
+        -re "USB Peripheral Controller.*(\[0-9]+). Inventra HDRC USB Peripheral.*USB_GADGET_MUSB_HDRC.*\[cC]hoice\\\[.*]" {
+            send "$expect_out(1,string)\r"
         }
 
         -re "USB Gadget Drivers \\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "Gadget Zero.*USB_ZERO.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
+        }
+
+        -re "Audio Gadget.*USB_AUDIO.*\\\[.*]" {
+            send "M\r"
         }
 
         -re "Ethernet Gadget.*USB_ETH.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "RNDIS support.*USB_ETH_RNDIS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Gadget Filesystem.*USB_GADGETFS.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "File-backed Storage Gadget \\\(USB_FILE_STORAGE.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "File-backed Storage Gadget.*USB_FILE_STORAGE_TEST.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Serial Gadget.*USB_G_SERIAL.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         -re "MIDI Gadget.*USB_MIDI_GADGET.*\\\[.*]" {
-            send "m\r"
+            send "M\r"
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 
