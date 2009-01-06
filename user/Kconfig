@@ -482,7 +482,7 @@ config USER_MTDUTILS_MKFSJFFS
 	depends on USER_MTDUTILS
 
 config USER_MTDUTILS_MKFSJFFS2
-	bool "mkfs.jff2"
+	bool "mkfs.jffs2"
 	depends on USER_MTDUTILS
 	select LIB_LIBLZO
 
