@@ -364,7 +364,7 @@ if [ $BOARD_CONFIG = "BF527-EZKIT-USBDEV" ] ; then
 fi
 
 
-if [ $BOARD_CONFIG = "BF538-EZKIT" ] ; then
+if [ $BOARD_CONFIG = "BF538-EZKIT-STD" ] ; then
 
     BOARD_TYPE=BF538-EZKIT
 
