@@ -77,8 +77,7 @@ CONF_OPTS += \
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) INSTALL_ROOT=$(STAGEDIR) install
-	cp qmake-wrapper $(ROOTDIR)/tools/$(CROSS_COMPILE)qmake
-	sed -i "s:@STAGEDIR@:$(STAGEDIR):" $(ROOTDIR)/tools/$(CROSS_COMPILE)qmake
+	ln -sf $$PWD/qmake-wrapper $(ROOTDIR)/tools/$(CROSS_COMPILE)qmake
 
 include $(ROOTDIR)/tools/download.mk
 
