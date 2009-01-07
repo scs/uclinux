@@ -8,5 +8,5 @@ post-build::
 	rm -f $(STAGEDIR)/usr/lib/libosip2.la $(STAGEDIR)/usr/lib/libosipparser2.la
 
 romfs:
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libosip2.so.3 /usr/lib/libosip2.so.3
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libosipparser2.so.3 /usr/lib/libosipparser2.so.3
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libosip2.so.4 /usr/lib/libosip2.so.4
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libosipparser2.so.4 /usr/lib/libosipparser2.so.4
