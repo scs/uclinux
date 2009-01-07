@@ -5,6 +5,7 @@ CONF_OPTS = \
 	--with-versioned=no \
 	--enable-static \
 	--disable-alisp \
+	--disable-python \
 	$(CONFIGURE_SHARED_ENABLE)
 
 # install target is not parallel safe
