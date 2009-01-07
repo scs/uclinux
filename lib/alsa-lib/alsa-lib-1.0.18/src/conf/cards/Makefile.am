@@ -5,11 +5,6 @@ cfg_files = aliases.conf \
 	ATIIXP.conf \
 	ATIIXP-SPDMA.conf \
 	ATIIXP-MODEM.conf \
-	AD1980.conf \
-	AD1836.conf \
-	AD73311.conf \
-	AD73322.conf \
-	SSM2602.conf \
 	AU8810.conf \
 	AU8820.conf \
 	AU8830.conf \

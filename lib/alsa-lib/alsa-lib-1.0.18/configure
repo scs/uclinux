@@ -21847,7 +21847,6 @@ fi
 
 if test "$softfloat" = "yes"; then
   build_pcm_lfloat="no"
-  build_pcm_ladspa="no"
 fi
 
 

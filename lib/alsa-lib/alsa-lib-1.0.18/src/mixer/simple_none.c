@@ -1418,7 +1418,6 @@ static int simple_add1(snd_mixer_class_t *class, const char *name,
 		         ctype != SND_CTL_ELEM_TYPE_INTEGER)
 			return 0;
 		break;
-#if 0
 	case CTL_GLOBAL_ROUTE:
 	case CTL_PLAYBACK_ROUTE:
 	case CTL_CAPTURE_ROUTE:
@@ -1441,7 +1440,6 @@ static int simple_add1(snd_mixer_class_t *class, const char *name,
 		values = n;
 		break;
 	}
-#endif
 	case CTL_GLOBAL_SWITCH:
 	case CTL_PLAYBACK_SWITCH:
 	case CTL_CAPTURE_SWITCH:
