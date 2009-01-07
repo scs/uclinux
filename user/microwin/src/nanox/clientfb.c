@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <asm/page.h>		/* For definition of PAGE_SIZE */
 #include <linux/fb.h>
 #endif
 #include "nano-X.h"
@@ -43,6 +42,7 @@ GrOpenClientFramebuffer(void)
 	int 	frame_offset;
 	char *	fbdev;
 	struct fb_fix_screeninfo finfo;
+	long	page_size = sysconf(_SC_PAGE_SIZE);
 
 	LOCK(&nxGlobalLock);
 
@@ -99,7 +99,7 @@ GrOpenClientFramebuffer(void)
 
 	/* Memory map the device, compensating for buggy PPC mmap() */
 	frame_offset = (((long)finfo.smem_start) -
-		(((long)finfo.smem_start)&~(PAGE_SIZE-1)));
+		(((long)finfo.smem_start)&~(page_size-1)));
 	frame_len = finfo.smem_len + frame_offset;
 	frame_map = (unsigned char *)mmap(NULL, frame_len, PROT_READ|PROT_WRITE,
 		MAP_SHARED, frame_fd,
