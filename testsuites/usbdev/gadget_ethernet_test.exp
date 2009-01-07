@@ -35,7 +35,7 @@ while 1 {
         -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             case_fail $case_num
         }
-        -re "Ethernet Gadget.*RNDIS ready.*(high|full) speed.*using CDC Ethernet" {
+        -re "Ethernet Gadget.*g_ether ready.*(high|full) speed.*CDC Ethernet" {
             break
         }
         timeout {
