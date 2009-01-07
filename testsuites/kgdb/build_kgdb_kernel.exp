@@ -77,7 +77,7 @@ while 1 {
         }
         
         -re "KGDB: for test case in expect.*KGDB_TESTCASE.*\\\[.*]" {
-            send "M\r"
+            send "Y\r"
         }
 
         -re "Compile the kernel with debug info.*DEBUG_INFO.*\\\[.*]" {

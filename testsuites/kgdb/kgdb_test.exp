@@ -90,28 +90,28 @@ while 1 {
      }
 }
 
-incr case_num
-send -s "modprobe  kgdb_test\r"
-    expect {
-        -re "$kernel_prompt" {
-                case_pass $case_num
-		}
-		timeout {
-                case_fail $case_num
-			exit
-		}
-}
-send -s "cat  /proc/modules\r"
-    expect {
-        -re "kgdb_test.*(0x\[0-9a-fA-F]+)\r\n$kernel_prompt" {
-                set kgdb_test_symbol_addr $expect_out(1,string) 
-                case_pass $case_num
-		}
-		timeout {
-                case_fail $case_num
-			exit
-		}
-}
+#incr case_num
+#send -s "modprobe  kgdb_test\r"
+#    expect {
+#        -re "$kernel_prompt" {
+#                case_pass $case_num
+#		}
+#		timeout {
+#                case_fail $case_num
+#			exit
+#		}
+#}
+#send -s "cat  /proc/modules\r"
+#    expect {
+#        -re "kgdb_test.*(0x\[0-9a-fA-F]+)\r\n$kernel_prompt" {
+#                set kgdb_test_symbol_addr $expect_out(1,string) 
+#                case_pass $case_num
+#		}
+#		timeout {
+#                case_fail $case_num
+#			exit
+#		}
+#}
 
 if { $debug_port == "uart" } {
 send -s "\x81"
@@ -195,23 +195,23 @@ while 1 {
                 }
         }
         }
-	incr case_num
-	send -s "add-symbol-file $uclinux_path/linux-2.6.x/arch/blackfin/kernel/kgdb_test.ko $kgdb_test_symbol_addr \r"
-	expect {
-               "add symbol table from file*(y or n)" {
-                send -s "y\r"
-                case_pass $case_num
-                        expect {
-                                "(gdb) " {
-                                }
-                        }
-                }
-		timeout {
-                clean_host_gdb
-                case_fail $case_num
-			exit
-		}
-	}
+#	incr case_num
+#	send -s "add-symbol-file $uclinux_path/linux-2.6.x/arch/blackfin/kernel/kgdb_test.ko $kgdb_test_symbol_addr \r"
+#	expect {
+#               "add symbol table from file*(y or n)" {
+#                send -s "y\r"
+#                case_pass $case_num
+#                        expect {
+#                                "(gdb) " {
+#                                }
+#                        }
+#                }
+#		timeout {
+#                clean_host_gdb
+#                case_fail $case_num
+#			exit
+#		}
+#	}
 	incr case_num
 	send "break kgdb_test\r"
 	expect {
@@ -443,7 +443,7 @@ while 1 {
 		}
 	}
         incr case_num
-        send "break 31\r"
+        send "break 32\r"
         expect {
               -re  "Breakpoint 4 at 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 expect {
@@ -626,13 +626,21 @@ while 1 {
 		}
 	}
 	incr case_num
-	send "step\r"
+	send "info reg\r"
 	expect {
-		"test_proc_output" {
-                case_pass $case_num
+		"Type *return* to continue" {
+                send "\r"
 		expect {
-			"(gdb) " {
+			-re "pc\[\x20\t]+(0x\[0-9a-fA-F]+)" {
+                          set reg_addr_before $expect_out(1,string)
+                          puts "\nreg_addr_before $reg_addr_before \n"
+                          expect "(gdb)"
+                          case_pass $case_num
 			}
+                        timeout {
+                          puts "\nreg_addr_before timeout! \n"
+                        exit
+                        }
 		}
 		}
 		timeout {
@@ -641,15 +649,12 @@ while 1 {
 			exit
 		}
 	}
-        incr case_num
-        send "step\r"
+        send "disassemble\r"
         expect {
-                "test_read_proc" {
-                case_pass $case_num
-                expect {
-                        "(gdb) " {
-                        }
-                }
+               -re "$reg_addr_before.*\[\r\n](0x\[0-9a-fA-F]+)" {
+                          set reg_addr_after1 $expect_out(1,string)
+                          puts "\nreg_addr_after1 $reg_addr_after1 \n"
+                          case_pass $case_num
                 }
                 timeout {
                 clean_host_gdb
@@ -658,6 +663,47 @@ while 1 {
                 }
         }
 
+        incr case_num
+        send "si\r"
+        expect {
+                "(gdb) " {
+                }
+                timeout {
+                clean_host_gdb
+                case_fail $case_num
+                        exit
+                }
+        }
+	incr case_num
+	send "info reg\r"
+	expect {
+		"Type *return* to continue" {
+                send "\r"
+		expect {
+			-re "pc\[\x20\t]+(0x\[0-9a-fA-F]+)" {
+                          set reg_addr_after2 $expect_out(1,string)
+                          puts "\nreg_addr_after2 $reg_addr_after2 \n"
+
+				if { 0 == [expr $reg_addr_after2 - $reg_addr_after1] } {
+                                    case_pass $case_num
+				    send_user "\nSI case pass!\n"
+				} else {
+				    send_user "\n"
+				    case_fail $case_num
+				}
+			}
+                        timeout {
+                          puts "\nreg_addr_after timeout! \n"
+                        exit
+                        }
+		}
+		}
+		timeout {
+                clean_host_gdb
+                case_fail $case_num
+			exit
+		}
+	}
 	incr case_num
 	send "print len\r"
 	expect {
@@ -841,7 +887,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 		}
 	}
         incr case_num
-        send "hbreak 44\r"
+        send "hbreak 45\r"
         expect {
               -re  "Hardware assisted breakpoint 6 at 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 expect {
@@ -1022,13 +1068,21 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 		}
 	}
 	incr case_num
-	send "step\r"
+	send "info reg\r"
 	expect {
-		"test_proc_output" {
-                case_pass $case_num
+		"Type *return* to continue" {
+                send "\r"
 		expect {
-			"(gdb) " {
+			-re "pc\[\x20\t]+(0x\[0-9a-fA-F]+)" {
+                          set reg_addr_before $expect_out(1,string)
+                          puts "\nreg_addr_before $reg_addr_before \n"
+                          expect "(gdb)"
+                          case_pass $case_num
 			}
+                        timeout {
+                          puts "\nreg_addr_before timeout! \n"
+                        exit
+                        }
 		}
 		}
 		timeout {
@@ -1037,15 +1091,12 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 			exit
 		}
 	}
-        incr case_num
-        send "step\r"
+        send "disassemble\r"
         expect {
-                "test_read_proc" {
-                case_pass $case_num
-                expect {
-                        "(gdb) " {
-                        }
-                }
+               -re "$reg_addr_before.*\[\r\n](0x\[0-9a-fA-F]+)" {
+                          set reg_addr_after1 $expect_out(1,string)
+                          puts "\nreg_addr_after1 $reg_addr_after1 \n"
+                          case_pass $case_num
                 }
                 timeout {
                 clean_host_gdb
@@ -1054,6 +1105,47 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
                 }
         }
 
+        incr case_num
+        send "si\r"
+        expect {
+                "(gdb) " {
+                }
+                timeout {
+                clean_host_gdb
+                case_fail $case_num
+                        exit
+                }
+        }
+	incr case_num
+	send "info reg\r"
+	expect {
+		"Type *return* to continue" {
+                send "\r"
+		expect {
+			-re "pc\[\x20\t]+(0x\[0-9a-fA-F]+)" {
+                          set reg_addr_after2 $expect_out(1,string)
+                          puts "\nreg_addr_after2 $reg_addr_after2 \n"
+
+				if { 0 == [expr $reg_addr_after2 - $reg_addr_after1] } {
+                                    case_pass $case_num
+				    send_user "\nSI case pass!\n"
+				} else {
+				    send_user "\n"
+				    case_fail $case_num
+				}
+			}
+                        timeout {
+                          puts "\nreg_addr_after timeout! \n"
+                        exit
+                        }
+		}
+		}
+		timeout {
+                clean_host_gdb
+                case_fail $case_num
+			exit
+		}
+	}
 	incr case_num
 	send "print len\r"
 	expect {
