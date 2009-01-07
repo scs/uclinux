@@ -1,0 +1,1515 @@
+# SIP Telephony Application.
+# Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+# Simon Morlat <linphone@free.fr>, 2001.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: linphone 0.7.1\n"
+"Report-Msgid-Bugs-To: linphone-developers@nongnu.org\n"
+"POT-Creation-Date: 2008-10-12 11:04+0200\n"
+"PO-Revision-Date: 2003-05-23 17:51-0400\n"
+"Last-Translator: Jean-Jacques Sarton <jj.sarton@t-online.de>, Ursula Herles-"
+"Hartz <UAHartz@t-online.de>\n"
+"Language-Team: Deutsch <de@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8-bit\n"
+
+#: gtk-glade/support.c:49 gtk-glade/support.c:73
+#, c-format
+msgid "Couldn't find pixmap file: %s"
+msgstr "Pixmapdatei %s nicht gefunden"
+
+#: gtk-glade/chat.c:27
+#, c-format
+msgid "Chat with %s"
+msgstr "Chat mit %s"
+
+#: gtk-glade/main.c:402
+#, fuzzy, c-format
+msgid "Incoming call from %s"
+msgstr "Eingehendes Gesprï¿½h"
+
+#: gtk-glade/main.c:438
+#, c-format
+msgid ""
+"%s would like to add you to his contact list.\n"
+"Would you allow him to see your presence status or add him to your contact "
+"list ?\n"
+"If you answer no, this person will be temporarily blacklisted."
+msgstr ""
+
+#: gtk-glade/main.c:507
+#, c-format
+msgid "Please enter your password for domain %s:"
+msgstr ""
+
+#: gtk-glade/main.c:582
+msgid "Linphone - a video internet phone"
+msgstr ""
+
+#: gtk-glade/main.c:599
+#, c-format
+msgid "%s (Default)"
+msgstr ""
+
+#: gtk-glade/main.c:714
+msgid "A free SIP video-phone"
+msgstr "Ein freies SIP Video-Fone"
+
+#: gtk-glade/friendlist.c:199 gtk-glade/propertybox.c:209
+#: gtk-glade/contact.glade:41
+msgid "Name"
+msgstr "Name"
+
+#: gtk-glade/friendlist.c:206
+msgid "Presence status"
+msgstr "Anwesenheitsstatus"
+
+#: gtk-glade/friendlist.c:397
+#, fuzzy, c-format
+msgid "Call %s"
+msgstr "Gesprächsverlauf"
+
+#: gtk-glade/friendlist.c:398
+#, c-format
+msgid "Send text to %s"
+msgstr ""
+
+#: gtk-glade/propertybox.c:215
+msgid "Rate (Hz)"
+msgstr "Rate (Hz)"
+
+#: gtk-glade/propertybox.c:221
+msgid "Status"
+msgstr "Status"
+
+#: gtk-glade/propertybox.c:227
+msgid "Min bitrate (kbit/s)"
+msgstr "Min Bitrate (kbit/s)"
+
+#: gtk-glade/propertybox.c:233
+msgid "Parameters"
+msgstr "Parameter"
+
+#: gtk-glade/propertybox.c:260 gtk-glade/propertybox.c:397
+msgid "Enabled"
+msgstr "Freigegeben"
+
+#: gtk-glade/propertybox.c:261 gtk-glade/propertybox.c:397
+msgid "Disabled"
+msgstr "Gesperrt"
+
+#: gtk-glade/propertybox.c:442
+msgid "Account"
+msgstr "Konto"
+
+#: gtk-glade/main.glade:21
+#, fuzzy
+msgid "_View"
+msgstr "Video"
+
+#: gtk-glade/main.glade:30
+msgid "gtk-preferences"
+msgstr ""
+
+#: gtk-glade/main.glade:39 gtk-glade/call_logs.glade:9
+#, fuzzy
+msgid "Call history"
+msgstr "Linphone - Gesprächsverlauf"
+
+#: gtk-glade/main.glade:53
+msgid "gtk-quit"
+msgstr ""
+
+#: gtk-glade/main.glade:67
+#, fuzzy
+msgid "_Modes"
+msgstr "Codecs"
+
+#: gtk-glade/main.glade:77
+#, fuzzy
+msgid "Audio only"
+msgstr "Audio"
+
+#: gtk-glade/main.glade:88
+#, fuzzy
+msgid "Audio & Video"
+msgstr "Eigenschaften des Audiocodecs"
+
+#: gtk-glade/main.glade:104
+msgid "gtk-help"
+msgstr ""
+
+#: gtk-glade/main.glade:115
+msgid "Show debug window"
+msgstr ""
+
+#: gtk-glade/main.glade:128
+msgid "gtk-about"
+msgstr ""
+
+#: gtk-glade/main.glade:189
+msgid "Terminate call"
+msgstr ""
+
+#: gtk-glade/main.glade:228
+msgid "Start call"
+msgstr ""
+
+#: gtk-glade/main.glade:252
+#, fuzzy
+msgid "Current call"
+msgstr "Konnte kein Anruf vornehmen"
+
+#: gtk-glade/main.glade:302
+msgid ""
+"Show All\n"
+"Show Online"
+msgstr ""
+
+#: gtk-glade/main.glade:311
+msgid "Search:"
+msgstr ""
+
+#: gtk-glade/main.glade:337
+#, fuzzy
+msgid "Display filters"
+msgstr "Angezeigter Name:"
+
+#: gtk-glade/main.glade:380
+#, fuzzy
+msgid "<b>Contact list</b>"
+msgstr "Kontaktliste"
+
+#: gtk-glade/main.glade:419
+msgid "D"
+msgstr ""
+
+#: gtk-glade/main.glade:437
+msgid "#"
+msgstr ""
+
+#: gtk-glade/main.glade:455
+msgid "0"
+msgstr ""
+
+#: gtk-glade/main.glade:473
+msgid "*"
+msgstr ""
+
+#: gtk-glade/main.glade:489
+msgid "C"
+msgstr ""
+
+#: gtk-glade/main.glade:507
+msgid "9"
+msgstr ""
+
+#: gtk-glade/main.glade:525
+msgid "8"
+msgstr ""
+
+#: gtk-glade/main.glade:543
+msgid "7"
+msgstr ""
+
+#: gtk-glade/main.glade:559
+msgid "B"
+msgstr ""
+
+#: gtk-glade/main.glade:577
+msgid "6"
+msgstr ""
+
+#: gtk-glade/main.glade:595
+msgid "5"
+msgstr "5"
+
+#: gtk-glade/main.glade:613
+msgid "4"
+msgstr ""
+
+#: gtk-glade/main.glade:629
+msgid "A"
+msgstr ""
+
+#: gtk-glade/main.glade:645
+msgid "3"
+msgstr ""
+
+#: gtk-glade/main.glade:661
+msgid "2"
+msgstr ""
+
+#: gtk-glade/main.glade:677
+msgid "1"
+msgstr ""
+
+#: gtk-glade/main.glade:693
+msgid "Digits"
+msgstr ""
+
+#: gtk-glade/main.glade:731
+msgid "Default"
+msgstr ""
+
+#: gtk-glade/main.glade:741
+#, fuzzy
+msgid "My identity :"
+msgstr "SIP Identität"
+
+#: gtk-glade/about.glade:8
+#, fuzzy
+msgid "About linphone"
+msgstr "linphone"
+
+#: gtk-glade/about.glade:16
+msgid "Created by Simon Morlat\n"
+msgstr ""
+
+#: gtk-glade/about.glade:18
+msgid "An internet video phone using the standart SIP (rfc3261) protocol."
+msgstr ""
+
+#: gtk-glade/about.glade:23
+msgid ""
+"fr: Simon Morlat\n"
+"en: Simon Morlat and Delphine Perreau\n"
+"it: Alberto Zanoni <alberto.zanoni@-NO-SPAM-PLEASE!-tiscalinet.it>\n"
+"de: Jean-Jacques Sarton <jj.sarton@-NO-SPAM-PLEASE-t-online.de>\n"
+"sv: Daniel Nylander <po@danielnylander.se>\n"
+"es: Jesus Benitez <gnelson at inMail dot sk>\n"
+"ja: YAMAGUCHI YOSHIYA <yushiya@anet.ne.jp>\n"
+"pt_BR: Rafael Caesar Lenzi <rc_lenzi@yahoo.com.br>\n"
+"pl: Robert Nasiadek <darkone@darkone.pl>\n"
+"cs: Petr Pisar <petr.pisar@atlas.cz>\n"
+"hu: anonymous\n"
+msgstr ""
+
+#: gtk-glade/contact.glade:51
+#, fuzzy
+msgid "SIP Address"
+msgstr "Adresse"
+
+#: gtk-glade/contact.glade:95
+msgid "Show this contact presence status"
+msgstr ""
+
+#: gtk-glade/contact.glade:109
+msgid "Allow this contact to see my presence status"
+msgstr ""
+
+#: gtk-glade/contact.glade:126
+msgid "Contact information"
+msgstr "Kontaktinformationen"
+
+#: gtk-glade/contact.glade:149 gtk-glade/password.glade:112
+#: gtk-glade/sip_account.glade:202
+msgid "gtk-cancel"
+msgstr ""
+
+#: gtk-glade/contact.glade:161 gtk-glade/password.glade:100
+#: gtk-glade/sip_account.glade:190
+msgid "gtk-ok"
+msgstr ""
+
+#: gtk-glade/log.glade:9
+#, fuzzy
+msgid "Linphone debug window"
+msgstr "Linphone Ende"
+
+#: gtk-glade/log.glade:54 gtk-glade/call_logs.glade:49
+#: gtk-glade/chatroom.glade:82 gtk-glade/parameters.glade:1412
+msgid "gtk-close"
+msgstr ""
+
+#: gtk-glade/password.glade:8
+#, fuzzy
+msgid "Linphone - Authentication required"
+msgstr "Authentifikation erfordert"
+
+#: gtk-glade/password.glade:27
+msgid "Please enter your password for domain..."
+msgstr ""
+
+#: gtk-glade/password.glade:56
+#, fuzzy
+msgid "Password:"
+msgstr "Passwort"
+
+#: gtk-glade/password.glade:66
+#, fuzzy
+msgid "Username"
+msgstr "Benutzername:"
+
+#: gtk-glade/sip_account.glade:8
+msgid "Linphone - Configure a SIP account"
+msgstr ""
+
+#: gtk-glade/sip_account.glade:42
+#, fuzzy
+msgid "Your SIP identity:"
+msgstr "SIP Identität"
+
+#: gtk-glade/sip_account.glade:60
+#, fuzzy
+msgid "SIP Proxy address:"
+msgstr "SIP Proxy:"
+
+#: gtk-glade/sip_account.glade:72
+msgid "sip:"
+msgstr "sip:"
+
+#: gtk-glade/sip_account.glade:85
+msgid "Route (optional):"
+msgstr "Route (optional):"
+
+#: gtk-glade/sip_account.glade:109
+#, fuzzy
+msgid "Registration period (sec):"
+msgstr "Registrierungsdauer."
+
+#: gtk-glade/sip_account.glade:136
+msgid "Register at startup"
+msgstr ""
+
+#: gtk-glade/sip_account.glade:150
+#, fuzzy
+msgid "Publish presence information"
+msgstr "Anwesenheit Information publzieren"
+
+#: gtk-glade/sip_account.glade:167
+msgid "Configure a SIP account"
+msgstr ""
+
+#: gtk-glade/chatroom.glade:50
+#, fuzzy
+msgid "Send"
+msgstr "Ton"
+
+#: gtk-glade/incoming_call.glade:9
+#, fuzzy
+msgid "Linphone - Incoming call"
+msgstr "Eingehendes Gesprï¿½h"
+
+#: gtk-glade/incoming_call.glade:36
+#, fuzzy
+msgid "Incoming call from"
+msgstr "Eingehendes Gesprï¿½h"
+
+#: gtk-glade/incoming_call.glade:45 coreapi/linphonecore.c:230
+msgid "Incoming call"
+msgstr "Eingehendes Gesprï¿½h"
+
+#: gtk-glade/incoming_call.glade:85
+msgid "Accept"
+msgstr "Annehmen"
+
+#: gtk-glade/incoming_call.glade:118
+#, fuzzy
+msgid "Decline"
+msgstr "Leitung"
+
+#: gtk-glade/parameters.glade:36
+msgid "Use IPv6 instead of IPv4"
+msgstr ""
+
+#: gtk-glade/parameters.glade:48
+msgid "<b>IPv6 usage</b>"
+msgstr ""
+
+#: gtk-glade/parameters.glade:77
+msgid "SIP (UDP)"
+msgstr ""
+
+#: gtk-glade/parameters.glade:84
+msgid "Audio RTP/UDP"
+msgstr ""
+
+#: gtk-glade/parameters.glade:95
+msgid "Video RTP/UDP"
+msgstr ""
+
+#: gtk-glade/parameters.glade:153
+#, fuzzy
+msgid "<b>Ports used</b>"
+msgstr "Kontaktliste"
+
+#: gtk-glade/parameters.glade:187
+#, fuzzy
+msgid "Public IP address"
+msgstr "Sip-Adresse:"
+
+#: gtk-glade/parameters.glade:211
+#, fuzzy
+msgid "Stun server"
+msgstr "Umleitungs-Server"
+
+#: gtk-glade/parameters.glade:234
+msgid "I'm not behing a firewall"
+msgstr ""
+
+#: gtk-glade/parameters.glade:248
+msgid "I'm behind a firewall, use supplied public IP address"
+msgstr ""
+
+#: gtk-glade/parameters.glade:263
+msgid "Use the supplied stun server above and do as best as possible"
+msgstr ""
+
+#: gtk-glade/parameters.glade:282
+msgid "<b>Firewall settings</b>"
+msgstr ""
+
+#: gtk-glade/parameters.glade:315
+msgid "Send DTMFs as SIP info"
+msgstr ""
+
+#: gtk-glade/parameters.glade:329
+msgid "Set Maximum Transmission Unit"
+msgstr ""
+
+#: gtk-glade/parameters.glade:354
+msgid "<b>Miscelaneous</b>"
+msgstr ""
+
+#: gtk-glade/parameters.glade:383
+#, fuzzy
+msgid "Network settings"
+msgstr "Netzwerk"
+
+#: gtk-glade/parameters.glade:422
+msgid "Enable echo cancelation"
+msgstr ""
+
+#: gtk-glade/parameters.glade:438
+msgid "a sound card\n"
+msgstr ""
+
+#: gtk-glade/parameters.glade:453
+#, fuzzy
+msgid "Playback device"
+msgstr "Ton Wiedergabegerät:"
+
+#: gtk-glade/parameters.glade:464
+#, fuzzy
+msgid "Ring device"
+msgstr "Klingel Wiedergabegerät:"
+
+#: gtk-glade/parameters.glade:476
+#, fuzzy
+msgid "Capture device"
+msgstr "Audio Aufnahmegerät:"
+
+#: gtk-glade/parameters.glade:487
+msgid "ALSA special device (optional)"
+msgstr ""
+
+#: gtk-glade/parameters.glade:499
+msgid "default soundcard"
+msgstr ""
+
+#: gtk-glade/parameters.glade:514
+msgid "default soundcard\n"
+msgstr ""
+
+#: gtk-glade/parameters.glade:544
+#, fuzzy
+msgid "Ring sound"
+msgstr "Klingelton:"
+
+#: gtk-glade/parameters.glade:569
+msgid "gtk-media-play"
+msgstr ""
+
+#: gtk-glade/parameters.glade:595
+msgid "<b>Sound</b>"
+msgstr ""
+
+#: gtk-glade/parameters.glade:620
+msgid "default camera"
+msgstr ""
+
+#: gtk-glade/parameters.glade:632
+#, fuzzy
+msgid "Video input device"
+msgstr "Audiogerät"
+
+#: gtk-glade/parameters.glade:645
+msgid "<b>Video</b>"
+msgstr ""
+
+#: gtk-glade/parameters.glade:678
+msgid "Multimedia settings"
+msgstr ""
+
+#: gtk-glade/parameters.glade:699
+msgid "This section defines your SIP address when not using a SIP account"
+msgstr ""
+
+#: gtk-glade/parameters.glade:744
+#, fuzzy
+msgid "Your resulting SIP address:"
+msgstr "Ihre Sip-Adresse:"
+
+#: gtk-glade/parameters.glade:755
+#, fuzzy
+msgid "Your username:"
+msgstr "Benutzername:"
+
+#: gtk-glade/parameters.glade:778
+msgid "Your display name (eg: John Doe):"
+msgstr ""
+
+#: gtk-glade/parameters.glade:789
+msgid "<b>Default identity</b>"
+msgstr ""
+
+#: gtk-glade/parameters.glade:856
+msgid "Add"
+msgstr "Hinzufgen"
+
+#: gtk-glade/parameters.glade:889
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: gtk-glade/parameters.glade:925
+msgid "Remove"
+msgstr "Entfernen"
+
+#: gtk-glade/parameters.glade:956
+msgid ""
+"Register to FONICS\n"
+"virtual network !"
+msgstr ""
+
+#: gtk-glade/parameters.glade:985
+#, fuzzy
+msgid "<b>Proxy accounts</b>"
+msgstr "Kontaktliste"
+
+#: gtk-glade/parameters.glade:1034
+msgid "Erase all passwords"
+msgstr ""
+
+#: gtk-glade/parameters.glade:1052
+msgid "<b>Privacy</b>"
+msgstr ""
+
+#: gtk-glade/parameters.glade:1084
+msgid "Manage SIP Accounts"
+msgstr ""
+
+#: gtk-glade/parameters.glade:1120
+#, fuzzy
+msgid ""
+"Audio codecs\n"
+"Video codecs"
+msgstr "Audio und Video Codecs"
+
+#: gtk-glade/parameters.glade:1161
+msgid "gtk-go-up"
+msgstr ""
+
+#: gtk-glade/parameters.glade:1173
+msgid "gtk-go-down"
+msgstr ""
+
+#: gtk-glade/parameters.glade:1205
+msgid "Enable"
+msgstr "Freigeben"
+
+#: gtk-glade/parameters.glade:1241
+msgid "Disable"
+msgstr "Sperren"
+
+#: gtk-glade/parameters.glade:1273
+#, fuzzy
+msgid "<b>Codecs</b>"
+msgstr "Kontaktliste"
+
+#: gtk-glade/parameters.glade:1302
+#, fuzzy
+msgid "Download limit in kbits/sec"
+msgstr "Download-Bandbreite (kbit/sec):"
+
+#: gtk-glade/parameters.glade:1309
+#, fuzzy
+msgid "Upload limit in kbits/sec"
+msgstr "Upload-Bandbreite (kbit/sec):"
+
+#: gtk-glade/parameters.glade:1321 gtk-glade/parameters.glade:1335
+msgid "0 stands for \"unlimited\""
+msgstr ""
+
+#: gtk-glade/parameters.glade:1354
+msgid "<b>Bandwidth usage</b>"
+msgstr ""
+
+#: gtk-glade/parameters.glade:1386
+#, fuzzy
+msgid "Codecs"
+msgstr "Codecs"
+
+#: coreapi/linphonecore.c:192
+#, c-format
+msgid "You have missed %i call(s)."
+msgstr "Sie haben %i Anruf(e) in Abwesenheit."
+
+#: coreapi/linphonecore.c:218
+msgid "aborted"
+msgstr "abgebrochen"
+
+#: coreapi/linphonecore.c:221
+msgid "completed"
+msgstr "beendet"
+
+#: coreapi/linphonecore.c:224
+msgid "missed"
+msgstr "verpasst"
+
+#: coreapi/linphonecore.c:229
+#, c-format
+msgid ""
+"%s at %s\n"
+"From: %s\n"
+"To: %s\n"
+"Status: %s\n"
+"Duration: %i mn %i sec\n"
+msgstr ""
+"%s am %sVon: %s\n"
+"An: %s\n"
+"Status: %s\n"
+"Dauer: %i mn %i sec\n"
+
+#: coreapi/linphonecore.c:230
+msgid "Outgoing call"
+msgstr "Abgehendes Gespräch"
+
+#: coreapi/linphonecore.c:416
+msgid ""
+"Your machine appears to be connected to an IPv6 network. By default linphone "
+"always uses IPv4. Please update your configuration if you want to use IPv6"
+msgstr ""
+"Ihr Rechner scheint an einen IPv6 Netz angeschlossen zu sein. "
+"Linphoneverwendet normalerweise IPv4. Bitte Konfiguration anpassen wenn sie "
+"IPv6 verwenden wollen"
+
+#: coreapi/linphonecore.c:701
+msgid "Ready"
+msgstr "Bereit"
+
+#: coreapi/linphonecore.c:976
+msgid "Remote end seems to have disconnected, the call is going to be closed."
+msgstr ""
+
+#: coreapi/linphonecore.c:1069
+msgid "Looking for telephone number destination..."
+msgstr "Suche Telefonnummernziel.."
+
+#: coreapi/linphonecore.c:1071
+msgid "Could not resolve this number."
+msgstr "Konnte dies Nummer nicht auflösen."
+
+#: coreapi/linphonecore.c:1130
+msgid ""
+"Could not parse given sip address. A sip url usually looks like sip:"
+"user@domain"
+msgstr ""
+"Sip-Adresse kann nicht bestimmt werden. Eine Sip-Adresse hat folgenden "
+"Aufbau <sip:anwendername@domainname>"
+
+#: coreapi/linphonecore.c:1179
+msgid "Sorry, having multiple simultaneous calls is not supported yet !"
+msgstr "Mehrfachen gleichzeitigen Anrufen nicht unterstützt !"
+
+#: coreapi/linphonecore.c:1211
+msgid "Contacting"
+msgstr "Rufe an"
+
+#: coreapi/linphonecore.c:1227
+msgid "could not call"
+msgstr "Konnte kein Anruf vornehmen"
+
+#: coreapi/linphonecore.c:1517 coreapi/exevents.c:41
+msgid "Connected."
+msgstr "Verbunden."
+
+#: coreapi/linphonecore.c:1543
+msgid "Call ended"
+msgstr "Anruf beendet"
+
+#: coreapi/linphonecore.c:1854
+msgid "No nat/firewall address supplied !"
+msgstr "Keine Nat/Firewall Adresse vorgegeben !"
+
+#: coreapi/linphonecore.c:1866 coreapi/linphonecore.c:1878
+#, c-format
+msgid "Invalid nat address '%s' : %s"
+msgstr "Ungültige NAT Adresse '%s' : '%s'"
+
+#: coreapi/misc.c:131
+msgid ""
+"Your computer appears to be using ALSA sound drivers.\n"
+"This is the best choice. However the pcm oss emulation module\n"
+"is missing and linphone needs it. Please execute\n"
+"'modprobe snd-pcm-oss' as root to load it."
+msgstr ""
+"Ihre Rechner verwendet anscheinend einen ALSA-Soundtreiber.\n"
+"Dies ist die beste Lösung; allerdings ist die von Linphone benötigte pcm OSS "
+"Emulation\n"
+"nicht vorhanden. Für die Einbindung des Moduls\n"
+"bitte den Befehl 'modprobe snd-pcm-oss' als Anwender-Root verwenden."
+
+#: coreapi/misc.c:134
+msgid ""
+"Your computer appears to be using ALSA sound drivers.\n"
+"This is the best choice. However the mixer oss emulation module\n"
+"is missing and linphone needs it. Please execute\n"
+" 'modprobe snd-mixer-oss' as root to load it."
+msgstr ""
+"Ihre Rechner verwendet anscheinend einen ALSA-Soundtreiber.\n"
+"Dies ist die beste Lösung; allerdings ist die von Linphone benötigte pcm OSS "
+"Emulation\n"
+"nicht vorhanden. Fr die Einbindung des Moduls\n"
+"bitte den Befehl 'modprobe snd-pcm-oss' als Anwender-Root verwenden."
+
+#: coreapi/misc.c:589
+msgid "Stun lookup in progress..."
+msgstr "Stun Ermittlung läuft..."
+
+#: coreapi/exevents.c:117
+msgid "Call terminated."
+msgstr "Anruf beendet"
+
+#: coreapi/exevents.c:139
+msgid "Could not reach destination."
+msgstr "Konnte Ziel nicht erreichen"
+
+#: coreapi/exevents.c:148
+msgid "User is busy."
+msgstr "Besetzt."
+
+#: coreapi/exevents.c:149
+msgid "User is temporarily unavailable."
+msgstr "Teilnehmer zur Zeit nicht ansprechbar."
+
+#: coreapi/exevents.c:150
+msgid "Request Cancelled."
+msgstr "Anruf annulliert."
+
+#: coreapi/exevents.c:152
+msgid "User does not want to be disturbed."
+msgstr "Teilnehmer möchte nicht gestört werden."
+
+#: coreapi/exevents.c:153
+msgid "Call declined."
+msgstr "Anruf abgewiesen"
+
+#: coreapi/exevents.c:172
+msgid "Bad request"
+msgstr "Fehlerhafte Anfrage"
+
+#: coreapi/exevents.c:175
+msgid "User cannot be found at given address."
+msgstr "Teilnehmer ist unter der angegebene Adresse nicht erreichbar."
+
+#: coreapi/exevents.c:178
+msgid "Remote user cannot support any of proposed codecs."
+msgstr "Die Gegenstelle untersttzt die angebotenen Codecs nicht."
+
+#: coreapi/exevents.c:204
+msgid "Timeout."
+msgstr "Zeitberschreitung."
+
+#: coreapi/exevents.c:207
+msgid "Remote host was found but refused connection."
+msgstr "Die Gegenstelle hat die Verbindung abgewiesen."
+
+#: coreapi/exevents.c:315
+msgid "is contacting you."
+msgstr "ruft Sie an"
+
+#: coreapi/exevents.c:399
+#, c-format
+msgid "Redirected to %s..."
+msgstr "Nach %s umgeleitet..."
+
+#: coreapi/exevents.c:415
+msgid ""
+"User is not reachable at the moment but he invites you\n"
+"to contact him using the following alternate resource:"
+msgstr ""
+"Teilnehmer nicht erreichbar. Bitte versuchen Sie es unter nachstehender "
+"Ressource:"
+
+#: coreapi/exevents.c:825
+msgid "Early media."
+msgstr ""
+
+#: coreapi/exevents.c:887
+#, fuzzy, c-format
+msgid "Registration on %s failed: %s"
+msgstr "Registrierung auf %s schlug fehl (Zeitberschreitung)."
+
+#: coreapi/exevents.c:887
+msgid "no response timeout"
+msgstr ""
+
+#: coreapi/exevents.c:901
+#, c-format
+msgid "Registration on %s successful."
+msgstr "Registrierung auf %s erfolgreich."
+
+#: coreapi/presence.c:112 coreapi/presence.c:164
+msgid "Gone"
+msgstr "Gegangen"
+
+#: coreapi/presence.c:129
+msgid "Waiting for Approval"
+msgstr "Warte aud Bestätigung"
+
+#: coreapi/presence.c:133
+msgid "Online"
+msgstr "Verbunden"
+
+#: coreapi/presence.c:137
+msgid "Busy"
+msgstr "Besetzt"
+
+#: coreapi/presence.c:142
+msgid "Be Right Back"
+msgstr "Bald wieder da"
+
+#: coreapi/presence.c:146
+msgid "Away"
+msgstr "Abwesend"
+
+#: coreapi/presence.c:151
+msgid "On The Phone"
+msgstr "Am Höhrer"
+
+#: coreapi/presence.c:156
+msgid "Out To Lunch"
+msgstr "Beim Essen"
+
+#: coreapi/presence.c:160
+msgid "Closed"
+msgstr ""
+
+#, fuzzy
+#~ msgid "_Properties"
+#~ msgstr "RTP-Eigenschaften"
+
+#, fuzzy
+#~ msgid "Modes"
+#~ msgstr "Codecs"
+
+#, fuzzy
+#~ msgid "Show logs"
+#~ msgstr "Zeigt Gespräche"
+
+#, fuzzy
+#~ msgid "_About"
+#~ msgstr "Konto"
+
+#, fuzzy
+#~ msgid "gtk-remove"
+#~ msgstr "Entfernen"
+
+#, fuzzy
+#~ msgid "Proxy in use"
+#~ msgstr "Benutze Proxy-Server:"
+
+#~ msgid "Sound"
+#~ msgstr "Ton"
+
+#, fuzzy
+#~ msgid "Default identity"
+#~ msgstr "SIP Identität"
+
+#, fuzzy
+#~ msgid "Proxy accounts"
+#~ msgstr "Benutze Proxy-Server:"
+
+#~ msgid "Go"
+#~ msgstr "Start"
+
+#~ msgid "Address book"
+#~ msgstr "Adressbuch"
+
+#~ msgid "Exit"
+#~ msgstr "Beenden"
+
+#~ msgid "Help"
+#~ msgstr "Hilfe"
+
+#~ msgid "Enter sip address or phone number here"
+#~ msgstr "Sip-Adresse oder Telefonnummer eingeben."
+
+#~ msgid "Shows the address book"
+#~ msgstr "Adressbuch"
+
+#~ msgid "..."
+#~ msgstr "..."
+
+#~ msgid ""
+#~ "Call or\n"
+#~ "answer"
+#~ msgstr ""
+#~ "Anrufen oder\n"
+#~ "Entgegennehmen"
+
+#~ msgid ""
+#~ "Hangup\n"
+#~ "or refuse"
+#~ msgstr ""
+#~ "Auflegen\n"
+#~ "oder Abweisen"
+
+#~ msgid "Or chat !"
+#~ msgstr "Oder Chat"
+
+#~ msgid "Show more..."
+#~ msgstr "Mehr anzeigen"
+
+#~ msgid "Playback level:"
+#~ msgstr "Abhörpegel"
+
+#~ msgid "Recording level:"
+#~ msgstr "Aufnamepegel"
+
+#~ msgid "Ring level:"
+#~ msgstr "Klingelpegel"
+
+#~ msgid "Enable video"
+#~ msgstr "Video einschalten"
+
+#~ msgid "Controls"
+#~ msgstr "Kontrolle"
+
+#~ msgid "Reachable"
+#~ msgstr "Erreichbar"
+
+#~ msgid "Busy, I'll be back in "
+#~ msgstr "Beschäftigt, wieder erreichbar in "
+
+#~ msgid "The other party will be informed that you'll be back in X minutes"
+#~ msgstr ""
+#~ "Der Teilnehmer wird informiert, dass Sie in X Minuten wieder anwesend "
+#~ "sind."
+
+#~ msgid "mn"
+#~ msgstr "mn"
+
+#~ msgid "Do not disturb"
+#~ msgstr "Nicht stören"
+
+#~ msgid "Moved temporarily"
+#~ msgstr "Unterwegs"
+
+#~ msgid "Alternative service"
+#~ msgstr "Andere Dienste"
+
+#~ msgid "URL:"
+#~ msgstr "URL:"
+
+#~ msgid "Presence"
+#~ msgstr "Anwesenheit"
+
+#~ msgid "Press digits to send DTMFs."
+#~ msgstr "Zifferntasten drücken, um DTMF zu senden"
+
+#~ msgid "DTMF"
+#~ msgstr "DTMF"
+
+#~ msgid "My online friends"
+#~ msgstr "Meine online Freunde"
+
+#~ msgid "Linphone"
+#~ msgstr "Linphone"
+
+#~ msgid ""
+#~ "C: 2001\n"
+#~ "Made in Old Europe"
+#~ msgstr ""
+#~ "C: 2001\n"
+#~ "In Alt Europa erzeugt"
+
+#~ msgid ""
+#~ "Linphone is a web-phone.\n"
+#~ "It is compatible with SIP and RTP protocols."
+#~ msgstr ""
+#~ "Linphone ist ein web-phone.\n"
+#~ "Es ist mit den SIP- und RTP-Protokollen kompatibel."
+
+#~ msgid "Use IPv6 network (if available)"
+#~ msgstr "IPv6 Netzwerk (falls vorhanden) verwenden"
+
+# msgstr "Teilnehmer zur Zeit nicht ansprechbar."
+#~ msgid ""
+#~ "Toggle this if you are on an ipv6 network and you wish linphone to use it."
+#~ msgstr ""
+#~ "Ankreuzen wenn Sie ein ipv6 Netz haben und wenn Sie es wünschen dass "
+#~ "linphone es verwendet"
+
+#~ msgid ""
+#~ "These options is only for users in a private network, behind a gateway. "
+#~ "If you are not in this situation, then leave this empty."
+#~ msgstr ""
+#~ "Diese Option gilt nur für Anwender in einem privaten Netzwerk oder wenn "
+#~ "der Rechner durch einen Firewall geschützt ist. Andernfalls wird das Feld "
+#~ "nicht ausgefüllt"
+
+#~ msgid "No firewall"
+#~ msgstr "Kein Firewall"
+
+#~ msgid "Use this STUN server to guess firewall address :"
+#~ msgstr "Dieses STUN Server verwenden um die Firewalladresse zu Ermitteln"
+
+#~ msgid "Specify firewall address manually:"
+#~ msgstr "Firewall Adresse von Hand angeben"
+
+#~ msgid "NAT traversal options (experimental)"
+#~ msgstr "NAT-Transversaloptionen (experimentell)"
+
+#~ msgid "Number of buffered miliseconds (jitter compensation):"
+#~ msgstr "Anzahl der gepufferten Pakete (Jitterausgleich):"
+
+#~ msgid "RTP port used for audio:"
+#~ msgstr "Sound RTP Port:"
+
+#~ msgid "Use SIP INFO message instead of RTP rfc2833 for DTMF transmitting"
+#~ msgstr "Benutze SIP INFO Nachricht statt RTP rfc2833 für DTMF Übertragung"
+
+#~ msgid "RTP-RFC2833 is the recommended way."
+#~ msgstr "RTP-RFC2833 wird empfohlen"
+
+#~ msgid "Other"
+#~ msgstr "Andere"
+
+#~ msgid "micro"
+#~ msgstr "Mikrofon"
+
+#~ msgid "Recording source:"
+#~ msgstr "Aufnahmequelle:"
+
+#~ msgid "Enable echo-canceler (cancels the echo heard by the remote party)"
+#~ msgstr ""
+#~ "Echounterdrückung einschalten (eliminiert das von Gesprächspartnet "
+#~ "gehörter Echo)"
+
+#~ msgid "Listen"
+#~ msgstr "Anhören"
+
+#~ msgid "Sound properties"
+#~ msgstr "Audio Eigenschaften"
+
+#~ msgid "Run sip user agent on port:"
+#~ msgstr "Sip \"user agent\" an Port:"
+
+#~ msgid "It is strongly recommended to use port 5060."
+#~ msgstr "Wir empfehlen, Port 5060 zu verwenden"
+
+#~ msgid "SIP port"
+#~ msgstr "SIP-Port"
+
+#~ msgid "@"
+#~ msgstr "@"
+
+#~ msgid "Automatically guess a valid hostname"
+#~ msgstr "Automatisch einen gültigen Hostnamen erraten"
+
+#~ msgid "Identity"
+#~ msgstr "Identität"
+
+#~ msgid "Add proxy/registrar"
+#~ msgstr "Proxy/Registrator hinzufügen"
+
+#~ msgid "Remote services"
+#~ msgstr "Dienste auf entferntem Server"
+
+#~ msgid "Clear all stored authentication information (username,password...)"
+#~ msgstr ""
+#~ "Alle gespeicherten Authentifikationsinformationen löschen (Benutzername, "
+#~ "Passwort,...)"
+
+#~ msgid "Authentication information"
+#~ msgstr "Authentifikationsinformation"
+
+#~ msgid "SIP"
+#~ msgstr "SIP"
+
+#~ msgid "List of audio codecs, in order of preference:"
+#~ msgstr "Liste von Audio-CoDecs in der Reihenfolge ihrer Präferenz"
+
+#~ msgid "Video Codecs"
+#~ msgstr "Videocodecs"
+
+#~ msgid ""
+#~ "Note: Codecs in red are not usable regarding to your connection type to "
+#~ "the internet."
+#~ msgstr ""
+#~ "Notiz: Rot markierten Codecs können bei Ihrer Internetverbindungsart "
+#~ "nicht verwendet werden."
+
+#~ msgid "No information availlable"
+#~ msgstr "Informationen nicht verfügbar"
+
+#~ msgid "Codec information"
+#~ msgstr "Codec Information"
+
+#~ msgid "Address Book"
+#~ msgstr "Adressbuch"
+
+#~ msgid "Select"
+#~ msgstr "Auswählen"
+
+#~ msgid "Information"
+#~ msgstr "Information"
+
+#~ msgid ""
+#~ "User is not reachable at the moment but he invites you to contact him "
+#~ "using the following alternate ressource:"
+#~ msgstr ""
+#~ "Teilnehmer nicht erreichbar. Bitte stattdessen nachstehende Ressource "
+#~ "verwenden:"
+
+#~ msgid "None."
+#~ msgstr "Nichts."
+
+#~ msgid "Proxy/Registrar configuration box"
+#~ msgstr "Proxy/Registrator Konfigurationsbox"
+
+#~ msgid "Send registration:"
+#~ msgstr "Sende Registrierung:"
+
+#~ msgid "Edit contact information"
+#~ msgstr "Bearbeite Kontaktinformationen"
+
+#~ msgid "Name:"
+#~ msgstr "Name:"
+
+#~ msgid "Subscribe policy:"
+#~ msgstr "Subskription Police"
+
+#~ msgid "Send subscription (see person's online status)"
+#~ msgstr "Sende Subskription (zeige Onlinestatus der Person an)"
+
+#~ msgid "New incoming subscription"
+#~ msgstr "Neu ankommende Subskription"
+
+#~ msgid "You have received a new subscription..."
+#~ msgstr "Sie haben eine neue Subskription empfangen"
+
+#~ msgid "Refuse"
+#~ msgstr "Ablehnen"
+
+#~ msgid "Authentication required for realm"
+#~ msgstr "Authentifikation erforderlich für Bereich"
+
+#~ msgid "userid:"
+#~ msgstr "Benutzer ID:"
+
+#~ msgid "realm:"
+#~ msgstr "Bereich:"
+
+#~ msgid "Chat Room"
+#~ msgstr "Chat Raum"
+
+#~ msgid "Text:"
+#~ msgstr "Text"
+
+#~ msgid "Unlimited"
+#~ msgstr "Unbegrenzt"
+
+#~ msgid "The caller asks for resource reservation. Do you agree ?"
+#~ msgstr "Der Anrufer erbittet Resourcenreservierung. Sind Sie einverstanden?"
+
+#~ msgid ""
+#~ "The caller doesn't use resource reservation. \t\t\t\t\tDo you wish to "
+#~ "continue anyway ?"
+#~ msgstr ""
+#~ "Der Anrufer benutzt keine Resourcenreservierung. \t\t\t\t\tWollen Sie "
+#~ "dennoch fortfahren?"
+
+#~ msgid "linphone - receiving call from %s"
+#~ msgstr "Linphone- empfängt ein Anruf von %s"
+
+#~ msgid ""
+#~ "You have received a subscription from %s.This means that this person "
+#~ "wishes to be notified of your presence information (online, busy, "
+#~ "away...).\n"
+#~ "Do you agree ?"
+#~ msgstr ""
+#~ "Sie haben eine Subskription von %s empfangen. Das heißt, dass diese "
+#~ "Person ber Ihre Anwesenheitsinformation benachrichtigt werden will "
+#~ "(erreichbar, beschäftig, abwesend...).\n"
+#~ "Sind Sie einverstanden ?"
+
+#~ msgid "Authentication required for realm %s"
+#~ msgstr "Authentifikation erforderlich für Bereich %s"
+
+#~ msgid "None"
+#~ msgstr "Keinen"
+
+#~ msgid "Wait"
+#~ msgstr "Warten"
+
+#~ msgid "Deny"
+#~ msgstr "Abweisen"
+
+#~ msgid "Bad sip address: a sip address looks like sip:user@domain"
+#~ msgstr ""
+#~ "Fehlerhafte Sip-Adresse. Eine Sip-Adresse hat folgenden Aufbau <sip:"
+#~ "anwendername@domainname>"
+
+#~ msgid "Stun lookup done..."
+#~ msgstr "Stun Ermittlung beendet..."
+
+#~ msgid "enter sip uri here"
+#~ msgstr "Sip URI eingeben"
+
+#~ msgid "User manual"
+#~ msgstr "Anwender-Handbuch"
+
+#~ msgid "Ring sound selection"
+#~ msgstr "Klingelton auswï¿½len"
+
+#~ msgid "Communication ended."
+#~ msgstr "Kommunikation beendet."
+
+#~ msgid "Call cancelled."
+#~ msgstr "Anruf annulliert"
+
+#, fuzzy
+#~ msgid "Firewall 's external ip address (in dot notations):"
+#~ msgstr "IP-Adresse des Firewall (in Punktnotation)"
+
+#, fuzzy
+#~ msgid "Server address"
+#~ msgstr "Server-Adresse:"
+
+#~ msgid "28k modem"
+#~ msgstr "28K Modem"
+
+#~ msgid "56k modem"
+#~ msgstr "56K Modem"
+
+#~ msgid "64k modem (numeris)"
+#~ msgstr "64K Modem (ISDN)"
+
+#~ msgid "ADSL or Cable modem"
+#~ msgstr "ADSL oder Kabel-Modem"
+
+#~ msgid "Ethernet or equivalent"
+#~ msgstr "Ethernet oder äquivalent"
+
+#~ msgid "Connection type:"
+#~ msgstr "Verbindungstyp:"
+
+#, fuzzy
+#~ msgid ""
+#~ "Linphone could not open audio device %s. Check if your sound card is "
+#~ "fully configured and working."
+#~ msgstr ""
+#~ "Linphone kann das Soundgerät nicht öffnen. Prfen Sie nach, ob die "
+#~ "Soundkarte vollstï¿½dig konfiguriert und funktionsfähig ist."
+
+#~ msgid "Type here the sip address of the person you want to call."
+#~ msgstr ""
+#~ "Geben Sie die Sip-Adresse des Anwenders, den Sie anrufen möchten, hier "
+#~ "ein."
+
+#~ msgid ""
+#~ "Release or\n"
+#~ "Refuse"
+#~ msgstr ""
+#~ "Auflegen oder\n"
+#~ "Abweisen"
+
+#~ msgid "%s. Retry after %i minute(s)."
+#~ msgstr "%s. In %i Minuten wieder versuchen."
+
+#~ msgid "Timeout..."
+#~ msgstr "Zeitüberschreitung..."
+
+#~ msgid "Connection"
+#~ msgstr "Verbindung"
+
+#, fuzzy
+#~ msgid ""
+#~ "Add address\n"
+#~ "book"
+#~ msgstr "Adressbuch"
+
+#~ msgid "Toggle this if you want to be registered on a remote server."
+#~ msgstr ""
+#~ "Bitte ankreuzen, wenn Sie auf einem Sip-Server registriert werden wollen."
+
+#~ msgid "Address of record:"
+#~ msgstr "Adresse des Eintrags:"
+
+#~ msgid ""
+#~ "The password used for registration. On some servers it is not necessary"
+#~ msgstr ""
+#~ "Passwort für die Registrierung.  Bei manchen Servern nicht erforderlich."
+
+#~ msgid "Use this registrar server as outbound proxy."
+#~ msgstr "Verwenden Sie diesen Registrarserver als externen proxy."
+
+#~ msgid "sip address:"
+#~ msgstr "SIP-Adresse:"
+
+#~ msgid "Modify"
+#~ msgstr "Ändern"
+
+#~ msgid "Registering..."
+#~ msgstr "Registrierung"
+
+#~ msgid ""
+#~ "You are currently using the i810_audio driver.\n"
+#~ "This driver is buggy and so does not work with Linphone.\n"
+#~ "We suggest that you replace it by its equivalent ALSA driver,\n"
+#~ "either with packages from your distribution, or by downloading\n"
+#~ "ALSA drivers at http://www.alsa-project.org."
+#~ msgstr ""
+#~ "Sie verwenden zur Zeit den i810_audio Treiber.\n"
+#~ "Diese Treiber ist fehlerhaft und funktioniert nicht mit Linphone\n"
+#~ "Wir empfehlen, den Treiber entweder durch das ALSA-Treiber-Paket von "
+#~ "ihrer Distribution\n"
+#~ "zu ersetzen oder die gewnschten ALSA-Treiber von http://www.alsa-project."
+#~ "org\n"
+#~ "zu beziehen und zu installieren"
+
+#~ msgid "Unregistration successfull."
+#~ msgstr "Abmeldung erfolgreich."
+
+#~ msgid "Select network interface to use:"
+#~ msgstr "Netzwerkschnittstelle wählen:"
+
+#~ msgid "Network interface properties"
+#~ msgstr "Eigenschaften der Netzwerkschnittstelle"
+
+#~ msgid "RTP"
+#~ msgstr "RTP"
+
+#~ msgid "C: 2001"
+#~ msgstr "April 2001"
+
+#~ msgid "Threads not supported by glib. Upgrade your glib.\n"
+#~ msgstr ""
+#~ "Threads werden von glib nicht unterstützt.  Bitte aktualisieren Sie Ihre "
+#~ "glib.\n"
+
+#~ msgid "Run linphone as a gnome-applet."
+#~ msgstr "Linphone als gnome-Applet ausfhren."
+
+#~ msgid "Run linphone as a daemon (for use without gnome)."
+#~ msgstr "Linphone als daemon ausführen (Verwendung ohne Gnome)."
+
+#~ msgid ""
+#~ "Cannot find network previously used interface %s.\n"
+#~ "If your computer is temporary connected to the internet, please connect "
+#~ "and then run linphone.\n"
+#~ "If you want to change your default network interface, go to the "
+#~ "parameters 'box."
+#~ msgstr ""
+#~ "Linphone konnte die zuvor verwendete Netzwerkschnittstelle %s nicht "
+#~ "finden.\n"
+#~ "Wenn linphone nur temporär am Internet angeschlossen ist, stellen Sie "
+#~ "eine Verbindung her und rufen Sie linphone erneut auf.\n"
+#~ "Wenn Sie die vorgegebene Netzwerkschnittstelle ändern wollen, wählen Sie "
+#~ "bitte \"Einstellungen\"."
+
+#~ msgid ""
+#~ "Linphone cannot open the audio device.\n"
+#~ "It may be caused by other programs using it.\n"
+#~ "Do you want linphone to kill these programs (esd or artsd) ?"
+#~ msgstr ""
+#~ "Linphone kann die Soundschnittstelle nicht öffnen.\n"
+#~ "Dies kann durch andere Applikationen verursacht sein.\n"
+#~ "Möchten sie diese Programme (esd oder artsd) beenden?"
+
+#~ msgid "label37"
+#~ msgstr "label37"
+
+#~ msgid "Use it as a:"
+#~ msgstr "Verwenden als:"
+
+#~ msgid "Outbound proxy"
+#~ msgstr "Ausgehender Proxy-Server"
+
+#~ msgid ""
+#~ "Toggle this button if the registrar must be used to proxy calls through a "
+#~ "firewall."
+#~ msgstr ""
+#~ "Verwenden Sie diesen Knopf, falls der Registrar zum Tunneln durch einen "
+#~ "Firewall verwendet werden muß"
+
+#~ msgid "kbit/s"
+#~ msgstr "Kbits/s"
+
+#~ msgid "OSS"
+#~ msgstr "OSS"
+
+#~ msgid "ALSA"
+#~ msgstr "ALSA"
+
+#~ msgid "Automatically kill applications using soundcard when needed"
+#~ msgstr "Applikationen die die Soundkarte verwenden, automatisch beenden."
+
+#~ msgid ""
+#~ "Your computer is connected to several networks. Check in the global "
+#~ "parameters if Linphone uses the one that you want."
+#~ msgstr ""
+#~ "Ihr Rechner ist an mehere Netze angeschlossen. Stellen Sie sicher, daß in "
+#~ "den Globalen Parametern die richtige Schnittstelle selektiert ist."
+
+#~ msgid ""
+#~ "Linphone failed to open the sound device. See the README file included in "
+#~ "the distribution for details."
+#~ msgstr ""
+#~ "Linphone konnte die Soundschnittstelle nicht öffnen. Weitere "
+#~ "Informationen finden Sie in der README-Datei (enthalten in der "
+#~ "Distribution)."
+
+#~ msgid "Interface not found."
+#~ msgstr "Schnittstelle nicht gefunden."
+
+#~ msgid "Warning"
+#~ msgstr "Warnung"
+
+#~ msgid ""
+#~ "Linphone cannot open the sound device. It may be caused by other programs "
+#~ "using it. Do you want linphone to kill these programs (esd or artsd) ?"
+#~ msgstr ""
+#~ "Linphone kann die Soundschnittstelle nicht öffnen. Dies kann durch andere "
+#~ "Applikationen verursacht sein. Möchten sie diese Programme (esd oder "
+#~ "artsd) beenden?"
+
+#~ msgid "Linphone shutdowns..."
+#~ msgstr "Linphone Ende..."
+
+#~ msgid ""
+#~ "Please, wait a few seconds untils linphone unregisters your sip addess "
+#~ "from registrar server..."
+#~ msgstr "Bitte einige Sekunden warten, bis Sip-Adresse ausgetragen ist."
+
+#~ msgid "Bad formuled sip address."
+#~ msgstr "SIP-Adresse fehlerhaft."
+
+#~ msgid "Couldn't create pixmap from file: %s"
+#~ msgstr "Konnte Pixmap nicht aus Datei %s erzeugen."
+
+#~ msgid ""
+#~ "Linphone did not detect any valid network interface. If you use a "
+#~ "temporary internet connection, please connect and then run linphone again."
+#~ msgstr ""
+#~ "Linphone konnte keine Netzwerkschnittstelle finden. Wenn Sie nur eine "
+#~ "temporäre Internetverbindung haben, bitte erneut eine Internetverbindung "
+#~ "herstellen und linphone nochmals starten."
+
+#~ msgid "List of network interfaces on your system."
+#~ msgstr "Vorhandene Netzwerkschnittstellen ihres Systems"

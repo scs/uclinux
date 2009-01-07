@@ -1,10 +1,10 @@
-VER = linphone-2.1.1
+VER = linphone-3.0.0
 
 CFLAGS += -fno-strict-aliasing -ffast-math -mfast-fp
 
 CONF_OPTS = \
 	--enable-portaudio=no \
-	--enable-gnome_ui=no \
+	--enable-gtk_ui=no \
 	--disable-manual \
 	--disable-strict \
 	--disable-glib \
