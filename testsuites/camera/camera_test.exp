@@ -22,6 +22,24 @@ step "Start testing"
 set case_num 0
 
 incr case_num
+set timeout 5
+send "modprobe videodev\r"
+while 1 {
+    expect {
+        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
+            case_fail $case_num
+        }
+        -re "Linux video capture interface.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
 set timeout 10
 send "modprobe blackfin-cam\r"
 while 1 {
