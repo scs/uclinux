@@ -36,7 +36,7 @@ dir_3_$(CONFIG_LIB_TREMOR)           += tremor
 dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
 
 dir_4_$(CONFIG_LIB_FREETYPE)         += freetype        # requires zlib(3)
-dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip       # requires ???
+dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip       # requires osip2(2)
 dir_4_$(CONFIG_LIB_LIBID3TAG)        += libid3tag       # requires ???
 dir_4_$(CONFIG_LIB_LIBXML2)          += libxml2         # requires readline(3) zlib(3)
 dir_4_$(CONFIG_LIB_MEDIASTREAMER)    += mediastreamer   # requires ortp(3)
