@@ -1,9 +1,10 @@
-VER = alsa-lib-1.0.12
+VER = alsa-lib-1.0.18
 
 CONF_OPTS = \
 	--with-softfloat \
 	--with-versioned=no \
 	--enable-static \
+	--disable-alisp \
 	$(CONFIGURE_SHARED_ENABLE)
 
 # install target is not parallel safe
