@@ -15,6 +15,8 @@ build/Makefile:
 		--enable-v4l \
 		--enable-static \
 		--enable-mostly-builtin \
+		--enable-alsa \
+		--enable-oss \
 		--disable-mad \
 		--disable-wxwidgets \
 		--disable-skins2 \
@@ -44,7 +46,6 @@ build/Makefile:
 		--disable-dts \
 		--disable-vorbis \
 		--disable-speex \
-		--disable-oss \
 		--disable-libxml2
 
 clean:
