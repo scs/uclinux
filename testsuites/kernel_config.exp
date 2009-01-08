@@ -30,7 +30,7 @@ set spi_board_type normal
 set kernel_only_image   vmlinux
 set compressed_kernel_only_image  vmImage
 
-set boot_image linux
+set boot_image uImage
 set kernel_and_ext2_image   linux.ext2
 set kernel_and_cramfs_image linux.cramfs
 set kernel_and_romfs_image  linux.romfs

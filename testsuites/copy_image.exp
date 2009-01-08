@@ -2,7 +2,7 @@
 
 set timeout 8
 cd $uclinux_path
-catch {exec cp images/linux  /tftpboot}
+catch {exec cp images/$boot_image  /tftpboot}
 
 if { $HAVE_JFFS2_IMAGE == "1" } {
     catch {exec cp images/$compressed_kernel_only_image  /tftpboot}
@@ -16,7 +16,4 @@ if { $HAVE_KERNEL_ONLY_IMAGE == "1" } {
 if { $HAVE_ROMFS_IMAGE == "1" } {
     exec cp images/$kernel_and_romfs_image /tftpboot
     exec rm -fr /tftpboot/linux
-}
-if { $boot_image == "uImage" } {
-    exec cp images/$boot_image /tftpboot
 }

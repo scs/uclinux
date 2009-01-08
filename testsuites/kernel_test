@@ -2,7 +2,7 @@
 ########################################################################################################################
 ######### To run this script, please first set following uboot varibles properly on your target board  #################
 ######### set  bootcmd   run tftpboot                                                                  #################
-######### set  tftpboot  'tftp 0x1000000 linux;bootelf'                                                #################
+######### set  tftpboot  'tftp 0x1000000 linux;bootelf'(or 'tftp 0x1000000 uImage;bootm')              #################
 ######### set  ipaddr    10.100.4.50  (set your board ip here)                                         #################
 ######### set  serverip  10.100.4.174 (set your server ip here)                                        #################
 ########################################################################################################################
@@ -402,11 +402,11 @@ if [ $BUILD_POLICY -eq 1  ] ; then
   cd $UCLINUX_DIST_TESTSUITES/policy
   ./build_policy_kernel.exp  $BOARD_TYPE $CPU $REVISION $UCLINUX_DIST_PATH $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $SMP $MPU >/dev/null  2>&1
     
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.policy
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.policy
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.policy
   cp $UCLINUX_DIST_TESTSUITES/policy/build_policy_kernel_log  $THIS_LOG
   
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ] ; then
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ] ; then
   echo  "Linux image fails to be generated.Error!"
   tail -50  ./build_policy_kernel_log
   exit
@@ -479,7 +479,7 @@ do
   else
   ./build_${AUTO_TESTCASE[$i]}_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   fi
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ] && [ ${AUTO_TESTCASE[$i]} != "gpio" ] && [ ${AUTO_TESTCASE[$i]} != "jffs2" ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ] && [ ${AUTO_TESTCASE[$i]} != "gpio" ] && [ ${AUTO_TESTCASE[$i]} != "jffs2" ]
   then
 	echo "$0:   Error, failed."
 	tail -50 ./build_${AUTO_TESTCASE[$i]}_kernel_log
@@ -500,7 +500,7 @@ do
   
   fi
   
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.${AUTO_TESTCASE[$i]}
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.${AUTO_TESTCASE[$i]}
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.${AUTO_TESTCASE[$i]}  
   
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
@@ -594,21 +594,21 @@ do
   sleep 30
   ./timer_tick_test.exp 100 >/dev/null  2>&1
   
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.timer100 
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.timer100 
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.timer100
   
   ./build_timer_kernel.exp $BOARD_TYPE  250  >/dev/null  2>&1
   sleep 30
   ./timer_tick_test.exp 250 >/dev/null  2>&1
   
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.timer250
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.timer250
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.timer250
     
   ./build_timer_kernel.exp $BOARD_TYPE  1000  >/dev/null  2>&1
   sleep 30
   ./timer_tick_test.exp 1000 >/dev/null  2>&1
   
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.timer1000
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.timer1000
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.timer1000
   cp $UCLINUX_DIST_TESTSUITES/timer/*_log $THIS_LOG
   
@@ -623,49 +623,13 @@ do
 
   fi
 
-
-  #############################################################################################
-  ########################## TEST VIDEO CAPTURE ###############################################
-  if [ ${AUTO_RUN_STATUS[$(( n + 7 ))]} -eq 1  ] ; then
-
-  echo  "Testing video capture driver..."
-
-  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
-  cd $UCLINUX_DIST_PATH/
-  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
-  cp $UCLINUX_DIST_PATH_BAK/config/.config config
-  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
-  rm -rf romfs/ images/
-
-
-  cd $UCLINUX_DIST_TESTSUITES/camera
   if [ $BOARD_TYPE == "BF561-EZKIT" ] || [ $BOARD_TYPE == "BF533-EZKIT" ] ; then
-      ./build_camera_kernel.exp $BOARD_TYPE ADV7183 >/dev/null 2>&1
-  else
-      ./build_camera_kernel.exp $BOARD_TYPE VS6624 >/dev/null 2>&1
-  fi
-
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
-  then
-      echo "$0:   Error, failed."
-      tail -50 ./build_camera_kernel_log
-  else
-      sleep 30
-      if [ $BOARD_TYPE == "BF561-EZKIT" ] || [ $BOARD_TYPE == "BF533-EZKIT" ] ; then
-          ./adv7183_test.exp >/dev/null  2>&1
-      else
-          ./camera_test.exp >/dev/null  2>&1
-      fi
-  fi
-
-
-  if [ $BOARD_TYPE == "BF561-EZKIT" ] || [ $BOARD_TYPE == "BF533-EZKIT" ] ; then
-      cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.camera_adv7183
+      cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.camera_adv7183
       cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.camera_adv7183
       cp $UCLINUX_DIST_TESTSUITES/video/build_camera_kernel_log $THIS_LOG
       cp $UCLINUX_DIST_TESTSUITES/video/camera_test_log $THIS_LOG/camera_adv7183_test_log
   else
-      cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.camera_vs6624
+      cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.camera_vs6624
       cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.camera_vs6624
       cp $UCLINUX_DIST_TESTSUITES/video/build_camera_kernel_log $THIS_LOG
       cp $UCLINUX_DIST_TESTSUITES/video/camera_test_log $THIS_LOG/camera_vs6624_test_log
@@ -704,7 +668,7 @@ do
   ./build_video_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_video_kernel_log
@@ -714,7 +678,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.adv7393
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.adv7393
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.adv7393
   cp $UCLINUX_DIST_TESTSUITES/video/build_video_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/video/adv7393_test_log $THIS_LOG/video_adv7393_test_log
@@ -747,7 +711,7 @@ do
   ./build_tftlcd_LQ043_kernel.exp $BOARD_TYPE >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_tftlcd_LQ043_kernel_log
@@ -757,7 +721,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.tftlcd
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_LQ043_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_lq043_test_log $THIS_LOG
@@ -788,7 +752,7 @@ do
   ./build_tftlcd_landscape_kernel.exp $BOARD_TYPE >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_tftlcd_landscape_kernel_log
@@ -798,7 +762,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.landscape
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.tftlcd.landscape
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.landscape
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_landscape_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_lq035_test_log $THIS_LOG/tftlcd_lq035_landscape_test_log
@@ -824,7 +788,7 @@ do
   ./build_tftlcd_portrait_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_tftlcd_portrait_kernel_log
@@ -834,7 +798,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.portrait
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.tftlcd.portrait
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.portrait
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_portrait_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_lq035_test_log $THIS_LOG/tftlcd_lq035_portrait_test_log
@@ -869,7 +833,7 @@ do
   ./build_audio_kernel.exp $BOARD_TYPE audio_ad1836 >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_audio_ad1836_kernel_log
@@ -884,7 +848,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.audio_ad1836
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.audio_ad1836
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.audio_ad1836
   cp $UCLINUX_DIST_TESTSUITES/audio/build_audio_ad1836_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_ad1836_test_log
@@ -924,7 +888,7 @@ do
   ./build_audio_kernel.exp $BOARD_TYPE audio_ad73311 >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_audio_ad73311_kernel_log
@@ -937,7 +901,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.audio_ad73311
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.audio_ad73311
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.audio_ad73311
   cp $UCLINUX_DIST_TESTSUITES/audio/build_audio_ad73311_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_ad73311_test_log
@@ -976,7 +940,7 @@ do
   ./build_audio_kernel.exp $BOARD_TYPE audio_ad1981b >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_audio_ad1981b_kernel_log
@@ -989,7 +953,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.audio_ad1981b
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.audio_ad1981b
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.audio_ad1981b
   cp $UCLINUX_DIST_TESTSUITES/audio/build_audio_ad1981b_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_ad1981b_test_log
@@ -1029,7 +993,7 @@ do
   ./build_audio_kernel.exp $BOARD_TYPE audio_ad1980 >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_audio_ad1980_kernel_log
@@ -1042,7 +1006,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.audio_ad1980
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.audio_ad1980
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.audio_ad1980
   cp $UCLINUX_DIST_TESTSUITES/audio/build_audio_ad1980_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_ad1980_test_log
@@ -1083,7 +1047,7 @@ do
   ./build_audio_kernel.exp $BOARD_TYPE audio_ad73322 >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_audio_ad73322_kernel_log
@@ -1096,7 +1060,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.audio_ad73322
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.audio_ad73322
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.audio_ad73322
   cp $UCLINUX_DIST_TESTSUITES/audio/build_audio_ad73322_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/ad73322_test_log $THIS_LOG
@@ -1136,7 +1100,7 @@ do
   ./build_audio_kernel.exp $BOARD_TYPE audio_ssm2602 >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_audio_ssm2602_kernel_log
@@ -1149,7 +1113,7 @@ do
   fi
 
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.audio_ssm2602
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.audio_ssm2602
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.audio_ssm2602
   cp $UCLINUX_DIST_TESTSUITES/audio/build_audio_ssm2602_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_ssm2602_test_log
@@ -1212,7 +1176,7 @@ do
   sleep 30
   ./snormtd_test.exp $BOARD_TYPE >/dev/null  2>&1
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.snormtd_mount
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.snormtd_mount
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.snormtd_mount  
   cp $UCLINUX_DIST_TESTSUITES/snormtd/*_log $THIS_LOG  
   
@@ -1268,7 +1232,7 @@ do
   sleep 30
   ./snormtd_test.exp $BOARD_TYPE df >/dev/null  2>&1
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.snormtd_mount_df
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.snormtd_mount_df
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.snormtd_mount_df  
   cp $UCLINUX_DIST_TESTSUITES/snormtd/*_log $THIS_LOG
   
@@ -1302,7 +1266,7 @@ do
   ./build_power_kernel.exp $BOARD_TYPE >/dev/null  2>&1
   sleep 30
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
 	echo "$0:   Error, failed."
         tail -50 ./build_power_kernel_log
@@ -1416,7 +1380,7 @@ do
 
   fi
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.power
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.power
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.power
   cp $UCLINUX_DIST_TESTSUITES/power/*_log $THIS_LOG
 
@@ -1461,7 +1425,7 @@ do
   cd $UCLINUX_DIST_TESTSUITES/qt
   ./build_qt_kernel.exp $BOARD_TYPE 1 >/dev/null  2>&1
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_qt_kernel_log
@@ -1476,7 +1440,7 @@ do
       fi
   fi
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.qt.flat
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.qt.flat
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.qt.flat
   mv $UCLINUX_DIST_TESTSUITES/qt/build_qt_kernel_log $THIS_LOG/build_qt_flat_kernel_log
 
@@ -1487,7 +1451,7 @@ do
   cd $UCLINUX_DIST_TESTSUITES/qt
   ./build_qt_kernel.exp $BOARD_TYPE 2 >/dev/null  2>&1
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_qt_kernel_log
@@ -1502,7 +1466,7 @@ do
       fi
   fi
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.qt.fdpic
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.qt.fdpic
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.qt.fdpic
   mv $UCLINUX_DIST_TESTSUITES/qt/build_qt_kernel_log $THIS_LOG/build_qt_fdpic_kernel_log
 
@@ -1539,7 +1503,7 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/xip
   ./build_xip_kernel.exp $BOARD_TYPE fdpic >/dev/null  2>&1
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux.romfs ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage.romfs ]
   then
 	echo "$0:   Error, failed."
 	tail -50 ./build_xip_kernel_log
@@ -1548,13 +1512,13 @@ do
         ./xip_test.exp $BOARD_TYPE FDPIC >/dev/null  2>&1
   fi
 
-  cp $UCLINUX_DIST_PATH/images/linux.romfs $THIS_LOG/linux.romfs.xip.fdpic
+  cp $UCLINUX_DIST_PATH/images/uImage.romfs $THIS_LOG/uImage.romfs.xip.fdpic
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.xip.fdpic
   mv $UCLINUX_DIST_TESTSUITES/xip/build_xip_kernel_log $THIS_LOG/build_xip_fdpic_kernel_log
   mv $UCLINUX_DIST_TESTSUITES/xip/xip_test_log $THIS_LOG/xip_fdpic_test_log
 
   #make sure kernel can boot up before next xip test
-  cp $THIS_LOG/linux.policy /tftpboot/linux
+  cp $THIS_LOG/uImage.policy /tftpboot/linux
 
   sleep 30
 
@@ -1571,7 +1535,7 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/xip
   ./build_xip_kernel.exp $BOARD_TYPE shared-flat >/dev/null  2>&1
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux.romfs ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage.romfs ]
   then
 	echo "$0:   Error, failed."
 	tail -50 ./build_xip_kernel_log
@@ -1580,7 +1544,7 @@ do
         ./xip_test.exp $BOARD_TYPE SHARED-FLAT >/dev/null  2>&1
   fi
 
-  cp $UCLINUX_DIST_PATH/images/linux.romfs $THIS_LOG/linux.romfs.xip.shared-flat
+  cp $UCLINUX_DIST_PATH/images/uImage.romfs $THIS_LOG/uImage.romfs.xip.shared-flat
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.xip.shared-flat
   mv $UCLINUX_DIST_TESTSUITES/xip/build_xip_kernel_log $THIS_LOG/build_xip_shared-flat_kernel_log
   mv $UCLINUX_DIST_TESTSUITES/xip/xip_test_log $THIS_LOG/xip_shared-flat_test_log
@@ -1647,7 +1611,7 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
       echo "LTP Test ............[PASS]" >> ltp_test_log
     fi
   
-    cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ltp_${ltp_suf[i]}
+    cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.ltp_${ltp_suf[i]}
     echo "ltp copy linux.ltp done"
     cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ltp_${ltp_suf[i]}
     echo "ltp copy config.ltp done"
@@ -1703,7 +1667,7 @@ fi
   sleep 30
   ./coreb_test.exp >/dev/null  2>&1
   
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.coreb 
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.coreb 
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.coreb
   
   cp $UCLINUX_DIST_TESTSUITES/coreb/build_coreb_kernel_log $THIS_LOG
@@ -1737,7 +1701,7 @@ fi
   sleep 30
   ./serial_uart_test.exp $BOARD_TYPE >/dev/null  2>&1
   
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.serial_uart
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.serial_uart
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.serial_uart
   cp $UCLINUX_DIST_TESTSUITES/serial/build_serial_uart_kernel_log  $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/serial/serial_uart_test_log $THIS_LOG/
@@ -1770,7 +1734,7 @@ fi
   ./build_usbdev_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
 
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
       echo "$0:   Error, failed."
       tail -50 ./build_usbdev_kernel_log
@@ -1848,7 +1812,7 @@ fi
 
   fi
 
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.usbdev
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.usbdev
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.usbdev
   cp $UCLINUX_DIST_TESTSUITES/usbdev/*_log $THIS_LOG
 
@@ -1903,13 +1867,13 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
   ./build_${MANUAL_TESTCASE[$i]}_kernel.exp $BOARD_TYPE  >/dev/null  2>&1  
   fi
 
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
         echo "$0:       Error, failed."
 	tail -50 ./build_${MANUAL_TESTCASE[$i]}_kernel_log
   fi
   
-  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.${MANUAL_TESTCASE[$i]}
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.${MANUAL_TESTCASE[$i]}
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.${MANUAL_TESTCASE[$i]}
   
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
