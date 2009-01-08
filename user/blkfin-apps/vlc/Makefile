@@ -1,4 +1,5 @@
 VER = vlc-0.8.6b
+USE_ENABLE = $(shell test "$(CONFIG_$(1))" = "y" && echo "--enable-$(2)" || echo "--disable-$(2)")
 
 all: build/Makefile
 	$(MAKE) -C build install DESTDIR=$$PWD/DESTDIR
@@ -15,9 +16,9 @@ build/Makefile:
 		--enable-v4l \
 		--enable-static \
 		--enable-mostly-builtin \
-		--enable-alsa \
-		--enable-oss \
-		--disable-mad \
+		$(call USE_ENABLE,LIB_ALSA_LIB,alsa) \
+		$(call USE_ENABLE,SOUND_OSS_CORE,oss) \
+		$(call USE_ENABLE,LIB_LIBMAD,mad) \
 		--disable-wxwidgets \
 		--disable-skins2 \
 		--disable-mozilla \
@@ -41,12 +42,13 @@ build/Makefile:
 		--disable-vcd \
 		--disable-mkv \
 		--disable-mod \
-		--disable-sdl \
+		$(call USE_ENABLE,LIB_LIBSDL,sdl) \
 		--disable-a52 \
 		--disable-dts \
 		--disable-vorbis \
-		--disable-speex \
-		--disable-libxml2
+		$(call USE_ENABLE,LIB_SPEEX,speex) \
+		--disable-libxml2 \
+		$(call USE_ENABLE,FB,fb)
 
 clean:
 	rm -rf build DESTDIR
