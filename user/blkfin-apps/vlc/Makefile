@@ -1,5 +1,5 @@
 VER = vlc-0.8.6b
-USE_ENABLE = $(shell test "$(CONFIG_$(1))" = "y" && echo "--enable-$(2)" || echo "--disable-$(2)")
+USE_ENABLE = $(shell test "$(CONFIG_$(1))" = "y" -o "$(CONFIG_$(1))" = "m" && echo "--enable-$(2)" || echo "--disable-$(2)")
 
 all: build/Makefile
 	$(MAKE) -C build install DESTDIR=$$PWD/DESTDIR
