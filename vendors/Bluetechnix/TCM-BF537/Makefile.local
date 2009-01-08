@@ -1,0 +1,3 @@
+CONFIG_INSTALL_ELF_TRIM_LIBS = y
+image::
+	cp $(IMAGEDIR)/uImage /tftpboot/
