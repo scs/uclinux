@@ -1404,15 +1404,6 @@ do
  if [ ${AUTO_RUN_STATUS[$(( n + 13 ))]} -eq 1  ] ; then
   echo  "Testing qt..."
 
-  echo  "Build qt source..."
-  cd $UCLINUX_DIST_TESTSUITES/qt
-  ./qt_source_test.exp >/dev/null  2>&1
-  if [ ! -f qt_source_test_log ] || [ `grep -c "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" qt_source_test_log` -gt 0 ] ; then
-      echo "$0:   Error, fail."
-      tail -50 ./qt_source_test_log
-  fi
-  mv $UCLINUX_DIST_TESTSUITES/qt/qt_source_test_log $THIS_LOG
-
   rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
   cd $UCLINUX_DIST_PATH/
   cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
@@ -1443,6 +1434,7 @@ do
   cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.qt.flat
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.qt.flat
   mv $UCLINUX_DIST_TESTSUITES/qt/build_qt_kernel_log $THIS_LOG/build_qt_flat_kernel_log
+  cp $UCLINUX_DIST_TESTSUITES/qt/qt_sample $THIS_LOG/qt_sample.flat
 
   #Build QT kernel and konqueror source of FDPIC
   cd $UCLINUX_DIST_PATH/
@@ -1469,6 +1461,7 @@ do
   cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.qt.fdpic
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.qt.fdpic
   mv $UCLINUX_DIST_TESTSUITES/qt/build_qt_kernel_log $THIS_LOG/build_qt_fdpic_kernel_log
+  cp $UCLINUX_DIST_TESTSUITES/qt/qt_sample $THIS_LOG/qt_sample.fdpic
 
   cp $UCLINUX_DIST_TESTSUITES/qt/qt_test_log $THIS_LOG
   cd $UCLINUX_DIST_PATH/

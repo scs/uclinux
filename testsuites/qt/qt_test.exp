@@ -40,10 +40,24 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 set case_num 0
+set timeout 10
 
-sleep 5
-send "\r"
-expect ">"
+send "ifconfig eth0 $targetip\r"
+expect -re $kernel_prompt
+
+send_user "cp $uclinux_path/staging/usr/qt/examples/widgets/calendarwidget/calendarwidget ./qt_sample\n"
+if [ catch {exec cp $uclinux_path/staging/usr/qt/examples/widgets/calendarwidget/calendarwidget ./qt_sample} ] {
+    send_user "FAIL: no qt sample\n"
+    case_fail $case_num
+}
+
+send_user "rcp ./qt_sample root@$targetip:/bin\n"
+if [ catch {exec rcp ./qt_sample root@$targetip:/bin} ] {
+    send_user "FAIL: rcp qt sample to target board\n"
+    case_fail $case_num
+} else {
+    send_user "PASS: rcp qt sample to target board\n"
+}
 
 #incr case_num
 #set timeout 30
@@ -91,24 +105,29 @@ while 1 {
     }
 }
 
-send "export QTDIR=/usr/local/qt-embedded/\r"
-expect  -re $kernel_prompt
-
 incr case_num
 set timeout 30
-send "./drawlines -qws\r"
-sleep 1
+send "qt_sample -qws\r"
 while 1 {
     expect {
-        -re "Creating mouse: Auto" {
-            sleep 20
-            send -s "\3"
-            expect ">"
+        -re "\r\n\[a-zA-Z0-9]" {
+            case_fail $case_num
+        }
+        timeout {
             case_pass $case_num
             break
         }
-        -re $kernel_prompt {
-            case_fail $case_num
+    }
+}
+
+set timeout 10
+incr case_num
+send -s "\3"
+while 1 {
+    expect {
+         -re $kernel_prompt {
+            case_pass $case_num
+            break
         }
         timeout {
             case_fail $case_num

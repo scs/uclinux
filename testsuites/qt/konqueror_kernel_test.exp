@@ -37,7 +37,7 @@ exec tar xvfj $konq_tarball
 
 #set environment parametre and patch resource
 set KON_WORK_PATH "$KON_PATH.$build_type"
-set QT_WORK_PATH  "$QT_PATH.$build_type"
+set QT_WORK_PATH  "$uclinux_path/lib/qt-embedded/build-qt-embedded-linux-opensource-src-4.4.3"
 
 spawn /bin/bash
 send "cd $KON_PATH\r"
