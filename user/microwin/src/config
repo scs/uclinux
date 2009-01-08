@@ -182,7 +182,7 @@ FREETYPE_FONT_DIR        = "/usr/fonts/truetype"
 ####################################################################
 HAVE_FREETYPE_2_SUPPORT  = Y
 INCFT2LIB                = $(STAGEDIR)/usr/include
-LIBFT2LIB                = $(STAGEDIR)/usr/lib/libfreetype.so $(STAGEDIR)/usr/lib/libz.so
+LIBFT2LIB                = -lfreetype -lz
 
 ####################################################################
 # PCF font support 

@@ -194,7 +194,7 @@ $(error Having both FreeType 1 and FreeType 2 support is not allowed.)
 endif
 DEFINES += -DHAVE_FREETYPE_2_SUPPORT=1
 DEFINES += -DFREETYPE_FONT_DIR=\"$(FREETYPE_FONT_DIR)\"
-MW_CORE_LIBS += $(LIBFT2LIB)
+LDLIBS += $(LIBFT2LIB)
 # GCC 3.2 complains if system directories (e.g. /usr/include) are
 # specified with "-I".  For most INCxxx, we simply allow the
 # value to be set to empty to mean "no -I required".

@@ -48,7 +48,7 @@ CCMWINLIBS = -lmwobjects -lmwin -lmwimages -lm
 
 $(MW_DIR_BIN)/mwo-test: $(MW_DIR_OBJ)/demos/mwobjects/mwo-test.o
 	@echo "Linking $(patsubst $(MW_DIR_BIN)/%,%,$@) ..."
-	$(CXX) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(CCMWINLIBS)
+	$(CXX) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(CCMWINLIBS) $(LDLIBS)
 
 
 endif
