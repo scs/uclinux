@@ -1,8 +1,16 @@
+
+
 #include <bfin_sram.h>
+#include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include <sys/wait.h>
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*arr))
 
 static inline void show_diff(int first, int last)
 {
@@ -223,17 +231,64 @@ int has_l2(void)
 	return WEXITSTATUS(system("grep -qs '^L2 SRAM[[:space:]]*:[[:space:]]*[1-9]' /proc/cpuinfo")) == 0;
 }
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*arr))
+/*
+ * Setup some "background noise" and really stress the hell out of the DMA
+ * memcpy code.  We do this by forking off a bunch of children and each child
+ * continuously does small random memcpy's over and over.  If the kernel
+ * locking is safe, then there should be no problem processing all these
+ * small children as well as the large buffers the main test does.
+ */
+pid_t children[20];
+void maybe_run_child(int argc, char *argv[])
+{
+	if (argc != 2 || strcmp(argv[1], "child"))
+		return;
+
+	srandom(time(0));
+	while (1) {
+		char src[256], dst[256];
+		dma_memcpy(src, dst, random() % 256);
+	}
+}
+bool spawn_children(int argc, char *argv[])
+{
+	size_t i;
+
+	maybe_run_child(argc, argv);
+
+	for (i = 0; i < ARRAY_SIZE(children); ++i) {
+		children[i] = vfork();
+		if (children[i] < 0) {
+			perror("vfork() failed");
+			return false;
+		} else if (!children[i]) {
+			execlp(argv[0], argv[0], "child", NULL);
+			perror("execlp() failed");
+			return false;
+		}
+	}
+	return true;
+}
+void kill_children(void)
+{
+	size_t i;
+	for (i = 0; i < ARRAY_SIZE(children); ++i)
+		kill(children[i], SIGKILL);
+}
+
 #define TEST_RANGE(range, func, args...) \
 	for (i = 0; i < ARRAY_SIZE(range##_range); ++i) \
 		ret += func(range##_range[i], ## args)
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	int ret = 0, i;
 	int sml_range[] = { 4, 0x10, 0x1000 };
 	int mid_range[] = { 4, 0x10, 0x1000, 0x10000, 0x12340 };
 	int lrg_range[] = { 4, 0x10, 0x1000, 0x10000, 0x12340, 0x22340, 0x32340, 0x42340, 0x54320, 0x323450 };
+
+	if (!spawn_children(argc, argv))
+		return -1;
 
 	TEST_RANGE(sml, sram_test, "L1 INST", L1_INST_SRAM);
 	TEST_RANGE(sml, sram_test, "L1 DATA", L1_DATA_SRAM);
@@ -245,6 +300,8 @@ int main(void)
 		printf("SUMMARY: %i tests failed\n", ret);
 	else
 		printf("SUMMARY: all tests passed\n");
+
+	kill_children();
 
 	return ret;
 }
