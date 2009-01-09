@@ -5,6 +5,8 @@
 ## http://www.via.ecp.fr/via/ml/vlc-devel/2006-08/msg00260.html
 ## Status: awaiting comment/commit
 
+http://mailman.videolan.org/pipermail/vlc-devel/2009-January/054586.html
+
 --- vlc-0.8.5/modules/codec/rawvideo.c
 +++ vlc-0.8.5/modules/codec/rawvideo.c
 @@ -101,6 +101,8 @@ static int OpenDecoder( vlc_object_t *p_
@@ -16,6 +18,9 @@
          /* RGB */
          case VLC_FOURCC('R','V','3','2'):
          case VLC_FOURCC('R','V','2','4'):
+
+http://mailman.videolan.org/pipermail/vlc-devel/2009-January/054586.html
+
 --- vlc-0.8.5/modules/video_filter/blend.c
 +++ vlc-0.8.5/modules/video_filter/blend.c
 @@ -142,7 +142,8 @@ static void Blend( filter_t *p_filter, p
@@ -28,6 +33,9 @@
      {
          BlendYUVPacked( p_filter, p_dst, p_dst_orig, p_src,
                     i_x_offset, i_y_offset, i_width, i_height, i_alpha );
+
+the changes for this file is in upstream now
+
 --- vlc-0.8.5/src/video_output/vout_pictures.c
 +++ vlc-0.8.5/src/video_output/vout_pictures.c
 @@ -590,6 +590,7 @@ void vout_InitFormat( video_frame_format

@@ -1,6 +1,8 @@
 needs to be rewritten to try MAP_SHARED and if that fails with ENODEV, fall
 back to trying MAP_PRIVATE.
 
+http://mailman.videolan.org/pipermail/vlc-devel/2009-January/054587.html
+
 --- vlc-0.8.5/modules/access/v4l/v4l.c
 +++ vlc-0.8.5/modules/access/v4l/v4l.c
 @@ -1245,7 +1245,7 @@ static int OpenVideoDev( demux_t *p_demu

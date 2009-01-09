@@ -2,6 +2,10 @@ the way vlc handles symbol prefixes is just braindead ... need to reawrite
 m4/vlc.m4:[VLC_SYMBOL_PREFIX] so that it respects __USER_LABEL_PREFIX__ from
 gcc like alsa-lib does.
 
+upstream has changed code to do:
+modules/common.am:      -export-symbol-regex ^vlc_entry \
+which means now it's up to libtool to get the prefix right
+
 --- vlc-0.8.5/configure
 +++ vlc-0.8.5/configure
 @@ -25275,6 +25275,11 @@
