@@ -1,6 +1,8 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
+source ../board_info.exp
+
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
@@ -17,6 +19,12 @@ step "Reboot the kernel."
 # set bootargs 	$bootargs_param0   
 source ../reboot_kernel.exp 
 
+if { $board_type == "BF533-STAMP" } {
+   set std_clock 398
+} else {
+   set std_clock 500 
+}
+
 step "Start testing."
 
 set timeout 5
@@ -24,7 +32,6 @@ set timeout 5
 set case_num 0
 incr case_num
 
-set timeout 5
 
 send -s  "dmesg\r"
 while 1 {
@@ -43,7 +50,7 @@ while 1 {
     }
 }
 
-if { $core_clock >= 500 } {
+if { $core_clock >= $std_clock } {
     send "cd /usr/bin\r"
     while 1 {
         expect {
@@ -77,10 +84,19 @@ if { $core_clock >= 500 } {
     send -s  "cat /proc/cpuinfo\r"
     while 1 {
         expect {
-            -re "cpu MHz\[\x20\t]+: $core_clock\.000" {
-                expect  -re "$kernel_prompt"
-                case_pass $case_num
-                break
+            -re "cpu MHz\[\x20\t]+: (\[0-9]+\.\[0-9]{3}).*/" {
+                set exact_core_clock $expect_out(1,string)
+                      
+                             if { 0 <= [expr $exact_core_clock - $core_clock] && [expr $exact_core_clock - $core_clock] < 1 } {
+                                    case_pass $case_num
+                                    puts "\n exact_core_clock $exact_core_clock\n"
+                                    send_user "\ncat cpuinfo case pass!\n"
+                                    expect  -re "$kernel_prompt"
+                                    break
+                                } else {
+                                    case_fail $case_num
+                                }
+
             }
             timeout {
                 case_fail $case_num
@@ -112,7 +128,8 @@ if { $core_clock >= 500 } {
     send -s  "cat /proc/cpuinfo\r"
     while 1 {
         expect {
-            -re "cpu MHz\[\x20\t]+: $new_core_clock" {
+            -re "cpu MHz\[\x20\t]+: (\[0-9]+\.\[0-9]{3}).*/" {
+                set exact_new_core_clock $expect_out(1,string)
                 expect  -re "$kernel_prompt"
                     case_pass $case_num
                     break
@@ -163,7 +180,7 @@ incr case_num
 send -s  "cat stats/*\r"
 while 1 {
     expect {
-        -re "$core_clock_inK.*$new_core_clock_inK" {
+        -re "$core_clock.*$new_core_clock" {
             expect  -re "$kernel_prompt"
             case_pass $case_num
             break
