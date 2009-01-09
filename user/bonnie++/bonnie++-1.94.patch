@@ -1,0 +1,89 @@
+diff -Nurp --exclude='*svn*' bonnie++-1.94/bon_csv2html.cpp bonnie++-1.94.new/bon_csv2html.cpp
+--- bonnie++-1.94/bon_csv2html.cpp	2002-11-14 06:22:02.000000000 +0800
++++ bonnie++-1.94.new/bon_csv2html.cpp	2008-12-30 11:42:44.000000000 +0800
+@@ -1,5 +1,6 @@
+ #include "bonnie.h"
+ #include <stdio.h>
++#include <cstdlib>
+ #include <vector>
+ #include <string.h>
+ #include <math.h>
+diff -Nurp --exclude='*svn*' bonnie++-1.94/configure bonnie++-1.94.new/configure
+--- bonnie++-1.94/configure	2008-08-19 14:38:28.000000000 +0800
++++ bonnie++-1.94.new/configure	2008-12-30 11:42:44.000000000 +0800
+@@ -4368,11 +4368,7 @@ rm -f core conftest.err conftest.$ac_obj
+ 
+ 
+ if test "$cross_compiling" = yes; then
+-  { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+-See \`config.log' for more details." >&5
+-echo "$as_me: error: cannot run test program while cross compiling
+-See \`config.log' for more details." >&2;}
+-   { (exit 1); exit 1; }; }
++  large_file="yes"
+ else
+   cat >conftest.$ac_ext <<_ACEOF
+ /* confdefs.h.  */
+diff -Nurp --exclude='*svn*' bonnie++-1.94/getc_putc.cpp bonnie++-1.94.new/getc_putc.cpp
+--- bonnie++-1.94/getc_putc.cpp	2008-07-23 08:49:47.000000000 +0800
++++ bonnie++-1.94.new/getc_putc.cpp	2008-12-30 11:42:44.000000000 +0800
+@@ -13,10 +13,24 @@
+ #include <sys/stat.h>
+ #include <fcntl.h>
+ #include <vector>
++#include <cstring>
+ 
+ #include "duration.h"
+ #include "getc_putc.h"
+ 
++#ifndef HAVE_MIN_MAX
++#if defined(HAVE_ALGO_H) || defined(HAVE_ALGO)
++#ifdef HAVE_ALGO
++#include <algo>
++#else
++#include <algo.h>
++#endif
++#else
++#define min(XX,YY) ((XX) < (YY) ? (XX) : (YY))
++#define max(XX,YY) ((XX) > (YY) ? (XX) : (YY))
++#endif
++#endif
++
+ static void usage()
+ {
+   fprintf(stderr, "usage:\n"
+diff -Nurp --exclude='*svn*' bonnie++-1.94/getc_putc_helper.cpp bonnie++-1.94.new/getc_putc_helper.cpp
+--- bonnie++-1.94/getc_putc_helper.cpp	2001-12-09 22:49:57.000000000 +0800
++++ bonnie++-1.94.new/getc_putc_helper.cpp	2008-12-30 11:42:44.000000000 +0800
+@@ -9,6 +9,7 @@
+ #include <fcntl.h>
+ #include "duration.h"
+ #include <vector>
++#include <cstring>
+ #include "getc_putc.h"
+ 
+ int main(int argc, char *argv[])
+diff -Nurp --exclude='*svn*' bonnie++-1.94/Makefile.in bonnie++-1.94.new/Makefile.in
+--- bonnie++-1.94/Makefile.in	2003-01-08 14:40:11.000000000 +0800
++++ bonnie++-1.94.new/Makefile.in	2008-12-30 11:42:44.000000000 +0800
+@@ -71,8 +71,8 @@ clean:
+ 	rm -f debian/{substvars,files} config.log depends.bak
+ 
+ realclean: clean
+-	rm -f config.* Makefile bonnie++.spec port-unix.h
+-	rm -f bon_csv2txt bon_csv2html.1 sun/pkginfo
++	rm -f config.* Makefile bonnie++.spec port-unix.h conf.h configure.lineno
++	rm -f bon_csv2txt bon_csv2html.1 sun/pkginfo bonnie.h
+ 
+ dep:
+ 	makedepend -Y -f depends *.cpp 2> /dev/null
+diff -Nurp --exclude='*svn*' bonnie++-1.94/zcav.cpp bonnie++-1.94.new/zcav.cpp
+--- bonnie++-1.94/zcav.cpp	2008-08-19 14:55:37.000000000 +0800
++++ bonnie++-1.94.new/zcav.cpp	2008-12-30 11:42:44.000000000 +0800
+@@ -1,4 +1,6 @@
+ #include "port.h"
++#include <cstdlib>
++#include <cstring>
+ #ifndef WIN32
+ #include <unistd.h>
+ #endif
