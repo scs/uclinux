@@ -45,7 +45,7 @@ while 1 {
 }
 
 set timeout 30
-send -s "tftpboot 0x1000000 linux\r"
+send -s "tftpboot 0x1000000 $boot_image\r"
 while 1 {
    expect {
       "TFTP" {
@@ -60,8 +60,14 @@ while 1 {
    }
 }
 
+if { $boot_image == "linux" } {
+         set bootcmd bootelf
+   } elseif { $boot_image == "uImage" } {
+         set bootcmd bootm
+}
+
 set timeout 5
-send -s "bootelf\r"
+send -s "$bootcmd\r"
 while 1 {
    expect {
       "Linux version" {

@@ -91,7 +91,7 @@ if { $ram_size <= 32 } {
     set bootaddr $bootaddr_high
 }
 
-send -s "tftpboot $bootaddr linux\r"
+send -s "tftpboot $bootaddr $boot_image\r"
 while 1 {
     expect {
         -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
@@ -107,10 +107,16 @@ while 1 {
     }
 }
 
+if { $boot_image == "linux" } {
+         set bootcmd bootelf
+   } elseif { $boot_image == "uImage" } {
+         set bootcmd bootm
+}
+
 expect ">"
 send -s "run addip\r"
 expect ">"
-send -s "bootelf\r"
+send -s "$bootcmd\r"
 
 
 step "Start testing"

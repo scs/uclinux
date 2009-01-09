@@ -89,7 +89,7 @@ expect ">"
 send -s "save\r"
 expect ">"
 
-send -s "tftpboot 0x1000000 linux.romfs\r"
+send -s "tftpboot 0x1000000 uImage.romfs\r"
 while 1 {
     expect {
         "#" {
@@ -103,7 +103,7 @@ while 1 {
     }
 }
 
-send -s "boote\r"
+send -s "bootm\r"
 
 set timeout 180
 while 1 {
