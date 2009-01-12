@@ -9,9 +9,10 @@ cd $LOG_PATH
 
 READ_COMMAND="time cat"
 WRITE_COMMAND="time dd"
+NETPERF_COMMAND="netperf"
 rm -rf performance_file  
 
-LOG_FILE=`ls *_test_log | xargs grep -r -E "$READ_COMMAND|$WRITE_COMMAND" -a -l`
+LOG_FILE=`ls *_test_log | xargs grep -r -E "$READ_COMMAND|$WRITE_COMMAND|$NETPERF_COMMAND" -a -l`
 
 for file in $LOG_FILE 
 do
@@ -53,6 +54,12 @@ dos2unix r2 2>/dev/null
 paste r2 >> performance_file
 
 fi
+
+echo "---------- netperf_tcp_rr --------" >> performance_file
+grep -r "cat netperf_tcp_rr" -a -A 9 -h $file >> performance_file
+echo "---------- netperf_tcp_stream --------" >> performance_file
+grep -r "cat netperf_tcp_stream" -a -A 8 -h $file >> performance_file 
+
 done
 
 rm -rf read_file write_file r2 w2
