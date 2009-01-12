@@ -477,10 +477,6 @@ config USER_MTDUTILS_FTL_FORMAT
 	  Format a Flash Translation Layer.
 	  This option adds approximately 40K to the image.
 
-config USER_MTDUTILS_MKFSJFFS
-	bool "mkfs.jffs"
-	depends on USER_MTDUTILS
-
 config USER_MTDUTILS_MKFSJFFS2
 	bool "mkfs.jffs2"
 	depends on USER_MTDUTILS
@@ -527,13 +523,6 @@ config USER_MTDUTILS_DOC_LOADBIOS
 	help
 	  Load the BIOS portion of a Disk On Chip.
 	  This option adds approximately 40K to the image.
-
-config USER_MTDUTILS_DOC_LOADIPL
-	bool "doc_loadipl"
-	depends on USER_MTDUTILS
-	help
-	  Load an IPL into a DoC Millennium Plus
-	  This option adds approximately 45K to the image.
 
 endmenu
 
