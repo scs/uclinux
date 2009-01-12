@@ -37,7 +37,6 @@ while 1 {
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
             break
-
         }
     }
 }
@@ -62,16 +61,12 @@ while 1 {
             send "y\r"
         }
 
-        -re "Use L1 memory for rx/tx packets.*BFIN_MAC_USE_L1.*\\\[.*]" {
-            send -s "N\r"
+       -re "Ethernet .*10 or 100Mbit.*NET_ETHERNET.*\\\[.*]" {
+            send -s "Y\r"
         }
 
-        -re "Number of transmit buffer packets.*BFIN_TX_DESC_NUM.*\\\[.*]" {
-            send -s "100\r"
-        }
-
-        -re "Number of receive buffer packets.*BFIN_RX_DESC_NUM.*\\\[.*]" {
-            send -s "500\r"
+       -re "ENC28J60 support.*ENC28J60.*\\\[.*]" {
+                send -s "Y\r"
         }
 
         -re "netperf test tool.*USER_NETPERF_TEST.*\\\[.*]" {
@@ -79,7 +74,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 
@@ -105,49 +100,6 @@ step "Make"
 
 source  make_kernel.exp
 
-
-step "Untar netperf."
-
-cd  $uclinux_path/testsuites/ethernet/
-exec tar zxvf netperf.tgz
-
-
-cd $uclinux_path/testsuites/ethernet/
-sleep 3
-set timeout 2
-spawn ex netperf_script
-expect {
-    "Entering Ex mode*Normal mode." { }
-
-    "already exists!" {
-        send "e\r"
-            sleep 1
-    } 
-}
-sleep 1
-send "/HOSTIP\r"
-expect "HOSTIP=*"
-send "d\r"
-expect ":"
-send "i\r"
-
-send "HOSTIP=$serverip\r"
-
-send ".\r"
-expect :
-send "wq\r"
-expect eof
-
-exec chmod 777 netperf_script
-cd $uclinux_path
-exec cp  testsuites/ethernet/netperf_script  romfs/
-exec cp  romfs/bin/netperf  romfs/bin/netperf_bfin
-
-cd $uclinux_path/testsuites
-
-step "Make again"
-
-source  make_kernel.exp
 
 cd $uclinux_path/testsuites
 
