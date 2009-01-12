@@ -45,8 +45,7 @@ all:
 	$(call MAKE_MTD,$(TARGETS-y))
 
 clean:
-	rm -rf build-$(VER)*
-	rm -f mkfs.jffs mkfs.jffs2 sumtool
+	rm -rf build-$(VER)* mkfs.jffs mkfs.jffs2 mkfs.ubifs sumtool
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASE        build-$(VER)/flash_erase /bin/flash_erase
