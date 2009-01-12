@@ -1,4 +1,4 @@
-VER = openssl-0.9.8h
+VER = openssl-0.9.8j
 
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 SSL_SHARED := shared
@@ -6,13 +6,14 @@ else
 SSL_SHARED := no-dso
 endif
 
-SSL_OPTS = \
+SSL_MAKE = \
+	$(MAKE) -C $(VER) -j1 \
 	DIRS="crypto ssl engines" \
 	CC=$(CONFIGURE_HOST)-gcc
 
 all: $(VER)/.configure
-	$(MAKE) -C $(VER) $(SSL_OPTS)
-	$(MAKE) -C $(VER) $(SSL_OPTS) install_sw INSTALL_PREFIX=$(STAGEDIR)
+	$(SSL_MAKE)
+	$(SSL_MAKE) install_sw INSTALL_PREFIX=$(STAGEDIR)
 
 $(VER)/.configure:
 	set -e ; \
