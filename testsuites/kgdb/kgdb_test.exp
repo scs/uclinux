@@ -134,6 +134,7 @@ while 1 {
 }
 
 incr case_num
+#spawn bfin-uclinux-gdb /tftpboot/vmlinux
 spawn bfin-uclinux-gdb $uclinux_path/linux-2.6.x/vmlinux
 set gdb_id $spawn_id
 while 1 {
@@ -399,7 +400,7 @@ while 1 {
         }
         set spawn_id $kermit_spawn_id
         expect {
-              -re  "L1.*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
+              -re  "L1.*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*L1\\\(after change\\\).*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 case_pass $case_num
                 }
                 timeout {
@@ -430,8 +431,8 @@ while 1 {
 	send "hbreak kgdb_l1_test\r"
 	expect {
 	  -re	"\[Bb]reakpoint 3 at 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
-		expect {
                 case_pass $case_num
+		expect {
 			"(gdb) " {
 			}
 		}
@@ -446,8 +447,8 @@ while 1 {
         send "break 32\r"
         expect {
               -re  "Breakpoint 4 at 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
-                expect {
                 case_pass $case_num
+                expect {
                         "(gdb) " {
                         }
                 }
@@ -553,7 +554,7 @@ while 1 {
         }
 	set spawn_id $kermit_spawn_id
 	expect {
-              -re  "L1.*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
+              -re  "L1.*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*>" {
                 expect {
                 "> " {
                 clean_host_gdb
@@ -743,7 +744,7 @@ while 1 {
         }
 
 ###########################################################################################
-
+# Set the round number to 2. Don't change it for it is related to num2 values behind.
 for { set j 0 } { $j < 2 } { incr j 1 } {
         send_user "\n######## Kgdb stress test: this is the [expr $j + 3] round.#########\n "
        
@@ -787,7 +788,7 @@ for { set j 0 } { $j < 2 } { incr j 1 } {
               timeout {
               set spawn_id $kermit_spawn_id
               expect {
-              -re  "L1.*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*>" {
+              -re  "L1\\\(before change\\\).*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
               send_user "!!!!!!!! Breakpoint 4 has been skipped. Error!"
               }
               }
@@ -807,7 +808,7 @@ for { set j 0 } { $j < 2 } { incr j 1 } {
 
        set spawn_id $kermit_spawn_id
         expect {
-              -re  "L1.*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
+              -re  "L1\\\(before change\\\).*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 expect {
                 "> " {
                 clean_host_gdb
@@ -874,8 +875,8 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 	send "break kgdb_l2_test\r"
 	expect {
 	  -re	"Breakpoint 5 at 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
-		expect {
                 case_pass $case_num
+		expect {
 			"(gdb) " {
 			}
 		}
@@ -890,8 +891,8 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         send "hbreak 45\r"
         expect {
               -re  "Hardware assisted breakpoint 6 at 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
-                expect {
                 case_pass $case_num
+                expect {
                         "(gdb) " {
                         }
                 }
@@ -902,6 +903,22 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
                         exit
                 }
         }
+        incr case_num
+	send "info break\r"
+	expect {
+		"*breakpoint" {
+                case_pass $case_num
+		expect {
+			"(gdb) " {
+			}
+		}
+		}
+		timeout {
+                clean_host_gdb
+                case_fail $case_num
+			exit
+		}
+	}
         incr case_num
         send "c\r"
         expect {
@@ -920,7 +937,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         set spawn_id $kermit_spawn_id
         incr case_num
         expect {
-              -re  "L1.*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
+              -re  "L1\\\(before change\\\).*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 case_pass $case_num
                 }
                 timeout {
@@ -995,7 +1012,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         }
 	set spawn_id $kermit_spawn_id
 	expect {
-              -re  "L2.*code function addr = 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*data variable addr = 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
+              -re  "L2\\\(before change\\\).*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 expect {
                 "> " {
                 clean_host_gdb
@@ -1011,7 +1028,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 
  	set spawn_id $gdb_id
         incr case_num
-        send " x/1xw 0xfeb08010\r"
+        send " x/1xw 0xfeb28010\r"
         expect {
                 "Cannot access memory at address" {
                 case_pass $case_num
@@ -1026,7 +1043,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
                         exit
                 }
         }
-        send "set *0xfeb08020 = 23\r"
+        send "set *0xfeb28020 = 23\r"
         expect {
                 "Cannot access memory at address" {
                 case_pass $case_num
@@ -1239,7 +1256,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         }
         set spawn_id $kermit_spawn_id
         expect {
-              -re  "L1.*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
+              -re  "L1\\\(before change\\\).*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f].*code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 expect {
                 "> " {
                 clean_host_gdb
