@@ -126,7 +126,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "bonnie++.*USER_BONNIE.*\\\[.*]" {
+        -re "bonnie\\\+\\\+.*USER_BONNIE.*\\\[.*]" {
             send "y\r"
         }
 
