@@ -107,7 +107,7 @@ incr case_num
 send "time cat /mnt/mmc/10m.bin > /dev/null\r"
 while 1 {
     expect {
-        -re "real.*user.*sys.*>" {
+        -re "real.*user.*sys.*$kernel_prompt" {
             send_user "Read file done, test pass\n"
             case_pass $case_num
             break
@@ -403,7 +403,7 @@ set timeout 60
 send "time dd if=/dev/zero of=/mnt/mmc1/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
    expect {
-      -re "records in.*records out.*real.*user.*sys.*>" {
+      -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -419,7 +419,7 @@ incr case_num
 send "time cat /mnt/mmc1/$FILE_SIZE.bin > /dev/null\r"
 while 1 {
     expect {
-        -re "real.*user.*sys.*>" {
+        -re "real.*user.*sys.*$kernel_prompt" {
             send_user "Read file done, test pass\n"
             case_pass $case_num
             break
@@ -436,7 +436,7 @@ set timeout 60
 send "time dd if=/dev/zero of=/mnt/mmc2/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
    expect {
-      -re "records in.*records out.*real.*user.*sys.*>" {
+      -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -452,7 +452,7 @@ incr case_num
 send "time cat /mnt/mmc2/$FILE_SIZE.bin > /dev/null\r"
 while 1 {
     expect {
-        -re "real.*user.*sys.*>" {
+        -re "real.*user.*sys.*$kernel_prompt" {
             send_user "Read file done, test pass\n"
             case_pass $case_num
             break
@@ -544,6 +544,67 @@ while 1 {
         }
         timeout {
             send_user "umount /mnt/mmc2 timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+
+step "Start bonnie++ test"
+
+incr case_num
+set timeout 90
+send "mke2fs /dev/spi_mmc1\r"
+while 1 { 
+    expect {
+        -re "mke2fs.*Writing.*$kernel_prompt" {
+            send_user "mke2fs done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "mke2fs timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "mount -t ext2 /dev/spi_mmc1 /mnt/mmc1\r"
+while 1 {
+    expect {
+        -re "mount.*failed.*$kernel_prompt" {
+            send_user "mount EXT2 FS fail, test fail\n"
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            send_user "mount EXT2 FS done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "mount EXT2 FS timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 3600
+incr case_num
+send "bonnie++ -u root -d /mnt/mmc1\r"
+while 1 {
+    expect {
+        -re "Hardware Trace" {
+            send_user "bonnie++ failed\n"
+            case_fail $case_num
+        }
+        -re "Latency.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "bonnie++ timeout\n"
             case_fail $case_num
         }
     }

@@ -36,11 +36,11 @@ set timeout 10
 send "mkdosfs -F 32 /dev/mmcblk0\r"
 while 1 {
    expect {
-      -re "No such .*>" {
+      -re "No such .*$kernel_prompt" {
          send_user "No mmcblk0 device, test fail\n"
          case_fail $case_num
       }
-      -re "mkdosfs.*>" {
+      -re "mkdosfs.*$kernel_prompt" {
          send_user "mkdosfs done, test pass\n"
          case_pass $case_num
          break
@@ -57,7 +57,7 @@ set timeout 5
 send "mount -t msdos /dev/mmcblk0 /mnt/mmc\r"
 while 1 {
    expect {
-      -re "mount.*failed.*>" {
+      -re "mount.*failed.*$kernel_prompt" {
          send_user "mount DOS FS fail, test fail\n"
          case_fail $case_num
       }
@@ -78,7 +78,7 @@ set timeout 60
 send "time dd conv=fsync if=/dev/zero of=/mnt/mmc/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
    expect {
-      -re "records in.*records out.*real.*user.*sys.*>" {
+      -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
          break
       }
       timeout {
@@ -93,7 +93,7 @@ incr case_num
 send "time cat /mnt/mmc/$FILE_SIZE.bin > /dev/null\r"
 while 1 {
     expect {
-        -re "real.*user.*sys.*>" {
+        -re "real.*user.*sys.*$kernel_prompt" {
             send_user "Read file done, test pass\n"
             case_pass $case_num
             break
@@ -127,7 +127,7 @@ set timeout 20
 send "umount /mnt/mmc\r"
 while 1 {
    expect {
-      -re "cannot umount.*>" {
+      -re "cannot umount.*$kernel_prompt" {
          send_user "umount DOS FS fail, test fail\n"
          case_fail $case_num
       }
@@ -188,7 +188,7 @@ set timeout 120
 send "mke2fs /dev/mmcblk0p1\r"
 while 1 { 
    expect {
-      -re "mke2fs.*Writing.*>" {
+      -re "mke2fs.*Writing.*$kernel_prompt" {
          send_user "mke2fs done, test pass\n"
          case_pass $case_num
          break
@@ -205,7 +205,7 @@ set timeout 5
 send "mount -t ext2 /dev/mmcblk0p1 /mnt/mmc1\r"
 while 1 {
    expect {
-      -re "mount.*failed.*>" {
+      -re "mount.*failed.*$kernel_prompt" {
          send_user "mount EXT2 FS fail, test fail\n"
          case_fail $case_num
       }
@@ -226,11 +226,11 @@ set timeout 5
 send "mkdosfs -F 32 /dev/mmcblk0p2\r"
 while 1 {
    expect {
-      -re "No such .*>" {
+      -re "No such .*$kernel_prompt" {
          send_user "No mmcblk0p2 device, test fail\n"
          case_fail $case_num
       }
-      -re "mkdosfs.*>" {
+      -re "mkdosfs.*$kernel_prompt" {
          send_user "mkdosfs done, test pass\n"
          case_pass $case_num
          break
@@ -247,7 +247,7 @@ set timeout 5
 send "mount -t msdos /dev/mmcblk0p2 /mnt/mmc2\r"
 while 1 {
    expect {
-      -re "mount.*failed.*>" {
+      -re "mount.*failed.*$kernel_prompt" {
          send_user "mount DOS FS fail, test fail\n"
          case_fail $case_num
       }
@@ -268,7 +268,7 @@ set timeout 60
 send "time dd conv=fsync if=/dev/zero of=/mnt/mmc1/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
    expect {
-      -re "records in.*records out.*real.*user.*sys.*>" {
+      -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -284,7 +284,7 @@ incr case_num
 send "time cat /mnt/mmc1/$FILE_SIZE.bin > /dev/null\r"
 while 1 {
     expect {
-        -re "real.*user.*sys.*>" {
+        -re "real.*user.*sys.*$kernel_prompt" {
             send_user "Read file done, test pass\n"
             case_pass $case_num
             break
@@ -301,7 +301,7 @@ set timeout 60
 send "time dd conv=fsync if=/dev/zero of=/mnt/mmc2/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
    expect {
-      -re "records in.*records out.*real.*user.*sys.*>" {
+      -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -317,7 +317,7 @@ incr case_num
 send "time cat /mnt/mmc2/$FILE_SIZE.bin > /dev/null\r"
 while 1 {
     expect {
-        -re "real.*user.*sys.*>" {
+        -re "real.*user.*sys.*$kernel_prompt" {
             send_user "Read file done, test pass\n"
             case_pass $case_num
             break
@@ -334,7 +334,7 @@ set timeout 5
 send "rm /mnt/mmc1/$FILE_SIZE.bin\r"
 while 1 {
    expect {
-      -re "rm:.*>" {
+      -re "rm:.*$kernel_prompt" {
          send_user "rm fail, test fail\n"
          case_fail $case_num
       }
@@ -356,7 +356,7 @@ set timeout 5
 send "rm /mnt/mmc2/$FILE_SIZE.bin\r"
 while 1 {
    expect {
-      -re "rm:.*>" {
+      -re "rm:.*$kernel_prompt" {
          send_user "rm fail, test fail\n"
          case_fail $case_num
       }
@@ -377,7 +377,7 @@ set timeout 10
 send "umount /mnt/mmc1\r"
 while 1 {
    expect {
-      -re "cannot umount.*>" {
+      -re "cannot umount.*$kernel_prompt" {
          send_user "umount /mnt/mmc1 fail, test fail\n"
          case_fail $case_num
       }
@@ -398,7 +398,7 @@ set timeout 10
 send "umount /mnt/mmc2\r"
 while 1 {
    expect {
-      -re "cannot umount.*>" {
+      -re "cannot umount.*$kernel_prompt" {
          send_user "umount /mnt/mmc2 fail, test fail\n"
          case_fail $case_num
       }
@@ -422,7 +422,7 @@ set timeout 120
 send "mke2fs /dev/mmcblk0p1\r"
 while 1 { 
    expect {
-      -re "mke2fs.*Writing.*>" {
+      -re "mke2fs.*Writing.*$kernel_prompt" {
          send_user "mke2fs done, test pass\n"
          case_pass $case_num
          break
@@ -439,7 +439,7 @@ set timeout 5
 send "mount -t ext2 /dev/mmcblk0p1 /mnt/mmc1\r"
 while 1 {
    expect {
-      -re "mount.*failed.*>" {
+      -re "mount.*failed.*$kernel_prompt" {
          send_user "mount EXT2 FS fail, test fail\n"
          case_fail $case_num
       }
@@ -493,7 +493,7 @@ set timeout 900
 send "./runcp.sh\r"
 while 1 {
    expect {
-      -re "copy rootfs done.*>" {
+      -re "copy rootfs done.*$kernel_prompt" {
          send_user "finish to copy rootfs to mmc card\n"
          case_pass $case_num
          break
@@ -513,7 +513,7 @@ set timeout 20
 send "umount /mnt/rootfs\r"
 while 1 {
    expect {
-      -re "cannot umount.*>" {
+      -re "cannot umount.*$kernel_prompt" {
          send_user "umount /mnt/rootfs fail, test fail\n"
          case_fail $case_num
       }
@@ -649,7 +649,7 @@ set timeout 20
 send "dmesg\r"
 while 1 {
    expect {
-      -re "VFS\\\: Mounted root \\\(ext2 filesystem\\\).*>" {
+      -re "VFS\\\: Mounted root \\\(ext2 filesystem\\\).*$kernel_prompt" {
          break
       }
       timeout {
@@ -661,7 +661,7 @@ set timeout 5
 send "ls /\r"
 while 1 {
    expect {
-      -re "runcp\\\.sh.*>" {
+      -re "runcp\\\.sh.*$kernel_prompt" {
          send_user "successfully mount MMC/SD as the root filesystem\r"
          case_pass $case_num
          break
