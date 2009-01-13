@@ -68,7 +68,7 @@ while 1 {
 step "Untar netperf."
 
 cd  $uclinux_path/testsuites/ethernet/
-exec tar zxvf netperf.tgz
+exec tar zxvf netperf.tar.gz
 
 exec rcp netperf_script  root@$targetip:/
 
