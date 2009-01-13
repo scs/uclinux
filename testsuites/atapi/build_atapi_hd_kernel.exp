@@ -117,8 +117,12 @@ while 1 {
             send "y\r"
         }
 
+        -re "bonnie\\\+\\\+.*USER_BONNIE.*\\\[.*]" {
+            send "y\r"
+        }
+
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 
