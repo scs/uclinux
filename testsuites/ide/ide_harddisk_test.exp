@@ -21,224 +21,196 @@ set timeout 120
 set case_num 0
 
 incr case_num
-send "dmesg\r" 
+send "dmesg\r"
 while 1 {
-   expect {
-      "sda: sda1" {
-                case_pass $case_num
-		break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    expect {
+        "sda: sda1" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 while 1 {
+    incr case_num
+    send "fdisk /dev/sda\r"
+    expect {
+        -re "Command .*:" {		
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 
-incr case_num
-send "fdisk /dev/sda\r" 
-expect {
-     -re "Command .*:" {		
-      }
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    send "p\r"
+    expect {
+        -re "Command .*:" {
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 
-send "p\r" 
-   expect {
-     -re "Command .*:" {
-      }
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
-     
-send "d\r" 
-   expect {
-     -re "Partition number.*:" {
-      }
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    send "d\r"
+    expect {
+        -re "Partition number.*:" {
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 
-send "1\r" 
-   expect {
-     -re "Command .*:" {
-      }
+    send "1\r"
+    expect {
+        -re "Command .*:" {
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    send "n\r"
+    expect {
+        -re "Command action.*" {
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 
-send "n\r" 
-   expect {
-     -re "Command action.*" {
-      }
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
- 
-send "p\r" 
-   expect {
-     -re "Partition number.*" {
-      }
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }    
+    send "p\r"
+    expect {
+        -re "Partition number.*" {
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 
-send "1\r" 
-   expect {
-     -re "First cylinder.*" {
-      }
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     } 
- 
-send "\r" 
-   expect {
-     -re "Last cylinder.*" {
-      }
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     } 
-     
-send "+500M\r" 
-   expect {
-     -re "Command .*:" {
-      }
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
-     
-send "w\r" 
-   expect {
-     -re "Syncing disks." {
-                case_pass $case_num
-		break
-      }
+    send "1\r"
+    expect {
+        -re "First cylinder.*" {
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    send "\r"
+    expect {
+        -re "Last cylinder.*" {
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    send "+500M\r"
+    expect {
+        -re "Command .*:" {
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    send "w\r"
+    expect {
+        -re "Syncing disks." {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-send "mke2fs /dev/sda1\r" 
+send "mke2fs /dev/sda1\r"
 while 1 {
-   expect {
-     -re "done.*done" {
-                case_pass $case_num
-		break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    expect {
+        -re "done.*done" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-send "mount /dev/sda1 /mnt\r" 
+send "mount /dev/sda1 /mnt\r"
 while 1 {
-   expect {
-      ">" {
-                case_pass $case_num
-		break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
-}
-
-
-incr case_num
-send "cp /bin/pwd /mnt\r" 
-while 1 {
-   expect {
-      ">" {
-                case_pass $case_num
-		break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-send "ls -al /mnt\r" 
+send "cp /bin/pwd /mnt\r"
 while 1 {
-   expect {
-      ">" {
-                case_pass $case_num
-		break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-send "cat /proc/filesystems\r" 
+send "ls -al /mnt\r"
 while 1 {
-   expect {
-     -re "msdos.*vfat.*>" {
-                case_pass $case_num
-		break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-send "df\r" 
+send "cat /proc/filesystems\r"
 while 1 {
-   expect {
-      -re "/dev/sda1.*>" {
-                case_pass $case_num
-		break
-      }
+    expect {
+        -re "msdos.*vfat.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
 
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+incr case_num
+send "df\r"
+while 1 {
+    expect {
+        -re "/dev/sda1.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 set timeout 60
@@ -246,7 +218,7 @@ incr case_num
 send "time dd conv=fsync if=/dev/zero of=/mnt/test.bin bs=1M count=100\r"
 while 1 {
     expect {
-        -re "records in.*records out.*real.*user.*sys.*>" {
+        -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
             send_user "Generate file done, test pass\n"
             case_pass $case_num
             break
@@ -263,7 +235,7 @@ incr case_num
 send "time cat /mnt/test.bin > /dev/null\r"
 while 1 {
     expect {
-        -re "real.*user.*sys.*>" {
+        -re "real.*user.*sys.*$kernel_prompt" {
             send_user "Read file done, test pass\n"
             case_pass $case_num
             break
@@ -275,30 +247,27 @@ while 1 {
     }
 }
 
-
 incr case_num
-send "while \[ 1 \]; md5sum /mnt/pwd ; done\r" 
+send "while \[ 1 \]; md5sum /mnt/pwd ; done\r"
 while 1 {
-   expect {
-      -re "\[0-9a-z]+  /mnt/pwd" {
-                sleep 3
-                send "\3"
-                case_pass $case_num
-		break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+    expect {
+        -re "\[0-9a-z]+  /mnt/pwd" {
+            sleep 3
+            send "\3"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-send "umount /mnt\r" 
+send "umount /mnt\r"
 while 1 {
-   expect {
-        -re "umount.*failed.*>" {
+    expect {
+        -re "umount.*failed.*$kernel_prompt" {
             send_user "umount failed, test fail\n"
             case_fail $case_num
         }
@@ -311,15 +280,62 @@ while 1 {
             send_user "umount timeout, test fail\n"
             case_fail $case_num
         }
-     }
+    }
 }
 
 
-send_log "                     \n"
+step "Start bonnie++ test"
+
+incr case_num
+send "mke2fs /dev/sda1\r"
+while 1 {
+    expect {
+        -re "done.*done" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "mount /dev/sda1 /mnt\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 3600
+incr case_num
+send "bonnie++ -u root -d /mnt\r"
+while 1 {
+    expect {
+        -re "Hardware Trace" {
+            send_user "bonnie++ failed\n"
+            case_fail $case_num
+        }
+        -re "Latency.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "bonnie++ timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
-                                     
+
 send_user "Ending $argv0\n"
 log_file
- 
-
-
