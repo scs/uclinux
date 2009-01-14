@@ -14,6 +14,7 @@ endif
 CONFIG_QT_DEPTH ?= 8,16,24,32
 
 CONF_OPTS = \
+	-verbose \
 	-confirm-license \
 	-prefix /usr \
 	-plugindir /usr/lib/qt \
@@ -26,6 +27,7 @@ CONF_OPTS = \
 	-embedded bfin \
 	-xplatform $(CONF_XPLATFORM) \
 	-little-endian \
+	-force-pkg-config \
 	\
 	$(CONF_SHARED_OPT) \
 	-depths $(CONFIG_QT_DEPTH) \
