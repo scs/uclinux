@@ -55,10 +55,13 @@ paste r2 >> performance_file
 
 fi
 
+NETPERF_COUNT=`grep -r "$NETPERF_COMMAND" -a -h $file -c`
+if [ $NETPERF_COUNT -gt "0" ] ; then
 echo "---------- netperf_tcp_rr --------" >> performance_file
 grep -r "cat netperf_tcp_rr" -a -A 9 -h $file >> performance_file
 echo "---------- netperf_tcp_stream --------" >> performance_file
 grep -r "cat netperf_tcp_stream" -a -A 8 -h $file >> performance_file 
+fi
 
 done
 
