@@ -6,19 +6,22 @@ error() {
 	exit 1
 }
 
-qmake="${STAGEDIR}/usr/bin/qmake"
-if [ -z "${STAGEDIR}" ] ; then
-	qmake="${0%/*}/../staging/usr/bin/qmake"
-	if [ ! -x "${qmake}" ] ; then
-		qmake="${0%/*}/qmake"
-	fi
-fi
+for stagedir in \
+	"${STAGEDIR:-/some/where/invalid/}" \
+	"${0%/*}/../staging" \
+	"${0%/*}/../.." \
+	""
+do
+	qmake="${stagedir}/usr/bin/qmake"
+	[ -x "${qmake}" ] && break
+done
 
 if [ ! -x "${qmake}" ] ; then
 	error qmake not found: ${qmake}
 fi
+STAGEDIR=${stagedir}
+specs="${STAGEDIR}/usr/share/qt/mkspecs/qws/"
 
-specs=${STAGEDIR}/usr/share/qt/mkspecs/qws/
 targ=${0##*/}
 if [ "${targ}" = "bfin-linux-uclibc-qmake" ] ; then
 	specs=${specs}/linux-bfin-fdpic-g++
