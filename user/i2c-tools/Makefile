@@ -1,4 +1,4 @@
-VER = i2c-tools-3.0.1
+VER = i2c-tools-3.0.2
 
 FLTFLAGS = -s 0x4000
 
