@@ -5,6 +5,16 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
+set landscape 0
+if { $board_type == "BF537-STAMP" } {
+    if { $argc == 2 } {
+        set landscape [lindex $argv 1]
+    } else {
+        puts "Input 1 for landscape, 0 for portrait:"
+        exit
+    }
+}
+
 cd $uclinux_path/testsuites
 
 step "Make config."
@@ -38,11 +48,64 @@ while 1 {
             send "N\r"
         }
 
-        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
-            send "M\r"
+        -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
+            send "Y\r"
         }
 
-        -re "Use Landscape 320x240 instead of Portrait 240x320.*\\\[././.]" {
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "M\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "Varitronix COG-T350MCQB TFT LCD display.*FB_BFIN_T350MCQB.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
+                send "M\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "SHARP LQ035Q1DH02 TFT LCD.*FB_BFIN_LQ035Q1.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "M\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+#LQ035 on BF537-STAMP
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "M\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "SHARP LQ035 TFT LCD.*FB_BF537_LQ035.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "M\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "Use Landscape 320x240 instead of Portrait 240x320.*\\\[.*]" {
+            if { $landscape == 1 } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
             send "Y\r"
         }
 
@@ -55,7 +118,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 
