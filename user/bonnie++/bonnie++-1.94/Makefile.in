@@ -35,6 +35,10 @@ GETCHOBJS=$(GETCHSRC:.cpp=.o)
 
 bonnie++: $(BONOBJS)
 	$(LINK) -o bonnie++ $(BONOBJS) $(THREAD_LFLAGS)
+ifeq ($(CONFIG_FMT_USE_FLAT),y)
+	bfin-uclinux-flthdr -s 81920 bonnie++
+endif
+
 
 zcav: $(ZCAVOBJS)
 	$(LINK) -o zcav $(ZCAVOBJS) $(THREAD_LFLAGS)
