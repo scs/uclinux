@@ -59,6 +59,9 @@ config LIB_FREETYPE
 config LIB_FTPLIB
 	bool "Build ftplib"
 
+config LIB_LIBAIO
+	bool "Build libaio"
+
 config LIB_LIBAO
 	bool "Build libao"
 	depends on FMT_USE_FDPIC_ELF

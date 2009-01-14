@@ -12,6 +12,7 @@ dir_3_$(CONFIG_LIB_E2FSPROGS_LIBS)   += e2fsprogs-libs
 dir_3_$(CONFIG_LIB_FAAD2)            += faad2
 dir_3_$(CONFIG_LIB_FLAC)             += flac
 dir_3_$(CONFIG_LIB_FTPLIB)           += ftplib
+dir_3_$(CONFIG_LIB_LIBAIO)           += libaio
 dir_3_$(CONFIG_LIB_LIBAO)            += libao
 dir_3_$(CONFIG_LIB_LIBAUDIO)         += libaudio
 dir_3_$(CONFIG_LIB_LIBBFGDOTS)       += libbfgdots
