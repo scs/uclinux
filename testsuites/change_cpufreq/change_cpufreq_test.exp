@@ -128,8 +128,7 @@ if { $core_clock >= $std_clock } {
     send -s  "cat /proc/cpuinfo\r"
     while 1 {
         expect {
-            -re "cpu MHz\[\x20\t]+: (\[0-9]+\.\[0-9]{3}).*/" {
-                set exact_new_core_clock $expect_out(1,string)
+            -re "cpu MHz\[\x20\t]+: $new_core_clock.\[0-9]{3}.*/" {
                 expect  -re "$kernel_prompt"
                     case_pass $case_num
                     break
