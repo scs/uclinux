@@ -1,0 +1,41 @@
+--- qt-embedded-linux-opensource-src-4.4.3/configure.orig	2009-01-13 20:32:22.000000000 -0500
++++ qt-embedded-linux-opensource-src-4.4.3/configure	2009-01-13 20:31:12.000000000 -0500
+@@ -606,6 +606,10 @@
+ QT_CFLAGS_GSTREAMER=
+ QT_LIBS_GSTREAMER=
+ 
++# flags for directfb
++QT_CFLAGS_DIRECTFB=
++QT_LFLAGS_DIRECTFB=
++
+ #-------------------------------------------------------------------------------
+ # check SQL drivers, mouse drivers and decorations available in this package
+ #-------------------------------------------------------------------------------
+@@ -4736,7 +4740,14 @@
+        fi
+ 
+        if [ "${screen}" = "directfb" ] && [ "${CFG_CONFIGURE_EXIT_ON_ERROR}" = "yes" ]; then
+-           if ! "$unixtests/compile.test" "$XQMAKESPEC" "$QMAKE_CONFIG" $OPT_VERBOSE "$relpath" "$outpath" config.tests/qws/directfb "DirectFB" $L_FLAGS $I_FLAGS $l_FLAGS; then
++           if [ -n "$PKG_CONFIG" ]; then
++               QT_CFLAGS_DIRECTFB=`$PKG_CONFIG --cflags directfb 2>/dev/null`
++               QT_LFLAGS_DIRECTFB=`$PKG_CONFIG --libs directfb 2>/dev/null`
++           fi
++           if "$unixtests/compile.test" "$XQMAKESPEC" "$QMAKE_CONFIG" $OPT_VERBOSE "$relpath" "$outpath" config.tests/qws/directfb "DirectFB" $QT_LFLAGS_DIRECTFB $L_FLAGS $QT_CFLAGS_DIRECTFB $I_FLAGS $l_FLAGS; then
++               QMakeVar set QT_CFLAGS_DIRECTFB "$QT_CFLAGS_DIRECTFB"
++               QMakeVar set QT_LFLAGS_DIRECTFB "$QT_LFLAGS_DIRECTFB"
++           else
+                echo "The DirectFB screen driver functionality test failed!"
+                echo " You might need to modify the include and library search paths by editing"
+                echo " QMAKE_INCDIR and QMAKE_LIBDIR in"
+--- qt-embedded-linux-opensource-src-4.4.3/src/plugins/gfxdrivers/directfb/directfb.pro.orig	2009-01-13 20:32:05.000000000 -0500
++++ qt-embedded-linux-opensource-src-4.4.3/src/plugins/gfxdrivers/directfb/directfb.pro	2009-01-13 20:35:24.000000000 -0500
+@@ -13,6 +13,9 @@
+ #DEFINES += QT_NO_DIRECTFB_MOUSE
+ #DEFINES += QT_NO_DIRECTFB_KEYBOARD
+ 
++LIBS += $$QT_LFLAGS_DIRECTFB
++QMAKE_CXXFLAGS += $$QT_CFLAGS_DIRECTFB
++
+ target.path = $$[QT_INSTALL_PLUGINS]/gfxdrivers
+ INSTALLS += target
+ 
