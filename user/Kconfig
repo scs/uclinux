@@ -2361,6 +2361,12 @@ config USER_RSYSLOGD_RSYSLOGD
 	help
 	  Simple remote syslog receiver.
 
+config USER_LOGROTATE_LOGROTATE
+	bool "logrotate"
+	select LIB_POPT
+	help
+	  system log rotation/backup/compression utility
+  
 config USER_SER_SER
 	bool "ser"
 	help

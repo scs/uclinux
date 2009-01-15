@@ -210,6 +210,7 @@ dir_$(CONFIG_USER_LM_SENSORS)               += lm_sensors
 dir_$(CONFIG_USER_LOATTACH_LOATTACH)        += loattach
 dir_$(CONFIG_USER_LOGIN_LOGIN)              += login
 dir_$(CONFIG_USER_LOGIN_PASSWD)             += login
+dir_$(CONFIG_USER_LOGROTATE_LOGROTATE)      += logrotate
 dir_$(CONFIG_USER_LPR)                      += lpr
 dir_$(CONFIG_USER_LRPSTAT_LRPSTAT)          += lrpstat
 dir_$(CONFIG_USER_LRZSZ_LRZSZ)              += lrzsz
