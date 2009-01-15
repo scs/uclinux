@@ -2478,6 +2478,12 @@ config USER_SSH_SSH_KEYSIGN
 	bool "ssh-keysign"
 	depends on USER_SSH_SSH
 
+config USER_SSH_ONLY_RSA_V2_KEYGEN
+	bool "ssh-only-rsa-v2-keygen"
+	depends on USER_SSH_SSH
+	help
+	  This limits the SSH keys generated to RSAv2 only.
+
 config USER_STP_STP
 	bool "stp"
 	help

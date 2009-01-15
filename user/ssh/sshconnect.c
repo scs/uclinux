@@ -806,7 +806,6 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			if (!confirm(msg))
 				goto fail;
 		}
-#ifndef EMBED
 		/*
 		 * If not in strict mode, add the key automatically to the
 		 * local known_hosts file.
@@ -839,7 +838,6 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		else
 			logit("Warning: Permanently added '%.200s' (%s) to the "
 			    "list of known hosts.", hostp, type);
-#endif /*EMBED*/
 		break;
 	case HOST_CHANGED:
 		if (readonly == ROQUIET)

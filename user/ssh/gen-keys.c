@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <signal.h>
 #include "config.h"
+#include <config/autoconf.h>
 
 
 /* This little program is a wrapper for the ssh key-gen program that produces
@@ -33,6 +34,7 @@
  */
 static const char *files[] = {
 	"ssh_host_rsa_key\0rsa",
+#ifndef CONFIG_USER_SSH_ONLY_RSA_V2_KEYGEN
 	"ssh_host_dsa_key\0dsa",
 	"ssh_host_key\0rsa1",
 #if defined(INCLUDE_SSH)
@@ -40,6 +42,7 @@ static const char *files[] = {
 	"id_dsa\0dsa",
 	"identity\0rsa1",
 #endif
+#endif /* CONFIG_USER_SSH_ONLY_RSA_V2_KEYGEN */
 	NULL
 };
 

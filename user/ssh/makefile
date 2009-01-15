@@ -66,7 +66,6 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSH /etc/default/ssh_config
 	: $(ROMFSINST) -e CONFIG_USER_SSH_SSH -p 700 -d /.ssh
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHD build/sshd /bin/sshd
-	$(ROMFSINST) -e CONFIG_USER_SSH_SSHD /etc/default/sshd_config
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHKEYGEN build/ssh-keygen /bin/ssh-keygen
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHKEYGEN build/gen-keys /bin/gen-keys
 	$(ROMFSINST) -e CONFIG_USER_SSH_SCP build/scp /bin/scp
@@ -77,6 +76,7 @@ ifndef CONFIG_PROP_CONFIG_LIBCONFIG
 	##
 	# Add the appropriate stuff to the start files.
 	#
+	$(ROMFSINST) -e CONFIG_USER_SSH_SSHD /etc/default/sshd_config
 	$(ROMFSINST) -e CONFIG_USER_SSH_SSHKEYGEN \
 		-a "gen-keys &" /etc/default/start
 	$(ROMFSINST) -o "$(CONFIG_USER_SSH_SSHD)$(CONFIG_USER_SSH_SSH)" \
