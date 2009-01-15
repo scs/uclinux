@@ -96,6 +96,6 @@ struct linux_target_ops the_low_target = {
   bfin_breakpoint,
   bfin_breakpoint_len,
   0,
-  0,
+  2,
   bfin_breakpoint_at,
 };

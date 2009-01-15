@@ -1,3 +1,7 @@
+2009-01-15  Jie Zhang  <jie.zhang@analog.com>
+
+	* linux-bfin-low.c (the_low_target): Set decr_pc_after_break to 2.
+
 2007-09-21  Mike Frysinger  <vapier@gentoo.org>
 
 	* server.c (main): Check status after start_inferior.
