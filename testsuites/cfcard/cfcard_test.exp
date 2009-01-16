@@ -292,7 +292,7 @@ incr case_num
 send "cat /proc/filesystems\r" 
 while 1 {
    expect {
-     -re "ext2.*msdos.*vfat" {
+     -re "ext2.*vfat.*msdos" {
                 expect -re $kernel_prompt
                 case_pass $case_num
 		break
