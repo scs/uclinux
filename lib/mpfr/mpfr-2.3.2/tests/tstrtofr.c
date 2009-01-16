@@ -931,30 +931,88 @@ check_retval (void)
 }
 
 /* Bug found by Christoph Lauter (in mpfr_set_str). */
+static struct bug20081025_test {
+  mpfr_rnd_t rnd;
+  int inexact;
+  const char *str;
+  const char *binstr;
+} Bug20081028Table[] = {
+  {GMP_RNDN, -1, "1.00000000000000000006", "1"},
+  {GMP_RNDZ, -1, "1.00000000000000000006", "1"},
+  {GMP_RNDU, +1, "1.00000000000000000006",
+   "10000000000000000000000000000001e-31"},
+  {GMP_RNDD, -1, "1.00000000000000000006", "1"},
+
+
+  {GMP_RNDN, +1, "-1.00000000000000000006", "-1"},
+  {GMP_RNDZ, +1, "-1.00000000000000000006", "-1"},
+  {GMP_RNDU, +1, "-1.00000000000000000006", "-1"},
+  {GMP_RNDD, -1, "-1.00000000000000000006",
+   "-10000000000000000000000000000001e-31"},
+
+  {GMP_RNDN, +1, "0.999999999999999999999999999999999999999999999", "1"},
+  {GMP_RNDZ, -1, "0.999999999999999999999999999999999999999999999",
+   "11111111111111111111111111111111e-32"},
+  {GMP_RNDU, +1, "0.999999999999999999999999999999999999999999999", "1"},
+  {GMP_RNDD, -1, "0.999999999999999999999999999999999999999999999",
+   "11111111111111111111111111111111e-32"},
+
+  {GMP_RNDN, -1, "-0.999999999999999999999999999999999999999999999", "-1"},
+  {GMP_RNDZ, +1, "-0.999999999999999999999999999999999999999999999",
+   "-11111111111111111111111111111111e-32"},
+  {GMP_RNDU, +1, "-0.999999999999999999999999999999999999999999999",
+   "-11111111111111111111111111111111e-32"},
+  {GMP_RNDD, -1, "-0.999999999999999999999999999999999999999999999", "-1"}
+};
+
 static void
 bug20081028 (void)
 {
-  mpfr_t x;
-  const char *s = "0.10000000000000000000000000000001E1";
-  int res, err = 0;
+  int i;
+  int inexact, res;
+  mpfr_rnd_t rnd;
+  mpfr_t x, y;
+  char *s;
 
   mpfr_init2 (x, 32);
-  res = mpfr_strtofr (x, "1.00000000000000000006", NULL, 10, GMP_RNDU);
-  if (res <= 0)
+  mpfr_init2 (y, 32);
+  for (i = 0 ; i < numberof (Bug20081028Table) ; i++)
     {
-      printf ("Error in bug20081028: expected positive ternary value,"
-              " got %d\n", res);
-      err = 1;
+      rnd     = Bug20081028Table[i].rnd;
+      inexact = Bug20081028Table[i].inexact;
+      mpfr_set_str_binary (x, Bug20081028Table[i].binstr);
+      res = mpfr_strtofr (y, Bug20081028Table[i].str, &s, 10, rnd);
+      if (s == NULL || *s != 0)
+        {
+          printf ("Error in Bug20081028: strtofr didn't parse entire input\n"
+                  "for (i=%d) Str=\"%s\"", i, Bug20081028Table[i].str);
+          exit (1);
+        }
+      if (! SAME_SIGN (res, inexact))
+        {
+          printf ("Error in Bug20081028: expected %s ternary value, "
+                  "got %d\nfor (i=%d) Rnd=%s Str=\"%s\"\n Set binary gives: ",
+                  inexact > 0 ? "positive" : "negative",
+                  res, i, mpfr_print_rnd_mode(rnd), Bug20081028Table[i].str);
+          mpfr_dump (x);
+          printf (" strtofr    gives: ");
+          mpfr_dump (y);
+          exit (1);
+        }
+      if (mpfr_cmp (x, y))
+        {
+          printf ("Error in Bug20081028: Results differ between strtofr and "
+                  "set_binary\nfor (i=%d) Rnd=%s Str=\"%s\"\n"
+                  " Set binary gives: ",
+                  i, mpfr_print_rnd_mode(rnd), Bug20081028Table[i].str);
+          mpfr_dump (x);
+          printf (" strtofr    gives: ");
+          mpfr_dump (y);
+          exit (1);
+        }
     }
-  if (! mpfr_greater_p (x, __gmpfr_one))
-    {
-      printf ("Error in bug20081028:\nExpected %s\nGot      ", s);
-      mpfr_dump (x);
-      err = 1;
-    }
+  mpfr_clear (y);
   mpfr_clear (x);
-  if (err)
-    exit (1);
 }
 
 int
