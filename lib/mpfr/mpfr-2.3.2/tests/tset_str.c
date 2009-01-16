@@ -81,6 +81,24 @@ check_underflow (void)
   mpfr_clear (a);
 }
 
+/* Bug found by Christoph Lauter. */
+static void
+bug20081028 (void)
+{
+  mpfr_t x;
+  const char *s = "0.10000000000000000000000000000001E1";
+
+  mpfr_init2 (x, 32);
+  mpfr_set_str (x, "1.00000000000000000006", 10, GMP_RNDU);
+  if (! mpfr_greater_p (x, __gmpfr_one))
+    {
+      printf ("Error in bug20081028:\nExpected %s\nGot      ", s);
+      mpfr_dump (x);
+      exit (1);
+    }
+  mpfr_clear (x);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -845,6 +863,7 @@ main (int argc, char *argv[])
   mpfr_clear (y);
 
   check_underflow ();
+  bug20081028 ();
 
   tests_end_mpfr ();
   return 0;

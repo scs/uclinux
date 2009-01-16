@@ -473,7 +473,7 @@ parsed_string_to_mpfr (mpfr_t x, struct parsed_string *pstr, mp_rnd_t rnd)
 
       if (pstr_size >= pstr->prec)
         pstr_size = pstr->prec;
-      MPFR_ASSERTD ((mp_exp_t) pstr_size == (mp_exp_t) pstr_size);
+      MPFR_ASSERTD (pstr_size == (mp_exp_t) pstr_size);
 
       /* convert str into binary */
       real_ysize = mpn_set_str (y, pstr->mant, pstr_size, pstr->base);
@@ -654,6 +654,19 @@ parsed_string_to_mpfr (mpfr_t x, struct parsed_string *pstr, mp_rnd_t rnd)
           /* base^(exp_s-pr) = 1             nothing to compute */
           result = y;
           err = 0;
+        }
+
+      if (pstr_size < pstr->prec && exact
+          && ((rnd == GMP_RNDN)
+              || ((rnd == GMP_RNDD && pstr->negative)
+                  || (rnd == GMP_RNDU && !pstr->negative))))
+        {
+          /* Some significant digits might have been forgotten, if so result
+             is not exact. */
+          size_t i;
+
+          for (i = pstr_size; exact && i < pstr->prec; i++)
+            exact = pstr->mant[i] == 0;
         }
 
       /* test if rounding is possible, and if so exit the loop */
