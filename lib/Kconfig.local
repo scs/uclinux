@@ -2,6 +2,13 @@
 
 comment "*** Additional Blackfin dist libs ***"
 
+config LIB_AGG
+	bool "Build agg"
+	help
+	  Anti-Grain Geometry - A High Quality Rendering Engine for C++
+
+	  http://antigrain.com/
+
 config LIB_ALSA_LIB
 	bool "Build ALSA lib"
 	depends on FMT_USE_FDPIC_ELF
