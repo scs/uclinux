@@ -1,11 +1,7 @@
 #!/usr/bin/expect
 
-# Main entrance
-
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
 
 set TITLE [title "$argv0"]
@@ -20,101 +16,144 @@ step "Reboot the kernel."
 # set bootargs 	$bootargs_param0   
 source ../reboot_kernel.exp 
 
-step "Start testing."
-
+step "Start oprofile kernel test"
 set case_num 0
 
 incr case_num
 set timeout 2
 send "/usr/bin/bfin_opcontrol --init\r"
 while 1 {
-   expect {
-      -re $kernel_prompt {
-         send_user "\nInit ok\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_user "\nInit failed\n"
-         case_fail $case_num
-      }
-   }
+    expect {
+        -re "not found" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "\nInit timeout\n"
+            case_fail $case_num
+        }
+    }
 }
 
-sleep 5
 incr case_num
 set timeout 2
 send "/usr/bin/bfin_opcontrol --start-daemon &\r"
 while 1 {
-   expect {
-      -re $kernel_prompt {
-         send_log "\nStart daemon ok\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_log "\nStart daemon failed\n"
-         case_fail $case_num
-      }
-   }
+    expect {
+        -re "not found" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\nStart daemon timeout\n"
+            case_fail $case_num
+        }
+    }
 }
 
-sleep 5
 incr case_num
 set timeout 2
 send "/usr/bin/bfin_opcontrol --start\r"
 while 1 {
-   expect {
-      -re $kernel_prompt {
-         send_log "\nStart ok\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_log "\n--start timeout\n"
-         case_fail $case_num
-      }
-   }
+    expect {
+        -re "not found" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\n--start timeout\n"
+            case_fail $case_num
+        }
+    }
 }
 
-sleep 15
 incr case_num
 set timeout 2
 send "/usr/bin/bfin_opcontrol --dump\r"
 while 1 {
-   expect {
-      -re $kernel_prompt {
-         send_log "\n--dump ok\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_log "\n--dump timeout\n"
-         case_fail $case_num
-      }
-   }
+    expect {
+        -re "not found" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\n--dump timeout\n"
+            case_fail $case_num
+        }
+    }
 }
 
-sleep 15
 incr case_num
-set timeout 5
+set timeout 15
 send "/usr/bin/opreport -l\r"
 while 1 {
-   expect {
-      -re "error" {
-         send_log "\nopreport error\n"
-         case_fail $case_num
-      }
-      timeout {
-         break
-      }
-   }
+    expect {
+        -re "not found|error" {
+            case_fail $case_num
+        }
+        -re "Profiling through timer interrupt.*symbol name.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\nopreport timeout\n"
+            case_fail $case_num
+        }
+    }
 }
 
-case_pass $case_num
+incr case_num
+set timeout 2
+send "/usr/bin/bfin_opcontrol --dump\r"
+while 1 {
+    expect {
+        -re "not found" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\n--dump timeout\n"
+            case_fail $case_num
+        }
+    }
+}
 
-all_pass
+incr case_num
+set timeout 15
+send "/usr/bin/opreport -l\r"
+while 1 {
+    expect {
+        -re "not found|error" {
+            case_fail $case_num
+        }
+        -re "Profiling through timer interrupt.*symbol name.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\nopreport timeout\n"
+            case_fail $case_num
+        }
+    }
+}
 
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 send_user "Ending $argv0\n"
 
 log_file

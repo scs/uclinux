@@ -65,15 +65,19 @@ while 1 {
         }
 
         -re "Profiling support.*PROFILING.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "OProfile system profiling.*OPROFILE.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "oprofile.*USER_OPROFILE.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
+        }
+
+        -re "Compile the kernel with debug info.*DEBUG_INFO.*\\\[.*]" {
+            send "N\r"
         }
 
         "\\\(*) \\\[*]" {
