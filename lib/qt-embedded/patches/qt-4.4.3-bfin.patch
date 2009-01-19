@@ -51,17 +51,6 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +++ b/mkspecs/qws/linux-bfin-flat-g++/qplatformdefs.h
 @@ -0,0 +1 @@
 +#include "../../linux-g++/qplatformdefs.h"
---- a/src/3rdparty/webkit/JavaScriptCore/kjs/collector.cpp
-+++ b/src/3rdparty/webkit/JavaScriptCore/kjs/collector.cpp
-@@ -59,7 +59,7 @@
- #ifdef __UCLIBC__
- // versions of uClibc 0.9.28 and below do not have
- // pthread_getattr_np or pthread_attr_getstack.
--#if __UCLIBC_MAJOR__ == 0 && \
-+#if 1 || __UCLIBC_MAJOR__ == 0 && \
-     (__UCLIBC_MINOR__ < 9 || \
-      (__UCLIBC_MINOR__ == 9 && __UCLIBC_SUBLEVEL__ < 29))
- #define UCLIBC_USE_PROC_SELF_MAPS 1
 --- a/src/corelib/arch/bfin/arch.pri
 +++ b/src/corelib/arch/bfin/arch.pri
 @@ -1,3 +1,5 @@
@@ -526,67 +515,3 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
  #else
  # error "This architecture is not supported. Please talk to qt-bugs@trolltech.com"
  #endif
---- a/src/corelib/io/qprocess_unix.cpp
-+++ b/src/corelib/io/qprocess_unix.cpp
-@@ -564,7 +564,7 @@ static char **_q_dupEnvironment(const QStringList &environment, int *envc)
- // under QNX RTOS we have to use vfork() when multithreading
- inline pid_t qt_fork()
- {
--#if defined(Q_OS_QNX)
-+#if defined(Q_OS_QNX) || defined(QT_LINUX_NOMMU)
-     return vfork();
- #else
-     return fork();
---- a/src/gui/embedded/qscreenlinuxfb_qws.cpp
-+++ b/src/gui/embedded/qscreenlinuxfb_qws.cpp
-@@ -383,10 +383,15 @@ bool QLinuxFbScreen::connect(const QString &displaySpec)
- 
-     mapsize = finfo.smem_len;
- 
-+#if defined(QT_LINUX_NOMMU)
-+# define MMAP_FLAGS MAP_PRIVATE
-+#else
-+# define MMAP_FLAGS MAP_SHARED
-+#endif
-     data = (unsigned char *)-1;
-     if (d_ptr->fd != -1)
-         data = (unsigned char *)mmap(0, mapsize, PROT_READ | PROT_WRITE,
--                                     MAP_SHARED, d_ptr->fd, 0);
-+                                     MMAP_FLAGS, d_ptr->fd, 0);
- 
-     if ((long)data == -1) {
-         if (QApplication::type() == QApplication::GuiServer) {
---- a/src/gui/painting/qpdf.cpp
-+++ b/src/gui/painting/qpdf.cpp
-@@ -1443,6 +1443,16 @@ static void closeAllOpenFds()
- }
- #endif
- 
-+// under QNX RTOS we have to use vfork() when multithreading
-+inline pid_t qt_fork()
-+{
-+#if defined(Q_OS_QNX) || defined(QT_LINUX_NOMMU)
-+    return vfork();
-+#else
-+    return fork();
-+#endif
-+}
-+
- bool QPdfBaseEnginePrivate::openPrintDevice()
- {
-     if(outDevice)
-@@ -1476,12 +1486,12 @@ bool QPdfBaseEnginePrivate::openPrintDevice()
-             return false;
-         }
- 
--        pid_t pid = fork();
-+        pid_t pid = qt_fork();
-         if (pid == 0) {       // child process
-             // if possible, exit quickly, so the actual lp/lpr
-             // becomes a child of init, and ::waitpid() is
-             // guaranteed not to wait.
--            if (fork() > 0) {
-+            if (qt_fork() > 0) {
-                 closeAllOpenFds();
- 
-                 // try to replace this process with "true" - this prevents
