@@ -9,6 +9,14 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
+set format [lindex $argv 1]
+send_log "\n#### binary_format is $format\n"
+
+if { $argc < 2} {
+    puts "Please input: board_type, binary_format(fdpic or shared-flat)"
+    exit
+}
+
 step "Change config file in /vender folder."
 
 cd $uclinux_path
@@ -40,9 +48,11 @@ sleep 3
       expect eof
 
 
+cd $uclinux_path/testsuites
+step "Make clean."
+source  make_clean.exp
 
 cd $uclinux_path/testsuites
-
 step "Make config."
 source  make_default_config.exp
 # Following make specific configuration for this case.
@@ -78,6 +88,20 @@ while 1 {
 
         -re "Compile the kernel with debug info.*DEBUG_INFO.*\\\[.*]" {
             send "N\r"
+        }
+
+        -re "whetstone benchmark.*USER_WHETSTONE_WHETSTONE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+            if { $format == "fdpic" } {
+                send  "4\r"
+            } elseif { $format == "shared-flat" } {
+                send  "3\r"
+            } else {
+                send "4\r"
+            }
         }
 
         "\\\(*) \\\[*]" {

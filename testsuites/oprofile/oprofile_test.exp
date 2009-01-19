@@ -3,18 +3,26 @@
 source  ../kernel_config.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
+
+if { $argc < 1} {
+    puts "Please input:binary format (FDPIC or SHARED-FLAT)"
+    exit
+}
+
+set format [lindex $argv 0]
+send_user "\n#### binary format is $format\n"
+append TITLE " ($format)"
 
 step "Spawn kermit"
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
 # To add following line here to indicate that if the bootargs is different,
-# it could be set here. If the bootargs value is 0, it needn't be stated, 
+# it could be set here. If the bootargs value is 0, it needn't be stated,
 # for it is the default value.
-# set bootargs 	$bootargs_param0   
-source ../reboot_kernel.exp 
+# set bootargs 	$bootargs_param0
+source ../reboot_kernel.exp
 
 step "Start oprofile kernel test"
 set case_num 0
@@ -24,7 +32,7 @@ set timeout 2
 send "/usr/bin/bfin_opcontrol --init\r"
 while 1 {
     expect {
-        -re "not found" {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
             case_fail $case_num
         }
         -re $kernel_prompt {
@@ -43,10 +51,10 @@ set timeout 2
 send "/usr/bin/bfin_opcontrol --start-daemon &\r"
 while 1 {
     expect {
-        -re "not found" {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
             case_fail $case_num
         }
-        -re $kernel_prompt {
+        -re "Using 2.6\\\+ OProfile kernel interface.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -62,7 +70,7 @@ set timeout 2
 send "/usr/bin/bfin_opcontrol --start\r"
 while 1 {
     expect {
-        -re "not found" {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
             case_fail $case_num
         }
         -re $kernel_prompt {
@@ -81,7 +89,7 @@ set timeout 2
 send "/usr/bin/bfin_opcontrol --dump\r"
 while 1 {
     expect {
-        -re "not found" {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
             case_fail $case_num
         }
         -re $kernel_prompt {
@@ -100,7 +108,7 @@ set timeout 15
 send "/usr/bin/opreport -l\r"
 while 1 {
     expect {
-        -re "not found|error" {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
             case_fail $case_num
         }
         -re "Profiling through timer interrupt.*symbol name.*$kernel_prompt" {
@@ -119,7 +127,7 @@ set timeout 2
 send "/usr/bin/bfin_opcontrol --dump\r"
 while 1 {
     expect {
-        -re "not found" {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
             case_fail $case_num
         }
         -re $kernel_prompt {
@@ -138,7 +146,158 @@ set timeout 15
 send "/usr/bin/opreport -l\r"
 while 1 {
     expect {
-        -re "not found|error" {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
+            case_fail $case_num
+        }
+        -re "Profiling through timer interrupt.*symbol name.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\nopreport timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+step "Start oprofile test against user application"
+source ../reboot_kernel.exp
+
+sleep 5
+if {$format == "SHARED-FLAT"} {
+    incr case_num
+    send_user "rcp ../../user/whetstone/whetstone.gdb root@$targetip:/bin/\n"
+    if [ catch {exec rcp ../../user/whetstone/whetstone.gdb root@$targetip:/bin/} ] {
+        send_user "FAIL: rcp whetstone.gdb to host PC\n"
+        case_fail $case_num
+    } else {
+        send_user "PASS: rcp whetstone.gdb to host PC\n"
+        case_pass $case_num
+    }
+}
+
+incr case_num
+set timeout 2
+send "/usr/bin/bfin_opcontrol --init\r"
+while 1 {
+    expect {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "\nInit timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 2
+send "/usr/bin/oprofiled -e '' --no-vmlinux --image=/bin/whetstone &\r"
+while 1 {
+    expect {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
+            case_fail $case_num
+        }
+        -re "Using 2.6\\\+ OProfile kernel interface.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\nStart oprofiled timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 2
+send "/usr/bin/bfin_opcontrol --start\r"
+while 1 {
+    expect {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\n--start timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 30
+send "/bin/whetstone\r"
+while 1 {
+    expect {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
+            case_fail $case_num
+        }
+        -re "C Converted Double Precision Whetstones.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\n--start timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 2
+send "/usr/bin/bfin_opcontrol --dump\r"
+while 1 {
+    expect {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_log "\n--dump timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+if {$format == "SHARED-FLAT"} {
+    incr case_num
+    set timeout 10
+    send "mv /bin/whetstone.gdb /bin/whetstone\r"
+    while 1 {
+        expect {
+            -re "no|\[eE]rror|\[fF]ail" {
+                case_fail $case_num
+            }
+            -re $kernel_prompt {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_log "mv timeout\n"
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+incr case_num
+set timeout 15
+send "/usr/bin/opreport -lw\r"
+while 1 {
+    expect {
+        -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
             case_fail $case_num
         }
         -re "Profiling through timer interrupt.*symbol name.*$kernel_prompt" {
