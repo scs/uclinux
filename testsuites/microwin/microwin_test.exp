@@ -21,6 +21,7 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 set case_num 0
+set manual 0
 sleep 5
 send "\r"
 
@@ -87,20 +88,35 @@ while 1 {
 incr case_num
 send "nxclock\r"
 set timeout 30
-send_user "Have you seen a clock on LCD screen?\nIf true, type y; if false, type n:"
-while 1 {
-    expect_user {
-        -re "\[nN]" {
-            send_user "\nnxclock failed, test fail\n"
-            case_fail $case_num
+if { $manual == 1 } {
+    send_user "Have you seen a clock on LCD screen?\nIf true, type y; if false, type n:"
+    while 1 {
+        expect_user {
+            -re "\[nN]" {
+                send_user "\nnxclock failed, test fail\n"
+                case_fail $case_num
+            }
+            -re "\[yY]" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "nxclock timeout, test fail\n"
+                case_fail $case_num
+            }
         }
-        -re "\[yY]" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            send_user "nxclock timeout, test fail\n"
-            case_fail $case_num
+    }
+} else {
+    while 1 {
+        expect {
+            -re "\r\n\[a-zA-Z0-9]" {
+                send_user "\nnxclock failed\n"
+                case_fail $case_num
+            }
+            timeout {
+                case_pass $case_num
+                break
+            }
         }
     }
 }
@@ -126,20 +142,35 @@ while 1 {
 incr case_num
 send "nxkbd\r"
 set timeout 30
-send_user "Have you seen a keyboard on LCD screen?\nIf true, type y; if false, type n:\n"
-while 1 {
-    expect_user {
-        -re "\[nN]" {
-            send_user "nxkbd failed, test fail\n"
-            case_fail $case_num
+if { $manual == 1 } {
+    send_user "Have you seen a keyboard on LCD screen?\nIf true, type y; if false, type n:\n"
+    while 1 {
+        expect_user {
+            -re "\[nN]" {
+                send_user "nxkbd failed, test fail\n"
+                case_fail $case_num
+            }
+            -re "\[yY]" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "nxkbd timeout, test fail\n"
+                case_fail $case_num
+            }
         }
-        -re "\[yY]" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            send_user "nxkbd timeout, test fail\n"
-            case_fail $case_num
+    }
+} else {
+    while 1 {
+        expect {
+            -re "\r\n\[a-zA-Z0-9]" {
+                send_user "\nnxkbd failed\n"
+                case_fail $case_num
+            }
+            timeout {
+                case_pass $case_num
+                break
+            }
         }
     }
 }
@@ -151,7 +182,7 @@ while 1 {
     expect {
         -re "nano-X: client closed socket" {
             send "\n"
-            expect  -re $kernel_prompt
+            expect -re $kernel_prompt
             case_pass $case_num
             break
         }
@@ -163,7 +194,7 @@ while 1 {
 }
 
 send_log "\n"
-send_log "\n$TITLE ............\[PASS\]\n" 
+send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 
