@@ -1,3 +1,16 @@
+2009-01-19  Jie Zhang  <jie.zhang@analog.com>
+
+	Backport
+	2007-01-29  Daniel Jacobowitz  <dan@codesourcery.com>
+	* remote-utils.c [USE_WIN32API] (read, write): Define.
+	(putpkt_binary, input_interrupt, readchar, getpkt): Use read and
+	write.
+
+	2007-02-16  Daniel Jacobowitz  <dan@codesourcery.com>
+	* remote-utils.c: Remove HAVE_TERMINAL_H check.
+	* configure.ac: Do not check for terminal.h.
+	* configure, config.in: Regenerated.
+
 2009-01-15  Jie Zhang  <jie.zhang@analog.com>
 
 	* linux-bfin-low.c (the_low_target): Set decr_pc_after_break to 2.
