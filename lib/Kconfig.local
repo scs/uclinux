@@ -59,6 +59,9 @@ config LIB_FREETYPE
 config LIB_FTPLIB
 	bool "Build ftplib"
 
+config LIB_GIFLIB
+	bool "Build giflib"
+
 config LIB_LIBAIO
 	bool "Build libaio"
 
