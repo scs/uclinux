@@ -1,0 +1,51 @@
+--- a/testRelax.c
++++ b/testRelax.c
+@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
+ 		    if ((fd = open(argv[i], O_RDONLY)) < 0)
+ 			break;
+ 		    base = mmap(NULL, info.st_size, PROT_READ,
+-			        MAP_SHARED, fd, 0) ;
++			        MAP_PRIVATE, fd, 0) ;
+ 		    if (base == (void *) MAP_FAILED)
+ 			break;
+ 
+--- a/testSchemas.c
++++ b/testSchemas.c
+@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
+ 		    if ((fd = open(argv[i], O_RDONLY)) < 0)
+ 			break;
+ 		    base = mmap(NULL, info.st_size, PROT_READ,
+-			        MAP_SHARED, fd, 0) ;
++			        MAP_PRIVATE, fd, 0) ;
+ 		    if (base == (void *) MAP_FAILED)
+ 			break;
+ 
+--- a/xmllint.c
++++ b/xmllint.c
+@@ -1815,7 +1815,7 @@ static void streamFile(char *filename) {
+ 	    return;
+ 	if ((fd = open(filename, O_RDONLY)) < 0)
+ 	    return;
+-	base = mmap(NULL, info.st_size, PROT_READ, MAP_SHARED, fd, 0) ;
++	base = mmap(NULL, info.st_size, PROT_READ, MAP_PRIVATE, fd, 0) ;
+ 	if (base == (void *) MAP_FAILED)
+ 	    return;
+ 
+@@ -2108,7 +2108,7 @@ static void parseAndPrintFile(char *filename, xmlParserCtxtPtr rectxt) {
+ 	    return;
+ 	if ((fd = open(filename, O_RDONLY)) < 0)
+ 	    return;
+-	base = mmap(NULL, info.st_size, PROT_READ, MAP_SHARED, fd, 0) ;
++	base = mmap(NULL, info.st_size, PROT_READ, MAP_PRIVATE, fd, 0) ;
+ 	if (base == (void *) MAP_FAILED)
+ 	    return;
+ 
+@@ -2221,7 +2221,7 @@ static void parseAndPrintFile(char *filename, xmlParserCtxtPtr rectxt) {
+ 		return;
+ 	    if ((fd = open(filename, O_RDONLY)) < 0)
+ 		return;
+-	    base = mmap(NULL, info.st_size, PROT_READ, MAP_SHARED, fd, 0) ;
++	    base = mmap(NULL, info.st_size, PROT_READ, MAP_PRIVATE, fd, 0) ;
+ 	    if (base == (void *) MAP_FAILED)
+ 	        return;
+ 

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!DOCTYPE xsa PUBLIC "-//LM Garshol//DTD XML Software Autoupdate 1.0//EN//XML" "http://www.garshol.priv.no/download/xsa/xsa.dtd">
+<xsa>
+  <vendor>
+    <name>Daniel Veillard</name>
+    <email>daniel@veillard.com</email>
+    <url>http://veillard.com/</url>
+  </vendor>
+  <product id="libxml2">
+    <name>libxml2</name>
+    <version>2.7.1</version>
+    <last-release> Sep 1 2008</last-release>
+    <info-url>http://xmlsoft.org/</info-url>
+    <changes>   - Portability fix: Borland C fix (Moritz Both)
+   - Bug fixes: python serialization wrappers, XPath QName corner
+        case handking and leaks (Martin)
+   - Improvement: extend the xmlSave to handle HTML documents and trees
+   - Cleanup: python serialization wrappers
+
+</changes>
+  </product>
+</xsa>
