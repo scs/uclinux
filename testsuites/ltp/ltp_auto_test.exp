@@ -1335,6 +1335,14 @@ set result_matrix {
        { exit01     	     {exit01}                     	 notrun		UCLINUX } 
        { exit02     	     {exit02}                     	 notrun		UCLINUX } 
        { faccessat01     	     {faccessat01}                     	 notrun		UCLINUX } 
+       { posix_fadvise01     	     {posix_fadvise01}                     	 notrun		UCLINUX } 
+       { posix_fadvise01_64     	     {posix_fadvise01_64}                     	 notrun		UCLINUX } 
+       { posix_fadvise02     	     {posix_fadvise02}                     	 notrun		UCLINUX } 
+       { posix_fadvise02_64     	     {posix_fadvise02_64}                     	 notrun		UCLINUX } 
+       { posix_fadvise03     	     {posix_fadvise03}                     	 notrun		UCLINUX } 
+       { posix_fadvise03_64     	     {posix_fadvise03_64}                     	 notrun		UCLINUX } 
+       { posix_fadvise04     	     {posix_fadvise04}                     	 notrun		UCLINUX } 
+       { posix_fadvise04_64     	     {posix_fadvise04_64}                     	 notrun		UCLINUX } 
        { fchdir01     	     {fchdir01}                     	 notrun		UCLINUX } 
        { fchdir02     	     {fchdir02}                     	 notrun		UCLINUX } 
        { fchdir03     	     {fchdir03}                     	 notrun		UCLINUX } 
@@ -1642,17 +1650,24 @@ set result_matrix {
        { prctl01     	     {prctl01}                     	 notrun		UCLINUX } 
        { prctl02     	     {prctl02}                     	 notrun		UCLINUX } 
        { pread01     	     {pread01}                     	 notrun		UCLINUX } 
+       { pread01_64     	     {pread01_64}                     	 notrun		UCLINUX } 
        { pread02     	     {pread02}                     	 notrun		UCLINUX } 
+       { pread02_64     	     {pread02_64}                     	 notrun		UCLINUX } 
        { pread03     	     {pread03}                     	 notrun		UCLINUX } 
+       { pread03_64     	     {pread03_64}                     	 notrun		UCLINUX } 
        { profil01     	     {profil01}                     	 notrun		NA } 
        { pselect01     	     {pselect01}                     	 notrun		UCLINUX } 
        { ptrace01     	     {ptrace01}                     	 notrun		UCLINUX } 
        { ptrace02     	     {ptrace02}                     	 notrun		UCLINUX } 
        { ptrace03     	     {ptrace03}                     	 notrun		UCLINUX } 
        { pwrite01     	     {pwrite01}                     	 notrun		UCLINUX } 
+       { pwrite01_64     	     {pwrite01_64}                     	 notrun		UCLINUX } 
        { pwrite02     	     {pwrite02}                     	 notrun		UCLINUX } 
+       { pwrite02_64     	     {pwrite02_64}                     	 notrun		UCLINUX } 
        { pwrite03     	     {pwrite03}                     	 notrun		NA } 
+       { pwrite03_64     	     {pwrite03_64}                     	 notrun		NA } 
        { pwrite04     	     {pwrite04}                     	 notrun		UCLINUX } 
+       { pwrite04_64     	     {pwrite04_64}                     	 notrun		UCLINUX } 
        { read01     	     {read01}                     	 notrun		UCLINUX } 
        { read02     	     {read02}                     	 notrun		UCLINUX } 
        { read03     	     {read03}                     	 notrun		UCLINUX } 
