@@ -149,11 +149,13 @@ ifdef CONFIG_USER_DEBUG
 endif
 
 ifeq ($(CONFIG_ALL_DEBUG),y)
-	CFLAGS-y  += -O0 -g
-	STRIPTOOL := echo
-	STRIP     := $(STRIPTOOL)
+	CFLAGS-y   += -O0 -g
+	CXXFLAGS-y += -O0 -g
+	STRIPTOOL  := echo
+	STRIP      := $(STRIPTOOL)
 else
-	CFLAGS-y  += $(subst ",,$(strip $(CONFIG_USER_CFLAGS)))
+	CFLAGS-y   += $(subst ",,$(strip $(CONFIG_USER_CFLAGS)))
+	CXXFLAGS-y += $(subst ",,$(strip $(CONFIG_USER_CFLAGS)))
 endif
 
 CFLAGS-$(CONFIG_BLACKFIN_CHECK_STACKFLOW) += -mstack-check-l1
