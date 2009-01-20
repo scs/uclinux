@@ -25,6 +25,11 @@ config LIB_BFIN_GSM
 config LIB_BLUEZ
 	bool "Build bluez-lib"
 
+config LIB_BOOST
+	bool "Build boost"
+	help
+	  http://www.boost.org/
+
 config LIB_CGIC
 	bool "Build cgic"
 

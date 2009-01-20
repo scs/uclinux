@@ -1,0 +1,32 @@
+--- a/libs/math/build/Jamfile.v2
++++ b/libs/math/build/Jamfile.v2
+@@ -63,11 +63,14 @@ lib boost_math_tr1f : ../src/tr1/$(TR1_SOURCES)f.cpp
+  	     <link>shared:<define>BOOST_MATH_TR1_DYN_LINK=1
+    ;
+ 
++if ! [ modules.peek : NO_LONG_DOUBLE ]
++{
+ lib boost_math_tr1l : ../src/tr1/$(TR1_SOURCES)l.cpp
+     :         
+  	     <link>shared:<define>BOOST_MATH_TR1_DYN_LINK=1
+  	     <dependency>has_long_double_support
+    ;
++}
+ 
+ lib boost_math_c99 : ../src/tr1/$(C99_SOURCES).cpp
+     :         
+@@ -79,11 +82,14 @@ lib boost_math_c99f : ../src/tr1/$(C99_SOURCES)f.cpp
+  	     <link>shared:<define>BOOST_MATH_TR1_DYN_LINK=1
+    ;
+ 
++if ! [ modules.peek : NO_LONG_DOUBLE ]
++{
+ lib boost_math_c99l : ../src/tr1/$(C99_SOURCES)l.cpp
+     :         
+  	     <link>shared:<define>BOOST_MATH_TR1_DYN_LINK=1
+  	     <dependency>has_long_double_support
+    ;
++}
+ 
+ 
+ boost-install boost_math_c99 boost_math_c99f boost_math_c99l boost_math_tr1 boost_math_tr1f boost_math_tr1l ;
