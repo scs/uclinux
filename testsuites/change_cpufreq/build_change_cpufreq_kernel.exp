@@ -34,22 +34,10 @@ while 1 {
             send "y\r"
         }
 
-#        -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
-#            send "Y\r"
-#        }
-#
-#        -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
-#            send "20\r"
-#        }
-#
-#        -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
-#            send "1\r"
-#        }
-#
-#        -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
-#            send "5\r"
-#        }
-#
+        -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "CPU Frequency scaling.*CPU_FREQ.*\\\[.*]" {
                 send "Y\r"
         }

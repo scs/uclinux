@@ -45,12 +45,23 @@ while 1 {
      }
 }
 
-if {$core_clock <= 480   && $system_clock < 100 } {
+if { $board_type == "BF518F-EZBRD" || $board_type == "BF526-EZBRD" } {
+
+if { $core_clock < 400   && $system_clock < 80 } {
    send_log "\n"
    send_log "\n$TITLE ............\[PASS\]\n"
 } else {
    send_log "\n"
-                case_fail $case_num
+   case_fail $case_num
+} 
+} else {
+if { $core_clock <= 480   && $system_clock < 100 } {
+   send_log "\n"
+   send_log "\n$TITLE ............\[PASS\]\n"
+} else {
+   send_log "\n"
+   case_fail $case_num
+}
 }
 
 send_user "Ending $argv0\n"

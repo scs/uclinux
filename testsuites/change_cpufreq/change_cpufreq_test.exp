@@ -19,7 +19,7 @@ step "Reboot the kernel."
 # set bootargs 	$bootargs_param0   
 source ../reboot_kernel.exp 
 
-if { $board_type == "BF533-STAMP" } {
+if { $board_type == "BF533-STAMP" || $board_type == "BF518F-EZBRD" || $board_type == "BF526-EZBRD" } {
    set std_clock 398
 } else {
    set std_clock 500 
@@ -128,7 +128,7 @@ if { $core_clock >= $std_clock } {
     send -s  "cat /proc/cpuinfo\r"
     while 1 {
         expect {
-            -re "cpu MHz\[\x20\t]+: $new_core_clock.\[0-9]{3}.*/" {
+            -re "cpu MHz\[\x20\t]+: $new_core_clock\.\[0-9]{3}.*/" {
                 expect  -re "$kernel_prompt"
                     case_pass $case_num
                     break

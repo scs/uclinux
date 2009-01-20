@@ -48,7 +48,11 @@ while 1 {
         }
 
         -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
-            send "16\r"
+           if { $board_type == "BF518F-EZBRD" || $board_type == "BF526-EZBRD" } {
+                send "14\r"
+            } else {
+                send "16\r"
+            }
         }
 
         -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
