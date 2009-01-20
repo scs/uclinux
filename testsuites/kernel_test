@@ -675,13 +675,13 @@ do
   if [ $BOARD_TYPE == "BF561-EZKIT" ] || [ $BOARD_TYPE == "BF533-EZKIT" ] ; then
       cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.camera_adv7183
       cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.camera_adv7183
-      cp $UCLINUX_DIST_TESTSUITES/video/build_camera_kernel_log $THIS_LOG
-      cp $UCLINUX_DIST_TESTSUITES/video/camera_test_log $THIS_LOG/camera_adv7183_test_log
+      cp $UCLINUX_DIST_TESTSUITES/camera/build_camera_kernel_log $THIS_LOG
+      cp $UCLINUX_DIST_TESTSUITES/camera/camera_test_log $THIS_LOG/camera_adv7183_test_log
   else
       cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.camera_vs6624
       cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.camera_vs6624
-      cp $UCLINUX_DIST_TESTSUITES/video/build_camera_kernel_log $THIS_LOG
-      cp $UCLINUX_DIST_TESTSUITES/video/camera_test_log $THIS_LOG/camera_vs6624_test_log
+      cp $UCLINUX_DIST_TESTSUITES/camera/build_camera_kernel_log $THIS_LOG
+      cp $UCLINUX_DIST_TESTSUITES/camera/camera_test_log $THIS_LOG/camera_vs6624_test_log
       cp $UCLINUX_DIST_TESTSUITES/camera/camera.avi $THIS_LOG
   fi
 
