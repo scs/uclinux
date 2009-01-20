@@ -138,6 +138,23 @@ while 1 {
             }
         }
 
+        -re "SPORT0.*PORT F.*BF527_SPORT0_PORTF\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" && $audio_dev == "audio_ad1981b" } {
+                send "1\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" && $audio_dev == "audio_ad1981b" } {
+                #ad1981b conflicts with bfin-t350mcqb on BF527-EZKIT
+                send "N\r"
+            } else {
+                send "\r"
+            }
+        }
+
 #ad73322
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             if { $audio_dev == "audio_ad73322" } {
@@ -164,7 +181,7 @@ while 1 {
         }
 
         -re "Uncached DMA region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
-            if { $board_type == "BF537-STAMP" } {
+            if { $board_type == "BF537-STAMP" || $audio_dev == "audio_ad1981b" } {
                 send "2\r"
             } else {
                 send "\r"
