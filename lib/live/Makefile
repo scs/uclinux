@@ -1,4 +1,5 @@
-VER = live.2008.10.07
+VER = live.2008.12.20
+URL = http://www.live555.com/liveMedia/public/$(VER).tar.gz
 
 all: $(VER)/Makefile
 	$(MAKE) -C $(VER)
