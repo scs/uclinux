@@ -1,4 +1,4 @@
-VER = SDL_image-1.2.6
+VER = SDL_image-1.2.7
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER)
