@@ -1,11 +1,12 @@
 Index: config.mk
 ===================================================================
---- config.mk	(revision 130)
+--- config.mk	(revision 143)
 +++ config.mk	(working copy)
-@@ -3,5 +3,5 @@
- CC = $(CROSS_COMPILER)gcc
- AR = $(CROSS_COMPILER)ar
+@@ -8,6 +8,6 @@
+ #
+ # Don't add l1 stack check flag for SMP kernel.
+ #
+-CROSS_CFLAGS += -mstack-check-l1
++#CROSS_CFLAGS += -mstack-check-l1
  
--CROSS_CFLAGS=-D__uClinux__ -Dlinux -mstack-check-l1 -DUCLINUX
-+CROSS_CFLAGS=-D__uClinux__ -Dlinux -DUCLINUX
  LDFLAGS=-Wl,-elf2flt="-s 32768" -static
