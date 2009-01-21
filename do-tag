@@ -16,7 +16,8 @@
 #			v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-p([1-9][0-9]*))?(-RC([1-9][0-9]*))?
 
 # Known bugs:
-#	If no files are changed by the update_files function and no release note has been added then staged files are commited instead of an empty commit.
+#	- If no files are changed by the update_files function and no release note has been added then staged files are commited instead of an empty commit.
+#	- Only files that are allready present in the HEAD's tree can be updated by the update_files function.
 
 print() { echo "$1" >&2; }
 inform() { print "$0: $1"; }
@@ -35,7 +36,7 @@ EOF
 
 help() {
 	usage
-	cat << EOF
+	cat << 'EOF'
 
 Where:
     --help: Print this help.
@@ -52,6 +53,10 @@ Notes:
     
         "release/v" <major> "." <minor> [ "-p" <patch> ]
         | "beta/v" <major> "." <minor> [ "-p" <patch> ] "-RC" <rc>
+    
+    This scripts maintains a 'HISTORY' file in the root tree. For every non-RC
+    version it asks the user to enter a release note via the $EDITOR environment
+    variable or the core.editor git configuration and prepends the release note to the 'HISTORY' file.
 EOF
 }
 
@@ -69,6 +74,8 @@ update_files() {
 		echo "$i"
 	done
 }
+
+OPT_MAINTAIN_HISTORY_FILE=1
 
 [ "$1" == "--help" ] && { help; exit; }
 
@@ -95,18 +102,21 @@ update_files "$ARG_VERSION" "$VERSION_MAJOR" "$VERSION_MINOR" "$VERSION_PATCH" "
 		UPDATED_FILES=("${UPDATED_FILES[@]}" "$i")
 	done
 	
-	VERSIONS_FILE="HISTORY"
-	TEMP_FILE="HISTORY.add"
-	
 	if [ $VERSION_RC -eq 0 ]; then
-		[ "$EDITOR" ] || EDITOR=$(git config "core.editor")
-		[ "$EDITOR" ] || fail "\$EDITOR is not set. Please set the EDITOR environment variable to input the release notes."
+		RELEASE_NOTE="+ Release $ARG_VERSION"
 		
-		if ! [ -e "$TEMP_FILE" ]; then
-			NEWEST_RELEASE=$(git tag | grep -E "release/.*" | while IFS= read i; do echo "$(git rev-list "$i..HEAD" | wc -l | grep -oE "[0-9]+") $i"; done | sort -n | head -n 1 | cut -d " " -f 2-)
+		if [ "$OPT_MAINTAIN_HISTORY_FILE" ]; then
+			VERSIONS_FILE="HISTORY"
+			TEMP_FILE="HISTORY.add"
 			
-			cat << EOF >> "$TEMP_FILE"
-+ Release $ARG_VERSION
+			[ "$EDITOR" ] || EDITOR=$(git config "core.editor")
+			[ "$EDITOR" ] || fail "\$EDITOR is not set. Please set the EDITOR environment variable to input the release notes."
+			
+			if ! [ -e "$TEMP_FILE" ]; then
+				NEWEST_RELEASE=$(git tag | grep -E "release/.*" | while IFS= read i; do echo "$(git rev-list "$i..HEAD" | wc -l | grep -oE "[0-9]+") $i"; done | sort -n | head -n 1 | cut -d " " -f 2-)
+				
+				cat << EOF >> "$TEMP_FILE"
+$RELEASE_NOTE
 
 
 # Please enter your release note above under the line with the version
@@ -115,32 +125,33 @@ update_files "$ARG_VERSION" "$VERSION_MAJOR" "$VERSION_MINOR" "$VERSION_PATCH" "
 
 # To abort the commit, empty this file before exiting your editor.
 EOF
-			if [ "$NEWEST_RELEASE" ]; then
-				cat << EOF >> "$TEMP_FILE"
+				if [ "$NEWEST_RELEASE" ]; then
+					cat << EOF >> "$TEMP_FILE"
 
 # Changes since the last release, $NEWEST_RELEASE:
 #
 EOF
-				git diff --stat | sed -r "s/^/#/" >> "$TEMP_FILE"
+					git diff --stat | sed -r "s/^/#/" >> "$TEMP_FILE"
+				fi
 			fi
+			
+			$EDITOR "$TEMP_FILE"
+			
+			RELEASE_NOTE=$(grep -vE "^ *#" < "$TEMP_FILE")
+			if ! [ "$(echo "$RELEASE_NOTE" | sed -r "s/\t/ /g" | grep -vE "^ *(#.*)?$")" ]; then
+				rm -f "$TEMP_FILE"
+				fail "Commit aborted due to empty commit message."
+			fi
+			
+			echo "$RELEASE_NOTE" > "$VERSIONS_FILE"
+			if git show "HEAD:$VERSIONS_FILE" > /dev/null 2>&1; then
+				echo -e '\n' >> $VERSIONS_FILE
+				git show "HEAD:$VERSIONS_FILE" >> $VERSIONS_FILE
+			fi
+			
+			git add "$VERSIONS_FILE" || exit $?
+			UPDATED_FILES=("${UPDATED_FILES[@]}" "$VERSIONS_FILE")
 		fi
-		
-		$EDITOR "$TEMP_FILE"
-		
-		RELEASE_NOTE=$(grep -vE "^ *#" < "$TEMP_FILE")
-	 	if ! [ "$(echo "$RELEASE_NOTE" | sed -r "s/\t/ /g" | grep -vE "^ *(#.*)?$")" ]; then
-	 		rm -f "$TEMP_FILE"
-	 		fail "Commit aborted due to empty commit message."
-	 	fi
-	 	
-		echo "$RELEASE_NOTE" > "$VERSIONS_FILE"
-	 	if git show "HEAD:$VERSIONS_FILE" > /dev/null 2>&1; then
-	 		echo -e '\n' >> $VERSIONS_FILE
-	 		git show "HEAD:$VERSIONS_FILE" >> $VERSIONS_FILE
-	 	fi
-		
-		git add "$VERSIONS_FILE" || exit $?
-		UPDATED_FILES=("${UPDATED_FILES[@]}" "$VERSIONS_FILE")
 	else
 		RELEASE_NOTE="+ Beta version $ARG_VERSION"
 	fi

@@ -1,8 +1,17 @@
 #! /usr/bin/env bash
+# do-release [ <action> ]
 # This script is used to bring the working directory into a shape where it can be released as a tar Archive.
 
-find . -name ".gitignore" -or -name ".cdtproject" -or -name ".project" -or -name ".gitmodules" | while IFS= read i; do
-	rm -f "$i"
-done
+[ "$1" ] && OPT_ACTION=$1 || OPT_ACTION="release"
 
-rm -f do-build do-release prune_dirs
+if [ "$OPT_ACTION" == "release" ]; then
+	find . -name ".gitignore" -or -name ".cdtproject" -or -name ".project" -or -name ".gitmodules" | while IFS= read i; do
+		rm -f "$i"
+	done
+	
+	rm -f do-build do-release prune_dirs
+elif [ "$OPT_ACTION" == "name" ]; then
+	echo "uClinux"
+else
+	echo "Unknown action: $OPT_ACTION" >&2; exit 1
+fi
