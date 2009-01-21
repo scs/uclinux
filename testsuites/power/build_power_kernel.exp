@@ -36,6 +36,11 @@ while 1 {
             send "N\r"
         }
 
+        -re "USB support.*USB_SUPPORT.*\\\[.*]" {
+            #USB driver now doesn't support power function
+            send "N\r"
+        }
+
 
 #Power Management
         -re "Power Management support \\\(PM\\\) \\\[.*]" {
