@@ -89,7 +89,7 @@ expect ">"
 send -s "save\r"
 expect ">"
 
-send -s "tftpboot 0x1000000 uImage.romfs\r"
+send -s "tftpboot 0x1000000 $kernel_and_romfs_image\r"
 while 1 {
     expect {
         "#" {
