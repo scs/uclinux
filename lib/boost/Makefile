@@ -22,7 +22,7 @@ CONF_OPTS-y := \
 	runtime-link=shared,static
 CONF_OPTS-y += \
 	-sNO_WCHAR=1 \
-	-sNO_LONG_DOUBLE=1
+	--disable-long-double
 CONF_OPTS-$(CONFIG_LIB_EXPAT) += \
 	-sEXPAT_INCLUDE=$(STAGEDIR)/usr/include \
 	-sEXPAT_LIBPATH=$(STAGEDIR)/usr/lib
