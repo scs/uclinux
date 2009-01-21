@@ -52,12 +52,17 @@ for arch in ${arches} ; do
 	echo
 
 	for board in ${list} ; do
-		log="${LOG_DIR}/$(echo "${board}" | sed s:/:_:g).log"
-		rm -f "${log}"{,.FAIL}
+		sanitized=$(echo "${board}" | sed s:/:_:g)
+		log="${LOG_DIR}/${sanitized}.log"
+		imgs="${LOG_DIR}/${sanitized}"
+		rm -rf "${log}"{,.FAIL} "${imgs}" images
 		printf "#### BUILDING BOARD: ${board}: "
 		if ${pretend} || ${MAKE} ${board}_default > "${log}" 2>&1 ; then
 			echo PASS
 			PASS="${PASS} ${board}"
+			if ! ${pretend} ; then
+				rsync -a --delete images/ "${imgs}"
+			fi
 		else
 			echo FAIL
 			FAIL="${FAIL} ${board}"
@@ -65,7 +70,7 @@ for arch in ${arches} ; do
 			${MAKE} single >> "${log}" 2>&1
 			${MAKE} single > "${log}".FAIL 2>&1
 		fi
-		svn st > "${log}".svn
+		${pretend} || svn st > "${log}".svn
 	done
 done
 
