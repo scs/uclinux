@@ -2,6 +2,9 @@
 # - set VER to the package directory
 # - set URL to the download URL
 
+# dummy for include order
+all:
+
 A = $(DOWNLOADDIR)/$(notdir $(URL))
 $(A):
 	wget -c $(URL) -P $(dir $(A))
@@ -18,9 +21,10 @@ DECOMP = $(shell \
 	esac \
 )
 
+PATCH = patch -p1 -E --no-backup-if-mismatch
 $(VER)/.unpacked: $(A)
 	$(DECOMP) $< | tar xf -
 ifneq (,$(wildcard $(CURDIR)/patches/*.patch))
-	for p in $(CURDIR)/patches/*.patch ; do ( cd $(VER) && patch -p1 < $$p ) || exit $$? ; done
+	for p in $(CURDIR)/patches/*.patch ; do ( cd $(VER) && $(PATCH) < $$p ) || exit $$? ; done
 endif
 	touch $(VER)/.unpacked
