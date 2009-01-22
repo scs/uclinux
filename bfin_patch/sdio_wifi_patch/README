@@ -1,5 +1,8 @@
 Steps to make Marvell 8686 SDIO WIFI module work(for linux kernel version 2.6.28 only,
 needs to be updated after kernel upgrade).
+
+note important:This patch has already been applied to trunk tree,and this directory
+will be dropped soon. 
 /**********1.configure the kernel**********/
 
 a.select Network stack
@@ -29,6 +32,7 @@ Device Drivers  --->
 			 [*] Wireless LAN (IEEE 802.11)
 			 <M>   Marvell 8xxx Libertas WLAN driver support 
 			 <M>     Marvell Libertas 8385 and 8686 SDIO 802.11b/g cards
+			 [*]       Support transferring block with size of power-of-2 only
 			 [*]     Enable full debugging output in the Libertas module.  
 d.remove Nand flash controller support,because the Nand flash controller use the same DMA channel as SDH
 Device Drivers  --->
@@ -36,12 +40,7 @@ Device Drivers  --->
 			 <*>   NAND Device Support  ---> 
 			 < >   Blackfin on-chip NAND Flash Controller driver 
 		     
-/**********2.patch the kernel**********/
-
-cd uclinux-dist/linux-2.6.x
-...uclinux-dist/linux-2.6.x$ patch -p0  < sdio_wifi.patch
-
-/**********3.copy firmwares and hotplug script to romfs**********/
+/**********2.copy firmwares and hotplug script to romfs**********/
 cd uclinux-dist
 .../uclinux-dist$mkdir romfs/lib/firmware
 .../uclinux-dist$cp .../sd8686.bin romfs/lib/firmware
@@ -49,7 +48,7 @@ cd uclinux-dist
 .../uclinux-dist$cp .../hotplug /romfs/sbin/
 .../uclinux-dist$cd /romfs/sbin/;chmod +x hotplug
 
-/**********4.install libertas module**********/
+/**********3.install libertas module**********/
 
 After doing above job,then compile the source and download the image to BF548-EZKIT board
 SDIO card detection information should be showed after the image is downloaded to the board as following:
@@ -70,7 +69,7 @@ libertas: PREP_CMD: command 0x00a3 failed: 2
 libertas: eth1: Marvell WLAN 802.11 adapter
 
 
-/**********5.usage example**********/
+/**********4.usage example**********/
 
 Following are my steps to connect the wifi module to my AP(SSID:linksys)
 root:/> iwconfig eth1
