@@ -96,6 +96,8 @@ int main (int argc, char *argv[])
 {
 	int fd;
 	char *filename, c;
+        char *button="/dev/gpio4";
+        FILE *fp;
 	unsigned short ctrl_regs[6];
 	struct sport_config config;
 	unsigned char *buffer = NULL;
@@ -159,13 +161,25 @@ int main (int argc, char *argv[])
 		/* Write the head of the wave file */
 		fill_waveheader(fd, count);
 	}
+  
+        fp = fopen(button, "w+");
+        if (!fp)
+                printf("unable to open specified device '%s'", button);
+       /* set it to Output mode */
+        if (fwrite("O", 1, 1, fp) != 1)
+                printf("unable to set to output mode");
+        if (fwrite("1", 1, 1, fp) != 1)
+                printf("unable to set to 1 value");
 
-	/* IOCTL to enable ad73311 */
+
+	/* IOCTL to enable ad73311 
 	if (ioctl (sport, ENABLE_AD73311, 1) < 0) {
 		fprintf(stderr, "failed to enable ad73311 \n");
 		close (sport);
 		return -1;
 	}
+	*/
+         fclose(fp);
 
 	/* Set registers on AD73311L through SPORT.  */
 #if 0
