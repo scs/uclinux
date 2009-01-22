@@ -149,14 +149,15 @@ void hs_conv_reg_reset(ppi_device_t *pdev)
 static irqreturn_t hs_conv_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
 	ppi_device_t *pdev = (ppi_device_t *) dev_id;
-
+	int timeout = 50;
 	ppi_debug("hs_conv_irq:\n");
 	ppi_debug(":hs_conv_irq: X_COUNT = %d PPI Status = 0x%X\n",bfin_read_DMA0_CURR_X_COUNT(), bfin_read_PPI_STATUS());
 
 
 	/* Wait until all bytes left the PPI FIFO */
 	if (bfin_read_PPI_CONTROL() & PORT_DIR)
-		while(!(bfin_read_PPI_STATUS() & UNDR));
+		while(!(bfin_read_PPI_STATUS() & UNDR) && timeout--)
+			cpu_relax();
 
 	disable_dma(CH_PPI);
 
