@@ -1,21 +1,29 @@
 #!/bin/sh
 
 QUIT=2
+cnt=0
+
+echo -e "###########Starting test_runtime_control ###########\n" > test_runtime_control_log
 
 while [ $QUIT -gt 1 ]
 do
 
-test_pid=`ps aux | grep .exp | head -1 | awk '{print $2}'`
-test_command=`ps aux | grep .exp | head -1 | awk '{print $11}'`
+((cnt = cnt + 1 ))
+echo -e "################### The $cnt round start! #############################\n" >> test_runtime_control_log
 
-if [ "$test_pid" != "" ] && test "$test_command" && [ "$test_command" == 'grep' ] ; then
+whole_command_line=`ps aux | grep .exp | grep -v grep | head -1`
+test_pid=`echo $whole_command_line | awk '{print $2}'`
+test_command=`echo $whole_command_line | awk '{print $11}'`
 
- # echo "No test script is running." 
+if [ "$test_pid" == "" ] && [ "$test_command" == "" ] ; then
+
+ echo -e "1111 QUIT=$QUIT `date`\nNo test script is running."  >> test_runtime_control_log
  sleep 1200 
 
 else
 
- script_name=`ps aux | grep .exp | head -1 | awk '{print $12}'`
+ echo -e "2222 QUIT=$QUIT `date`\n$whole_command_line"  >> test_runtime_control_log
+ script_name=`echo $whole_command_line | awk '{print $12}'`
  if [ "$script_name" == "./qt_source_test.exp" ] ; then
      sleep 7200
  else
@@ -24,21 +32,23 @@ else
 
  test_name=`{ ps -p $test_pid | tail -1 | awk '{print $4}' ;}  2> /dev/null`
  if [ "$test_pid" != "" ] && [ "$test_name" != 'CMD' ] ; then
-   echo "`date`. Process: $test_name, ID: $test_pid to be killed."
+   echo -e "3333 QUIT=$QUIT `date`\nProcess: $test_name, ID: $test_pid to be killed." >> test_runtime_control_log
    kill -9 $test_pid
  fi
 
 fi
 
+kernel_test_whole_command_line=`ps aux | grep -w kernel_test | grep -v grep | head -1`
+kernel_test_pid=`echo $kernel_test_whole_command_line | awk '{print $2}'`
+kernel_test_command=`echo $kernel_test_whole_command_line | awk '{print $11}'`
 
-kernel_test_pid=`ps aux | grep -w kernel_test | head -1 | awk '{print $2}'`
-kernel_test_command=`ps aux | grep -w kernel_test | head -1 | awk '{print $11}'`
-
-if [ "$kernel_test_pid" != "" ] && test "$kernel_test_command" && [ "$kernel_test_command" == 'grep' ] ; then
+if [ "$kernel_test_pid" == "" ] && [ "$kernel_test_command" == "" ] ; then
+   echo -e "4444 QUIT=$QUIT `date`\nProcess: $kernel_test_command, ID: $kernel_test_pid to be killed. kill $$.!!" >> test_runtime_control_log
 
 kill -9 $$
 
 fi
+echo -e "################### The $cnt round finished! #############################\n" >> test_runtime_control_log
 
 done
 
