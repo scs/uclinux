@@ -64,7 +64,7 @@ while 1 {
          }
      }
 }
-
+sleep 10
 step "Untar netperf."
 
 cd  $uclinux_path/testsuites/ethernet/
