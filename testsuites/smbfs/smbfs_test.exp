@@ -22,7 +22,7 @@ send "ifconfig eth0 $targetip\r"
 while 1 {
     sleep 3
     expect {
-        ">" {
+       -re $kernel_prompt {
             break
         }
         timeout {
