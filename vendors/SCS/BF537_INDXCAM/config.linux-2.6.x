@@ -692,8 +692,8 @@ CONFIG_WATCHDOG=y
 #
 # Watchdog Device Drivers
 #
-CONFIG_SOFT_WATCHDOG=y
-# CONFIG_BFIN_WDT is not set
+# CONFIG_SOFT_WATCHDOG is not set
+CONFIG_BFIN_WDT=y
 CONFIG_HW_RANDOM=y
 # CONFIG_GEN_RTC is not set
 # CONFIG_R3964 is not set
