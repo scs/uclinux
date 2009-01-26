@@ -1,7 +1,7 @@
 VER = nano-2.1.1
 
 CONF_OPTS = \
-	--disable-tiny
+	--enable-tiny
 
 include $(ROOTDIR)/tools/autotools.mk
 
