@@ -1,0 +1,13 @@
+AT_BANNER([[Checking encode and decode of colourbars]])
+
+AT_SETUP([colourbars])
+
+# FIXME: Once the encoder stops reporting "Can't read component picture data"
+# FIXME: remove the [ignore] for stdout and stderr.
+AT_CHECK([at_wrap dirac_encoder -cformat YUV420P -SD576I50 -qf 7 -num_L1 0 -local $abs_srcdir/colourbars_420.yuv ../../colourbars_420_enc.drc], 0, [ignore])
+
+AT_CHECK([at_wrap dirac_decoder ../../colourbars_420_enc.drc ../../colourbars_420_dec.yuv], 0, [ignore])
+
+AT_CHECK([cmp ../../colourbars_420_enc.drc.localdec.yuv ../../colourbars_420_dec.yuv])
+
+AT_CLEANUP

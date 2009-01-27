@@ -36,6 +36,11 @@ config LIB_CGIC
 config LIB_CRYPTOPP
 	bool "Build Crypto++ Lib"
 
+config LIB_DIRAC
+	bool "Build dirac (video codec)"
+	help
+	  http://diracvideo.org/
+
 config LIB_DIRECTFB
 	bool "Build DirectFB"
 	depends on FMT_USE_FDPIC_ELF

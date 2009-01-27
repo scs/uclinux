@@ -1,0 +1,121 @@
+Diagnostic Instrumentation for Dirac
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Chris Bowley (chris.bowley@rd.bbc.co.uk) 18-08-04
+
+
+1. Overview
+   ~~~~~~~~
+
+This tool provides pictorial output of motion estimation and mode decisions. 
+The U and V layers of each frame are used to display information overlaid over the
+original Y layer. The following information may be viewed:
+
+        - motion vectors
+        - SAD block values
+        - macroblock splitting mode
+        - prediction mode
+
+Where appropriate, the reference frame can be chosen.
+
+Each overlay includes frame number and reference number display along with a colour
+legend (which can be turned off). It is also possible to select to view information over
+a grey background.
+
+Further documentation on this tool and examples can be found at:
+
+        http://www.bbc.co.uk/rd/projects/dirac/documentation.shtml
+
+
+2. Command-line syntax and options
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The diagnostic utility can be found in util/instrumentation and executed using the following 
+command:
+
+        dirac_instrumentation [input_file] [output_file] ... -<flag> -<flag val> ...
+
+The following flags select the overlay:
+
+        -motion_colour (default)        motion vectors represented using a colour wheel
+        -motion_arrows                  motion vectors represented using arrows
+        -motion_colour_arrows           motion vectors represented using arrows and colour size
+        -sad                            sum of absolute difference
+        -split_mode                     macroblock splitting mode
+        -pred_mode                      prediction mode
+
+The following options are available:
+
+        -ref n                          Select which reference frame is used
+        -start n                        First frame to be included in output
+        -stop n                         Last frame to be included in output
+        -no_bg                          Use mid-grey background
+        -no_legend                      Do not display colour legend
+        -clip                           Value at which output is clipped (motion vectors
+                                        and sad overlays only)
+        -buffer n                       Size of internal buffer for motion data
+        -verbose                        Output during process
+
+Example: For colour motion vector arrows with a clip value of 50, using reference 2 guides:
+
+        util/instrumentation/dirac_instrumentation ~/pictures/in ~/pictures/out -motion_colour_arrows -clip 50 -ref 2
+
+
+3. Operation
+   ~~~~~~~~~
+
+   3.1 Motion Data Transfer
+       ~~~~~~~~~~~~~~~~~~~~
+
+This diagnostic tool requires input of instrumentation data in the form of a text file.
+Currently, only motion data is written out by the encoder to a text file, in the following format:
+
+        [frame:n}>mo_comp
+
+        no. of refs  ref1  <ref2>  mv block width  mv block height  mv array width
+         mv array height  mb array width  mb array height
+
+        Splitting mode
+        Common reference mode
+        Macroblock costs
+        Prediction mode
+        Intra costs
+        Bi-prediction costs
+        Component DC values
+
+        Ref 1 motion vectors
+        Ref 1 sad
+
+        <Ref 2 motion vectors>
+        <Ref 2 sad>
+
+        <Ref 3 motion vectors>
+        .
+        .
+
+Intra coded frames have no associated motion data and are identified by the header:
+
+        [frame:n]>intra
+
+Note: not all data is currently available as instrumentation.
+
+Data is output by the encoder to a file at the same location as the output file:
+
+        [output_file].imt
+
+
+   3.2 Internal Motion Data Buffer
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Output of motion data is in encoded frame order. The diagnostic tool therefore requires
+a buffer in order to minimise time spent searching the input file. The input file is read
+once and no reverse movement through the file is made, the buffer must therefore be
+large enough to hold frame motion data before being overwritten. The default size is 50
+frames which should be sufficient for most picture sequences. In order to reduce the
+memory footprint, the buffer size may be reduced.
+
+Buffer failure (overwriting frame data before it is used) results in the user being
+advised and the program exiting.
+
+Another way in which the memory footprint may be reduced is to select a particular section
+of the sequence for viewing using the -start and -stop parameters.

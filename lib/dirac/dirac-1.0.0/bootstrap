@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# Extremely basic script to regenerate the autoconf files etc
+#
+# 11th March 2004 Copyright BBC
+
+# remove generated files (avoids clashes between versions of autotools)
+rm -f depcomp missing install-sh mkinstalldirs
+rm -f aclocal.m4 configure Makefile.in config.guess ltmain.sh config.sub
+rm -rf autom4te.cache
+
+set -x
+aclocal -I m4
+libtoolize --force --copy
+automake --foreign --copy --add-missing
+if [ $? -ne 0 ]; 
+then
+	echo "automake failed" 
+	exit -3 
+fi
+autoconf

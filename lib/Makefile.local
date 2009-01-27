@@ -7,6 +7,7 @@ dir_3_$(CONFIG_LIB_BLUEZ)            += bluez-libs
 dir_3_$(CONFIG_LIB_CGIC)             += cgic
 dir_3_$(CONFIG_LIB_CONFUSE)          += libconfuse
 dir_3_$(CONFIG_LIB_CRYPTOPP)         += crypto++lib
+dir_3_$(CONFIG_LIB_DIRAC)            += dirac
 dir_3_$(CONFIG_LIB_DMALLOC)          += dmalloc
 dir_3_$(CONFIG_LIB_E2FSPROGS_LIBS)   += e2fsprogs-libs
 dir_3_$(CONFIG_LIB_FAAD2)            += faad2

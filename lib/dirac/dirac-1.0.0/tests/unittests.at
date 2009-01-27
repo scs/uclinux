@@ -1,0 +1,9 @@
+AT_BANNER([[Running unit tests]])
+
+AT_SETUP([unittests])
+
+AT_CHECK([test -x ../../../unit_tests/dirac_unittest || exit 77], ignore)
+
+AT_CHECK([at_wrap dirac_unittest],[0],[stdout],[stderr])
+
+AT_CLEANUP
