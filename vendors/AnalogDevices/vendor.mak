@@ -27,17 +27,10 @@ ifeq ($(CONFIG_INSTALL_ELF_SHARED_LIBS),y)
 	t=`bfin-linux-uclibc-gcc $(CPUFLAGS) -print-file-name=libc.a`; \
 	t=`dirname $$t`/../..; \
 	for i in $$t/lib/*so*; do \
-		bn=`basename $$i`; \
-		if [ -f $$i ] ; then \
-			$(ROMFSINST) -p 755 $$i /lib/$$bn; \
-		fi; \
-	done; \
-	for i in $$t/lib/*so*; do \
-		if [ -h $$i -a -e $$i ] ; then \
-			j=`readlink $$i`; \
-			$(ROMFSINST) -s \
-				`basename $$j` \
-				/lib/`basename $$i`; \
+		i=`readlink -f "$$i"`; \
+		soname=`bfin-linux-uclibc-readelf -d "$$i" | sed -n '/(SONAME)/s:.*[[]\(.*\)[]].*:\1:p'`; \
+		if [ ! -f "${ROMFSDIR}/lib/$$soname" ] ; then \
+			$(ROMFSINST) -d -p 755 $$i /lib/$$soname; \
 		fi; \
 	done; \
 	if [ "$(CONFIG_INSTALL_ELF_TRIM_LIBS)" = "y" ] ; then \
