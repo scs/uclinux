@@ -50,6 +50,7 @@ CfgTable ppiMasterTable1D[] = {
 	{ CMD_PPI_PORT_CFG, CFG_PPI_PORT_CFG_SYNC1 },
 	{ CMD_PPI_SET_DIMS, CFG_PPI_DIMS_1D },
 	{ CMD_PPI_DELAY, 0 }, 
+	{ CMD_PPI_GEN_FS12_TIMING_ON_WRITE, 1 }, 
 	{ 0, 0 }
 },
 ppiMasterTable2D[] = {
@@ -64,6 +65,7 @@ ppiMasterTable2D[] = {
 	{ CMD_PPI_PORT_CFG, CFG_PPI_PORT_CFG_SYNC23 }, 
 	{ CMD_PPI_SET_DIMS, CFG_PPI_DIMS_2D },
 	{ CMD_PPI_DELAY, 0 }, 
+	{ CMD_PPI_GEN_FS12_TIMING_ON_WRITE, 1 }, 
 	{ 0, 0 }
 },
 ppiSlaveTable1D[] = {
@@ -107,7 +109,7 @@ realloc_image()
 {
 	/* allocate image buffer */
 	if (!gImage)
-		gImage = (UINT16 *)malloc( (size_t)MAXIMAGESZ );
+		gImage = (UINT16 *)malloc( gRows * gCols * sizeof(UINT16) );
 
 	if ( gImage == NULL ){
 		perror("malloc");
@@ -367,7 +369,6 @@ beMaster(int ppiFD, UINT16 bufX, UINT16 bufY, int dims)
 				
 		fillBuffer( (UINT16 *)gImage, bufX, bufY, gPatternID, value );
 		showBuffer( (UINT16 *)gImage, bufX, bufY, 0x0FFF );
-		sleep(1);
 
 		retval = write( ppiFD, gImage, gImageSize );
 		if ( retval != gImageSize ){
@@ -444,7 +445,6 @@ beSlave(int ppiFD, UINT16 bufX, UINT16 bufY, int dims)
 		else{
 			showBuffer( (UINT16 *)gImage, bufX, bufY, 0x0FFF );
 		}
-		sleep(2);
 	}
 	return(0);
 }

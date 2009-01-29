@@ -46,6 +46,8 @@
 #define CMD_PPI_SET_WRITECONTINUOUS 14
 #define CMD_PPI_SET_DIMS	  15
 #define CMD_PPI_DELAY	  	  16
+#define	CMD_PPI_SETGPIO		  17
+#define	CMD_PPI_GEN_FS12_TIMING_ON_WRITE	18
 
 #define CMD_PPI_GET_ALLCONFIG 32 /* For debug */
 
