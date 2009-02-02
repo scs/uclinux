@@ -147,6 +147,15 @@ while 1 {
             }
         }
 
+        -re "Blackfin on-chip MAC support.*BFIN_MAC.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" && $audio_dev == "audio_ad1981b" } {
+                #ad1981b conflicts with BFIN_MAC on BF527-EZKIT
+                send "N\r"
+            } else {
+                send "\r"
+            }
+        }
+
 #ad73322
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             if { $audio_dev == "audio_ad73322" } {
