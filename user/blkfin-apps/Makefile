@@ -29,6 +29,7 @@ dir_$(CONFIG_USER_SDLEXAMPLES)                   += sdl-examples
 dir_$(CONFIG_USER_FPGA_HSCONV)                   += fpga
 dir_$(CONFIG_USER_UVC_VIDEO)                     += uvc-video
 dir_$(CONFIG_USER_BFBLUET_EZEXT_UTIL)            += bfbluet-ezext-util
+dir_$(CONFIG_USER_EDN_BENCH)                     += edn
 
 all %::
 	for i in $(dir_y) ; do $(MAKE) -C $$i $@ || exit $$? ; done

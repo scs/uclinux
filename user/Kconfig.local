@@ -98,6 +98,8 @@ endmenu
 
 menu "Blackfin app programs"
 
+config USER_EDN_BENCH
+	bool "EDN's DSP benchmark"
 config USER_LMBENCH
 	bool "lmbench"
 config USER_BLKFIN_APPS_DEVFBAPP_DEVTEST
