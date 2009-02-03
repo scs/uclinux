@@ -100,7 +100,6 @@ rm -rf ./user/proftpd
 rm -rf ./user/python
 rm -rf ./user/quagga
 rm -rf ./user/reiserfsprogs
-rm -rf ./user/samba
 rm -rf ./user/ser
 rm -rf ./user/shadow
 rm -rf ./user/speedtouch
