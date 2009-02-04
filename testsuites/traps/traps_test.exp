@@ -47,6 +47,7 @@ while 1 {
      
        -re "(\[0-9]+)\r\n" {
         set case_number $expect_out(1,string)
+        send_user "Case_num is $case_number .\n"
         break
       }
 
@@ -59,21 +60,35 @@ while 1 {
 
 set timeout 50
 set pass_num 0
+set fail_num 0
 
 send -s  "./traps_test -1\r"
 for { set j 0 } { $j < [ expr $case_number + 1 ] } { incr j 1 } { 
 while 1 {
    expect {
-      -re "$j.*:.*PASS \\(.*\\)" {
-         send_log "Pass_num is $j ."
-         incr pass_num  
-         break
-      }
+      -re "$j.*:" {
+               expect {
+                        -re "PASS\[\x20\t]+\\(.*\\)" {
+                           incr pass_num
+                           send_user "This pass_num is $j .\n"
+                           break
+                        }
+                        -re "FAIL\[\x20\t]+\\(.*\\)" {
+                           incr fail_num
+                           send_user "This fail_num is $j .\n"
+                           break
+                        }
 
+                        timeout {
+                           case_fail $case_num
+                           break
+                        }
+                }
+      }
       timeout {
         case_fail $case_num
 	break
-         }
+      }
      }
 }
 }
@@ -82,7 +97,8 @@ if { $pass_num == [expr $case_number + 1] } {
    send_log "\n"
    send_log "\n$TITLE ............\[PASS\]\n"
 } else {
-   send_log "\n"
+   send_user "\n Total passed num is $pass_num . Should be [expr $case_number + 1] \n"
+   send_user "All fail_num is $fail_num .\n"
    case_fail $case_num
 }
 
