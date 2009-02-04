@@ -19,6 +19,10 @@ source ../reboot_kernel.exp
 step "start TEST - Format entire MMC/SD and create DOS FS"
 set case_num 0
 set test_flag 0
+set mmc_dev mmcblk0
+set mmc_dev_part mmcblk0p
+set mmc_dev1 mmcblk0p1
+set mmc_dev2 mmcblk0p2
 
 sleep 5
 
@@ -26,17 +30,13 @@ send "mkdir /mnt/mmc\r"
 
 incr case_num
 set timeout 5
-send "cat /proc/spi_mmc\r"
+send "dmesg|grep mmc\r"
 while 1 {
     expect {
-        -re "Capacity.*Name.*$kernel_prompt" {
+        -re "mmc0: new SD card on SPI.*${mmc_dev}:.*${mmc_dev}:.*$kernel_prompt" {
             send_user "MMC/SD card detected, test pass\n"
             case_pass $case_num
             break
-        }
-        -re "No MMC/SD card found.*$kernel_prompt" {
-            send_user "no MMC/SD card, test fail\n"
-            case_fail $case_num
         }
         timeout {
             send_user "no MMC/SD card, test fail\n"
@@ -47,11 +47,11 @@ while 1 {
 
 incr case_num
 set timeout 10
-send "mkdosfs -F 32 /dev/spi_mmc\r"
+send "mkdosfs -F 32 /dev/$mmc_dev\r"
 while 1 {
     expect {
         -re "No such .*$kernel_prompt" {
-            send_user "No spi_mmc device, test fail\n"
+            send_user "No $mmc_dev device, test fail\n"
             case_fail $case_num
         }
         -re "mkdosfs.*$kernel_prompt" {
@@ -68,7 +68,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "mount -t msdos /dev/spi_mmc /mnt/mmc\r"
+send "mount -t msdos /dev/$mmc_dev /mnt/mmc\r"
 while 1 {
     expect {
         -re "mount.*failed.*$kernel_prompt" {
@@ -158,13 +158,13 @@ while 1 {
 
 step "Remove old partition in MMC/SD"
 set timeout 10
-send "fdisk /dev/spi_mmc\r"
+send "fdisk /dev/$mmc_dev\r"
 expect -re "Command.*:"
 send "p\r"
 set timeout 10
 while 1 {
     expect {
-        -re "/dev/spi_mmc1" {
+        -re "/dev/$mmc_dev1" {
             send "d\r"
             expect -re "Partition number.*"
             send "1\r"
@@ -184,13 +184,13 @@ while 1 {
 }
 
 set timeout 10
-send "fdisk /dev/spi_mmc\r"
+send "fdisk /dev/$mmc_dev\r"
 expect -re "Command.*:"
 send "p\r"
 set timeout 10
 while 1 {
     expect {
-        -re "/dev/spi_mmc2" {
+        -re "/dev/$mmc_dev2" {
             send "d\r"
             expect -re "Partition number.*"
             send "2\r"
@@ -212,7 +212,7 @@ while 1 {
 
 
 set timeout 10
-send "fdisk /dev/spi_mmc\r"
+send "fdisk /dev/$mmc_dev\r"
 expect -re "Command.*:"
 send "n\r"
 expect -re "primary partition.*"
@@ -238,7 +238,7 @@ send "w\r"
 expect -re $kernel_prompt
 
 set timeout 10
-send "fdisk /dev/spi_mmc\r"
+send "fdisk /dev/$mmc_dev\r"
 expect -re "Command.*:"
 send "t\r"
 expect -re "Partition number.*"
@@ -253,10 +253,10 @@ send_user "Creat 2 partitions done\n"
 
 incr case_num
 set timeout 5
-send "ls /sys/block/spi_mmc\r"
+send "ls /sys/block/$mmc_dev\r"
 while 1 {
     expect {
-        -re "(spi_mmc\[12])+.*$kernel_prompt" {
+        -re "($mmc_dev_part\[12])+.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -268,10 +268,10 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "ls /dev\r"
+send "ls /dev/$mmc_dev*\r"
 while 1 { 
     expect {
-        -re "spi_mmc\[12]?.*spi_mmc\[12]?.*spi_mmc\[12]?.*$kernel_prompt" {
+        -re "$mmc_dev.*$mmc_dev1.*$mmc_dev2.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -289,10 +289,10 @@ send "mkdir /mnt/mmc2\r"
 
 incr case_num
 set timeout 5
-send "ls /sys/block/spi_mmc\r"
+send "ls /sys/block/$mmc_dev\r"
 while 1 { 
     expect {
-        -re "(spi_mmc\[12])+.*$kernel_prompt" {
+        -re "($mmc_dev_part\[12])+.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -304,10 +304,10 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "ls /dev\r"
-while 1 { 
+send "ls /dev/$mmc_dev*\r"
+while 1 {
     expect {
-        -re "spi_mmc\[12]?.*spi_mmc\[12]?.*spi_mmc\[12]?.*$kernel_prompt" {
+        -re "$mmc_dev.*$mmc_dev1.*$mmc_dev2.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -320,7 +320,7 @@ while 1 {
 step "TEST - Test with the two partitions"
 incr case_num
 set timeout 90
-send "mke2fs /dev/spi_mmc1\r"
+send "mke2fs /dev/$mmc_dev1\r"
 while 1 { 
     expect {
         -re "mke2fs.*Writing.*$kernel_prompt" {
@@ -337,7 +337,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "mount -t ext2 /dev/spi_mmc1 /mnt/mmc1\r"
+send "mount -t ext2 /dev/$mmc_dev1 /mnt/mmc1\r"
 while 1 {
     expect {
         -re "mount.*failed.*$kernel_prompt" {
@@ -358,11 +358,11 @@ while 1 {
 
 incr case_num
 set timeout 10
-send "mkdosfs -F 32 /dev/spi_mmc2\r"
+send "mkdosfs -F 32 /dev/$mmc_dev2\r"
 while 1 {
     expect {
         -re "No such .*$kernel_prompt" {
-            send_user "No spi_mmc2 device, test fail\n"
+            send_user "No $mmc_dev2 device, test fail\n"
             case_fail $case_num
         }
         -re "mkdosfs.*$kernel_prompt" {
@@ -379,7 +379,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "mount -t msdos /dev/spi_mmc2 /mnt/mmc2\r"
+send "mount -t msdos /dev/$mmc_dev2 /mnt/mmc2\r"
 while 1 {
     expect {
         -re "mount.*failed.*$kernel_prompt" {
@@ -554,7 +554,7 @@ step "Start bonnie++ test"
 
 incr case_num
 set timeout 90
-send "mke2fs /dev/spi_mmc1\r"
+send "mke2fs /dev/$mmc_dev1\r"
 while 1 { 
     expect {
         -re "mke2fs.*Writing.*$kernel_prompt" {
@@ -571,7 +571,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "mount -t ext2 /dev/spi_mmc1 /mnt/mmc1\r"
+send "mount -t ext2 /dev/$mmc_dev1 /mnt/mmc1\r"
 while 1 {
     expect {
         -re "mount.*failed.*$kernel_prompt" {
@@ -617,7 +617,7 @@ incr case_num
 set timeout 5
 send "mkdir /mnt/rootfs\r"
 expect -re $kernel_prompt
-send "mount -o sync /dev/spi_mmc1 /mnt/rootfs\r"
+send "mount -o sync /dev/$mmc_dev1 /mnt/rootfs\r"
 expect -re $kernel_prompt
 send "ifconfig eth0 $targetip up\r"
 expect -re $kernel_prompt
