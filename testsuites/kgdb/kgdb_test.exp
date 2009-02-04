@@ -650,6 +650,17 @@ while 1 {
 			exit
 		}
 	}
+	send "\r"
+	expect {
+		"(gdb) " {
+		}
+		timeout {
+		clean_host_gdb
+		case_fail $case_num
+			exit
+		}
+	}
+
         send "disassemble\r"
         expect {
                -re "$reg_addr_before.*\[\r\n](0x\[0-9a-fA-F]+)" {
@@ -663,6 +674,16 @@ while 1 {
                         exit
                 }
         }
+	send "\r"
+	expect {
+		"(gdb) " {
+		}
+		timeout {
+		clean_host_gdb
+		case_fail $case_num
+			exit
+		}
+	}
 
         incr case_num
         send "si\r"
@@ -705,6 +726,17 @@ while 1 {
 			exit
 		}
 	}
+	send "\r"
+	expect {
+		"(gdb) " {
+		}
+		timeout {
+		clean_host_gdb
+		case_fail $case_num
+			exit
+		}
+	}
+
 	incr case_num
 	send "print len\r"
 	expect {
