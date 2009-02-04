@@ -192,6 +192,12 @@ rl_gather_tyi ()
   FD_SET (tty, &exceptfds);
   timeout.tv_sec = 0;
   timeout.tv_usec = _keyboard_input_timeout;
+
+  while (timeout.tv_usec >= 1000000)
+    {
+      timeout.tv_usec -= 1000000;
+      ++timeout.tv_sec;
+    }
   result = select (tty + 1, &readfds, (fd_set *)NULL, &exceptfds, &timeout);
   if (result <= 0)
     return 0;	/* Nothing to read. */
