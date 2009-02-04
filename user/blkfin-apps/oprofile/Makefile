@@ -1,5 +1,5 @@
-VER = oprofile-0.9.2.1rc1
-#VER = oprofile-0.9.1
+#VER = oprofile-0.9.2.1rc1
+VER = oprofile-0.9.1
 CONF_OPTS= --with-kernel-support
 FILE_IMAGE = $(ROOTDIR)/$(LINUXDIR)/vmlinux
 
@@ -24,4 +24,4 @@ romfs:
 	sed "/--vmlinux=/s:kernel-range=.* :kernel-range=$$tmp1,$$tmp2 :" bfin_opcontrol > build-$(VER)/bfin_opcontrol; \
 	chmod a+x build-$(VER)/bfin_opcontrol; \
 	$(ROMFSINST)    build-$(VER)/bfin_opcontrol /usr/bin/bfin_opcontrol; \
-	#$(ROMFSINST) -a "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" /etc/rc
+	$(ROMFSINST) -a "if [ -e /proc/sys/kernel/hung_task_timeout_secs ]; then echo 0 > /proc/sys/kernel/hung_task_timeout_secs; fi" /etc/rc
