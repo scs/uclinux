@@ -1,14 +1,15 @@
-EXEC = spi_test
-OBJS = spi_test.o
+ROOTDIR ?= ../../..
+LINUXDIR ?= linux-2.6.x
 
-all: $(EXEC)
+CFLAGS += -Wall
+VPATH = $(ROOTDIR)/$(LINUXDIR)/Documentation/spi
 
-$(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS$(LDLIBS_$@))
-
-romfs:
-	$(ROMFSINST) /bin/$(EXEC)
+all: spidev_test
 
 clean:
-	-rm -f $(EXEC) *.elf *.gdb *.o
+	rm -f spidev_test *.elf *.gdb *.o
  
+romfs:
+	$(ROMFSINST) /bin/spidev_test
+
+.PHONY: all clean romfs
