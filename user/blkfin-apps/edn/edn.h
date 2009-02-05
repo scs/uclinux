@@ -2,7 +2,7 @@
 #define ORDER 50
 
 void vec_mpy1(short y[], const short x[], short scaler);
-int mac(const short *a, const short *b, long int sqr, long int *sum);
+int mac(const short *a, const short *b, int sqr, int *sum);
 void fir(const short array1[], const short coeff[], short output[]);
 void fir_no_red_ld(const short x[], const short h[], short y[]);
 int latsynth(short b[], const short k[], long int n, long int f);

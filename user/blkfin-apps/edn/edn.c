@@ -23,7 +23,7 @@ void vec_mpy1(short y[], const short x[], short scaler)
 /******************************************************
  *	Dot Product                                   *
  ******************************************************/
-int mac(const short *a, const short *b, long int sqr, long int *sum)
+int mac(const short *a, const short *b, int sqr, int *sum)
 {
 	int i;
 	int dotp = *sum;
