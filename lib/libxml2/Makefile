@@ -1,4 +1,4 @@
-VER = libxml2-2.7.2
+VER = libxml2-2.7.3
 
 CONF_OPTS = \
 	--without-python \
