@@ -82,9 +82,14 @@ if [ -d "/mnt/app" ]; then
 	mkdir -p "/mnt/app/.ssh" # graciously creating a .ssh directory for people intending to store their public key(s) on the camera.
 fi
 
+# Prohibit password login if "no-root-login" is set in the u-boot environment
+if fw_printenv "no-root-login" > /dev/null 2>&1; then
+	sed -ri "s/^root:[^:]:/root:x:/" /etc/passwd
+fi
+
 cat /etc/motd
 
-#launch user specific application script
+# Launch user specific application script
 if [ "$runscript" ]; then
 	runfolder="/"
 	
