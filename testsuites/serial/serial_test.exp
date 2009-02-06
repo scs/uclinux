@@ -381,7 +381,7 @@ while 1 {
         }
 }
 
-send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate -icrnl igncr\r"
+send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate -icrnl igncr min 1 time 0\r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -512,7 +512,7 @@ sleep 3
 send "ls\r"
 expect -re  "$sh_prompt"
 
-send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate -icrnl igncr \r"
+send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate -icrnl igncr min 1 time 0\r"
 while 1 {
         expect {
                 -re  "$sh_prompt" { break  }
