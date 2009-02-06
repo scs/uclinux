@@ -1,3 +1,4 @@
+VER = Linux-PAM-0.99.3.0
 
 CONFOPTS := --enable-dependency-tracking
 CONFOPTS += --sysconfdir=/etc/config
@@ -13,7 +14,7 @@ all: build/build
 build/build: makefile
 	rm -rf build
 	mkdir build
-	(cd build; ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
+	(cd build; ../$(VER)/configure $(CONFIGURE_OPTS) $(CONFOPTS))
 	touch build/build
 
 clean:
