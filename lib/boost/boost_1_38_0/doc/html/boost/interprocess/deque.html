@@ -1,0 +1,194 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Class template deque</title>
+<link rel="stylesheet" href="../../boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.73.2">
+<link rel="start" href="../../index.html" title="The Boost C++ Libraries BoostBook Documentation Subset">
+<link rel="up" href="../../boost_interprocess_reference.html#header.boost.interprocess.containers.deque_hpp" title="Header &lt;boost/interprocess/containers/deque.hpp&gt;">
+<link rel="prev" href="anonymous_shared_memory.html" title="Function anonymous_shared_memory">
+<link rel="next" href="../../BOOST_PP_LOCAL_MACRO_id3248867.html" title="Macro BOOST_PP_LOCAL_MACRO">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table cellpadding="2" width="100%"><tr>
+<td valign="top"><img alt="Boost C++ Libraries" width="277" height="86" src="../../../../boost.png"></td>
+<td align="center"><a href="../../../../index.html">Home</a></td>
+<td align="center"><a href="../../../../libs/libraries.htm">Libraries</a></td>
+<td align="center"><a href="http://www.boost.org/users/people.html">People</a></td>
+<td align="center"><a href="http://www.boost.org/users/faq.html">FAQ</a></td>
+<td align="center"><a href="../../../../more/index.htm">More</a></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="anonymous_shared_memory.html"><img src="../../../../doc/html/images/prev.png" alt="Prev"></a><a accesskey="u" href="../../boost_interprocess_reference.html#header.boost.interprocess.containers.deque_hpp"><img src="../../../../doc/html/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../doc/html/images/home.png" alt="Home"></a><a accesskey="n" href="../../BOOST_PP_LOCAL_MACRO_id3248867.html"><img src="../../../../doc/html/images/next.png" alt="Next"></a>
+</div>
+<div class="refentry" lang="en">
+<a name="boost.interprocess.deque"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class template deque</span></h2>
+<p>boost::interprocess::deque</p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="emphasis"><em>// In header: &lt;<a class="link" href="../../boost_interprocess_reference.html#header.boost.interprocess.containers.deque_hpp" title="Header &lt;boost/interprocess/containers/deque.hpp&gt;">boost/interprocess/containers/deque.hpp</a>&gt;
+
+</em></span><span class="bold"><strong>template</strong></span>&lt;<span class="bold"><strong>typename</strong></span> T, <span class="bold"><strong>typename</strong></span> Alloc&gt; 
+<span class="bold"><strong>class</strong></span> <a class="link" href="deque.html" title="Class template deque">deque</a> {
+<span class="bold"><strong>public</strong></span>:
+  <span class="emphasis"><em>// types</em></span>
+  <span class="bold"><strong>typedef</strong></span> Base::iterator                          <a name="boost.interprocess.deque.iterator"></a>iterator;              
+  <span class="bold"><strong>typedef</strong></span> Base::const_iterator                    <a name="boost.interprocess.deque.const_iterator"></a>const_iterator;        
+  <span class="bold"><strong>typedef</strong></span> std::reverse_iterator&lt; const_iterator &gt; <a name="boost.interprocess.deque.const_reverse_iterator"></a>const_reverse_iterator;
+  <span class="bold"><strong>typedef</strong></span> std::reverse_iterator&lt; iterator &gt;       <a name="boost.interprocess.deque.reverse_iterator"></a>reverse_iterator;      
+
+  <span class="emphasis"><em>// <a class="link" href="deque.html#boost.interprocess.dequeconstruct-copy-destruct">construct/copy/destruct</a></em></span>
+  <a class="link" href="deque.html#id3248507-bb">deque</a>(<span class="bold"><strong>const</strong></span> allocator_type &amp; = allocator_type());
+  <a class="link" href="deque.html#id3248516-bb">deque</a>(<span class="bold"><strong>const</strong></span> <a class="link" href="deque.html" title="Class template deque">deque</a> &amp;);
+  <a class="link" href="deque.html#id3248527-bb">deque</a>(<a class="link" href="deque.html" title="Class template deque">deque</a> &amp;&amp;);
+  <a class="link" href="deque.html#id3248536-bb">deque</a>(size_type, <span class="bold"><strong>const</strong></span> value_type &amp;, 
+        <span class="bold"><strong>const</strong></span> allocator_type &amp; = allocator_type());
+  <a class="link" href="deque.html#id3248557-bb">deque</a>(size_type);
+  <span class="bold"><strong>template</strong></span>&lt;<span class="bold"><strong>typename</strong></span> InpIt&gt; 
+    <a class="link" href="deque.html#id3248564-bb">deque</a>(InpIt, InpIt, <span class="bold"><strong>const</strong></span> allocator_type &amp; = allocator_type());
+  deque&amp; <a class="link" href="deque.html#id3248593-bb"><span class="bold"><strong>operator</strong></span>=</a>(<span class="bold"><strong>const</strong></span> <a class="link" href="deque.html" title="Class template deque">deque</a> &amp;);
+  deque&amp; <a class="link" href="deque.html#id3248604-bb"><span class="bold"><strong>operator</strong></span>=</a>(<a class="link" href="deque.html" title="Class template deque">deque</a> &amp;&amp;);
+  <a class="link" href="deque.html#id3248592-bb">~deque</a>();
+
+  <span class="emphasis"><em>// <a class="link" href="deque.html#id3247936-bb">public member functions</a></em></span>
+  <span class="type">allocator_type</span> <a class="link" href="deque.html#id3247939-bb">get_allocator</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">iterator</span> <a class="link" href="deque.html#id3247948-bb">begin</a>() ;
+  <span class="type">iterator</span> <a class="link" href="deque.html#id3247956-bb">end</a>() ;
+  <span class="type">const_iterator</span> <a class="link" href="deque.html#id3247964-bb">begin</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">const_iterator</span> <a class="link" href="deque.html#id3247972-bb">end</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">reverse_iterator</span> <a class="link" href="deque.html#id3247980-bb">rbegin</a>() ;
+  <span class="type">reverse_iterator</span> <a class="link" href="deque.html#id3247988-bb">rend</a>() ;
+  <span class="type">const_reverse_iterator</span> <a class="link" href="deque.html#id3247996-bb">rbegin</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">const_reverse_iterator</span> <a class="link" href="deque.html#id3248004-bb">rend</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">const_iterator</span> <a class="link" href="deque.html#id3248013-bb">cbegin</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">const_iterator</span> <a class="link" href="deque.html#id3248021-bb">cend</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">const_reverse_iterator</span> <a class="link" href="deque.html#id3248029-bb">crbegin</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">const_reverse_iterator</span> <a class="link" href="deque.html#id3248037-bb">crend</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">reference</span> <a class="link" href="deque.html#id3248045-bb"><span class="bold"><strong>operator</strong></span>[]</a>(size_type) ;
+  <span class="type">const_reference</span> <a class="link" href="deque.html#id3248059-bb"><span class="bold"><strong>operator</strong></span>[]</a>(size_type) <span class="bold"><strong>const</strong></span>;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248073-bb">priv_range_check</a>(size_type) <span class="bold"><strong>const</strong></span>;
+  <span class="type">reference</span> <a class="link" href="deque.html#id3248087-bb">at</a>(size_type) ;
+  <span class="type">const_reference</span> <a class="link" href="deque.html#id3248101-bb">at</a>(size_type) <span class="bold"><strong>const</strong></span>;
+  <span class="type">reference</span> <a class="link" href="deque.html#id3248114-bb">front</a>() ;
+  <span class="type">reference</span> <a class="link" href="deque.html#id3248122-bb">back</a>() ;
+  <span class="type">const_reference</span> <a class="link" href="deque.html#id3248130-bb">front</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">const_reference</span> <a class="link" href="deque.html#id3248139-bb">back</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">size_type</span> <a class="link" href="deque.html#id3248147-bb">size</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type">size_type</span> <a class="link" href="deque.html#id3248155-bb">max_size</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type"><span class="bold"><strong>bool</strong></span></span> <a class="link" href="deque.html#id3248163-bb">empty</a>() <span class="bold"><strong>const</strong></span>;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248171-bb">swap</a>(<a class="link" href="deque.html" title="Class template deque">deque</a> &amp;&amp;) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248187-bb">assign</a>(size_type, <span class="bold"><strong>const</strong></span> T &amp;) ;
+  <span class="bold"><strong>template</strong></span>&lt;<span class="bold"><strong>typename</strong></span> InpIt&gt; <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248206-bb">assign</a>(InpIt, InpIt) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248233-bb">push_back</a>(<span class="bold"><strong>const</strong></span> value_type &amp;) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248247-bb">push_back</a>(value_type &amp;&amp;) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248261-bb">push_front</a>(<span class="bold"><strong>const</strong></span> value_type &amp;) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248274-bb">push_front</a>(value_type &amp;&amp;) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248288-bb">pop_back</a>() ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248296-bb">pop_front</a>() ;
+  <span class="type">iterator</span> <a class="link" href="deque.html#id3248304-bb">insert</a>(const_iterator, <span class="bold"><strong>const</strong></span> value_type &amp;) ;
+  <span class="type">iterator</span> <a class="link" href="deque.html#id3248324-bb">insert</a>(const_iterator, value_type &amp;&amp;) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248344-bb">insert</a>(const_iterator, size_type, <span class="bold"><strong>const</strong></span> value_type &amp;) ;
+  <span class="bold"><strong>template</strong></span>&lt;<span class="bold"><strong>typename</strong></span> InpIt&gt; <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248369-bb">insert</a>(const_iterator, InpIt, InpIt) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248402-bb">emplace_back</a>() ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248410-bb">emplace_front</a>() ;
+  <span class="type">iterator</span> <a class="link" href="deque.html#id3248418-bb">emplace</a>(const_iterator) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248432-bb">resize</a>(size_type, <span class="bold"><strong>const</strong></span> value_type &amp;) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248451-bb">resize</a>(size_type) ;
+  <span class="type">iterator</span> <a class="link" href="deque.html#id3248465-bb">erase</a>(const_iterator) ;
+  <span class="type">iterator</span> <a class="link" href="deque.html#id3248479-bb">erase</a>(const_iterator, const_iterator) ;
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a class="link" href="deque.html#id3248499-bb">clear</a>() ;
+};</pre></div>
+<div class="refsect1" lang="en">
+<a name="id3325142"></a><h2>Description</h2>
+<p>Deque class </p>
+<div class="refsect2" lang="en">
+<a name="id3325148"></a><h3>
+<a name="boost.interprocess.dequeconstruct-copy-destruct"></a><code class="computeroutput">deque</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol type="1">
+<li><pre class="literallayout"><a name="id3248507-bb"></a>deque(<span class="bold"><strong>const</strong></span> allocator_type &amp; a = allocator_type());</pre></li>
+<li><pre class="literallayout"><a name="id3248516-bb"></a>deque(<span class="bold"><strong>const</strong></span> <a class="link" href="deque.html" title="Class template deque">deque</a> &amp; x);</pre></li>
+<li><pre class="literallayout"><a name="id3248527-bb"></a>deque(<a class="link" href="deque.html" title="Class template deque">deque</a> &amp;&amp; x);</pre></li>
+<li><pre class="literallayout"><a name="id3248536-bb"></a>deque(size_type n, <span class="bold"><strong>const</strong></span> value_type &amp; value, 
+      <span class="bold"><strong>const</strong></span> allocator_type &amp; a = allocator_type());</pre></li>
+<li><pre class="literallayout"><a name="id3248557-bb"></a>deque(size_type n);</pre></li>
+<li><pre class="literallayout"><span class="bold"><strong>template</strong></span>&lt;<span class="bold"><strong>typename</strong></span> InpIt&gt; 
+  <a name="id3248564-bb"></a>deque(InpIt first, InpIt last, <span class="bold"><strong>const</strong></span> allocator_type &amp; a = allocator_type());</pre></li>
+<li><pre class="literallayout">deque&amp; <a name="id3248593-bb"></a><span class="bold"><strong>operator</strong></span>=(<span class="bold"><strong>const</strong></span> <a class="link" href="deque.html" title="Class template deque">deque</a> &amp; x);</pre></li>
+<li><pre class="literallayout">deque&amp; <a name="id3248604-bb"></a><span class="bold"><strong>operator</strong></span>=(<a class="link" href="deque.html" title="Class template deque">deque</a> &amp;&amp; x);</pre></li>
+<li><pre class="literallayout"><a name="id3248592-bb"></a>~deque();</pre></li>
+</ol></div>
+</div>
+<div class="refsect2" lang="en">
+<a name="id3325393"></a><h3>
+<a name="id3247936-bb"></a><code class="computeroutput">deque</code> public member functions</h3>
+<div class="orderedlist"><ol type="1">
+<li><pre class="literallayout"><span class="type">allocator_type</span> <a name="id3247939-bb"></a>get_allocator() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">iterator</span> <a name="id3247948-bb"></a>begin() ;</pre></li>
+<li><pre class="literallayout"><span class="type">iterator</span> <a name="id3247956-bb"></a>end() ;</pre></li>
+<li><pre class="literallayout"><span class="type">const_iterator</span> <a name="id3247964-bb"></a>begin() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">const_iterator</span> <a name="id3247972-bb"></a>end() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">reverse_iterator</span> <a name="id3247980-bb"></a>rbegin() ;</pre></li>
+<li><pre class="literallayout"><span class="type">reverse_iterator</span> <a name="id3247988-bb"></a>rend() ;</pre></li>
+<li><pre class="literallayout"><span class="type">const_reverse_iterator</span> <a name="id3247996-bb"></a>rbegin() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">const_reverse_iterator</span> <a name="id3248004-bb"></a>rend() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">const_iterator</span> <a name="id3248013-bb"></a>cbegin() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">const_iterator</span> <a name="id3248021-bb"></a>cend() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">const_reverse_iterator</span> <a name="id3248029-bb"></a>crbegin() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">const_reverse_iterator</span> <a name="id3248037-bb"></a>crend() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">reference</span> <a name="id3248045-bb"></a><span class="bold"><strong>operator</strong></span>[](size_type n) ;</pre></li>
+<li><pre class="literallayout"><span class="type">const_reference</span> <a name="id3248059-bb"></a><span class="bold"><strong>operator</strong></span>[](size_type n) <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248073-bb"></a>priv_range_check(size_type n) <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">reference</span> <a name="id3248087-bb"></a>at(size_type n) ;</pre></li>
+<li><pre class="literallayout"><span class="type">const_reference</span> <a name="id3248101-bb"></a>at(size_type n) <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">reference</span> <a name="id3248114-bb"></a>front() ;</pre></li>
+<li><pre class="literallayout"><span class="type">reference</span> <a name="id3248122-bb"></a>back() ;</pre></li>
+<li><pre class="literallayout"><span class="type">const_reference</span> <a name="id3248130-bb"></a>front() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">const_reference</span> <a name="id3248139-bb"></a>back() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">size_type</span> <a name="id3248147-bb"></a>size() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type">size_type</span> <a name="id3248155-bb"></a>max_size() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>bool</strong></span></span> <a name="id3248163-bb"></a>empty() <span class="bold"><strong>const</strong></span>;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248171-bb"></a>swap(<a class="link" href="deque.html" title="Class template deque">deque</a> &amp;&amp; x) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248187-bb"></a>assign(size_type n, <span class="bold"><strong>const</strong></span> T &amp; val) ;</pre></li>
+<li><pre class="literallayout"><span class="bold"><strong>template</strong></span>&lt;<span class="bold"><strong>typename</strong></span> InpIt&gt; <span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248206-bb"></a>assign(InpIt first, InpIt last) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248233-bb"></a>push_back(<span class="bold"><strong>const</strong></span> value_type &amp; t) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248247-bb"></a>push_back(value_type &amp;&amp; t) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248261-bb"></a>push_front(<span class="bold"><strong>const</strong></span> value_type &amp; t) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248274-bb"></a>push_front(value_type &amp;&amp; t) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248288-bb"></a>pop_back() ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248296-bb"></a>pop_front() ;</pre></li>
+<li><pre class="literallayout"><span class="type">iterator</span> <a name="id3248304-bb"></a>insert(const_iterator position, <span class="bold"><strong>const</strong></span> value_type &amp; x) ;</pre></li>
+<li><pre class="literallayout"><span class="type">iterator</span> <a name="id3248324-bb"></a>insert(const_iterator position, value_type &amp;&amp; mx) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248344-bb"></a>insert(const_iterator pos, size_type n, <span class="bold"><strong>const</strong></span> value_type &amp; x) ;</pre></li>
+<li><pre class="literallayout"><span class="bold"><strong>template</strong></span>&lt;<span class="bold"><strong>typename</strong></span> InpIt&gt; 
+  <span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248369-bb"></a>insert(const_iterator pos, InpIt first, InpIt last) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248402-bb"></a>emplace_back() ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248410-bb"></a>emplace_front() ;</pre></li>
+<li><pre class="literallayout"><span class="type">iterator</span> <a name="id3248418-bb"></a>emplace(const_iterator p) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248432-bb"></a>resize(size_type new_size, <span class="bold"><strong>const</strong></span> value_type &amp; x) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248451-bb"></a>resize(size_type new_size) ;</pre></li>
+<li><pre class="literallayout"><span class="type">iterator</span> <a name="id3248465-bb"></a>erase(const_iterator pos) ;</pre></li>
+<li><pre class="literallayout"><span class="type">iterator</span> <a name="id3248479-bb"></a>erase(const_iterator first, const_iterator last) ;</pre></li>
+<li><pre class="literallayout"><span class="type"><span class="bold"><strong>void</strong></span></span> <a name="id3248499-bb"></a>clear() ;</pre></li>
+</ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright © 2005 - 2008 Ion Gaztañaga<p>
+        Distributed under the Boost Software License, Version 1.0. (See accompanying
+        file LICENSE_1_0.txt or copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="anonymous_shared_memory.html"><img src="../../../../doc/html/images/prev.png" alt="Prev"></a><a accesskey="u" href="../../boost_interprocess_reference.html#header.boost.interprocess.containers.deque_hpp"><img src="../../../../doc/html/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../doc/html/images/home.png" alt="Home"></a><a accesskey="n" href="../../BOOST_PP_LOCAL_MACRO_id3248867.html"><img src="../../../../doc/html/images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

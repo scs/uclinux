@@ -1,4 +1,4 @@
-VER = boost_1_37_0
+VER = boost_1_38_0
 URL = http://downloads.sourceforge.net/sourceforge/boost/$(VER).tar.bz2
 
 LIBS-a := $(wildcard $(VER)/libs/*/build)
