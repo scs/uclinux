@@ -1,74 +1,34 @@
-diff -Nurp --exclude='*svn*' linux-kernel/drivers/pci/htirq.c linux-kernel-adeos/drivers/pci/htirq.c
---- linux-kernel/drivers/pci/htirq.c	2008-12-09 17:33:09.000000000 +0800
-+++ linux-kernel-adeos/drivers/pci/htirq.c	2008-12-11 16:53:25.000000000 +0800
-@@ -21,7 +21,7 @@
-  * With multiple simultaneous hypertransport irq devices it might pay
-  * to make this more fine grained.  But start with simple, stupid, and correct.
-  */
--static DEFINE_SPINLOCK(ht_irq_lock);
-+static IPIPE_DEFINE_SPINLOCK(ht_irq_lock);
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/Makefile
++++ b/Makefile
+@@ -525,6 +525,10 @@ endif
+ # Arch Makefiles may override this setting
+ KBUILD_CFLAGS += $(call cc-option, -fno-stack-protector)
  
- struct ht_irq_cfg {
- 	struct pci_dev *dev;
-diff -Nurp --exclude='*svn*' linux-kernel/drivers/serial/8250.c linux-kernel-adeos/drivers/serial/8250.c
---- linux-kernel/drivers/serial/8250.c	2008-12-09 17:26:25.000000000 +0800
-+++ linux-kernel-adeos/drivers/serial/8250.c	2008-12-11 16:53:25.000000000 +0800
-@@ -57,6 +57,51 @@ static unsigned int share_irqs = SERIAL8
++ifdef CONFIG_IPIPE_TRACE_MCOUNT
++KBUILD_CFLAGS	+= -pg
++endif
++
+ ifdef CONFIG_FRAME_POINTER
+ KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
+ else
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/arch/blackfin/Kconfig b/arch/blackfin/Kconfig
+index 8f1f97d..7c2c966 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/arch/blackfin/Kconfig
++++ b/arch/blackfin/Kconfig
+@@ -373,6 +373,8 @@ source "arch/blackfin/mach-bf537/Kconfig"
+ source "arch/blackfin/mach-bf538/Kconfig"
+ source "arch/blackfin/mach-bf548/Kconfig"
  
- static unsigned int nr_uarts = CONFIG_SERIAL_8250_RUNTIME_UARTS;
++source "kernel/ipipe/Kconfig"
++
+ menu "Board customizations"
  
-+#ifdef CONFIG_IPIPE_DEBUG
-+
-+#include <stdarg.h>
-+
-+void __ipipe_serial_debug(const char *fmt, ...)
-+{
-+        struct uart_8250_port *up = &serial8250_ports[0];
-+        unsigned int ier, count;
-+        unsigned long flags;
-+        char buf[128];
-+        va_list ap;
-+
-+        va_start(ap, fmt);
-+        vsprintf(buf, fmt, ap);
-+        va_end(ap);
-+        count = strlen(buf);
-+
-+        touch_nmi_watchdog();
-+
-+        local_irq_save_hw(flags);
-+
-+        /*
-+         *      First save the IER then disable the interrupts
-+        */
-+        ier = serial_in(up, UART_IER);
-+
-+        if (up->capabilities & UART_CAP_UUE)
-+                serial_out(up, UART_IER, UART_IER_UUE);
-+        else
-+                serial_out(up, UART_IER, 0);
-+
-+        uart_console_write(&up->port, buf, count, serial8250_console_putchar);
-+
-+        /*
-+         *      Finally, wait for transmitter to become empty
-+         *      and restore the IER
-+         */
-+        wait_for_xmitr(up, BOTH_EMPTY);
-+        serial_out(up, UART_IER, ier);
-+
-+        local_irq_restore_hw(flags);
-+}
-+
-+#endif
-+
- static struct uart_driver serial8250_reg;
- 
- static int serial_index(struct uart_port *port)
-diff -Nurp --exclude='*svn*' linux-kernel/include/asm-generic/cmpxchg-local.h linux-kernel-adeos/include/asm-generic/cmpxchg-local.h
---- linux-kernel/include/asm-generic/cmpxchg-local.h	2008-12-09 16:22:20.000000000 +0800
-+++ linux-kernel-adeos/include/asm-generic/cmpxchg-local.h	2008-12-12 12:06:27.000000000 +0800
-@@ -20,7 +20,7 @@ static inline unsigned long __cmpxchg_lo
+ config CMDLINE_BOOL
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/arch/blackfin/include/asm/ipipe.h b/arch/blackfin/include/asm/ipipe.h
+index 76f53d8..39a41e8 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/asm-generic/cmpxchg-local.h
++++ b/include/asm-generic/cmpxchg-local.h
+@@ -20,7 +20,7 @@ static inline unsigned long __cmpxchg_local_generic(volatile void *ptr,
  	if (size == 8 && sizeof(unsigned long) != 8)
  		wrong_size_cmpxchg(ptr);
  
@@ -77,7 +37,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/asm-generic/cmpxchg-local.h li
  	switch (size) {
  	case 1: prev = *(u8 *)ptr;
  		if (prev == old)
-@@ -41,7 +41,7 @@ static inline unsigned long __cmpxchg_lo
+@@ -41,7 +41,7 @@ static inline unsigned long __cmpxchg_local_generic(volatile void *ptr,
  	default:
  		wrong_size_cmpxchg(ptr);
  	}
@@ -86,7 +46,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/asm-generic/cmpxchg-local.h li
  	return prev;
  }
  
-@@ -54,11 +54,11 @@ static inline u64 __cmpxchg64_local_gene
+@@ -54,11 +54,11 @@ static inline u64 __cmpxchg64_local_generic(volatile void *ptr,
  	u64 prev;
  	unsigned long flags;
  
@@ -100,9 +60,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/asm-generic/cmpxchg-local.h li
  	return prev;
  }
  
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/hardirq.h linux-kernel-adeos/include/linux/hardirq.h
---- linux-kernel/include/linux/hardirq.h	2008-12-09 16:26:14.000000000 +0800
-+++ linux-kernel-adeos/include/linux/hardirq.h	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/hardirq.h b/include/linux/hardirq.h
+index 181006c..bc69d94 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/hardirq.h
++++ b/include/linux/hardirq.h
 @@ -161,7 +161,22 @@ extern void irq_enter(void);
   */
  extern void irq_exit(void);
@@ -128,162 +89,12 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/hardirq.h linux-kernel-a
 +	} while (0)
  
  #endif /* LINUX_HARDIRQ_H */
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe_base.h linux-kernel-adeos/include/linux/ipipe_base.h
---- linux-kernel/include/linux/ipipe_base.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/include/linux/ipipe_base.h	2008-12-11 16:53:25.000000000 +0800
-@@ -0,0 +1,90 @@
-+/* -*- linux-c -*-
-+ * include/linux/ipipe_base.h
-+ *
-+ * Copyright (C) 2002-2007 Philippe Gerum.
-+ *               2007 Jan Kiszka.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
-+ * USA; either version 2 of the License, or (at your option) any later
-+ * version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ */
-+
-+#ifndef __LINUX_IPIPE_BASE_H
-+#define __LINUX_IPIPE_BASE_H
-+
-+#ifdef CONFIG_IPIPE
-+
-+#include <linux/bitops.h>
-+#include <asm/ipipe_base.h>
-+
-+/* Number of virtual IRQs */
-+#define IPIPE_NR_VIRQS		BITS_PER_LONG
-+/* First virtual IRQ # */
-+#define IPIPE_VIRQ_BASE		(((IPIPE_NR_XIRQS + BITS_PER_LONG - 1) / BITS_PER_LONG) * BITS_PER_LONG)
-+/* Total number of IRQ slots */
-+#define IPIPE_NR_IRQS		(IPIPE_VIRQ_BASE + IPIPE_NR_VIRQS)
-+/* Number of indirect words needed to map the whole IRQ space. */
-+#define IPIPE_IRQ_IWORDS	((IPIPE_NR_IRQS + BITS_PER_LONG - 1) / BITS_PER_LONG)
-+#define IPIPE_IRQ_IMASK		(BITS_PER_LONG - 1)
-+#define IPIPE_IRQMASK_ANY	(~0L)
-+#define IPIPE_IRQMASK_VIRT	(IPIPE_IRQMASK_ANY << (IPIPE_VIRQ_BASE / BITS_PER_LONG))
-+
-+/* Per-cpu pipeline status */
-+#define IPIPE_STALL_FLAG	0	/* Stalls a pipeline stage -- guaranteed at bit #0 */
-+#define IPIPE_SYNC_FLAG		1	/* The interrupt syncer is running for the domain */
-+#define IPIPE_NOSTACK_FLAG	2	/* Domain currently runs on a foreign stack */
-+
-+#define IPIPE_STALL_MASK	(1L << IPIPE_STALL_FLAG)
-+#define IPIPE_SYNC_MASK		(1L << IPIPE_SYNC_FLAG)
-+#define IPIPE_NOSTACK_MASK	(1L << IPIPE_NOSTACK_FLAG)
-+
-+typedef void (*ipipe_irq_handler_t)(unsigned irq,
-+				    void *cookie);
-+
-+extern struct ipipe_domain ipipe_root;
-+
-+#define ipipe_root_domain (&ipipe_root)
-+
-+void __ipipe_unstall_root(void);
-+
-+void __ipipe_restore_root(unsigned long x);
-+
-+#define ipipe_preempt_disable(flags)	local_irq_save_hw(flags)
-+#define ipipe_preempt_enable(flags)	local_irq_restore_hw(flags)
-+ 
-+#ifdef CONFIG_IPIPE_DEBUG_CONTEXT
-+void ipipe_check_context(struct ipipe_domain *border_ipd);
-+#else /* !CONFIG_IPIPE_DEBUG_CONTEXT */
-+static inline void ipipe_check_context(struct ipipe_domain *border_ipd) { }
-+#endif /* !CONFIG_IPIPE_DEBUG_CONTEXT */
-+
-+/* Generic features */
-+
-+#ifdef CONFIG_GENERIC_CLOCKEVENTS
-+#define __IPIPE_FEATURE_REQUEST_TICKDEV    1
-+#endif
-+#define __IPIPE_FEATURE_DELAYED_ATOMICSW   1
-+#define __IPIPE_FEATURE_FASTPEND_IRQ       1
-+#define __IPIPE_FEATURE_TRACE_EVENT	   1
-+
-+#else /* !CONFIG_IPIPE */
-+#define ipipe_preempt_disable(flags)	do { \
-+						preempt_disable(); \
-+						(void)(flags); \
-+					} while (0)
-+#define ipipe_preempt_enable(flags)	preempt_enable()
-+#define ipipe_check_context(ipd)	do { } while(0)
-+#endif	/* CONFIG_IPIPE */
-+
-+#endif	/* !__LINUX_IPIPE_BASE_H */
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe_compat.h linux-kernel-adeos/include/linux/ipipe_compat.h
---- linux-kernel/include/linux/ipipe_compat.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/include/linux/ipipe_compat.h	2008-12-11 16:53:25.000000000 +0800
-@@ -0,0 +1,54 @@
-+/* -*- linux-c -*-
-+ * include/linux/ipipe_compat.h
-+ *
-+ * Copyright (C) 2007 Philippe Gerum.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
-+ * USA; either version 2 of the License, or (at your option) any later
-+ * version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ */
-+
-+#ifndef __LINUX_IPIPE_COMPAT_H
-+#define __LINUX_IPIPE_COMPAT_H
-+
-+#ifdef CONFIG_IPIPE_COMPAT
-+/*
-+ * OBSOLETE: defined only for backward compatibility. Will be removed
-+ * in future releases, please update client code accordingly.
-+ */
-+
-+#ifdef CONFIG_SMP
-+#define ipipe_declare_cpuid	int cpuid
-+#define ipipe_load_cpuid()	do { \
-+					cpuid = ipipe_processor_id();	\
-+				} while(0)
-+#define ipipe_lock_cpu(flags)	do { \
-+					local_irq_save_hw(flags); \
-+					cpuid = ipipe_processor_id(); \
-+				} while(0)
-+#define ipipe_unlock_cpu(flags)	local_irq_restore_hw(flags)
-+#define ipipe_get_cpu(flags)	ipipe_lock_cpu(flags)
-+#define ipipe_put_cpu(flags)	ipipe_unlock_cpu(flags)
-+#else /* !CONFIG_SMP */
-+#define ipipe_declare_cpuid	const int cpuid = 0
-+#define ipipe_load_cpuid()	do { } while(0)
-+#define ipipe_lock_cpu(flags)	local_irq_save_hw(flags)
-+#define ipipe_unlock_cpu(flags)	local_irq_restore_hw(flags)
-+#define ipipe_get_cpu(flags)	do { (void)(flags); } while(0)
-+#define ipipe_put_cpu(flags)	do { } while(0)
-+#endif /* CONFIG_SMP */
-+
-+#endif /* CONFIG_IPIPE_COMPAT */
-+
-+#endif	/* !__LINUX_IPIPE_COMPAT_H */
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe.h linux-kernel-adeos/include/linux/ipipe.h
---- linux-kernel/include/linux/ipipe.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/include/linux/ipipe.h	2008-12-11 16:53:25.000000000 +0800
-@@ -0,0 +1,670 @@
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/ipipe.h b/include/linux/ipipe.h
+new file mode 100644
+index 0000000..065a43d
+--- /dev/null
++++ b/include/linux/ipipe.h
+@@ -0,0 +1,673 @@
 +/* -*- linux-c -*-
 + * include/linux/ipipe.h
 + *
@@ -927,7 +738,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe.h linux-kernel-ade
 +#define ipipe_cleanup_notify(mm)	do { } while(0)
 +#define ipipe_trap_notify(t,r)		0
 +#define ipipe_init_proc()		do { } while(0)
-+#define __ipipe_pin_range_globally(start, end)	do { } while(0)
++
++static inline void __ipipe_pin_range_globally(unsigned long start,
++					      unsigned long end)
++{
++}
 +
 +#define local_irq_enable_hw_cond()		do { } while(0)
 +#define local_irq_disable_hw_cond()		do { } while(0)
@@ -939,6 +754,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe.h linux-kernel-ade
 +
 +#define ipipe_root_domain_p		1
 +#define ipipe_safe_current		current
++#define ipipe_processor_id()		smp_processor_id()
 +
 +#define ipipe_nmi_enter()		do { } while (0)
 +#define ipipe_nmi_exit()		do { } while (0)
@@ -949,14 +765,170 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe.h linux-kernel-ade
 +#define local_irq_restore_full(vflags, rflags)	do { (void)(vflags); local_irq_restore(rflags); } while(0)
 +#define local_irq_restore_nosync(vflags)	local_irq_restore(vflags)
 +
-+#define ipipe_processor_id()		raw_smp_processor_id()
-+
 +#endif	/* CONFIG_IPIPE */
 +
 +#endif	/* !__LINUX_IPIPE_H */
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe_percpu.h linux-kernel-adeos/include/linux/ipipe_percpu.h
---- linux-kernel/include/linux/ipipe_percpu.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/include/linux/ipipe_percpu.h	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/ipipe_base.h b/include/linux/ipipe_base.h
+new file mode 100644
+index 0000000..c49fe14
+--- /dev/null
++++ b/include/linux/ipipe_base.h
+@@ -0,0 +1,90 @@
++/* -*- linux-c -*-
++ * include/linux/ipipe_base.h
++ *
++ * Copyright (C) 2002-2007 Philippe Gerum.
++ *               2007 Jan Kiszka.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
++ * USA; either version 2 of the License, or (at your option) any later
++ * version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ */
++
++#ifndef __LINUX_IPIPE_BASE_H
++#define __LINUX_IPIPE_BASE_H
++
++#ifdef CONFIG_IPIPE
++
++#include <linux/bitops.h>
++#include <asm/ipipe_base.h>
++
++/* Number of virtual IRQs */
++#define IPIPE_NR_VIRQS		BITS_PER_LONG
++/* First virtual IRQ # */
++#define IPIPE_VIRQ_BASE		(((IPIPE_NR_XIRQS + BITS_PER_LONG - 1) / BITS_PER_LONG) * BITS_PER_LONG)
++/* Total number of IRQ slots */
++#define IPIPE_NR_IRQS		(IPIPE_VIRQ_BASE + IPIPE_NR_VIRQS)
++/* Number of indirect words needed to map the whole IRQ space. */
++#define IPIPE_IRQ_IWORDS	((IPIPE_NR_IRQS + BITS_PER_LONG - 1) / BITS_PER_LONG)
++#define IPIPE_IRQ_IMASK		(BITS_PER_LONG - 1)
++#define IPIPE_IRQMASK_ANY	(~0L)
++#define IPIPE_IRQMASK_VIRT	(IPIPE_IRQMASK_ANY << (IPIPE_VIRQ_BASE / BITS_PER_LONG))
++
++/* Per-cpu pipeline status */
++#define IPIPE_STALL_FLAG	0	/* Stalls a pipeline stage -- guaranteed at bit #0 */
++#define IPIPE_SYNC_FLAG		1	/* The interrupt syncer is running for the domain */
++#define IPIPE_NOSTACK_FLAG	2	/* Domain currently runs on a foreign stack */
++
++#define IPIPE_STALL_MASK	(1L << IPIPE_STALL_FLAG)
++#define IPIPE_SYNC_MASK		(1L << IPIPE_SYNC_FLAG)
++#define IPIPE_NOSTACK_MASK	(1L << IPIPE_NOSTACK_FLAG)
++
++typedef void (*ipipe_irq_handler_t)(unsigned irq,
++				    void *cookie);
++
++extern struct ipipe_domain ipipe_root;
++
++#define ipipe_root_domain (&ipipe_root)
++
++void __ipipe_unstall_root(void);
++
++void __ipipe_restore_root(unsigned long x);
++
++#define ipipe_preempt_disable(flags)	local_irq_save_hw(flags)
++#define ipipe_preempt_enable(flags)	local_irq_restore_hw(flags)
++ 
++#ifdef CONFIG_IPIPE_DEBUG_CONTEXT
++void ipipe_check_context(struct ipipe_domain *border_ipd);
++#else /* !CONFIG_IPIPE_DEBUG_CONTEXT */
++static inline void ipipe_check_context(struct ipipe_domain *border_ipd) { }
++#endif /* !CONFIG_IPIPE_DEBUG_CONTEXT */
++
++/* Generic features */
++
++#ifdef CONFIG_GENERIC_CLOCKEVENTS
++#define __IPIPE_FEATURE_REQUEST_TICKDEV    1
++#endif
++#define __IPIPE_FEATURE_DELAYED_ATOMICSW   1
++#define __IPIPE_FEATURE_FASTPEND_IRQ       1
++#define __IPIPE_FEATURE_TRACE_EVENT	   1
++
++#else /* !CONFIG_IPIPE */
++#define ipipe_preempt_disable(flags)	do { \
++						preempt_disable(); \
++						(void)(flags); \
++					} while (0)
++#define ipipe_preempt_enable(flags)	preempt_enable()
++#define ipipe_check_context(ipd)	do { } while(0)
++#endif	/* CONFIG_IPIPE */
++
++#endif	/* !__LINUX_IPIPE_BASE_H */
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/ipipe_compat.h b/include/linux/ipipe_compat.h
+new file mode 100644
+index 0000000..50a245c
+--- /dev/null
++++ b/include/linux/ipipe_compat.h
+@@ -0,0 +1,54 @@
++/* -*- linux-c -*-
++ * include/linux/ipipe_compat.h
++ *
++ * Copyright (C) 2007 Philippe Gerum.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
++ * USA; either version 2 of the License, or (at your option) any later
++ * version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ */
++
++#ifndef __LINUX_IPIPE_COMPAT_H
++#define __LINUX_IPIPE_COMPAT_H
++
++#ifdef CONFIG_IPIPE_COMPAT
++/*
++ * OBSOLETE: defined only for backward compatibility. Will be removed
++ * in future releases, please update client code accordingly.
++ */
++
++#ifdef CONFIG_SMP
++#define ipipe_declare_cpuid	int cpuid
++#define ipipe_load_cpuid()	do { \
++					cpuid = ipipe_processor_id();	\
++				} while(0)
++#define ipipe_lock_cpu(flags)	do { \
++					local_irq_save_hw(flags); \
++					cpuid = ipipe_processor_id(); \
++				} while(0)
++#define ipipe_unlock_cpu(flags)	local_irq_restore_hw(flags)
++#define ipipe_get_cpu(flags)	ipipe_lock_cpu(flags)
++#define ipipe_put_cpu(flags)	ipipe_unlock_cpu(flags)
++#else /* !CONFIG_SMP */
++#define ipipe_declare_cpuid	const int cpuid = 0
++#define ipipe_load_cpuid()	do { } while(0)
++#define ipipe_lock_cpu(flags)	local_irq_save_hw(flags)
++#define ipipe_unlock_cpu(flags)	local_irq_restore_hw(flags)
++#define ipipe_get_cpu(flags)	do { (void)(flags); } while(0)
++#define ipipe_put_cpu(flags)	do { } while(0)
++#endif /* CONFIG_SMP */
++
++#endif /* CONFIG_IPIPE_COMPAT */
++
++#endif	/* !__LINUX_IPIPE_COMPAT_H */
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/ipipe_percpu.h b/include/linux/ipipe_percpu.h
+new file mode 100644
+index 0000000..2f41af3
+--- /dev/null
++++ b/include/linux/ipipe_percpu.h
 @@ -0,0 +1,84 @@
 +/*   -*- linux-c -*-
 + *   include/linux/ipipe_percpu.h
@@ -1042,9 +1014,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe_percpu.h linux-ker
 +#define ipipe_head_cpudom_var(var)	ipipe_head_cpudom_ptr()->var
 +
 +#endif	/* !__LINUX_IPIPE_PERCPU_H */
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe_tickdev.h linux-kernel-adeos/include/linux/ipipe_tickdev.h
---- linux-kernel/include/linux/ipipe_tickdev.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/include/linux/ipipe_tickdev.h	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/ipipe_tickdev.h b/include/linux/ipipe_tickdev.h
+new file mode 100644
+index 0000000..4a1cb1b
+--- /dev/null
++++ b/include/linux/ipipe_tickdev.h
 @@ -0,0 +1,58 @@
 +/* -*- linux-c -*-
 + * include/linux/ipipe_tickdev.h
@@ -1104,9 +1078,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe_tickdev.h linux-ke
 +#endif /* CONFIG_IPIPE && CONFIG_GENERIC_CLOCKEVENTS */
 +
 +#endif /* !__LINUX_IPIPE_TICKDEV_H */
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe_trace.h linux-kernel-adeos/include/linux/ipipe_trace.h
---- linux-kernel/include/linux/ipipe_trace.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/include/linux/ipipe_trace.h	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/ipipe_trace.h b/include/linux/ipipe_trace.h
+new file mode 100644
+index 0000000..627b354
+--- /dev/null
++++ b/include/linux/ipipe_trace.h
 @@ -0,0 +1,72 @@
 +/* -*- linux-c -*-
 + * include/linux/ipipe_trace.h
@@ -1180,18 +1156,21 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/ipipe_trace.h linux-kern
 +#endif
 +
 +#endif	/* !__LINUX_IPIPE_TRACE_H */
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/irq.h linux-kernel-adeos/include/linux/irq.h
---- linux-kernel/include/linux/irq.h	2008-12-09 16:26:14.000000000 +0800
-+++ linux-kernel-adeos/include/linux/irq.h	2008-12-16 12:01:27.000000000 +0800
-@@ -64,6 +64,7 @@ typedef	void (*irq_flow_handler_t)(unsig
- #define IRQ_NO_BALANCING	0x00400000	/* IRQ is excluded from balancing */
- #define IRQ_SPURIOUS_DISABLED	0x00800000	/* IRQ was disabled by the spurious trap */
- #define IRQ_MOVE_PCNTXT	0x01000000	/* IRQ migration from process context */
-+#define IRQ_SCHEDULED		0x80000000      /* IRQ thread is scheduled (I-pipe) */
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/irq.h b/include/linux/irq.h
+index 3dddfa7..5e1f95c 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/irq.h
++++ b/include/linux/irq.h
+@@ -114,6 +114,9 @@ struct irq_chip {
  
- #ifdef CONFIG_IRQ_PER_CPU
- # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
-@@ -153,6 +154,16 @@ struct irq_chip {
+ 	void		(*end)(unsigned int irq);
+ 	void		(*set_affinity)(unsigned int irq, cpumask_t dest);
++#ifdef CONFIG_IPIPE
++	void		(*move)(unsigned int irq);
++#endif /* CONFIG_IPIPE */
+ 	int		(*retrigger)(unsigned int irq);
+ 	int		(*set_type)(unsigned int irq, unsigned int flow_type);
+ 	int		(*set_wake)(unsigned int irq, unsigned int on);
+@@ -153,6 +156,13 @@ struct irq_chip {
   * @name:		flow handler name for /proc/interrupts output
   */
  struct irq_desc {
@@ -1200,15 +1179,12 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/irq.h linux-kernel-adeos
 +					     struct irq_desc *desc);
 +	void			(*ipipe_end)(unsigned int irq,
 +					     struct irq_desc *desc);
-+	struct task_struct      *thread;
-+	void                    (*thr_handler)(unsigned irq, void *);
-+	int                     thr_prio;
 +	int                     ic_prio;
 +#endif /* CONFIG_IPIPE */
  	unsigned int		irq;
  	irq_flow_handler_t	handle_irq;
  	struct irq_chip		*chip;
-@@ -320,6 +331,10 @@ set_irq_chip_and_handler_name(unsigned i
+@@ -315,6 +325,10 @@ set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
  			      irq_flow_handler_t handle, const char *name);
  
  extern void
@@ -1219,15 +1195,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/irq.h linux-kernel-adeos
  __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
  		  const char *name);
  
-@@ -333,6 +348,7 @@ static inline void __set_irq_handler_unl
- 	desc->handle_irq = handler;
- }
- 
-+
- /*
-  * Set a highlevel flow handler for a given IRQ:
-  */
-@@ -343,6 +359,15 @@ set_irq_handler(unsigned int irq, irq_fl
+@@ -338,6 +352,15 @@ set_irq_handler(unsigned int irq, irq_flow_handler_t handle)
  }
  
  /*
@@ -1243,17 +1211,18 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/irq.h linux-kernel-adeos
   * Set a highlevel chained flow handler for a given IRQ.
   * (a chained handler is automatically enabled and set to
   *  IRQ_NOREQUEST and IRQ_NOPROBE)
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/kernel.h linux-kernel-adeos/include/linux/kernel.h
---- linux-kernel/include/linux/kernel.h	2008-12-09 16:26:14.000000000 +0800
-+++ linux-kernel-adeos/include/linux/kernel.h	2008-12-12 12:20:10.000000000 +0800
-@@ -17,6 +17,7 @@
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/kernel.h b/include/linux/kernel.h
+index dc7e0d0..88d5034 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/kernel.h
++++ b/include/linux/kernel.h
+@@ -14,6 +14,7 @@
+ #include <linux/compiler.h>
+ #include <linux/bitops.h>
+ #include <linux/log2.h>
++#include <linux/ipipe_base.h>
  #include <linux/typecheck.h>
  #include <linux/ratelimit.h>
  #include <linux/dynamic_printk.h>
-+#include <linux/ipipe_base.h>
- #include <asm/byteorder.h>
- #include <asm/bug.h>
- 
 @@ -111,9 +112,12 @@ struct user;
  
  #ifdef CONFIG_PREEMPT_VOLUNTARY
@@ -1268,10 +1237,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/kernel.h linux-kernel-ad
 +# define might_resched() ipipe_check_context(ipipe_root_domain)
  #endif
  
- /**
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/linkage.h linux-kernel-adeos/include/linux/linkage.h
---- linux-kernel/include/linux/linkage.h	2008-12-09 16:26:14.000000000 +0800
-+++ linux-kernel-adeos/include/linux/linkage.h	2008-12-11 16:53:25.000000000 +0800
+ #ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/linkage.h b/include/linux/linkage.h
+index 9fd1f85..8018d53 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/linkage.h
++++ b/include/linux/linkage.h
 @@ -93,4 +93,8 @@
  #define ATTRIB_NORET  __attribute__((noreturn))
  #define NORET_AND     noreturn,
@@ -1281,10 +1251,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/linkage.h linux-kernel-a
 +#endif
 +
  #endif
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/mm.h linux-kernel-adeos/include/linux/mm.h
---- linux-kernel/include/linux/mm.h	2008-12-09 16:26:14.000000000 +0800
-+++ linux-kernel-adeos/include/linux/mm.h	2008-12-11 16:53:25.000000000 +0800
-@@ -116,6 +116,8 @@ extern unsigned int kobjsize(const void 
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/mm.h b/include/linux/mm.h
+index 69a4c38..a780885 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -116,6 +116,8 @@ extern unsigned int kobjsize(const void *objp);
  #define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
  #define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
  
@@ -1293,10 +1264,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/mm.h linux-kernel-adeos/
  #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
  #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
  #endif
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/preempt.h linux-kernel-adeos/include/linux/preempt.h
---- linux-kernel/include/linux/preempt.h	2008-12-09 16:26:14.000000000 +0800
-+++ linux-kernel-adeos/include/linux/preempt.h	2008-12-11 16:52:47.000000000 +0800
-@@ -9,13 +9,21 @@
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/preempt.h b/include/linux/preempt.h
+index 72b1a10..80553be 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/preempt.h
++++ b/include/linux/preempt.h
+@@ -9,13 +9,20 @@
  #include <linux/thread_info.h>
  #include <linux/linkage.h>
  #include <linux/list.h>
@@ -1316,38 +1288,36 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/preempt.h linux-kernel-a
 +    ipipe_check_context(ipipe_root_domain);	\
 +    preempt_count() -= (val);			\
 +  } while (0)
-+
  #endif
  
  #define inc_preempt_count() add_preempt_count(1)
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/sched.h linux-kernel-adeos/include/linux/sched.h
---- linux-kernel/include/linux/sched.h	2008-12-09 16:26:14.000000000 +0800
-+++ linux-kernel-adeos/include/linux/sched.h	2008-12-11 15:43:24.000000000 +0800
-@@ -89,6 +89,8 @@ struct sched_param {
- #include <linux/latencytop.h>
- #include <linux/cred.h>
- 
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/sched.h b/include/linux/sched.h
+index 3883c32..7a30b68 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -59,6 +59,7 @@ struct sched_param {
+ #include <linux/errno.h>
+ #include <linux/nodemask.h>
+ #include <linux/mm_types.h>
 +#include <linux/ipipe.h>
-+
- #include <asm/processor.h>
  
- struct mem_cgroup;
-@@ -182,6 +184,14 @@ extern unsigned long long time_sync_thre
+ #include <asm/system.h>
+ #include <asm/page.h>
+@@ -181,6 +182,13 @@ extern unsigned long long time_sync_thresh;
+ /* in tsk->state again */
  #define TASK_DEAD		64
  #define TASK_WAKEKILL		128
- 
 +#ifdef CONFIG_IPIPE
 +#define TASK_ATOMICSWITCH	512
-+#define TASK_NOWAKEUP          1024
++#define TASK_NOWAKEUP		1024
 +#else  /* !CONFIG_IPIPE */
 +#define TASK_ATOMICSWITCH	0
-+#define TASK_NOWAKEUP          0
++#define TASK_NOWAKEUP		0
 +#endif /* CONFIG_IPIPE */
-+
+ 
  /* Convenience macros for the sake of set_task_state */
  #define TASK_KILLABLE		(TASK_WAKEKILL | TASK_UNINTERRUPTIBLE)
- #define TASK_STOPPED		(TASK_WAKEKILL | __TASK_STOPPED)
-@@ -288,6 +298,15 @@ extern void account_process_tick(struct 
+@@ -289,6 +297,15 @@ extern void account_process_tick(struct task_struct *task, int user);
  extern void update_process_times(int user);
  extern void scheduler_tick(void);
  
@@ -1363,35 +1333,33 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/sched.h linux-kernel-ade
  extern void sched_show_task(struct task_struct *p);
  
  #ifdef CONFIG_DETECT_SOFTLOCKUP
-@@ -1326,6 +1345,10 @@ struct task_struct {
+@@ -1331,6 +1348,9 @@ struct task_struct {
+ #endif
  	atomic_t fs_excl;	/* holding fs exclusive resources */
  	struct rcu_head rcu;
- 
 +#ifdef CONFIG_IPIPE
 +	void *ptd[IPIPE_ROOT_NPTDKEYS];
 +#endif
-+
+ 
  	/*
  	 * cache last used pipe for splice
- 	 */
-@@ -1534,6 +1557,13 @@ extern cputime_t task_gtime(struct task_
+@@ -1542,6 +1562,11 @@ extern cputime_t task_gtime(struct task_struct *p);
  #define PF_EXITING	0x00000004	/* getting shut down */
  #define PF_EXITPIDONE	0x00000008	/* pi exit done on shut down */
  #define PF_VCPU		0x00000010	/* I'm a virtual CPU */
-+
 +#ifdef CONFIG_IPIPE
 +#define PF_EVNOTIFY	0x00000020	/* Notify other domains about internal events */
 +#else
 +#define PF_EVNOTIFY	0
 +#endif /* CONFIG_IPIPE */
-+
  #define PF_FORKNOEXEC	0x00000040	/* forked but didn't exec */
  #define PF_SUPERPRIV	0x00000100	/* used super-user privileges */
  #define PF_DUMPCORE	0x00000200	/* dumped core */
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/spinlock.h linux-kernel-adeos/include/linux/spinlock.h
---- linux-kernel/include/linux/spinlock.h	2008-12-09 16:26:14.000000000 +0800
-+++ linux-kernel-adeos/include/linux/spinlock.h	2008-12-11 16:53:25.000000000 +0800
-@@ -90,10 +90,14 @@ extern int __lockfunc generic__raw_read_
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/spinlock.h b/include/linux/spinlock.h
+index e0c0fcc..2044388 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/spinlock.h
++++ b/include/linux/spinlock.h
+@@ -90,10 +90,14 @@ extern int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock);
  # include <linux/spinlock_up.h>
  #endif
  
@@ -1580,7 +1548,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/spinlock.h linux-kernel-
 -# define spin_unlock_irq(lock)		_spin_unlock_irq(lock)
 -# define read_unlock_irq(lock)		_read_unlock_irq(lock)
 -# define write_unlock_irq(lock)		_write_unlock_irq(lock)
--#else
++# define spin_unlock_irq(lock)	PICK_SPINUNLOCK_IRQ(lock)
++# define read_unlock_irq(lock)	_read_unlock_irq(lock)
++# define write_unlock_irq(lock)	_write_unlock_irq(lock)
+ #else
 -# define spin_unlock(lock) \
 -    do {__raw_spin_unlock(&(lock)->raw_lock); __release(lock); } while (0)
 -# define read_unlock(lock) \
@@ -1588,10 +1559,6 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/spinlock.h linux-kernel-
 -# define write_unlock(lock) \
 -    do {__raw_write_unlock(&(lock)->raw_lock); __release(lock); } while (0)
 -# define spin_unlock_irq(lock)			\
-+# define spin_unlock_irq(lock)	PICK_SPINUNLOCK_IRQ(lock)
-+# define read_unlock_irq(lock)	_read_unlock_irq(lock)
-+# define write_unlock_irq(lock)	_write_unlock_irq(lock)
-+#else
 +# define spin_unlock(lock)			\
  do {						\
 -	__raw_spin_unlock(&(lock)->raw_lock);	\
@@ -1635,7 +1602,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/spinlock.h linux-kernel-
  	} while (0)
  #define spin_unlock_bh(lock)		_spin_unlock_bh(lock)
  
-@@ -364,4 +474,29 @@ extern int _atomic_dec_and_lock(atomic_t
+@@ -364,4 +474,29 @@ extern int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock);
   */
  #define spin_can_lock(lock)	(!spin_is_locked(lock))
  
@@ -1665,9 +1632,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/spinlock.h linux-kernel-
 +#endif
 +
  #endif /* __LINUX_SPINLOCK_H */
-diff -Nurp --exclude='*svn*' linux-kernel/include/linux/spinlock_types.h linux-kernel-adeos/include/linux/spinlock_types.h
---- linux-kernel/include/linux/spinlock_types.h	2008-12-09 16:26:14.000000000 +0800
-+++ linux-kernel-adeos/include/linux/spinlock_types.h	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/spinlock_types.h b/include/linux/spinlock_types.h
+index 68d88f7..f5ce3c4 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/include/linux/spinlock_types.h
++++ b/include/linux/spinlock_types.h
 @@ -31,6 +31,10 @@ typedef struct {
  #endif
  } spinlock_t;
@@ -1701,9 +1669,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/include/linux/spinlock_types.h linux-k
 +#endif
 +
  #endif /* __LINUX_SPINLOCK_TYPES_H */
-diff -Nurp --exclude='*svn*' linux-kernel/init/Kconfig linux-kernel-adeos/init/Kconfig
---- linux-kernel/init/Kconfig	2008-12-09 16:38:43.000000000 +0800
-+++ linux-kernel-adeos/init/Kconfig	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/init/Kconfig b/init/Kconfig
+index f763762..06af92d 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/init/Kconfig
++++ b/init/Kconfig
 @@ -73,6 +73,7 @@ config INIT_ENV_ARG_LIMIT
  
  config LOCALVERSION
@@ -1712,10 +1681,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/init/Kconfig linux-kernel-adeos/init/K
  	help
  	  Append an extra string to the end of your kernel version.
  	  This will show up when you type uname, for example.
-diff -Nurp --exclude='*svn*' linux-kernel/init/main.c linux-kernel-adeos/init/main.c
---- linux-kernel/init/main.c	2008-12-09 16:38:43.000000000 +0800
-+++ linux-kernel-adeos/init/main.c	2008-12-11 16:53:25.000000000 +0800
-@@ -555,7 +555,7 @@ asmlinkage void __init start_kernel(void
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/init/main.c b/init/main.c
+index 7e117a2..43474f4 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/init/main.c
++++ b/init/main.c
+@@ -555,7 +555,7 @@ asmlinkage void __init start_kernel(void)
  	debug_objects_early_init();
  	cgroup_init_early();
  
@@ -1724,7 +1694,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/init/main.c linux-kernel-adeos/init/ma
  	early_boot_irqs_off();
  	early_init_irq_lock_class();
  
-@@ -611,6 +611,11 @@ asmlinkage void __init start_kernel(void
+@@ -611,6 +611,11 @@ asmlinkage void __init start_kernel(void)
  	timekeeping_init();
  	time_init();
  	sched_clock_init();
@@ -1744,21 +1714,35 @@ diff -Nurp --exclude='*svn*' linux-kernel/init/main.c linux-kernel-adeos/init/ma
  	do_initcalls();
  }
  
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/exit.c linux-kernel-adeos/kernel/exit.c
---- linux-kernel/kernel/exit.c	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/exit.c	2008-12-11 15:40:52.000000000 +0800
-@@ -1074,6 +1074,7 @@ NORET_TYPE void do_exit(long code)
- 
- 	if (group_dead)
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/Makefile b/kernel/Makefile
+index 19fad00..e36e4e3 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/Makefile
++++ b/kernel/Makefile
+@@ -79,6 +79,7 @@ ifeq ($(CONFIG_PREEMPT_RCU),y)
+ obj-$(CONFIG_RCU_TRACE) += rcupreempt_trace.o
+ endif
+ obj-$(CONFIG_RELAY) += relay.o
++obj-$(CONFIG_IPIPE) += ipipe/
+ obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
+ obj-$(CONFIG_TASK_DELAY_ACCT) += delayacct.o
+ obj-$(CONFIG_TASKSTATS) += taskstats.o tsacct.o
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/exit.c b/kernel/exit.c
+index 10e393b..c74548a 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/exit.c
++++ b/kernel/exit.c
+@@ -1072,6 +1072,7 @@ NORET_TYPE void do_exit(long code)
  		acct_process();
-+ 	ipipe_exit_notify(tsk);
  	trace_sched_process_exit(tsk);
  
++  	ipipe_exit_notify(tsk);
  	exit_sem(tsk);
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/fork.c linux-kernel-adeos/kernel/fork.c
---- linux-kernel/kernel/fork.c	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/fork.c	2008-12-11 16:53:25.000000000 +0800
-@@ -464,6 +464,7 @@ void mmput(struct mm_struct *mm)
+ 	exit_files(tsk);
+ 	exit_fs(tsk);
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/fork.c b/kernel/fork.c
+index f2c9c60..52c157f 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/fork.c
++++ b/kernel/fork.c
+@@ -468,6 +468,7 @@ void mmput(struct mm_struct *mm)
  	if (atomic_dec_and_test(&mm->mm_users)) {
  		exit_aio(mm);
  		exit_mmap(mm);
@@ -1766,7 +1750,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/fork.c linux-kernel-adeos/kerne
  		set_mm_exe_file(mm, NULL);
  		if (!list_empty(&mm->mmlist)) {
  			spin_lock(&mmlist_lock);
-@@ -873,7 +874,7 @@ static void copy_flags(unsigned long clo
+@@ -887,7 +888,7 @@ static void copy_flags(unsigned long clone_flags, struct task_struct *p)
  {
  	unsigned long new_flags = p->flags;
  
@@ -1775,7 +1759,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/fork.c linux-kernel-adeos/kerne
  	new_flags |= PF_FORKNOEXEC;
  	new_flags |= PF_STARTING;
  	p->flags = new_flags;
-@@ -1258,6 +1259,9 @@ static struct task_struct *copy_process(
+@@ -1272,6 +1273,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
  	write_unlock_irq(&tasklist_lock);
  	proc_fork_connector(p);
  	cgroup_post_fork(p);
@@ -1785,10 +1769,156 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/fork.c linux-kernel-adeos/kerne
  	return p;
  
  bad_fork_free_pid:
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/ipipe/core.c linux-kernel-adeos/kernel/ipipe/core.c
---- linux-kernel/kernel/ipipe/core.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/kernel/ipipe/core.c	2008-12-11 16:53:25.000000000 +0800
-@@ -0,0 +1,1712 @@
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/ipipe/Kconfig b/kernel/ipipe/Kconfig
+new file mode 100644
+index 0000000..de5e6a3
+--- /dev/null
++++ b/kernel/ipipe/Kconfig
+@@ -0,0 +1,35 @@
++config IPIPE
++	bool "Interrupt pipeline"
++	default y
++	---help---
++	  Activate this option if you want the interrupt pipeline to be
++	  compiled in.
++
++config IPIPE_DOMAINS
++	int "Max domains"
++	depends on IPIPE
++	default 4
++	---help---
++	The maximum number of I-pipe domains to run concurrently.
++
++config IPIPE_COMPAT
++	bool "Maintain code compatibility with older releases"
++	depends on IPIPE
++	default y
++	---help---
++	Activate this option if you want the compatibility code to be
++	defined, so that older I-pipe clients may use obsolete
++	constructs. WARNING: obsolete code will be eventually
++	deprecated in future I-pipe releases, and removed from the
++	compatibility support as time passes. Please fix I-pipe
++	clients to get rid of such uses as soon as possible.
++
++config IPIPE_DELAYED_ATOMICSW
++       bool
++       depends on IPIPE
++       default n
++
++config IPIPE_UNMASKED_CONTEXT_SWITCH
++       bool
++       depends on IPIPE
++       default n
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/ipipe/Kconfig.debug b/kernel/ipipe/Kconfig.debug
+new file mode 100644
+index 0000000..64a692c
+--- /dev/null
++++ b/kernel/ipipe/Kconfig.debug
+@@ -0,0 +1,88 @@
++config IPIPE_DEBUG
++	bool "I-pipe debugging"
++	depends on IPIPE
++
++config IPIPE_DEBUG_CONTEXT
++	bool "Check for illicit cross-domain calls"
++	depends on IPIPE_DEBUG
++	default y
++	---help---
++	  Enable this feature to arm checkpoints in the kernel that
++	  verify the correct invocation context. On entry of critical
++	  Linux services a warning is issued if the caller is not
++	  running over the root domain.
++
++config IPIPE_TRACE
++	bool "Latency tracing"
++	depends on IPIPE_DEBUG
++	select FRAME_POINTER
++	select KALLSYMS
++	select PROC_FS
++	---help---
++	  Activate this option if you want to use per-function tracing of
++	  the kernel. The tracer will collect data via instrumentation
++	  features like the one below or with the help of explicite calls
++	  of ipipe_trace_xxx(). See include/linux/ipipe_trace.h for the
++	  in-kernel tracing API. The collected data and runtime control
++	  is available via /proc/ipipe/trace/*.
++
++if IPIPE_TRACE
++
++config IPIPE_TRACE_ENABLE
++	bool "Enable tracing on boot"
++	default y
++	---help---
++	  Disable this option if you want to arm the tracer after booting
++	  manually ("echo 1 > /proc/ipipe/tracer/enable"). This can reduce
++	  boot time on slow embedded devices due to the tracer overhead.
++
++config IPIPE_TRACE_MCOUNT
++	bool "Instrument function entries"
++	default y
++	---help---
++	  When enabled, records every kernel function entry in the tracer
++	  log. While this slows down the system noticeably, it provides
++	  the highest level of information about the flow of events.
++	  However, it can be switch off in order to record only explicit
++	  I-pipe trace points.
++
++config IPIPE_TRACE_IRQSOFF
++	bool "Trace IRQs-off times"
++	default y
++	---help---
++	  Activate this option if I-pipe shall trace the longest path
++	  with hard-IRQs switched off.
++
++config IPIPE_TRACE_SHIFT
++	int "Depth of trace log (14 => 16Kpoints, 15 => 32Kpoints)"
++	range 10 18
++	default 14
++	---help---
++	  The number of trace points to hold tracing data for each
++	  trace path, as a power of 2.
++
++config IPIPE_TRACE_VMALLOC
++	bool "Use vmalloc'ed trace buffer"
++	default y if EMBEDDED
++	---help---
++	  Instead of reserving static kernel data, the required buffer
++	  is allocated via vmalloc during boot-up when this option is
++	  enabled. This can help to start systems that are low on memory,
++	  but it slightly degrades overall performance. Try this option
++	  when a traced kernel hangs unexpectedly at boot time.
++
++config IPIPE_TRACE_PANIC
++	bool "Enable panic back traces"
++	default y
++	---help---
++	  Provides services to freeze and dump a back trace on panic
++	  situations. This is used on IPIPE_DEBUG_CONTEXT exceptions
++	  as well as ordinary kernel oopses. You can control the number
++	  of printed back trace points via /proc/ipipe/trace.
++
++config IPIPE_TRACE_ENABLE_VALUE
++	int
++	default 0 if !IPIPE_TRACE_ENABLE
++	default 1 if IPIPE_TRACE_ENABLE
++
++endif
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/ipipe/Makefile b/kernel/ipipe/Makefile
+new file mode 100644
+index 0000000..6257dfa
+--- /dev/null
++++ b/kernel/ipipe/Makefile
+@@ -0,0 +1,3 @@
++
++obj-$(CONFIG_IPIPE)	+= core.o
++obj-$(CONFIG_IPIPE_TRACE) += tracer.o
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/ipipe/core.c b/kernel/ipipe/core.c
+new file mode 100644
+index 0000000..97e6aae
+--- /dev/null
++++ b/kernel/ipipe/core.c
+@@ -0,0 +1,1713 @@
 +/* -*- linux-c -*-
 + * linux/kernel/ipipe/core.c
 + *
@@ -3492,6 +3622,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/ipipe/core.c linux-kernel-adeos
 +EXPORT_SYMBOL(ipipe_set_irq_affinity);
 +EXPORT_SYMBOL(ipipe_send_ipi);
 +EXPORT_SYMBOL(__ipipe_pend_irq);
++EXPORT_SYMBOL(__ipipe_set_irq_pending);
 +#ifdef CONFIG_GENERIC_CLOCKEVENTS
 +EXPORT_SYMBOL(ipipe_request_tickdev);
 +EXPORT_SYMBOL(ipipe_release_tickdev);
@@ -3501,142 +3632,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/ipipe/core.c linux-kernel-adeos
 +EXPORT_SYMBOL(ipipe_critical_exit);
 +EXPORT_SYMBOL(ipipe_trigger_irq);
 +EXPORT_SYMBOL(ipipe_get_sysinfo);
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/ipipe/Kconfig linux-kernel-adeos/kernel/ipipe/Kconfig
---- linux-kernel/kernel/ipipe/Kconfig	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/kernel/ipipe/Kconfig	2008-12-11 16:53:25.000000000 +0800
-@@ -0,0 +1,30 @@
-+config IPIPE
-+	bool "Interrupt pipeline"
-+	default y
-+	---help---
-+	  Activate this option if you want the interrupt pipeline to be
-+	  compiled in.
-+
-+config IPIPE_DOMAINS
-+	int "Max domains"
-+	depends on IPIPE
-+	default 4
-+	---help---
-+	The maximum number of I-pipe domains to run concurrently.
-+
-+config IPIPE_COMPAT
-+	bool "Maintain code compatibility with older releases"
-+	depends on IPIPE
-+	default y
-+	---help---
-+	Activate this option if you want the compatibility code to be
-+	defined, so that older I-pipe clients may use obsolete
-+	constructs. WARNING: obsolete code will be eventually
-+	deprecated in future I-pipe releases, and removed from the
-+	compatibility support as time passes. Please fix I-pipe
-+	clients to get rid of such uses as soon as possible.
-+
-+config IPIPE_DELAYED_ATOMICSW
-+       bool
-+       depends on IPIPE
-+       default n
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/ipipe/Kconfig.debug linux-kernel-adeos/kernel/ipipe/Kconfig.debug
---- linux-kernel/kernel/ipipe/Kconfig.debug	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/kernel/ipipe/Kconfig.debug	2008-12-11 16:53:25.000000000 +0800
-@@ -0,0 +1,88 @@
-+config IPIPE_DEBUG
-+	bool "I-pipe debugging"
-+	depends on IPIPE
-+
-+config IPIPE_DEBUG_CONTEXT
-+	bool "Check for illicit cross-domain calls"
-+	depends on IPIPE_DEBUG
-+	default y
-+	---help---
-+	  Enable this feature to arm checkpoints in the kernel that
-+	  verify the correct invocation context. On entry of critical
-+	  Linux services a warning is issued if the caller is not
-+	  running over the root domain.
-+
-+config IPIPE_TRACE
-+	bool "Latency tracing"
-+	depends on IPIPE_DEBUG
-+	select FRAME_POINTER
-+	select KALLSYMS
-+	select PROC_FS
-+	---help---
-+	  Activate this option if you want to use per-function tracing of
-+	  the kernel. The tracer will collect data via instrumentation
-+	  features like the one below or with the help of explicite calls
-+	  of ipipe_trace_xxx(). See include/linux/ipipe_trace.h for the
-+	  in-kernel tracing API. The collected data and runtime control
-+	  is available via /proc/ipipe/trace/*.
-+
-+if IPIPE_TRACE
-+
-+config IPIPE_TRACE_ENABLE
-+	bool "Enable tracing on boot"
-+	default y
-+	---help---
-+	  Disable this option if you want to arm the tracer after booting
-+	  manually ("echo 1 > /proc/ipipe/tracer/enable"). This can reduce
-+	  boot time on slow embedded devices due to the tracer overhead.
-+
-+config IPIPE_TRACE_MCOUNT
-+	bool "Instrument function entries"
-+	default y
-+	---help---
-+	  When enabled, records every kernel function entry in the tracer
-+	  log. While this slows down the system noticeably, it provides
-+	  the highest level of information about the flow of events.
-+	  However, it can be switch off in order to record only explicit
-+	  I-pipe trace points.
-+
-+config IPIPE_TRACE_IRQSOFF
-+	bool "Trace IRQs-off times"
-+	default y
-+	---help---
-+	  Activate this option if I-pipe shall trace the longest path
-+	  with hard-IRQs switched off.
-+
-+config IPIPE_TRACE_SHIFT
-+	int "Depth of trace log (14 => 16Kpoints, 15 => 32Kpoints)"
-+	range 10 18
-+	default 14
-+	---help---
-+	  The number of trace points to hold tracing data for each
-+	  trace path, as a power of 2.
-+
-+config IPIPE_TRACE_VMALLOC
-+	bool "Use vmalloc'ed trace buffer"
-+	default y if EMBEDDED
-+	---help---
-+	  Instead of reserving static kernel data, the required buffer
-+	  is allocated via vmalloc during boot-up when this option is
-+	  enabled. This can help to start systems that are low on memory,
-+	  but it slightly degrades overall performance. Try this option
-+	  when a traced kernel hangs unexpectedly at boot time.
-+
-+config IPIPE_TRACE_PANIC
-+	bool "Enable panic back traces"
-+	default y
-+	---help---
-+	  Provides services to freeze and dump a back trace on panic
-+	  situations. This is used on IPIPE_DEBUG_CONTEXT exceptions
-+	  as well as ordinary kernel oopses. You can control the number
-+	  of printed back trace points via /proc/ipipe/trace.
-+
-+config IPIPE_TRACE_ENABLE_VALUE
-+	int
-+	default 0 if !IPIPE_TRACE_ENABLE
-+	default 1 if IPIPE_TRACE_ENABLE
-+
-+endif
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/ipipe/Makefile linux-kernel-adeos/kernel/ipipe/Makefile
---- linux-kernel/kernel/ipipe/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/kernel/ipipe/Makefile	2008-12-11 16:53:25.000000000 +0800
-@@ -0,0 +1,3 @@
-+
-+obj-$(CONFIG_IPIPE)	+= core.o
-+obj-$(CONFIG_IPIPE_TRACE) += tracer.o
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/ipipe/tracer.c linux-kernel-adeos/kernel/ipipe/tracer.c
---- linux-kernel/kernel/ipipe/tracer.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-kernel-adeos/kernel/ipipe/tracer.c	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/ipipe/tracer.c b/kernel/ipipe/tracer.c
+new file mode 100644
+index 0000000..2569659
+--- /dev/null
++++ b/kernel/ipipe/tracer.c
 @@ -0,0 +1,1384 @@
 +/* -*- linux-c -*-
 + * kernel/ipipe/tracer.c
@@ -3684,7 +3684,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/ipipe/tracer.c linux-kernel-ade
 +
 +#define IPIPE_DEFAULT_PRE_TRACE     10
 +#define IPIPE_DEFAULT_POST_TRACE    10
-+#define IPIPE_DEFAULT_BACK_TRACE    100
++#define IPIPE_DEFAULT_BACK_TRACE    1024
 +
 +#define IPIPE_DELAY_NOTE            1000  /* in nanoseconds */
 +#define IPIPE_DELAY_WARN            10000 /* in nanoseconds */
@@ -5022,10 +5022,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/ipipe/tracer.c linux-kernel-ade
 +	__ipipe_create_trace_proc_val(trace_dir, "enable",
 +	                              &ipipe_trace_enable);
 +}
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/kernel/irq/chip.c
---- linux-kernel/kernel/irq/chip.c	2008-12-09 16:20:17.000000000 +0800
-+++ linux-kernel-adeos/kernel/irq/chip.c	2008-12-16 12:03:33.000000000 +0800
-@@ -351,7 +351,9 @@ handle_level_irq(unsigned int irq, struc
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/irq/chip.c b/kernel/irq/chip.c
+index 10b5092..1033b95 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/irq/chip.c
++++ b/kernel/irq/chip.c
+@@ -351,7 +351,9 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
  	irqreturn_t action_ret;
  
  	spin_lock(&desc->lock);
@@ -5035,7 +5036,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
  
  	if (unlikely(desc->status & IRQ_INPROGRESS))
  		goto out_unlock;
-@@ -427,8 +429,13 @@ handle_fasteoi_irq(unsigned int irq, str
+@@ -427,8 +429,13 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
  
  	spin_lock(&desc->lock);
  	desc->status &= ~IRQ_INPROGRESS;
@@ -5049,7 +5050,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
  
  	spin_unlock(&desc->lock);
  }
-@@ -469,8 +476,10 @@ handle_edge_irq(unsigned int irq, struct
+@@ -469,8 +476,10 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
  	}
  	kstat_incr_irqs_this_cpu(irq, desc);
  
@@ -5146,7 +5147,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
  /**
   *	handle_percpu_IRQ - Per CPU local irq handler
   *	@irq:	the interrupt number
-@@ -524,8 +612,10 @@ handle_percpu_irq(unsigned int irq, stru
+@@ -524,8 +612,10 @@ handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
  
  	kstat_incr_irqs_this_cpu(irq, desc);
  
@@ -5157,7 +5158,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
  
  	action_ret = handle_IRQ_event(irq, desc->action);
  	if (!noirqdebug)
-@@ -536,20 +626,37 @@ handle_percpu_irq(unsigned int irq, stru
+@@ -536,20 +626,37 @@ handle_percpu_irq(unsigned int irq, struct irq_desc *desc)
  }
  
  void
@@ -5166,7 +5167,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
 +___set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 +		   const char *name)
  {
--	struct irq_desc *desc = irq_to_desc(irq);
+ 	struct irq_desc *desc = irq_to_desc(irq);
 -	unsigned long flags;
 -
 -	if (!desc) {
@@ -5174,7 +5175,6 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
 -		       "Trying to install type control for IRQ%d\n", irq);
 -		return;
 -	}
-+	struct irq_desc *desc = irq_desc + irq;
  
  	if (!handle)
  		handle = handle_bad_irq;
@@ -5205,7 +5205,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
  	else if (desc->chip == &no_irq_chip) {
  		printk(KERN_WARNING "Trying to install %sinterrupt handler "
  		       "for IRQ%d\n", is_chained ? "chained " : "", irq);
-@@ -561,9 +668,21 @@ __set_irq_handler(unsigned int irq, irq_
+@@ -561,9 +668,21 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
  		 * dummy_irq_chip for easy transition.
  		 */
  		desc->chip = &dummy_irq_chip;
@@ -5224,12 +5224,12 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
 + 	} else {
 + 		desc->ipipe_ack = &__ipipe_ack_bad_irq;
 + 		desc->ipipe_end = &__ipipe_noend_irq;
-+ 	}
++	}
 +#endif /* CONFIG_IPIPE */
  
  	/* Uninstall? */
  	if (handle == handle_bad_irq) {
-@@ -571,9 +690,17 @@ __set_irq_handler(unsigned int irq, irq_
+@@ -571,9 +690,17 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
  			mask_ack_irq(desc, irq);
  		desc->status |= IRQ_DISABLED;
  		desc->depth = 1;
@@ -5247,7 +5247,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
  
  	if (handle != handle_bad_irq && is_chained) {
  		desc->status &= ~IRQ_DISABLED;
-@@ -581,6 +708,23 @@ __set_irq_handler(unsigned int irq, irq_
+@@ -581,6 +708,23 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
  		desc->depth = 0;
  		desc->chip->startup(irq);
  	}
@@ -5257,10 +5257,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
 +__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 +		  const char *name)
 +{
-+	struct irq_desc *desc = irq_desc + irq;
++	struct irq_desc *desc = irq_to_desc(irq);
 +	unsigned long flags;
 +
-+	if (irq >= NR_IRQS) {
++	if (!desc) {
 +		printk(KERN_ERR
 +		       "Trying to install type control for IRQ%d\n", irq);
 +		return;
@@ -5271,9 +5271,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/chip.c linux-kernel-adeos/k
  	spin_unlock_irqrestore(&desc->lock, flags);
  }
  
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/handle.c linux-kernel-adeos/kernel/irq/handle.c
---- linux-kernel/kernel/irq/handle.c	2008-12-09 16:20:17.000000000 +0800
-+++ linux-kernel-adeos/kernel/irq/handle.c	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/irq/handle.c b/kernel/irq/handle.c
+index c815b42..f2efd4e 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/irq/handle.c
++++ b/kernel/irq/handle.c
 @@ -179,8 +179,10 @@ unsigned int __do_IRQ(unsigned int irq)
  		/*
  		 * No locking required for CPU-local interrupts:
@@ -5296,19 +5297,20 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/irq/handle.c linux-kernel-adeos
  	/*
  	 * REPLAY is when Linux resends an IRQ that was dropped earlier
  	 * WAITING is used by probe to mark irqs that are being tested
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/lockdep.c linux-kernel-adeos/kernel/lockdep.c
---- linux-kernel/kernel/lockdep.c	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/lockdep.c	2008-12-11 16:53:25.000000000 +0800
-@@ -2190,7 +2190,7 @@ void trace_hardirqs_on_caller(unsigned l
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/lockdep.c b/kernel/lockdep.c
+index 46a4041..bc57809 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/lockdep.c
++++ b/kernel/lockdep.c
+@@ -2188,7 +2188,7 @@ void trace_hardirqs_on_caller(unsigned long ip)
+ 	/* we'll do an OFF -> ON transition: */
  	curr->hardirqs_enabled = 1;
- 	ip = (unsigned long) __builtin_return_address(0);
  
 -	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
 +	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled() && !irqs_disabled_hw()))
  		return;
  	if (DEBUG_LOCKS_WARN_ON(current->hardirq_context))
  		return;
-@@ -2233,7 +2233,7 @@ void trace_hardirqs_off_caller(unsigned 
+@@ -2231,7 +2231,7 @@ void trace_hardirqs_off_caller(unsigned long ip)
  	if (unlikely(!debug_locks || current->lockdep_recursion))
  		return;
  
@@ -5317,20 +5319,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/lockdep.c linux-kernel-adeos/ke
  		return;
  
  	if (curr->hardirqs_enabled) {
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/Makefile linux-kernel-adeos/kernel/Makefile
---- linux-kernel/kernel/Makefile	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/Makefile	2008-12-11 16:53:25.000000000 +0800
-@@ -81,6 +81,7 @@ ifeq ($(CONFIG_PREEMPT_RCU),y)
- obj-$(CONFIG_RCU_TRACE) += rcupreempt_trace.o
- endif
- obj-$(CONFIG_RELAY) += relay.o
-+obj-$(CONFIG_IPIPE) += ipipe/
- obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
- obj-$(CONFIG_TASK_DELAY_ACCT) += delayacct.o
- obj-$(CONFIG_TASKSTATS) += taskstats.o tsacct.o
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/panic.c linux-kernel-adeos/kernel/panic.c
---- linux-kernel/kernel/panic.c	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/panic.c	2008-12-16 12:44:14.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/panic.c b/kernel/panic.c
+index 4d50883..1afea02 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/panic.c
++++ b/kernel/panic.c
 @@ -21,6 +21,7 @@
  #include <linux/debug_locks.h>
  #include <linux/random.h>
@@ -5339,7 +5331,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/panic.c linux-kernel-adeos/kern
  
  int panic_on_oops;
  static unsigned long tainted_mask;
-@@ -284,6 +285,8 @@ int oops_may_print(void)
+@@ -285,6 +286,8 @@ int oops_may_print(void)
   */
  void oops_enter(void)
  {
@@ -5348,10 +5340,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/panic.c linux-kernel-adeos/kern
  	debug_locks_off(); /* can't trust the integrity of the kernel anymore */
  	do_oops_enter_exit();
  }
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/power/disk.c linux-kernel-adeos/kernel/power/disk.c
---- linux-kernel/kernel/power/disk.c	2008-12-09 16:20:05.000000000 +0800
-+++ linux-kernel-adeos/kernel/power/disk.c	2008-12-11 16:53:25.000000000 +0800
-@@ -208,6 +208,7 @@ static int create_image(int platform_mod
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/power/disk.c b/kernel/power/disk.c
+index c9d7408..e6915f2 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/power/disk.c
++++ b/kernel/power/disk.c
+@@ -208,6 +208,7 @@ static int create_image(int platform_mode)
  
  	device_pm_lock();
  	local_irq_disable();
@@ -5359,7 +5352,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/power/disk.c linux-kernel-adeos
  	/* At this point, device_suspend() has been called, but *not*
  	 * device_power_down(). We *must* call device_power_down() now.
  	 * Otherwise, drivers for some devices (e.g. interrupt controllers)
-@@ -241,6 +242,7 @@ static int create_image(int platform_mod
+@@ -241,6 +242,7 @@ static int create_image(int platform_mode)
  	device_power_up(in_suspend ?
  		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
   Enable_irqs:
@@ -5383,10 +5376,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/power/disk.c linux-kernel-adeos
  	local_irq_enable();
  	device_pm_unlock();
  	return error;
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/printk.c linux-kernel-adeos/kernel/printk.c
---- linux-kernel/kernel/printk.c	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/printk.c	2008-12-11 16:53:25.000000000 +0800
-@@ -572,6 +572,41 @@ static int have_callable_console(void)
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/printk.c b/kernel/printk.c
+index b84eec7..eab2d52 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/printk.c
++++ b/kernel/printk.c
+@@ -533,6 +533,41 @@ static int have_callable_console(void)
  	return 0;
  }
  
@@ -5428,7 +5422,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/printk.c linux-kernel-adeos/ker
  /**
   * printk - print a kernel message
   * @fmt: format string
-@@ -596,6 +631,63 @@ static int have_callable_console(void)
+@@ -557,6 +592,63 @@ static int have_callable_console(void)
  
  asmlinkage int printk(const char *fmt, ...)
  {
@@ -5492,7 +5486,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/printk.c linux-kernel-adeos/ker
  	va_list args;
  	int r;
  
-@@ -605,6 +697,7 @@ asmlinkage int printk(const char *fmt, .
+@@ -566,6 +658,7 @@ asmlinkage int printk(const char *fmt, ...)
  
  	return r;
  }
@@ -5500,10 +5494,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/printk.c linux-kernel-adeos/ker
  
  /* cpu currently holding logbuf_lock */
  static volatile unsigned int printk_cpu = UINT_MAX;
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kernel/sched.c
---- linux-kernel/kernel/sched.c	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/sched.c	2008-12-11 16:53:25.000000000 +0800
-@@ -2243,7 +2243,7 @@ static int try_to_wake_up(struct task_st
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/sched.c b/kernel/sched.c
+index 4437088..13b22bb 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/sched.c
++++ b/kernel/sched.c
+@@ -2255,7 +2255,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
  	smp_wmb();
  	rq = task_rq_lock(p, &flags);
  	old_state = p->state;
@@ -5512,7 +5507,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
  		goto out;
  
  	if (p->se.on_rq)
-@@ -2597,13 +2597,15 @@ asmlinkage void schedule_tail(struct tas
+@@ -2609,13 +2609,15 @@ asmlinkage void schedule_tail(struct task_struct *prev)
  #endif
  	if (current->set_child_tid)
  		put_user(task_pid_vnr(current), current->set_child_tid);
@@ -5529,7 +5524,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
  context_switch(struct rq *rq, struct task_struct *prev,
  	       struct task_struct *next)
  {
-@@ -2645,12 +2647,23 @@ context_switch(struct rq *rq, struct tas
+@@ -2657,12 +2659,23 @@ context_switch(struct rq *rq, struct task_struct *prev,
  	switch_to(prev, next, prev);
  
  	barrier();
@@ -5553,7 +5548,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
  }
  
  /*
-@@ -4323,6 +4336,7 @@ EXPORT_SYMBOL(add_preempt_count);
+@@ -4335,6 +4348,7 @@ EXPORT_SYMBOL(add_preempt_count);
  
  void __kprobes sub_preempt_count(int val)
  {
@@ -5561,7 +5556,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
  #ifdef CONFIG_DEBUG_PREEMPT
  	/*
  	 * Underflow?
-@@ -4371,6 +4385,7 @@ static noinline void __schedule_bug(stru
+@@ -4383,6 +4397,7 @@ static noinline void __schedule_bug(struct task_struct *prev)
   */
  static inline void schedule_debug(struct task_struct *prev)
  {
@@ -5569,7 +5564,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
  	/*
  	 * Test if we are atomic. Since do_exit() needs to call into
  	 * schedule() atomically, we ignore that path for now.
-@@ -4444,6 +4459,9 @@ need_resched:
+@@ -4456,6 +4471,9 @@ need_resched:
  	rcu_qsctr_inc(cpu);
  	prev = rq->curr;
  	switch_count = &prev->nivcsw;
@@ -5579,7 +5574,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
  
  	release_kernel_lock(prev);
  need_resched_nonpreemptible:
-@@ -4483,15 +4501,18 @@ need_resched_nonpreemptible:
+@@ -4495,15 +4513,18 @@ need_resched_nonpreemptible:
  		rq->curr = next;
  		++*switch_count;
  
@@ -5600,7 +5595,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
  
  	if (unlikely(reacquire_kernel_lock(current) < 0))
  		goto need_resched_nonpreemptible;
-@@ -5234,6 +5255,7 @@ recheck:
+@@ -5246,6 +5267,7 @@ recheck:
  
  	oldprio = p->prio;
  	__setscheduler(rq, p, policy, param->sched_priority);
@@ -5608,7 +5603,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
  
  	if (running)
  		p->sched_class->set_curr_task(rq);
-@@ -5563,6 +5585,7 @@ static void __cond_resched(void)
+@@ -5575,6 +5597,7 @@ static void __cond_resched(void)
  #ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
  	__might_sleep(__FILE__, __LINE__);
  #endif
@@ -5616,7 +5611,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
  	/*
  	 * The BKS might be reacquired before we have dropped
  	 * PREEMPT_ACTIVE, which could trigger a second
-@@ -9374,3 +9397,60 @@ struct cgroup_subsys cpuacct_subsys = {
+@@ -9393,3 +9416,60 @@ struct cgroup_subsys cpuacct_subsys = {
  	.subsys_id = cpuacct_subsys_id,
  };
  #endif	/* CONFIG_CGROUP_CPUACCT */
@@ -5677,10 +5672,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/sched.c linux-kernel-adeos/kern
 +EXPORT_SYMBOL(ipipe_reenter_root);
 +
 +#endif /* CONFIG_IPIPE */
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/signal.c linux-kernel-adeos/kernel/signal.c
---- linux-kernel/kernel/signal.c	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/signal.c	2008-12-11 16:53:25.000000000 +0800
-@@ -494,6 +494,7 @@ void signal_wake_up(struct task_struct *
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/signal.c b/kernel/signal.c
+index 28859a9..734c5c0 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/signal.c
++++ b/kernel/signal.c
+@@ -494,6 +494,7 @@ void signal_wake_up(struct task_struct *t, int resume)
  	unsigned int mask;
  
  	set_tsk_thread_flag(t, TIF_SIGPENDING);
@@ -5688,10 +5684,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/signal.c linux-kernel-adeos/ker
  
  	/*
  	 * For SIGKILL, we want to wake it up in the stopped/traced/killable
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/spinlock.c linux-kernel-adeos/kernel/spinlock.c
---- linux-kernel/kernel/spinlock.c	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/spinlock.c	2008-12-11 16:53:25.000000000 +0800
-@@ -87,7 +87,7 @@ unsigned long __lockfunc _spin_lock_irqs
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/spinlock.c b/kernel/spinlock.c
+index 29ab207..c21e314 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/spinlock.c
++++ b/kernel/spinlock.c
+@@ -87,7 +87,7 @@ unsigned long __lockfunc _spin_lock_irqsave(spinlock_t *lock)
  	 * _raw_spin_lock_flags() code, because lockdep assumes
  	 * that interrupts are not re-enabled during lock-acquire:
  	 */
@@ -5700,7 +5697,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/spinlock.c linux-kernel-adeos/k
  	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
  #else
  	_raw_spin_lock_flags(lock, &flags);
-@@ -304,7 +304,7 @@ unsigned long __lockfunc _spin_lock_irqs
+@@ -304,7 +304,7 @@ unsigned long __lockfunc _spin_lock_irqsave_nested(spinlock_t *lock, int subclas
  	 * _raw_spin_lock_flags() code, because lockdep assumes
  	 * that interrupts are not re-enabled during lock-acquire:
  	 */
@@ -5709,9 +5706,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/spinlock.c linux-kernel-adeos/k
  	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
  #else
  	_raw_spin_lock_flags(lock, &flags);
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/time/tick-common.c linux-kernel-adeos/kernel/time/tick-common.c
---- linux-kernel/kernel/time/tick-common.c	2008-12-09 16:19:51.000000000 +0800
-+++ linux-kernel-adeos/kernel/time/tick-common.c	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/time/tick-common.c b/kernel/time/tick-common.c
+index df12434..3d63445 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/time/tick-common.c
++++ b/kernel/time/tick-common.c
 @@ -69,7 +69,7 @@ static void tick_periodic(int cpu)
  		write_sequnlock(&xtime_lock);
  	}
@@ -5721,7 +5719,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/time/tick-common.c linux-kernel
  	profile_tick(CPU_PROFILING);
  }
  
-@@ -167,6 +167,10 @@ static void tick_setup_device(struct tic
+@@ -167,6 +167,10 @@ static void tick_setup_device(struct tick_device *td,
  
  	td->evtdev = newdev;
  
@@ -5732,10 +5730,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/time/tick-common.c linux-kernel
  	/*
  	 * When the device is not per cpu, pin the interrupt to the
  	 * current cpu:
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/time/tick-sched.c linux-kernel-adeos/kernel/time/tick-sched.c
---- linux-kernel/kernel/time/tick-sched.c	2008-12-09 16:19:51.000000000 +0800
-+++ linux-kernel-adeos/kernel/time/tick-sched.c	2008-12-11 16:53:25.000000000 +0800
-@@ -507,7 +507,7 @@ static void tick_nohz_handler(struct clo
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/time/tick-sched.c b/kernel/time/tick-sched.c
+index 342fc9c..3665e47 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/time/tick-sched.c
++++ b/kernel/time/tick-sched.c
+@@ -507,7 +507,7 @@ static void tick_nohz_handler(struct clock_event_device *dev)
  		ts->idle_jiffies++;
  	}
  
@@ -5744,7 +5743,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/time/tick-sched.c linux-kernel-
  	profile_tick(CPU_PROFILING);
  
  	while (tick_nohz_reprogram(ts, now)) {
-@@ -654,7 +654,7 @@ static enum hrtimer_restart tick_sched_t
+@@ -658,7 +658,7 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
  			touch_softlockup_watchdog();
  			ts->idle_jiffies++;
  		}
@@ -5753,10 +5752,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/time/tick-sched.c linux-kernel-
  		profile_tick(CPU_PROFILING);
  	}
  
-diff -Nurp --exclude='*svn*' linux-kernel/kernel/timer.c linux-kernel-adeos/kernel/timer.c
---- linux-kernel/kernel/timer.c	2008-12-09 16:20:50.000000000 +0800
-+++ linux-kernel-adeos/kernel/timer.c	2008-12-11 16:53:25.000000000 +0800
-@@ -983,6 +983,26 @@ void update_process_times(int user_tick)
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/timer.c b/kernel/timer.c
+index a5eaea2..6ecc85e 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/timer.c
++++ b/kernel/timer.c
+@@ -1052,6 +1052,26 @@ void update_process_times(int user_tick)
  	run_posix_cpu_timers(p);
  }
  
@@ -5783,9 +5783,36 @@ diff -Nurp --exclude='*svn*' linux-kernel/kernel/timer.c linux-kernel-adeos/kern
  /*
   * Nr of active tasks - counted in fixed-point numbers
   */
-diff -Nurp --exclude='*svn*' linux-kernel/lib/bust_spinlocks.c linux-kernel-adeos/lib/bust_spinlocks.c
---- linux-kernel/lib/bust_spinlocks.c	2008-12-09 16:39:11.000000000 +0800
-+++ linux-kernel-adeos/lib/bust_spinlocks.c	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/trace/Kconfig b/kernel/trace/Kconfig
+index 33dbefd..fd9736e 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/kernel/trace/Kconfig
++++ b/kernel/trace/Kconfig
+@@ -33,7 +33,7 @@ menu "Tracers"
+ 
+ config FUNCTION_TRACER
+ 	bool "Kernel Function Tracer"
+-	depends on HAVE_FUNCTION_TRACER
++	depends on HAVE_FUNCTION_TRACER && !IPIPE_TRACE
+ 	depends on DEBUG_KERNEL
+ 	select FRAME_POINTER
+ 	select TRACING
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/Kconfig.debug b/lib/Kconfig.debug
+index b0f239e..fdc111b 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -128,6 +128,8 @@ config DEBUG_SECTION_MISMATCH
+ 	  - Enable verbose reporting from modpost to help solving
+ 	    the section mismatches reported.
+ 
++source "kernel/ipipe/Kconfig.debug"
++
+ config DEBUG_KERNEL
+ 	bool "Kernel debugging"
+ 	help
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/bust_spinlocks.c b/lib/bust_spinlocks.c
+index 486da62..9a0f064 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/bust_spinlocks.c
++++ b/lib/bust_spinlocks.c
 @@ -12,6 +12,7 @@
  #include <linux/tty.h>
  #include <linux/wait.h>
@@ -5794,7 +5821,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/lib/bust_spinlocks.c linux-kernel-adeo
  
  
  void __attribute__((weak)) bust_spinlocks(int yes)
-@@ -22,6 +23,7 @@ void __attribute__((weak)) bust_spinlock
+@@ -22,6 +23,7 @@ void __attribute__((weak)) bust_spinlocks(int yes)
  #ifdef CONFIG_VT
  		unblank_screen();
  #endif
@@ -5802,10 +5829,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/lib/bust_spinlocks.c linux-kernel-adeo
  		if (--oops_in_progress == 0)
  			wake_up_klogd();
  	}
-diff -Nurp --exclude='*svn*' linux-kernel/lib/ioremap.c linux-kernel-adeos/lib/ioremap.c
---- linux-kernel/lib/ioremap.c	2008-12-09 16:39:11.000000000 +0800
-+++ linux-kernel-adeos/lib/ioremap.c	2008-12-11 16:53:25.000000000 +0800
-@@ -85,8 +85,8 @@ int ioremap_page_range(unsigned long add
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/ioremap.c b/lib/ioremap.c
+index 14c6078..a275469 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/ioremap.c
++++ b/lib/ioremap.c
+@@ -85,8 +85,8 @@ int ioremap_page_range(unsigned long addr,
  		if (err)
  			break;
  	} while (pgd++, addr = next, addr != end);
@@ -5816,22 +5844,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/lib/ioremap.c linux-kernel-adeos/lib/i
  
  	return err;
  }
-diff -Nurp --exclude='*svn*' linux-kernel/lib/Kconfig.debug linux-kernel-adeos/lib/Kconfig.debug
---- linux-kernel/lib/Kconfig.debug	2008-12-09 16:39:11.000000000 +0800
-+++ linux-kernel-adeos/lib/Kconfig.debug	2008-12-11 16:53:25.000000000 +0800
-@@ -128,6 +128,8 @@ config DEBUG_SECTION_MISMATCH
- 	  - Enable verbose reporting from modpost to help solving
- 	    the section mismatches reported.
- 
-+source "kernel/ipipe/Kconfig.debug"
-+
- config DEBUG_KERNEL
- 	bool "Kernel debugging"
- 	help
-diff -Nurp --exclude='*svn*' linux-kernel/lib/smp_processor_id.c linux-kernel-adeos/lib/smp_processor_id.c
---- linux-kernel/lib/smp_processor_id.c	2008-12-09 16:39:11.000000000 +0800
-+++ linux-kernel-adeos/lib/smp_processor_id.c	2008-12-11 16:53:25.000000000 +0800
-@@ -12,10 +12,13 @@ notrace unsigned int debug_smp_processor
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/smp_processor_id.c b/lib/smp_processor_id.c
+index 0f8fc22..90dc46f 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/smp_processor_id.c
++++ b/lib/smp_processor_id.c
+@@ -12,10 +12,13 @@ notrace unsigned int debug_smp_processor_id(void)
  	unsigned long preempt_count = preempt_count();
  	int this_cpu = raw_smp_processor_id();
  
@@ -5846,9 +5863,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/lib/smp_processor_id.c linux-kernel-ad
  		goto out;
  
  	/*
-diff -Nurp --exclude='*svn*' linux-kernel/lib/spinlock_debug.c linux-kernel-adeos/lib/spinlock_debug.c
---- linux-kernel/lib/spinlock_debug.c	2008-12-09 16:39:11.000000000 +0800
-+++ linux-kernel-adeos/lib/spinlock_debug.c	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/spinlock_debug.c b/lib/spinlock_debug.c
+index 9c4b025..08f096b 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/lib/spinlock_debug.c
++++ b/lib/spinlock_debug.c
 @@ -133,6 +133,8 @@ void _raw_spin_lock(spinlock_t *lock)
  	debug_spin_lock_after(lock);
  }
@@ -5923,9 +5941,10 @@ diff -Nurp --exclude='*svn*' linux-kernel/lib/spinlock_debug.c linux-kernel-adeo
  }
 +
 +EXPORT_SYMBOL(_raw_write_unlock);
-diff -Nurp --exclude='*svn*' linux-kernel/mm/memory.c linux-kernel-adeos/mm/memory.c
---- linux-kernel/mm/memory.c	2008-12-09 16:57:06.000000000 +0800
-+++ linux-kernel-adeos/mm/memory.c	2008-12-11 16:53:25.000000000 +0800
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/mm/memory.c b/mm/memory.c
+index 164951c..b3b1d8f 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/mm/memory.c
++++ b/mm/memory.c
 @@ -52,6 +52,7 @@
  #include <linux/writeback.h>
  #include <linux/memcontrol.h>
@@ -5978,7 +5997,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/mm/memory.c linux-kernel-adeos/mm/memo
  {
  	unsigned long vm_flags = vma->vm_flags;
  	pte_t pte = *src_pte;
-@@ -530,6 +557,21 @@ copy_one_pte(struct mm_struct *dst_mm, s
+@@ -530,6 +557,21 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
  	 * in the parent and the child
  	 */
  	if (is_cow_mapping(vm_flags)) {
@@ -6000,7 +6019,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/mm/memory.c linux-kernel-adeos/mm/memo
  		ptep_set_wrprotect(src_mm, addr, src_pte);
  		pte = pte_wrprotect(pte);
  	}
-@@ -560,13 +602,27 @@ static int copy_pte_range(struct mm_stru
+@@ -560,13 +602,27 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
  	pte_t *src_pte, *dst_pte;
  	spinlock_t *src_ptl, *dst_ptl;
  	int progress = 0;
@@ -6058,7 +6077,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/mm/memory.c linux-kernel-adeos/mm/memo
  		progress += 8;
  	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
  
-@@ -1734,32 +1809,6 @@ static inline pte_t maybe_mkwrite(pte_t 
+@@ -1734,32 +1809,6 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
  	return pte;
  }
  
@@ -6091,7 +6110,7 @@ diff -Nurp --exclude='*svn*' linux-kernel/mm/memory.c linux-kernel-adeos/mm/memo
  /*
   * This routine handles present pages, when users try to write
   * to a shared page. It is done by copying the page to a new address
-@@ -3049,3 +3098,111 @@ void print_vma_addr(char *prefix, unsign
+@@ -3049,3 +3098,111 @@ void print_vma_addr(char *prefix, unsigned long ip)
  	}
  	up_read(&current->mm->mmap_sem);
  }
@@ -6203,10 +6222,11 @@ diff -Nurp --exclude='*svn*' linux-kernel/mm/memory.c linux-kernel-adeos/mm/memo
 +EXPORT_SYMBOL(ipipe_disable_ondemand_mappings);
 +
 +#endif
-diff -Nurp --exclude='*svn*' linux-kernel/mm/mlock.c linux-kernel-adeos/mm/mlock.c
---- linux-kernel/mm/mlock.c	2008-12-09 16:57:05.000000000 +0800
-+++ linux-kernel-adeos/mm/mlock.c	2008-12-11 16:53:25.000000000 +0800
-@@ -578,10 +578,10 @@ asmlinkage long sys_munlock(unsigned lon
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/mm/mlock.c b/mm/mlock.c
+index d35fe89..609ae26 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/mm/mlock.c
++++ b/mm/mlock.c
+@@ -572,10 +572,10 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
  static int do_mlockall(int flags)
  {
  	struct vm_area_struct * vma, * prev = NULL;
@@ -6219,14 +6239,17 @@ diff -Nurp --exclude='*svn*' linux-kernel/mm/mlock.c linux-kernel-adeos/mm/mlock
  	current->mm->def_flags = def_flags;
  	if (flags == MCL_FUTURE)
  		goto out;
-diff -Nurp --exclude='*svn*' linux-kernel/mm/vmalloc.c linux-kernel-adeos/mm/vmalloc.c
---- linux-kernel/mm/vmalloc.c	2008-12-09 16:57:06.000000000 +0800
-+++ linux-kernel-adeos/mm/vmalloc.c	2008-12-11 15:37:04.000000000 +0800
-@@ -168,6 +168,7 @@ static int vmap_page_range(unsigned long
- 		if (err)
- 			break;
- 	} while (pgd++, addr = next, addr != end);
-+	__ipipe_pin_range_globally((unsigned long) area->addr, end);
- 	flush_cache_vmap(addr, end);
+diff --git 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/mm/vmalloc.c b/mm/vmalloc.c
+index 0380ea5..858feeb 100644
+--- 38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -173,6 +173,9 @@ static int vmap_page_range(unsigned long start, unsigned long end,
  
  	if (unlikely(err))
+ 		return err;
++
++ 	__ipipe_pin_range_globally(start, end);
++
+ 	return nr;
+ }
+ 

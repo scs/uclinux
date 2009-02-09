@@ -1,6 +1,14 @@
 File: adeos-bfin.patch
 
-Last update: 2008-12-22
+Last update: 2009-02-09
 
 This patch is for blackfin uclinux SVN trunk.
-The adeos Blackfin specific code has been merged to svn trunk linux kernel. This patch contains adeos common code. For now, this patch is for testing only. To use adeos, please use uclinux-2008R1.5 release.
+The adeos Blackfin specific code has been merged to svn trunk linux kernel. This patch contains adeos -noarch code from Philippe:
+
+"
+To start this cycle, I have attached a major update to the I-pipe Blackfin port
+as available from your GIT tree as of today (commit
+#38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff). Tested on bf537 and bf561
+successfully. In the same move, I have prepared the Xenomai -stable and -devel
+branches to support 2.6.28, against which these patches apply.
+"
