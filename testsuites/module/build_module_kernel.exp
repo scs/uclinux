@@ -50,7 +50,7 @@ while 1 {
         }
 
         -re "SMC 91C9x/91C1xxx support.*SMC91X.*\\\[.*]" {
-            if { $board_type == "BF533-STAMP" || $board_type == "BF533-EZKIT" || $board_type == "BF561-EZKIT" || $board_type == "BF518F-EZBRD" || $board_type == "BF526-EZBRD" } {
+            if { $board_type == "BF533-STAMP" || $board_type == "BF533-EZKIT" || $board_type == "BF561-EZKIT" } {
                 send -s "M\r"
             } else {
                 send -s "\r"
@@ -59,7 +59,7 @@ while 1 {
         
          -re "Blackfin on-chip MAC support.*BFIN_MAC.*\\\[.*]" {
 
-         if { $board_type == "BF537-STAMP" || $board_type == "BF527-EZKIT" } {
+         if { $board_type == "BF537-STAMP" || $board_type == "BF527-EZKIT"  || $board_type == "BF518F-EZBRD" || $board_type == "BF526-EZBRD" } {
 
                         send -s "M\r"
 
