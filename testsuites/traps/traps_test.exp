@@ -20,9 +20,10 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 
+set case_num 0
 set timeout 5
 
-send "cd /bin\r" 
+send -s "cd /bin\r" 
 while 1 {
    expect {
       "bin" {         
@@ -36,7 +37,6 @@ while 1 {
    }
 }
 
-set case_num 0
 incr case_num
 
 set timeout 50

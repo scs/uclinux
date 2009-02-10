@@ -267,6 +267,7 @@ while 1 {
         -re "\[0-9a-z]+  /mnt/pwd" {
             sleep 3
             send "\3"
+            expect -re $kernel_prompt
             case_pass $case_num
             break
         }
