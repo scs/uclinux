@@ -73,7 +73,7 @@ while 1 {
 set case_num 0
 
 set flag 0
-send "ifconfig eth0 $targetip\r"
+send -s "ifconfig eth0 $targetip\r"
 while 1 {
    sleep 3
    expect {
@@ -153,7 +153,7 @@ while 1 {
 while 1 {
 	incr case_num
         if { $debug_port == "ethernet" } {
-	send "target remote udp:$targetip:6443\r"
+	send -s "target remote udp:$targetip:6443\r"
 	expect {
 		"Remote debugging using udp*kgdb_breakpoint" {
                  case_pass $case_num
@@ -169,7 +169,7 @@ while 1 {
 		}
 	}
         } elseif { $debug_port == "uart" } {
-        send "set remotebaud 57600\r"
+        send -s "set remotebaud 57600\r"
         expect {
                 "(gdb)" {
                 case_pass $case_num
@@ -180,7 +180,7 @@ while 1 {
                 exit
                 }
         }
-        send "target remote $ttyUSBdev\r"
+        send -s "target remote $ttyUSBdev\r"
         expect {
                 "Remote debugging using $ttyUSBdev*kgdb_breakpoint" {
                  case_pass $case_num
@@ -214,7 +214,7 @@ while 1 {
 #		}
 #	}
 	incr case_num
-	send "break kgdb_test\r"
+	send -s "break kgdb_test\r"
 	expect {
 		"Breakpoint 1" {
                 case_pass $case_num
@@ -273,7 +273,7 @@ while 1 {
 		}
 	}
         incr case_num
-        send "hbreak 56\r"
+        send -s "hbreak 56\r"
         expect {
                 "Hardware assisted breakpoint 2*(gdb) " {
                 case_pass $case_num
@@ -569,7 +569,7 @@ while 1 {
         }
 
        set spawn_id $gdb_id
-       incr case_num
+        incr case_num
         send " x/1xw 0xff808010\r"
         expect {
                 "Cannot access memory at address" {
@@ -585,9 +585,54 @@ while 1 {
                         exit
                 }
         }
+        incr case_num
         send "set *0xff808020 = 23\r"
         expect {
                 "Cannot access memory at address" {
+                case_pass $case_num
+                expect {
+                        "(gdb) " {
+                        }
+                }
+                }
+                timeout {
+                clean_host_gdb
+                case_fail $case_num
+                        exit
+                }
+        }
+        incr case_num
+        # Read the uart0 register.
+        send " x/1xw 0xffc00400\r" 
+        expect {
+           -re "0xffc00400:\[\x20\t]+0x000d000d" {
+                case_pass $case_num
+                expect {
+                        "(gdb) " {
+                        }
+                }
+                }
+                timeout {
+                clean_host_gdb
+                case_fail $case_num
+                        exit
+                }
+        }
+        incr case_num
+        # Set the performance register.
+        send "set *0xffe08100=0x456\r" 
+        expect {
+                "(gdb)" {
+                }
+                timeout {
+                clean_host_gdb
+                case_fail $case_num
+                        exit
+                }
+        }
+        send " x/1xw 0xffe08100\r"
+        expect {
+           -re "0xffe08100:\[\x20\t]+0x00000456" {
                 case_pass $case_num
                 expect {
                         "(gdb) " {
@@ -1075,6 +1120,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
                         exit
                 }
         }
+        incr case_num
         send "set *0xfeb28020 = 23\r"
         expect {
                 "Cannot access memory at address" {
