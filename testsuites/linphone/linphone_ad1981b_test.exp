@@ -35,6 +35,38 @@ while 1 {
      }
 }
 
+send "route add -net default gw $serverip\r"
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+         break
+      }
+
+      timeout {
+            puts "Fail to add route. "
+            break
+         }
+     }
+}
+
+send "route \r"
+while 1 {
+   sleep 3
+   expect {
+      -re "$serverip" {
+         puts "Add route success.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail to add route. "
+            break
+         }
+     }
+}
+
+
 incr case_num
 spawn linphonec 
 set host_linphonec_id $spawn_id

@@ -24,7 +24,7 @@ incr case_num
 send "dmesg\r" 
 while 1 {
    expect {
-     -re "scsi CD-ROM sr0" {
+     -re "scsi.*Direct-Access.*ATA.*WDC" {
                 case_pass $case_num
 		break
       }
