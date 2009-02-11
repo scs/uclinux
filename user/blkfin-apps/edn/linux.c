@@ -169,7 +169,7 @@ double timeval_subtract (struct timeval x, struct timeval y)
 #define time_func(funct) 				\
 {							\
 	struct rusage start, stop;			\
-	long count=0, i;				\
+	unsigned long long count=0, i;				\
 	double expired_time;				\
 										\
 	printf("testing \"" #funct "\"\n");					\
@@ -194,7 +194,7 @@ double timeval_subtract (struct timeval x, struct timeval y)
 	getrusage(RUSAGE_SELF, &stop);						\
 	expired_time = timeval_subtract(stop.ru_utime, start.ru_utime);		\
 										\
-	printf("  Completed %li loops in %f seconds\n", count, expired_time);	\
+	printf("  Completed %llu loops in %f seconds\n", count, expired_time);	\
 	printf("  useconds per loop = %f\n", (expired_time*1000000) / count);	\
 	printf("  cycles per loop = %.1f\n", (expired_time*1000000) / count * MHz); \
 										\
