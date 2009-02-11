@@ -26,9 +26,8 @@ set case_num 0
 set test_flag 0
 sleep 2
 
-send "mkdir /mnt/mmc\r"
-send "mkdir /mnt/mmc1\r"
-send "mkdir /mnt/mmc2\r"
+set timeout 5
+send "mkdir /mnt/mmc /mnt/mmc1 /mnt/mmc2\r"
 expect  -re $kernel_prompt
 
 incr case_num
@@ -40,7 +39,7 @@ while 1 {
          send_user "No mmcblk0 device, test fail\n"
          case_fail $case_num
       }
-      -re "mkdosfs.*$kernel_prompt" {
+      -re "mkdosfs \[0-9]\.\[0-9]+.*$kernel_prompt" {
          send_user "mkdosfs done, test pass\n"
          case_pass $case_num
          break
