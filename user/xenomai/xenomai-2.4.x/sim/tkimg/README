@@ -1,0 +1,14 @@
+This directory contains a Tcl package adding some image types to Tk
+that are needed by the Xenoscope GUI.
+
+The code herein was respectiveky lifted from libimg1.2.4 written by
+Jan Nijtmans <j.nijtmans@chello.nl> and Bruce Stephens's
+<bruce@cenderis.demon.co.uk> compound image package.
+
+Those contributions have merely been merged in a single one, and
+libimg has been stripped down, only keeping the PNG, XPM, PS and PDF
+support.
+
+Using this package requires libz and libpng installed on the system.
+
+-- rpm 1/26/2002

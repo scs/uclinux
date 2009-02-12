@@ -1,0 +1,16 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+mainmenu_option next_comment
+comment 'Testing drivers'
+
+dep_tristate 'Timer benchmark driver' CONFIG_XENO_DRIVERS_TIMERBENCH $CONFIG_XENO_SKIN_RTDM
+
+dep_tristate 'IRQ benchmark driver' CONFIG_XENO_DRIVERS_IRQBENCH $CONFIG_XENO_SKIN_RTDM
+
+dep_tristate 'Context switches test driver' CONFIG_XENO_DRIVERS_SWITCHTEST $CONFIG_XENO_SKIN_RTDM
+
+dep_tristate 'Kernel-only latency measurement module' CONFIG_XENO_DRIVERS_KLATENCY $XENO_DRIVERS_TIMERBENCH
+
+endmenu

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+    [ "$1" = "" ] && exit 0
+    # run task after announcing it
+    echo; date;
+    echo running: $*
+    eval $* &			# eval helps w complex cmds, like zegrep -E
+    wait $!  # last backgound job

@@ -1,0 +1,23 @@
+source "kernel/xenomai/nucleus/Kconfig"
+
+menu "Machine"
+
+depends on XENO_OPT_NUCLEUS
+
+config XENO_HW_IA64_STACK_POOL
+        int "Number of pre-allocated kernel stacks"
+        default 4
+        help
+	The current implementation for the Itanium architecture
+	requires that stacks of Xenomai threads running in kernel
+	space be pre-allocated in a separate pool. This parameter
+	allows to set the size of this stack spool, which consequently
+	defines the maximum number of concurrently runnable
+	kernel-based threads at any point in time. Nb: Xenomai
+	threads running in user-space are _not_ impacted by this
+	limit.
+
+endmenu
+
+source "kernel/xenomai/skins/Kconfig"
+source "drivers/xenomai/Kconfig"

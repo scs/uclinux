@@ -1,0 +1,7 @@
+# Upstream author insists that those recursive directories exist for
+# compatibility reasons of compiles applications
+libxenomai-dev: symlink-is-self-recursive usr/include/xenomai/asm-generic/xenomai .
+libxenomai-dev: symlink-is-self-recursive usr/include/xenomai/asm-sim/asm .
+libxenomai-dev: symlink-is-self-recursive usr/include/xenomai/asm-sim/xenomai .
+libxenomai-dev: symlink-is-self-recursive usr/include/xenomai/asm-x86/xenomai .
+libxenomai-dev: symlink-is-self-recursive usr/include/xenomai/xenomai .

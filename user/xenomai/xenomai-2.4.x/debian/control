@@ -1,0 +1,98 @@
+Source: xenomai
+Section: devel
+Priority: extra
+Maintainer: Roland Stigge <stigge@antcom.de>
+Build-Depends: debhelper (>= 5), dh-kpatches, findutils (>= 4.2.28)
+Standards-Version: 3.8.0
+Homepage: http://www.xenomai.org/
+
+Package: xenomai-runtime
+Section: devel
+Architecture: amd64 arm armeb armel i386 ia64 powerpc
+Depends: ${shlibs:Depends}
+Suggests: linux-patch-xenomai, xenomai-doc
+Replaces: xenomai
+Conflicts: xenomai
+Description: Xenomai runtime utilities
+ Xenomai is a real-time development framework cooperating with the Linux
+ kernel in order to provide a pervasive, interface-agnostic, hard real-time
+ support to user-space applications, seamlessly integrated into the GNU/Linux
+ environment. Xenomai provides its own API and emulation layers ("skins") to
+ make migration from other RTOS easier. Examples are: pSOS+, VxWorks, VRTX,
+ uiTRON, RTAI, POSIX.
+ .
+ This package contains the runtime programs and the testsuite for the Xenomai
+ realtime system.
+
+Package: linux-patch-xenomai
+Section: devel
+Architecture: all
+Depends: ${kpatch:Depends}
+Suggests: xenomai, linux-source-2.6, kernel-package
+Description: Linux kernel patches for Xenomai
+ Xenomai is a real-time development framework cooperating with the Linux
+ kernel in order to provide a pervasive, interface-agnostic, hard real-time
+ support to user-space applications, seamlessly integrated into the GNU/Linux
+ environment. Xenomai provides its own API and emulation layers ("skins") to
+ make migration from other RTOS easier. Examples are: pSOS+, VxWorks, VRTX,
+ uiTRON, RTAI, POSIX.
+ .
+ This package contains patches for 2.6 series kernels - These are intended for
+ use with kernel-package and a virgin Linux source tree. Note: These patches
+ include the base adeos-ipipe patch along with all the additional material
+ normally added by the prepare-kernel.sh script.
+ .
+ This package contains the following patches:
+ .
+
+Package: libxenomai1
+Section: libs
+Architecture: amd64 arm armeb armel i386 ia64 powerpc
+Depends: ${shlibs:Depends}
+Suggests: linux-patch-xenomai, xenomai-doc
+Replaces: xenomai
+Conflicts: xenomai
+Description: Shared libraries for Xenomai
+ Xenomai is a real-time development framework cooperating with the Linux
+ kernel in order to provide a pervasive, interface-agnostic, hard real-time
+ support to user-space applications, seamlessly integrated into the GNU/Linux
+ environment. Xenomai provides its own API and emulation layers ("skins") to
+ make migration from other RTOS easier. Examples are: pSOS+, VxWorks, VRTX,
+ uiTRON, RTAI, POSIX.
+ .
+ This package contains the shared libraries.
+
+Package: libxenomai-dev
+Section: libdevel
+Architecture: amd64 arm armeb armel i386 ia64 powerpc
+Depends: libxenomai1 (= ${binary:Version})
+Suggests: linux-patch-xenomai, xenomai-doc
+Replaces: xenomai
+Conflicts: xenomai
+Description: Headers and static libs for Xenomai
+ Xenomai is a real-time development framework cooperating with the Linux
+ kernel in order to provide a pervasive, interface-agnostic, hard real-time
+ support to user-space applications, seamlessly integrated into the GNU/Linux
+ environment. Xenomai provides its own API and emulation layers ("skins") to
+ make migration from other RTOS easier. Examples are: pSOS+, VxWorks, VRTX,
+ uiTRON, RTAI, POSIX.
+ .
+ This package contains development files (header files), the static libraries
+ and scripts used to compile realtime applications.
+
+Package: xenomai-doc
+Section: doc
+Architecture: all
+Depends:
+Suggests: xenomai
+Conflicts: xenomai-docs
+Replaces: xenomai-docs
+Description: Xenomai documentation
+ Xenomai is a real-time development framework cooperating with the Linux
+ kernel in order to provide a pervasive, interface-agnostic, hard real-time
+ support to user-space applications, seamlessly integrated into the GNU/Linux
+ environment. Xenomai provides its own API and emulation layers ("skins") to
+ make migration from other RTOS easier. Examples are: pSOS+, VxWorks, VRTX,
+ uiTRON, RTAI, POSIX.
+ .
+ Documentation for Xenomai realtime API.

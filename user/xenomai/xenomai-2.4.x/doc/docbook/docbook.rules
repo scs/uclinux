@@ -1,0 +1,174 @@
+# -*- makefile -*-
+dbx_docdir = $(docdir)
+
+dbx_top_distdir=$(doc_top_distdir)
+DBX_SRC_ROOT=$(top_srcdir)/$(DBX_DOC_ROOT)
+DBX_BUILD_ROOT=$(top_builddir)/$(DBX_DOC_ROOT)
+DBX_DIST_ROOT=$(dbx_top_distdir)/$(DBX_GEN_DOC_ROOT)
+
+DBX_XSLTPROC_FLAGS=--catalogs --xinclude $(DBX_MAYBE_NONET)
+
+if !DBX_DOC 
+DBX_HTML_TRANSFORM=cat
+HTML_DOCSDIR=$(top_srcdir)/$(DBX_GEN_DOC_ROOT)/html/
+PDF_DOCSDIR=$(top_srcdir)/$(DBX_GEN_DOC_ROOT)/pdf/
+else
+
+# How to find the Docbook XML source root from an HTML subdir depends on whether
+# $(top_srcdir) is an absolute or relative path, which is tested by configure
+# and exported in the automake conditional DBX_ABS_SRCDIR.
+if DBX_ABS_SRCDIR
+html_srcroot=$(DBX_SRC_ROOT)
+else
+html_srcroot=../$(DBX_SRC_ROOT)
+endif
+
+
+# So as to have HTML documents browseable in the build directory, they make
+# reference to pictures and CSS in the sources directory. But when installing,
+# pictures and CSS are installed too, so the HTML documents have to be
+# transformed in order to make reference to the installed pictures and
+# CSS. This is what the variable DBX_HTML_TRANSFORM is used for.
+esc_html_srcroot=$(subst .,\.,$(html_srcroot))
+DBX_HTML_TRANSFORM=sed "s,\(src\|href\)=\"$(esc_html_srcroot),\1=\"..,g"
+HTML_DOCSDIR=./
+PDF_DOCSDIR=./
+
+DBX_SGML_CATALOG_FILES=$(DBX_BUILD_ROOT)/catalog
+
+# Document validation :
+# The main document has to be validated using xmllint that supports
+# Xinclude.
+%.xml.valid-stamp: %.xml
+	@echo Validating $@.
+	SGML_CATALOG_FILES=$(DBX_SGML_CATALOG_FILES) \
+	$(DBX_LINT) --catalogs --xinclude --noout --postvalid $< && \
+	echo timestamp > $@
+
+
+# Titlepage rule.
+%.xsl: %.spec.xml
+	SGML_CATALOG_FILES=$(DBX_SGML_CATALOG_FILES) \
+	$(DBX_XSLTPROC) $(DBX_XSLTPROC_FLAGS) $(XSLTPROC_FLAGS) --output $@ \
+ http://docbook.sourceforge.net/release/xsl/current/template/titlepage.xsl $<
+
+
+#
+# HTML
+#
+# We use xsltproc with a docbook-xsl stylesheet to generate the xhtml
+# output.
+# 
+# DBX_HTML_STYLESHEET is the relative path to the docbook-xsl stylesheet. Thanks
+#     to make's VPATH, it may be relative to the current build or sources
+#     directory.
+#
+# DBX_HTML_CSS is the name of the CSS. The css file must be in the directory
+#     $DBX_SRC_ROOT/css.
+#
+# The pictures use by the HTML document have to be in the $DBX_SRC_ROOT/pictures
+%: %.xml %.xml.valid-stamp $(DBX_HTML_STYLESHEET) FORCE
+	@echo Generating $@
+	$(mkinstalldirs) $@
+	deps="$^"; set dummy $$deps; src=$$2; stylesheet=$$4; \
+	SGML_CATALOG_FILES=$(DBX_SGML_CATALOG_FILES) \
+	$(DBX_XSLTPROC) $(DBX_XSLTPROC_FLAGS) $(XSLTPROC_FLAGS) \
+	    --stringparam html.stylesheet $(html_srcroot)/css/$(DBX_HTML_CSS) \
+	    --stringparam navig.graphics.path $(html_srcroot)/pictures/ \
+	    --stringparam admon.graphics.path $(html_srcroot)/pictures/ \
+	    --stringparam img.src.path $(html_srcroot)/pictures/ \
+	    --stringparam base.dir $@/ $$stylesheet $$src
+
+.PHONY: FORCE
+
+#
+# PDF
+#
+# We use xsltproc with a docbook-xsl stylesheet to generate the output in the
+# .fo format, which is then converted to pdf by FOP.
+# 
+# DBX_FO_STYLESHEET is the relative path to the docbook-xsl stylesheet. Thanks
+#     to make's VPATH, it may be relative to the current build or sources
+#     directory.
+#
+%.fo: %.xml %.xml.valid-stamp $(DBX_FO_STYLESHEET)
+	@echo Generating $@
+	deps="$^"; set dummy $$deps; src=$$2; stylesheet=$$4; \
+	SGML_CATALOG_FILES=$(DBX_SGML_CATALOG_FILES) \
+	$(DBX_XSLTPROC) $(DBX_XSLTPROC_FLAGS) $(XSLTPROC_FLAGS) --output $@ \
+		 --stringparam admon.graphics.path $(DBX_SRC_ROOT)/pictures/ \
+		 $$stylesheet $$src
+
+%.pdf: %.fo
+	@echo Generating $@...
+	abs_target=`pwd`/$@; abs_source=`pwd`/$<; cd $(DBX_SRC_ROOT)/pictures; \
+	$(DBX_FOP) -fo $$abs_source -pdf $$abs_target
+
+clean-dbx-local:
+	$(RM) -r $(DBX_HTML_DOCS) $(DBX_PDF_DOCS) *.fo *.xml.valid-stamp
+
+clean-local: clean-dbx-local
+
+.SECONDARY:
+
+.DELETE_ON_ERROR:
+
+dbx-xsl-local: $(DBX_XSL_DOCS)
+dbx-pdf-local: $(DBX_PDF_DOCS)
+dbx-html-local: $(DBX_HTML_DOCS)
+
+all-local: dbx-xsl-local dbx-pdf-local dbx-html-local
+
+endif
+
+DBX_ALL_HTML=$(DBX_HTML_DOCS) $(DBX_HTML_EXTRA)
+
+install-dbx-htmldocs: $(DBX_ALL_HTML:%=$(HTML_DOCSDIR)%)
+	docs="$^"; abs_builddir=$$PWD; \
+	for dir in $$docs; do \
+	    dest=$(DESTDIR)$(dbx_docdir)/html/`basename $$dir`; \
+	    $(mkinstalldirs) $$dest && abs_dest=`cd $$dest && pwd` && \
+            { cd $$dir || exit 1; \
+	    for f in * ; do \
+	        case $$f in \
+		    *~|CVS|.svn|[mM]akefile*|GNUmakefile*);; \
+		    *.html|*.htm) $(DBX_HTML_TRANSFORM) $$f > $$abs_dest/$$f;; \
+		    *) $(INSTALL_DATA) $$f $$abs_dest/$$f;; \
+	        esac; \
+	    done; cd $$abs_builddir; } \
+	done
+
+dist-dbx-htmldocs: $(DBX_ALL_HTML:%=$(HTML_DOCSDIR)%)
+	docs="$^"; abs_builddir=$$PWD; \
+	for dir in $$docs; do \
+	    dest=$(DBX_DIST_ROOT)/html/`basename $$dir`; \
+	    $(mkinstalldirs) $$dest && abs_dest=`cd $$dest && pwd` && \
+            { cd $$dir || exit 1; \
+	    for f in * ; do \
+		case $$f in \
+		    *~|CVS|.svn|[mM]akefile*|GNUmakefile*);; \
+		    *.html|*.htm) $(DBX_HTML_TRANSFORM) $$f > $$abs_dest/$$f;; \
+		    *) $(INSTALL_DATA) $$f $$abs_dest/$$f;; \
+	        esac; \
+	    done; cd $$abs_builddir; } \
+	done
+
+uninstall-dbx-htmldocs:
+	if test -n "$(DBX_ALL_HTML)"; then \
+	    targets="$(DBX_ALL_HTML:%=$(DESTDIR)$(docdir)/html/%)"; \
+	    for t in $$targets; do \
+		if test -d $$t; then $(RM) $$t/*; $(RM) -r $$t; \
+		else $(RM) $$t; fi; \
+	    done; \
+        fi
+
+# installation and distribution of pdf files: use generic rules.
+PDF_DOCS=$(DBX_PDF_DOCS)
+
+include $(top_srcdir)/doc/install-dist.rules
+
+install-data-local: install-dbx-htmldocs install-docs-local
+
+dist-hook: dist-dbx-htmldocs dist-docs-hook
+
+uninstall-local: uninstall-dbx-htmldocs uninstall-docs

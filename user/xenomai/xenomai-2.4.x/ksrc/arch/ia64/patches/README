@@ -1,0 +1,17 @@
+-- arch/ia64/patches
+
+Xenomai needs special kernel support to deliver fast and
+deterministic response time to external interrupts, and also to
+provide real-time services highly integrated with the standard Linux
+kernel.
+
+This support is provided by the Adeos real-time enabler [1], in the
+form of a kernel patch you have to apply against a vanilla kernel
+tree, before you attempt to compile the Xenomai codebase against the
+latter kernel.
+
+Apply one of the patches found in this directory to the corresponding
+kernel release. You may want to have a look at the README.*INSTALL
+guides at the top of the Xenomai tree for more information.
+
+[1] http://www.gna.org/projects/adeos/

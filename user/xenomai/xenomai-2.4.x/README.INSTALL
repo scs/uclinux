@@ -1,0 +1,421 @@
+Installing Xenomai
+==================
+
+0. Introduction.
+----------------
+
+Starting with version 2.1, Xenomai follows a split source model,
+decoupling the kernel space support from the user-space libraries used
+in accessing the former.
+
+To this end, kernel and user-space Xenomai components are respectively
+available under the ksrc/ and src/ sub-trees.
+
+The ksrc/ sub-tree providing the kernel space support is seen as a
+built-in extension of the Linux kernel, and no more as a collection of
+separate out-of-tree modules. A direct benefit of such approach is the
+ability to build the Xenomai real-time subsystem statically into the
+target kernel, or as loadable modules as with earlier versions.
+therefore, the usual Linux kernel configuration process will be
+normally used to define the various settings for the Xenomai kernel
+components. Sections 1.1 and 1.2 document the installation process 
+of this kernel space support.
+
+The src/ sub-tree contains the various user-space libraries and
+commands provided by the Xenomai framework. This tree can be built
+separately from the kernel support, even if the latter is absent from
+the build system. Section 1.3 documents the installation process of this
+user-space support.
+
+Finally, Xenomai build system also allows building a Xenomai patched 
+kernel as part of the user space support compilation process. Section 
+1.4 documents this possibility.
+
+
+1. Installation steps
+---------------------
+
+1.1 Preparing the target kernel
+-------------------------------
+
+Xenomai provides a real-time sub-system seamlessly integrated to
+Linux, therefore the first step is to build it as part of the target
+kernel. To this end, scripts/prepare-kernel.sh is a shell script which
+sets up the target kernel properly. The syntax is as follows:
+
+$ scripts/prepare-kernel.sh --linux=<linux-srctree>
+[--adeos=<adeos-patch>] [--arch=<target-arch>]
+
+    --linux specifies the path of the target kernel source tree. Such
+    kernel tree being configured or not makes no difference and is
+    valid either way.
+
+    --adeos specifies the path of the Adeos patch to apply against the
+    kernel tree. Suitable patches are available with Xenomai under
+    ksrc/arch/<target-arch>/patches. This parameter can be omitted if
+    Adeos has already been patched in or the script shall suggest an
+    appropriate one. In any case, the script will not try to apply it
+    again whenever a former patch is detected.
+
+    --arch tells the script about the target architecture. If
+    unspecified, the build system architecture is detected and
+    suggested as a reasonable default.
+
+For instance, the following command would prepare the Linux tree
+located at /usr/src/linux-2.6.23-ipipe in order to include the Xenomai
+support:
+
+$ cd xenomai-2.4
+$ scripts/prepare-kernel.sh --linux=/usr/src/linux-2.6.23-ipipe
+
+Note: The script will infer the location of the Xenomai kernel code
+from its own location within the Xenomai source tree. In other words,
+if /usr/src/xenomai-2.4/script/prepare-kernel.sh is executing, then
+Xenomai's kernel support available from /usr/src/xenomai-2.4/ksrc will
+be bound to the target kernel.
+
+1.2 Configuring and building the target kernel
+----------------------------------------------
+
+Once the target kernel has been prepared, all Xenomai configuration
+options are available from the "Real-time subsystem" toplevel menu.
+
+There are several configure options that cause large latencies; they
+should be avoided.  The TROUBLESHOOTING file identifies them and
+explains the issues with their use.  Once configured, the kernel
+should be built as usual.
+
+If you want several different configs/builds at hand, you can reuse
+the same source by adding O=../build-<target> to each make
+invocation. See section 2.2 for an example.
+
+In order to cross-compile the Linux kernel, pass an ARCH and
+CROSS_COMPILE variable on make command line. See sections 2.2, 2.3 and
+2.4 for examples.
+
+1.3 Building the user-space support
+-----------------------------------
+
+A regular autoconf script is provided in order to prepare for building
+the user-space support. The options listed below can be passed to this
+script. Those options only affect the libraries compiled as part of
+Xenomai's user-space support, but in any case, they never impact the
+kernel-based support.
+
+1.3.1 Feature conflict resolution
+---------------------------------
+
+Because of the strong decoupling between the kernel and user-space
+build procedures, Xenomai needs to make sure that all user-space
+options selected at configuration time will be consistent with the
+actual support the runtime libraries will get from the target
+kernel. For instance, enabling TSC support in user-space for x86
+albeit the kernel has been compiled with CONFIG_X86_TSC disabled would
+certainly lead to runtime problems if uncaught, since Xenomai and the
+application would not agree on the high precision clock to use for
+their timings.  Furthermore, most of these issues cannot be probed for
+during compilation, because the target generally has different
+features than the host, even when theyre the same arch (ex 386 vs 686)
+
+In order to solve those potential issues, each Xenomai architecture
+port defines a set of critical features which is tested for
+consistency, each time a user-space application binds itself to a
+real-time interface in kernel space. Unresolvable conflicts are
+reported and the execution stops immediately in such a case.
+
+Options that need perfect matching between both sides are marked as
+"strong" in the following lists, others that may differ are marked as
+"weak". The way Xenomai deals with tolerated discrepancies is decided
+on a case-by-case basis, depending on the option considered. When
+not applicable, the binding type remains unspecified.
+
+For instance, a kernel providing SMP support can run either UP or SMP
+user-space applications since the SMP option's binding is weak. On the
+other hand, x86-based applications linked against Xenomai libraries
+which have been compiled with the x86-tsc option on, must run on a
+kernel built with CONFIG_X86_TSC set, since the x86-tsc option's
+binding is strong.
+
+1.3.2 Generic configure options
+-------------------------------
+
+NAME                 DESCRIPTION                     [BINDING,]DEFAULT(*)
+
+--prefix             Installation directory          /usr/xenomai
+--enable-debug       Enable debug symbols (-g)       disabled
+--enable-smp         Enable SMP support              weak,disabled
+
+1.3.3 Arch-specific configure options
+-------------------------------------
+
+NAME                DESCRIPTION                      [BINDING,]DEFAULT(*)
+
+--enable-x86-sep    Enable x86 SEP instructions      strong,disabled
+                    for issuing syscalls.
+		    You will also need NPTL
+
+--enable-x86-tsc    Enable x86 TSC for timings       strong,enabled
+		    You must have TSC for this.
+
+--enable-arm-mach   Select ARM machine for the	     none
+		    current build tree, check 
+		    configure --help for a list
+		    of valid values.
+		    Passing this option is 
+		    mandatory when compiling 
+		    Xenomai for ARM
+
+--enable-arm-arch   Define version of the target     strong,"4"
+                    ARM core architecture. Using
+                    this option is only necessary
+		    if enable-arm-mach is 
+		    integrator.
+
+--enable-arm-eabi   Enable ARM EABI interface        weak,disabled
+
+--enable-arm-tsc    Enable ARM TSC emulation	     strong,enabled
+
+(*) Each option enabled by default can be forcibly disabled by passing
+--disable-<option> to the configure script.
+
+1.3.3 Cross-compilation
+-----------------------
+
+In order to cross-compile Xenomai user-space support, you will need to
+pass a --host and --build option to the configure script. The --host
+option allow to select the architecture for which the libraries and
+programs are built. The --build option allow to choose the
+architecture on which the compilation tools are run,
+i.e. the system running the configure script.
+
+Since cross-compiling requires specific tools, such tools are
+generally prefixed with the host architecture name; for example, a
+compiler for the power PC architecture may be named
+powerpc-405-linux-gnu-gcc.
+
+The easiest way to build a GNU cross-compiler might involve using Dan
+Kegel's crosstools found at http://kegel.com/crosstool.
+
+When passing the option --host=powerpc-405-linux-gnu to configure,
+configure will automatically use powerpc-405-linux-gnu- as a prefix to
+all compilation tools names and infer the host architecture name from
+this prefix. If configure is unable to infer the architecture name
+from the cross-compilation tools prefix, you will have to manually
+pass the name of all compilation tools on configure command line. 
+
+If you want to avoid to build your own cross compiler, you might if find
+easier to use ELDK (see http://www.denx.de/wiki/DULG/ELDK). It includes
+the GNU cross development tools, such as the compilers, binutils, gdb, 
+etc., and a number of pre-built target tools and libraries necessary
+to provide some functionality on the target system.
+
+See sections 2.2, 2.3 and 2.4 for examples.
+
+1.4 Building the Linux kernel in the user-space support build tree
+------------------------------------------------------------------
+
+Having two build trees, one for the user space support and one for the
+kernel space support may be error prone, because some modifications
+require rebuilding both trees and one easily forgets to rebuild the
+kernel space support. In order to cope with this issue, Xenomai allows 
+building the kernel space support in a subdirectory of the user space 
+support build tree.
+
+In order to enable this functionality, pass to the user space support 
+configure script the option:
+--enable-linux-build=$linux_tree 
+where $linux_tree is the path to a Linux kernel source tree to be 
+copied.
+
+The configure script then creates a Linux kernel source tree in the 
+"linux" sub-directory of the build directory, where all files are 
+symbolic links to the files of the $linux_tree source tree. The 
+prepare-kernel script is then called with the correct --linux, --arch 
+and --adeos parameters.
+
+"make xconfig", "make menuconfig", or "make oldconfig" allow
+configuring the Linux kernel; each time "make" is run at the build
+tree top, the Linux kernel and modules are rebuilt if needed, and when
+"make install" is run, the Linux kernel and modules are installed. If
+a DESTDIR variable is passed to "make install", the Linux kernel and
+modules are installed under the directory $DESTDIR. Other targets of
+the Linux build system are accessible by prefixing them with linux/,
+for example running make linux/help run "make help" in the Linux tree.
+
+See section 2.5 for an example.
+
+When re-running configure in the build tree with a different parameter
+passed to --enable-linux-build, or if the Adeos patch version changed
+in the source tree (for example, as the result of running svn update),
+configure will display the following message:
+*** Warning: built version of linux and requested versions are
+*** different. If you want to build the requested version of
+*** linux, remove the file: linux/.xenomai-prepared.
+
+Removing the linux/.xenomai-prepared file and running make again 
+should be enough to compile the new Linux kernel version with the
+same configuration.
+
+2. Typical installation procedures
+----------------------------------
+
+# $linux_tree = path to the target kernel sources
+# $xenomai_root = path to the Xenomai sources
+# $build_root = path to a clean build directory
+# $staging_dir = path to a directory that will hold the installed file
+# temporarily before they are moved to their final location; when used
+# in a cross-compilation setup, it is usually a NFS mount point from
+# the target's root directory to the local build host, as a
+# consequence of which running "make DESTDIR=$staging_dir install" on
+# the host immediately updates the target system with the installed
+# programs and libraries.
+
+2.1 Building for x86-32/64bit
+-----------------------------
+
+Let's say that we want to build Xenomai for a Pentium-based x86 32bit
+platform running a 2.6.23 kernel, using the native host toolchain; the
+typical steps would be as follows:
+
+$ $xenomai_root/scripts/prepare-kernel.sh --arch=i386 \
+  --adeos=$xenomai_root/ksrc/arch/x86/patches/adeos-ipipe-2.6.23-i386-X.Y-ZZ.patch \
+  --linux=$linux_tree
+$ cd $linux_tree
+$ make xconfig/gconfig/menuconfig # select the kernel and Xenomai options
+$ make bzImage modules # then install as needed
+$ mkdir $build_root && cd $build_root
+$ $xenomai_root/configure --enable-x86-sep
+$ make install
+
+Similarly, for a 64bit platform, we would use:
+
+$ $xenomai_root/scripts/prepare-kernel.sh --arch=x86_64 \
+  --adeos=$xenomai_root/ksrc/arch/x86/patches/adeos-ipipe-2.6.23-x86_64-X.Y-ZZ.patch \
+  --linux=$linux_tree
+$ cd $linux_tree
+$ make xconfig/gconfig/menuconfig # select the kernel and Xenomai options
+$ make bzImage modules # then install as needed
+$ mkdir $build_root && cd $build_root
+$ $xenomai_root/configure
+$ make install
+
+Once the compilation has completed, /usr/xenomai should contain the
+user-space librairies and header files one would use to build
+applications that call Xenomai's real-time support in kernel space.
+
+The remaining examples illustrate how to cross-compile Xenomai for
+various architectures. Of course, you will have to install the proper
+cross-compilation toolchain for the target system first, in order to
+build Xenomai.
+
+2.2 Building for the PowerPC architecture
+-----------------------------------------
+
+A typical cross-compilation setup, in order to build Xenomai for a
+PowerPC-405-based system from a x86 host. Here we use an ELDK
+cross-compiler and a 2.6.14 kernel.
+
+$ $xenomai_root/scripts/prepare-kernel.sh --arch=ppc \
+  --adeos=$xenomai_root/ksrc/arch/powerpc/patches/adeos-ipipe-2.6.14-ppc-1.5-*.patch \
+  --linux=$linux_tree
+$ cd $linux_tree
+$ make ARCH=ppc CROSS_COMPILE=ppc_4xx- O=$build_root xconfig/gconfig/menuconfig
+# [select the kernel and Xenomai options, save the configuration]
+$ make ARCH=ppc CROSS_COMPILE=ppc_4xx- O=$build_root bzImage modules
+# [manually install the kernel image, system map and modules to the proper location]
+$ cd $build_root
+$ $xenomai_root/configure --build=i686-pc-linux-gnu --host=ppc-unknown-linux-gnu CC=ppc_4xx-gcc \
+  CXX=ppc_4xx-g++ LD=ppc_4xx-ld
+$ make DESTDIR=$staging_dir install
+
+2.3 Building for the IPF
+------------------------
+
+A typical cross-compilation setup, in order to build Xenomai for an
+ia64 system:
+
+$ $xenomai_root/scripts/prepare-kernel.sh --arch=ia64 \
+  --adeos=$xenomai_root/ksrc/arch/ia64/patches/adeos-ipipe-2.6.15-ia64-X.Y-ZZ.patch \
+  --linux=$linux_tree
+$ cd $linux_tree
+$ make ARCH=ia64 CROSS_COMPILE=ia64-linux- xconfig/gconfig/menuconfig # select the kernel and Xenomai options
+$ make ARCH=ia64 CROSS_COMPILE=ia64-linux- bzImage modules # then install as needed
+$ mkdir $build_root && cd $build_root
+$ $xenomai_root/configure --build=i686-pc-linux-gnu --host=ia64-unknown-linux-gnu CC=ia64-linux-gcc CXX=ia64-linux-gcc AR=ia64-linux-ar LD=ia64-linux-ld
+$ make install
+
+2.4 Building for the Blackfin
+-----------------------------
+
+The Blackfin is an MMU-less, DSP-type architecture running uClinux.
+
+$ $xenomai_root/scripts/prepare-kernel.sh --arch=blackfin \
+  --adeos=$xenomai_root/ksrc/arch/blackfin/patches/adeos-ipipe-bf53x-*.patch \
+  --linux=$linux_tree
+$ cd $linux_tree
+  # select the kernel and Xenomai options
+$ make ARCH=blackfin CROSS_COMPILE=bfin-uclinux- xconfig/gconfig/menuconfig
+  # compile
+$ make linux image
+  # then install as needed
+$ cp images/linux /tftpboot/...
+  # build the user-space support
+$ mkdir $build_root && cd $build_root
+$ $xenomai_root/configure --build=i686-pc-linux-gnu --host=blackfin-unknown-linux-gnu CC=bfin-linux-uclibc-gcc CXX=bfin-linux-uclibc-gcc AR=bfin-linux-uclibc-ar LD=bfin-linux-uclibc-ld
+$ make install
+
+You may also want to have a look at this hands-on description about
+configuring and building a Xenomai system for the Blackfin
+architecture: http://docs.blackfin.uclinux.org/doku.php?id=adeos
+
+NOTE: Xenomai uses the FDPIC shared library format on this
+architecture. In case of problem running the testsuite, try restarting
+the last two build steps, passing the --disable-shared option to the
+"configure" script.
+
+2.5 Building for x86 with the --enable-linux-build option
+---------------------------------------------------------
+
+Build the Linux kernel as part of the user space support build process:
+
+$ mkdir $build_root && cd $build_root
+$ $xenomai_root/configure --enable-linux-build=$linux_tree --enable-x86-sep
+$ make xconfig/gconfig/menuconfig # select the kernel and Xenomai options
+$ make install
+
+When "make install" is finished, you should find the patched kernel installed
+in /boot, its module under /lib/modules, and Xenomai user-space libraries
+and tools under /usr/xenomai.
+
+2.6 Building for x86_64
+-----------------------
+
+Here are the typical steps for building Xenomai on a x86_64 host
+running a 2.6.19 kernel, using the native toolchain:
+
+$ $xenomai_root/scripts/prepare-kernel.sh --arch=x86_64 \
+  --adeos=$xenomai_root/ksrc/arch/x86_64/patches/adeos-ipipe-2.6.19-i386-X.Y-ZZ.patch \
+  --linux=$linux_tree
+$ cd $linux_tree
+$ make xconfig/gconfig/menuconfig # select the kernel and Xenomai options
+$ make # then install as needed
+$ mkdir $build_root && cd $build_root
+$ $xenomai_root/configure
+$ make install
+
+2.6 Building for ARM
+--------------------
+
+If the ARM cross-compiler is called arm-linux-gcc and compiling for a
+CSB637 board (AT91RM9200 based), a typical compilation will look like:
+
+$ $xenomai_root/scripts/prepare-kernel.sh --arch=arm \
+  --adeos=$xenomai_root/ksrc/arch/arm/patches/adeos-ipipe-2.6.20-arm-* \
+  --linux=$linux_tree
+$ cd $linux_tree
+$ make ARCH=arm CROSS_COMPILE=arm-linux- O=$build_root csb637_defconfig
+$ make ARCH=arm CROSS_COMPILE=arm-linux- O=$build_root bzImage modules
+# [manually install the kernel image, system map and modules to the proper location]
+$ cd $build_root
+$ $xenomai_root/configure --build=i686-pc-linux-gnu --host=arm-linux --enable-arm-mach=at91rm9200 --enable-arm-tsc
+$ make DESTDIR=$staging_dir install

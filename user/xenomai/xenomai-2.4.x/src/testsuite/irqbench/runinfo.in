@@ -1,0 +1,1 @@
+irqloop:posix+rtdm+irqbench:!@exec_prefix@/bin/irqloop;popall:control_c

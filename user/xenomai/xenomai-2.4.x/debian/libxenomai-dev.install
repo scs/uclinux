@@ -1,0 +1,13 @@
+usr/bin/xeno-config
+usr/include
+usr/lib/*.la
+usr/lib/*.a
+usr/lib/*.so
+usr/lib/posix.wrappers
+usr/share/man/man1/xeno-config.1
+../../examples usr/share/libxenomai-dev
+../../ksrc/skins/vxworks/demos usr/share/libxenomai-dev/examples/kernel/skins/vxworks
+../../ksrc/skins/native/demos usr/share/libxenomai-dev/examples/kernel/skins/native
+../../ksrc/skins/native/snippets usr/share/libxenomai-dev/examples/kernel/skins/native
+../../ksrc/skins/posix/demos usr/share/libxenomai-dev/examples/kernel/skins/posix
+../../ksrc/skins/psos+/demos usr/share/libxenomai-dev/examples/kernel/skins/psos+

@@ -1,0 +1,96 @@
+Overview
+========
+
+The uITRON emulation module on top of Xenomai is currently available
+to kernel-based applications, and to user-space applications through a
+direct call interface to the module. The uITRON module can also be
+used over the event-driven simulation engine.
+
+ xeno_uitron.ko: uITRON emulator in kernel space.
+libuitron.so: System call interface from user-space.
+libuitron_sim.a: uITRON emulation over the event-driven simulator.
+
+Known variations from the uITRON 3.02 specification
+===================================================
+
+- Generally speaking, the verification of address parameters is not
+performed by the uITRON API. Running your application on top of the
+MVM is _always_ a good idea to detect memory reference problems more
+easily.
+
+Implementation-dependent characteristics
+========================================
+
+- Task identifiers must be strictly positive. Passing zero or a
+negative task identifier to the API always beget the E_ID error,
+therefore E_OACV is never returned.
+
+- cre_tsk():
+ * Task priority may range from 1 to 8 (included).
+ * Task attributes are ignored, therefore E_RSATR is never returned.
+ * E_PAR is returned when the given stack size is lower than 1Kbyte.
+
+- ext_tsk():
+- exd_tsk():
+ * Upon error, these system calls cause the uITRON API to abort.
+
+- rot_rdq():
+ * implements the [Level X] cyclic handler feature as defined by the
+   uITRON 3.02 specification. When called on behalf of a
+   task-independent portion, the ready queue including the running
+   task is rotated.
+
+- ref_tsk():
+ * Since the verification of address parameters is not performed by
+   the uITRON API, E_PAR is never returned.
+ * Implements [Level X] except for pk_rtsk->wid which is currently
+   returned as zero in ALL cases.
+
+- sus_tsk():
+ * Implements [Level X] suspend request nesting feature. The maximum
+   nesting count is 0x7fffffff. Nesting overflow results in E_QOVR
+   being returned.
+
+- rsm_tsk():
+ * Implements [Level X] suspend request nesting feature.
+
+- tsk_slp():
+ * A zero timeout value immediately begets an E_TMOUT error return
+   with no delay applied.
+
+- wup_tsk():
+ * Implements [Level X] wakeup request queuing feature. The maximum
+   queing count is 0x7fffffff. Queuing overflow results in E_QOVR
+   being returned.
+
+- cre_sem():
+ * Implements [Level X] priority queuing and maximum semaphore count
+   features.
+
+- ref_sem():
+ * Implements [Level X] waiter information feature (pk_rsem->wtsk is
+   always defined on return).
+
+- cre_flg():
+ * Implements [Level X] multiple waiters feature.
+
+- ref_flg():
+ * Implements [Level X] waiter information feature (pk_rflg->wtsk is
+   always defined on return).
+
+- cre_mbx():
+ * Implements [Level X] task priority queuing feature but NOT the
+ message priority queuing since a buffer ring is used for storing
+ messages instead of a linear list. E_PAR is returned whenever
+ pk_cmbx->bufcnt is lower than or equal to zero.
+
+- ref_mbx():
+ * Implements [Level X] waiter information feature (pk_rmbx->wtsk is
+   always defined on return).
+
+Module parameters
+=================
+
+- "tick_arg", duration of a base periodic tick. The uITRON skin
+  expresses all delays and timeouts as counts of ticks. This parameter
+  defines the duration of a uITRON clock tick expressed in microseconds.

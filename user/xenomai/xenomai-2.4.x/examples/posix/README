@@ -1,0 +1,30 @@
+About satch for POSIX
+---------------------
+
+The demo satch for POSIX is divided into two parts:
+- one running as a kernel module and implementing the producer task;
+- a second one executing in user space and running the consumer task.
+
+The purpose of the demo is to exhibit POSIX shared memory and message
+queues support since communication between kernel task and the user
+space application involves both mecanisms.
+
+Build the demo
+--------------
+
+Run "make all" to build both user-space application and kernel module.
+
+Note that you can override xenomai search path and the kernel source
+path using respectively "make XENO=..." and "make KSRC=..." 
+
+Run satch
+---------
+
+Once satch and satch.ko have been built, you may want to edit a
+.runinfo file to start and stop the demo in an easy manner.
+
+echo 'satch:posix:push satch.ko;!./satch;popall:control_c' > .runinfo
+
+$xenomai_installation_path/bin/xeno-load ./:satch
+
+

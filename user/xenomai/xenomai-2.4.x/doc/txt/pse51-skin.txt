@@ -1,0 +1,173 @@
+Overview
+========
+
+The POSIX module on top of Xenomai is currently available to
+kernel-based applications, and to user-space applications through a
+direct call interface to the module. The POSIX module can also be used
+over the event-driven simulation engine.
+
+ xeno_posix.ko: POSIX module in kernel space.
+libpthread_rt.so: Direct call interface.
+libposix_sim.a: POSIX module over the event-driven simulator.
+
+The POSIX module on top of Xenomai aims at providing an (almost) PSE51
+compatible API. In order to help porting applications from other PSE51
+compatible APIs (like RTLinux) it will contain some non portable
+extensions to the POSIX specification.
+
+This skin already contains most basic features :
+- threads,
+- mutexes,
+- semaphores (anonymous and named),
+- condition variables,
+- support for real-time signals,
+- cancellation, cancellation handlers
+- thread specific data
+- message queues
+- timers support
+- shared memory
+
+The POSIX skin creates real-time threads running either embodied into
+kernel modules, or inside regular applications in user-space.
+
+
+Known variations from the POSIX specification.
+===============================================
+
+The Xenomai PSE51 skin was implemented following as closely as possible the
+single unix specification V3, which can be accessed at the following URL :
+
+http://www.unix.org/single_unix_specification
+
+However, specifities of Xenomai POSIX skin implementation are documented as part
+of Xenomai doxygen documentation, available on-line at the following address:
+http://www.xenomai.org/documentation/trunk/html/api/group__posix.html
+
+You may observe some variations from the interfaces and behaviours described in
+the single unix specification. Here are the known ones:
+
+- the skin header file does not define the _POSIX* compile-time constants ;
+ 
+- nor does it defines the objects static initializers
+  (PTHREAD_MUTEX_INITIALIZER, etc...) except for pthread_once_t ;
+
+- manually setting the thread stack address in thread attributes is not
+  supported ;
+
+- thread attributes contain non portable extensions : 
+  . pthread_attr_set/getfp_np to control whether the thread to be created will
+  use the FPU,
+  . pthread_attr_set/getname to choose the name of threads (exclusively in
+  kernel-space, in user-space, use pthread_set_name_np),
+  . pthread_attr_set/getaffinity to set the threads processor affinity ;
+
+- priority ceiling protocol is not supported, use priority inheritance instead ;
+
+- simultaneous calls to pthread_join() specifying the same target thread simply
+  locks all the callers until the target thread exits, is canceled or killed ;
+
+- all functions should be asynchronous signal safe ;
+
+- the skin supports the RTLinux non portable extensions pthread_make_periodic_np
+  and pthread_wait_np, as a convenience to help porting applications from this
+  OS.
+
+- message queues:
+  . In kernel-space, mq_open may only be called with the O_CREAT flag from a
+  module initialization context. mq_close and mq_unlink may only be called from
+  a module initialization or cleanup context.
+
+- timers:
+  . the SIGEV_THREAD and SIGEV_NONE notification mechanism are not implemented.
+  . timer_settime attaches the started timer to the caller, in the future, the
+  Linux/Glibc SIGEV_THREAD_ID may be implemented.
+
+- shared memory services, in kernel-space, are only acessible from modules
+  initialization and cleanup contexts; in user-space, switch their caller to
+  secondary mode.
+
+Use of the POSIX skin from user-space applications
+==================================================
+
+In user-space, deterministic replacements are provided for critical
+services of Linux's native POSIX interface. System calls to these
+services implemented in kernel space by the POSIX skin are contained
+into the libpthread_rt.so library built from the lib/ sub-directory
+contents, and are aimed at shadowing the original Linux calls for the
+application, either from the LinuxThreads or NPTL libraries.
+
+Native POSIX services which do not require any interaction with the
+Linux kernel (e.g. pthread_mutexattr_*) and/or do not involve
+time-critical issues for their callers (e.g. pthread_exit()), are not
+overriden by the POSIX support in user-space, but can instead be used
+directly and seamlessly by the application.
+
+The list of shadowed POSIX services is available from the file
+lib/posix.wrappers.
+
+--------------------------BEWARE------------------------------------
+Building an application which uses the real-time POSIX support
+requires using the proper compilation and link flags returned by the
+'xeno-config' script (default location is
+/usr/realtime/bin/xeno-config). You should have a look at the demos/
+sub-directory, which contains a small Makefile illustrating the use of
+such script on a simple code example.
+--------------------------------------------------------------------
+
+Original (i.e. un-shadowed) calls can still be invoked from the
+application, by prefixing their name with
+"__real_". E.g. __real_sem_init() calls the original initialization
+routine for semaphores as provided by the LinuxThreads/NPTL
+implementation. All services listed in lib/posix.wrappers are
+substituted with their Xenomai replacement when invoked through
+their vanilla names.
+
+Caveats:
+
+- Use of the static initializers PTHREAD_MUTEX_INITIALIZER and
+PTHREAD_COND_INITIALIZER in setting up mutex and condition variable
+replacements is invalid; dynamic initialization through the
+pthread_mutex_init() and pthread_cond_init() routines must be used
+instead, otherwise, mutex and condition variable-related calls would
+always return an error status (EINVAL).
+
+- Real-time signals sent to user-space threads cause migration to secondary
+  mode.
+
+Undefined behaviour.
+=====================
+
+Some special cases are not covered by the POSIX specification or described as
+being "undefined", but some implementation decisions had to be made :
+
+- trying to post a semaphore whose count is already SEM_VALUE_MAX returns
+  EINVAL ;
+
+- pthread_equal simply compares the two pthread_t, which are pointers, no
+  attempts is made to verify whether the corresponding threads exist.
+
+
+
+TODO List
+==========
+
+The PSE51 skin still lacks some features which will be added gradually :
+- spinlocks/rwlocks/barriers ;
+- real-time signals in primary mode for user-space threads.
+- dimensioning constants configurable through kernel configuration menu.
+
+
+Module parameters
+=================
+
+The following parameters can be passed at startup to the POSIX skin module:
+
+- "time_slice_arg", duration, as a count of system clock ticks, of the
+  round-robin time slice. Defaults to 1 tick. Only effective when system timer
+  is set to periodic mode.
+
+- "tick_arg", duration of a base periodic tick.  The POSIX skin can
+  express all delays and timeouts either as counts of ticks
+  (i.e. jiffy-based), or directly in nanoseconds in a tick-less
+  fashion. This paramater defines the duration of the base period in
+  microseconds; a null value selects the tick-less mode.

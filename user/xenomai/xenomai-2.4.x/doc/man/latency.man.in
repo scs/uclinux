@@ -1,0 +1,66 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for latency
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH LATENCY 1 "2008-04-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+latency \- Xenomai timer latency benchmark
+.SH SYNOPSIS
+.\" The general command line
+.B latency
+.RI [ options ]
+.SH DESCRIPTION
+\fBlatency\fP is part of the Xenomai test suite. It is a timer latency
+benchmark program.  The system must run a suitable Xenomai enabled kernel with
+the respective module (xeno_timerbench).
+.SH OPTIONS
+\fBlatency\fP accepts the following options:
+.TP
+.B \-h
+print histograms of min, avg, max latencies
+.TP
+.B \-s
+print statistics of min, avg, max latencies
+.TP
+.B \-H <histogram-size>
+default = 200, increase if your last bucket is full
+.TP
+.B \-B <bucket-size>
+default = 1000ns, decrease for more resolution
+.TP
+.B \-p <period_us>
+sampling period
+.TP
+.B \-l <data-lines per header>
+default=21, 0 to supress headers
+.TP
+.B \-T <test_duration_seconds>
+default=0, so ^C to end
+.TP
+.B \-q
+supresses RTD, RTH lines if -T is used
+.TP
+.B \-D <testing_device_no>
+number of testing device, default=0
+.TP
+.B \-t <test_mode>
+0=user task (default), 1=kernel task, 2=timer IRQ
+.TP
+.B \-f
+freeze trace for each new max latency
+.TP
+.B \-c <cpu>
+pin measuring task down to given CPU
+.TP
+.B \-P <priority>
+task priority (test mode 0 and 1 only)
+.SH AUTHOR
+\fBlatency\fP was written by Philippe Gerum <rpm@xenomai.org>. This man page
+was written by Roland Stigge <stigge@antcom.de>.

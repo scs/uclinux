@@ -1,0 +1,41 @@
+-- arch/arm/patches
+
+Xenomai needs special kernel support to deliver fast and
+deterministic response time to external interrupts, and also to
+provide real-time services highly integrated with the standard Linux
+kernel.
+
+This support is provided by the Adeos real-time enabler [1], in the
+form of a kernel patch you have to apply against a vanilla kernel
+tree, before you attempt to compile the Xenomai codebase against the
+latter kernel.
+
+Apply one of the patches found in this directory to the corresponding
+kernel release. You may want to have a look at the README.*INSTALL
+guides at the top of the Xenomai tree for more information.
+
+This directory only contains the most recent patches; you may find the
+complete collection of Adeos/I-pipe patches at the following
+location (see note):
+
+* all existing I-pipe patches for the combo ARM architecture:
+http://download.gna.org/adeos/patches/v2.6/arm/
+
+NOTE: not all these patches are guaranteed to work with the current
+Xenomai release.  However, there is a good chance most of them do,
+since we try hard to maintain backward compatibility.
+
+-- supported boards
+
+o ARM Integrator/CP ARM 1136
+o Atmel AT91 (AT91RM9200 and AT91SAM926x)
+o Freescale iMX21/csb535fs (apply the imx21-2.6.14-ipipe-1.5-06.patch patch only)
+o Freescale MXC family (apply ipipe-2.6.26-mxc.diff after the patch for Linux
+  2.6.26, or apply ipipe-2.6.27-mx31ads.diff for mx31ads support after the patch
+  for linux 2.6.27) 
+o Intel IXP4XX based
+o Intel PXA based
+o Intel SA1100-based
+o Samsung S3C2410
+
+[1] http://www.gna.org/projects/adeos/

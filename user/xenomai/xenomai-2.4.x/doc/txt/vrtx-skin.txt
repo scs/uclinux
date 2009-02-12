@@ -1,0 +1,112 @@
+
+Overview
+========
+
+The VRTX (R) emulation module on top of Xenomai is currently available
+to kernel-based applications, and to user-space applications through a
+direct call interface to the module. The VRTX module can also be used
+over the event-driven simulation engine.
+
+ xeno_vrtx.ko: VRTX emulator in kernel space.
+libvrtx.so: System call interface from user-space.
+libvrtx_sim.a: VRTX emulation over the event-driven simulator.
+
+Known variations from VRTX
+==========================
+
+* Generally speaking, control blocks are always obtained from the
+nucleus heap instead of VRTX workspace. However, VRTX workspace is
+still initialized and made available to the application code (See
+"Module parameters").
+
+* There is only a single stack per task instead of distinct
+supervisor/user mode stacks. The sum of the 'user' and 'sys'
+parameters is used in sc_tecreate() to determine the total task size.
+If this sum is lower than 1024 (bytes), ER_MEM is returned.
+
+* The maximum number of task identifiers is currently a static
+parameter defaulting to 512 (i.e. 1 - 511) which can be changed at
+compile-time in api/defs.h. sc_tcreate()/sc_tecreate() calls may
+return ER_TCB when tid is passed as -1 and no unique identifier
+between 256 and (VRTX_MAX_TID - 1) is available.
+
+* The maximum number of partition identifiers is currently a static
+parameter defaulting to 32 (i.e. 0 - 31) which can be changed at
+compile-time in api/defs.h. sc_pcreate() call may return ER_IIP
+when pid is passed as -1 and no unique partition identifier is
+available.
+
+* Instead of being obtained from the system workspace, the memory
+needed for partition management is taken from the storage area
+provided by the application code. This means that a part of the
+available storage given to sc_pcreate() and sc_pextent() is consumed
+by the partition bookkeeping code and won't be available to the
+application as allocatable memory. Each extent consumes about 28 bytes
+for internal purposes, and 36 bytes are used at the begining of each
+partition. Please refer to api/pt.h to get the exact size of the
+extent and partition control blocks. Since a first extent is
+automatically created for the new partition using its initial memory,
+sc_pcreate() will need 28 + 36 = 64 bytes for its internal bookkeeping
+information.
+
+* VRTX object control blocks (except for tasks) are obtained from an
+id. generator that can deliver up to VRTX_MAX_CB unique
+identifiers. Object creation routines (except sc_t[e]create()) may
+return ER_NOCB whenever no unique identifier is available or the
+system memory is exhausted.
+
+* sc_tcreate() creates a stack of the default stack size which
+can be set through the module variable "task_stacksize_arg" (see
+below). This size cannot be lower than 1k. Initial mode for task is
+preemptable, time sliced, with floating-point support, interrupt
+enabled, ready to run.
+
+* Attempting to suspend a task while the scheduler is locked always
+begets a fatal error.
+
+* sc_tinquiry() behaves the VRTX32 way, i.e. calling this service on
+behalf of an ISR with a null task identifier allows to check if the
+system is idle.
+
+* sc_screate() creates 32bit (instead of 16bit) counting semaphores.
+
+* sc_getc()/sc_waitc()/sc_acceptc() calls are not implemented in the
+emulator.
+
+* When called from user-space, sc_hcreate()/sc_pcreate() ignore the
+heap or partition address parameter, since the memory is going to be
+allocated in kernel space, and automatically mapped to the caller's
+address space. A warning will be emitted to stderr if this paramater
+is non-zero.
+
+* When created from user-space through sc_hcreate()/sc_pcreate(), VRTX
+memory managers have a scope restricted to the address space of the
+creating process. In other words, sc_halloc()/sc_gblock() and
+sc_hfree()/sc_rblock() must be called from the same process which
+initially invoked sc_hcreate()/sc_pcreate(); any thread which
+belongs to such process can allocate/deallocate memory, though. This
+limitation does not apply neither to sc_hinquiry()/sc_pinquiry() nor
+sc_hdelete()/sc_pdelete().
+
+* sc_pextend() is not supported from user-space context.
+
+* VRTX system calls invoked from user-space might return negative
+POSIX error codes under certain conditions, along with the standard
+positive VRTX codes. Make sure to always check error status codes
+throughfully, especially for system calls that might block the caller.
+E.g. sc_spend(), sc_fpend(), sc_qpend(), and sc_pend() might return
+-EINTR as error code, whenever a Linux signal is received by the
+blocked task.
+
+Module parameters
+=================
+
+The following parameters can be passed at startup to the VRTX
+API emulation module:
+
+- "workspace_size_arg", size of VRTX workspace (in bytes).
+  Defaults to 32k.
+
+- "tick_arg", duration of a base periodic tick. The VRTX skin
+  expresses all delays and timeouts as counts of ticks. This parameter
+  defines the duration of a VRTX clock tick expressed in microseconds.

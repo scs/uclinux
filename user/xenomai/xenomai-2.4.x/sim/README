@@ -1,0 +1,63 @@
+Xenomai Simulator (aka Minute Virtual Machine)
+==============================================
+
+Using the simulator to run your real-time applications has a lot of
+advantages: it's faster, does not require the cross-development tools,
+gives extended debugging, monitoring and tracing features and provides
+an easy way to stress the application under test with run-time
+situations otherwise barely conceivable on a real target (e.g. bursts
+of simulated interrupts generated at a very unreasonable rate!). Of
+course, the application should not contain target-dependent code, such
+as assembly code, because it runs as a regular executable compiled by
+GCC on your GNU/Linux workstation. You cannot use the simulator to
+collect accurate performance footprints of your system, but it can
+show you precisely how the multiple threads running in your system
+work together sharing the resources exported by the real-time
+interface.
+
+Since the simulator is based on an event-driven simulation engine, it
+does not rely on the host's "wall clock" but instead provides its own
+simulated timeline to schedule the events that occur within a system,
+a given test scenario can be repeated very simply an infinite number
+of times, with no perturbation from the outside world (e.g. the
+current load of the host and so on). In other words, a given line of
+source code will always be executed by the virtual machine at the same
+time in the system's timeline across multiple runs. This is a very
+desirable feature when debugging synchronization problems.
+
+Building the simulator
+======================
+
+You will need the libelf, libpng, tcl8.x/tk8.x and tix41 _development
+packages_ in order to build the simulator and its companion tools.
+For instance, on Debian systems, you will need to install
+libelfg0-dev, libpng2-dev, tcl8.3-dev, tk8.3-dev and tix41-dev (any
+tcl/tk version starting from 8.0 is ok though). A _source_ archive of
+GCC 2.95.3 is also required to produce a tool that will instrument the
+code running on top of the virtual machine. You will not need to build
+this compiler by yourself, just have the archive file at hand, so the
+build procedure can find it, patch it, and install the resulting
+programs appropriately (you can fetch the GCC archive at
+http://gcc.gnu.org/).
+
+Since v2.1, the simulator is available as a separate tarball, distinct
+from the main Xenomai archive. To build the simulator, you will also
+need the latter; the simulator archive should be extracted in
+Xenomai's main source tree under the sim/ sub-directory. The following
+steps should be followed in order to build and install the simulation
+system:
+
+# $xenomai_tar: Main Xenomai tarball
+# $xenosim_tar: Simulator tarball
+# $xenomai_src: Root of Xenomai's source tree after extraction
+# $sim_builddir: Build root for the simulator
+# $sim_installdir: Installation directory for the simulator;
+# (usually, the same place than used for Xenomai's main system).
+# gcc_tarball: Path to a GCC 2.95.3 source archive.
+
+$ tar jxf $xenomai_tar
+$ cd xenomai-2.X.Y
+$ tar jxf $xenosim_tar
+$ mkdir $sim_builddir && cd $sim_builddir
+$ $xenomai_src/xenosim-X.Y.Z/configure --prefix=$sim_installdir --with-gcc-tarball=$gcc_tarball
+$ make install

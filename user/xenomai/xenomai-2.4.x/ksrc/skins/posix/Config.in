@@ -1,0 +1,30 @@
+#
+# Xenomai nucleus configuration for Linux v2.4
+#
+
+dep_tristate 'POSIX-compliant skin' CONFIG_XENO_SKIN_POSIX $CONFIG_XENO_OPT_NUCLEUS
+
+if [ "$CONFIG_XENO_SKIN_POSIX" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'POSIX interface options'
+	if [ "$CONFIG_XENO_OPT_TIMING_PERIODIC" != "n" ]; then
+		int 'Base period (us)' CONFIG_XENO_OPT_POSIX_PERIOD 0
+	else
+		define_int CONFIG_XENO_OPT_POSIX_PERIOD 0
+	fi
+	bool 'Shared memory' CONFIG_XENO_OPT_POSIX_SHM
+	bool 'Interrupts' CONFIG_XENO_OPT_POSIX_INTR
+        if [ "$CONFIG_XENO_SKIN_POSIX" != "y" -o "$CONFIG_XENO_SKIN_RTDM" != "m"]; then
+		if [ "$CONFIG_XENO_OPT_SELECT" = "n" ]; then
+			comment "Support for POSIX skin select needs nucleus support for select-like services"
+		else
+			bool 'Support for select syscall' CONFIG_XENO_OPT_POSIX_SELECT
+		fi
+	else
+		comment "Note: Support for select is not available if the POSIX skin"
+		comment "is built-in and the RTDM skin is compiled as a module."
+	
+        fi
+	bool 'Debugging support' CONFIG_XENO_OPT_DEBUG_POSIX
+	endmenu
+fi

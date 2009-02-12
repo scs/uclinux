@@ -1,0 +1,43 @@
+config XENO_GENERIC_STACKPOOL
+	bool
+	default y
+
+source "kernel/xenomai/nucleus/Kconfig"
+
+menu "Machine"
+
+depends on XENO_OPT_NUCLEUS
+
+menu "NMI watchdog"
+
+config XENO_HW_NMI_DEBUG_LATENCY
+        bool "Enable NMI watchdog"
+        default n
+        help
+        Enabling this option allows the NMI watchdog to be used in order
+        to debug abnormal (timer) interrupt latencies.
+
+        The NMI watchog is programmed in order to expire a certain time 
+        after the currently awaited timer shot, and triggers if the shot 
+        did not happen as expected. This allowed amount of jitter is 
+        configurable. When triggered, the NMI watchdog prints the call
+        stack and causes a kernel panic, which should hopefully allow to
+        find out why the timer got delayed.
+
+        This option is mainly useful for debugging Xenomai internals, and 
+        not meant for debugging applications.
+
+config XENO_HW_NMI_DEBUG_LATENCY_MAX
+        depends on XENO_HW_NMI_DEBUG_LATENCY
+        int "NMI watchdog latency threshold (us)"
+        default 100
+        help
+        When the timer interrupt latency goes above this threshold, the
+        NMI watchdog pulls the handbrake.
+
+endmenu
+
+endmenu
+
+source "kernel/xenomai/skins/Kconfig"
+source "drivers/xenomai/Kconfig"

@@ -1,0 +1,86 @@
+#! /bin/bash
+
+# set -x
+set -e
+
+die()
+{
+    echo Error: ${1+"$@"}
+    exit 1
+}
+
+progname=`basename $0`
+
+if ! [ -f docbook/catalog -a -d "$srcdir/generated" ]; then
+    die $progname must be run from the doc sub-directory of the build \
+tree and passed a correct srcdir variable.
+fi
+
+builddir=`pwd`
+abs_srcdir=`cd $srcdir && pwd`
+
+echo 'Generating documentation in the build tree.'
+[ -d tmp-dist ] && rm -Rf tmp-dist
+make clean
+mkdir tmp-dist
+mkdir tmp-dist/doc
+make doc_top_distdir=`pwd`/tmp-dist distdir=./tmp-dist/doc distdir
+
+if ! [ -d tmp-dist/doc/generated ]; then 
+    die Something went wrong when generating the documentation.
+fi
+
+echo -n 'Looking for removed files...'
+: > tmp-dist/removed
+{ cd "$abs_srcdir" && find generated -name .svn -prune -o -type f -print ; } | {
+cd tmp-dist/doc && while read -a file; do
+    if ! [ -f "${file[*]}" ]; then
+        echo "${file[*]}" >> ../removed
+    fi
+done
+}
+echo `cat tmp-dist/removed`.
+
+echo -n 'Looking for added files and non empty directories...'
+: > tmp-dist/added_files
+: > tmp-dist/added_dirs
+{ cd tmp-dist/doc && find generated; } | {
+cd "$abs_srcdir" && while read -a file; do
+    if ! [ -e "${file[*]}" ]; then
+        if [ -f "$builddir/tmp-dist/doc/${file[*]}" ]; then
+            echo "${file[*]}" >> "$builddir/tmp-dist/added_files"
+        else
+            if ! rmdir "$builddir/tmp-dist/doc/${file[*]}" >& /dev/null; then
+                echo "${file[*]}" >> "$builddir/tmp-dist/added_dirs"
+            fi
+        fi
+    fi
+done
+}
+echo `cat tmp-dist/added_dirs tmp-dist/added_files`
+
+echo -n 'Copying generated documentation in the source tree...'
+cp -aR tmp-dist/doc/generated "$abs_srcdir"
+echo done
+
+cd "$abs_srcdir"
+echo -n 'Removing files...'
+cat "$builddir/tmp-dist/removed" | while read -a file; do
+    rm "${file[*]}"
+    svn remove "${file[*]}"
+done
+echo `cat "$builddir/tmp-dist/removed"` done.
+
+echo -n 'Adding new directories...'
+cat "$builddir/tmp-dist/added_dirs" | while read -a dir; do
+    svn add "${dir[*]}"
+done
+echo `cat "$builddir/tmp-dist/added_dirs"` done.
+
+echo -n 'Adding new files...'
+    cat "$builddir/tmp-dist/added_files" | while read -a file; do
+    svn add "${file[*]}"
+done
+echo `cat "$builddir/tmp-dist/added_files"` done.
+
+rm -Rf tmp-dist

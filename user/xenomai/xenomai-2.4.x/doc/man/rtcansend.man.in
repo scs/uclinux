@@ -1,0 +1,71 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for rtcansend
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH RTCANSEND 1 "2008-04-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+rtcansend \- Xenomai tool for sending CAN messages
+.SH SYNOPSIS
+.\" The general command line
+.B rtcansend
+.RI "<can-interface> [Options] <can-msg>"
+.SH DESCRIPTION
+\fBrtcansend\fP is part of Xenomai. It is used to send messages via a CAN
+interface. The system must run a suitable Xenomai enabled kernel with the
+respective module (xeno_native and the CAN driver).
+.SH OPTIONS
+<can-interface> is the CAN interface file.
+
+<can-msg> can consist of up to 8 bytes given as a space separated list.
+
+\fBrtcansend\fP accepts the following options:
+.TP
+.B \-i, \-\-identifier=ID
+CAN Identifier (default = 1)
+.TP
+.B \-r, \-\-rtr
+send remote request
+.TP
+.B \-e, \-\-extended
+send extended frame
+.TP
+.B \-l, --loop=COUNT
+send message COUNT times
+.TP
+.B \-c, \-\-count
+message count in data[0-3]
+.TP
+.B \-d, \-\-delay=MS
+delay in ms (default = 1ms)
+.TP
+.B \-s, \-\-send
+use send instead of sendto
+.TP
+.B \-t, \-\-timeout=MS
+timeout in ms
+.TP
+.B \-L, \-\-loopback=0|1
+switch local loopback off or on
+.TP
+.B \-v, \-\-verbose
+be verbose
+.TP
+.B \-p, \-\-print=MODULO
+print every MODULO message
+.TP
+.B \-h, \-\-help
+a usage description
+.SH "SEE ALSO"
+.BR rtcanconfig (1),
+.BR rtcanrecv (1)
+.SH AUTHORS
+\fBrtcansend\fP was written by Wolfgang Grandegger <wg@grandegger.com>, Jan
+Kiszka <jan.kiszka@web.de> and Philippe Gerum <rpm@xenomai.org>. This man page
+was written by Roland Stigge <stigge@antcom.de>.

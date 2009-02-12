@@ -1,0 +1,39 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for klatency
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH KLATENCY 1 "2008-04-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+klatency \- Xenomai kernel latency test
+.SH SYNOPSIS
+.\" The general command line
+.B klatency
+.RI [ options ]
+.SH DESCRIPTION
+\fBklatency\fP is part of the Xenomai test suite. It is a latency measurement
+tool dedicated to kernel-based activities.  The system must run a suitable
+Xenomai enabled kernel with the respective module (klat_pipe).
+.SH OPTIONS
+\fBklatency\fP accepts the following options:
+.TP
+.B \-l <data-lines per header>
+default=21, 0 to suppress headers
+.TP
+.B \-T <test_duration_seconds>
+default=0, so ^C to end
+.TP
+.B \-q
+supresses RTD, RTH lines if -T is used
+.TP
+.B \-P <rt_pipe_no>
+number of testing pipe, default=auto
+.SH AUTHOR
+\fBklatency\fP was written by Philippe Gerum <rpm@xenomai.org>. This man page
+was written by Roland Stigge <stigge@antcom.de>.

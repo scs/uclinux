@@ -1,0 +1,70 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for cyclictest
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH CYCLICTEST 1 "2008-04-01" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+cyclictest \- Xenomai high resolution timer test
+.SH SYNOPSIS
+.\" The general command line
+.B cyclictest
+.RI [ options ]
+.SH DESCRIPTION
+\fBcyclictest\fP is part of the Xenomai test suite and tests the POSIX skin of Xenomai with a cyclic timer test.
+
+For this program to work, you need to run a suitable Xenomai enabled kernel with the respective module (xeno_posix).
+.SH OPTIONS
+\fBcyclictest\fP accepts the following options:
+.TP
+.B \-b USEC, \-\-breaktrace=USEC
+send break trace command when latency > USEC
+.TP
+.B \-c CLOCK, \-\-clock=CLOCK
+select clock:
+.RS 1.5i
+0 = CLOCK_MONOTONIC (default)
+.P
+1 = CLOCK_REALTIME
+.RE
+.TP
+.B \-d DIST, \-\-distance=DIST
+distance of thread intervals in us default=500
+.TP
+.B \-i INTV, \-\-interval=INTV
+base interval of thread in us default=1000
+.TP
+.B \-l LOOPS, \-\-loops=LOOPS
+number of loops: default=0 (endless)
+.TP
+.B \-n, \-\-nanosleep
+use clock_nanosleep
+.TP
+.B \-p PRIO, \-\-prio=PRIO
+priority of highest prio thread
+.TP
+.B \-q, \-\-quiet
+print only a summary on exit
+.TP
+.B \-r, \-\-relative
+use relative timer instead of absolute
+.\".TP
+.\".B \-s, \-\-system
+.\"use sys_nanosleep and sys_setitimer
+.TP
+.B \-t NUM, \-\-threads=NUM
+number of threads: default=1
+.TP
+.B \-v, \-\-verbose
+output values on stdout for statistics
+
+format: n:c:v n=tasknum c=count v=value in us
+.SH AUTHOR
+\fBcyclictest\fP was written by Thomas Gleixner <tglx@linutronix.de>. This man page
+was written by Roland Stigge <stigge@antcom.de>.

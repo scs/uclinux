@@ -1,0 +1,24 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+dep_tristate 'Real-Time Driver Model' CONFIG_XENO_SKIN_RTDM $CONFIG_XENO_OPT_NUCLEUS
+
+if [ "$CONFIG_XENO_SKIN_RTDM" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'RTDM interface options'
+	if [ "$CONFIG_XENO_OPT_TIMING_PERIODIC" != "n" ]; then
+		int 'Base period (us)' CONFIG_XENO_OPT_RTDM_PERIOD 0
+	else
+		define_int CONFIG_XENO_OPT_RTDM_PERIOD 0
+	fi
+	int 'Maximum number of RTDM file descriptors' CONFIG_XENO_OPT_RTDM_FILDES 128
+	if [ "CONFIG_XENO_OPT_SELECT" = "n" ]; then
+		comment "Select support for RTDM file descriptors needs nucleus"
+		comment "support for select-like services."
+	else
+		bool 'Select support for RTDM file descriptors' CONFIG_XENO_OPT_RTDM_SELECT
+	fi
+	dep_bool 'Debugging support' CONFIG_XENO_OPT_DEBUG_RTDM $CONFIG_XENO_OPT_DEBUG
+	endmenu
+fi

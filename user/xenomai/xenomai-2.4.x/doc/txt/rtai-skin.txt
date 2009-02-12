@@ -1,0 +1,72 @@
+Overview
+========
+
+The RTAI emulation module on top of Xenomai is currently available to
+kernel-based applications, and can be used over the event-driven
+simulation engine.
+
+ xeno_rtai.ko: RTAI emulator in kernel space.
+librtai_sim.a: RTAI emulation over the event-driven simulator.
+
+The RTAI emulation module on top of Xenomai currently mimicks the
+following services:
+
+rt_request_irq
+rt_release_irq
+rt_ack_irq
+rt_enable_irq
+rt_disable_irq
+rt_request_global_irq
+rt_free_global_irq
+
+rtf_create
+rtf_destroy
+rtf_put
+rtf_get
+rtf_create_handler
+rtf_reset
+
+rt_alloc
+rt_free
+
+rt_shm_alloc
+rt_shm_free
+rtai_kmalloc
+rtai_kfre
+
+rt_typed_sem_init
+rt_sem_delete
+rt_sem_signal
+rt_sem_wait
+rt_sem_wait_if
+
+rt_task_init
+rt_task_make_periodic
+rt_task_make_periodic_relative_ns
+rt_task_wait_period
+rt_task_suspend
+rt_task_resume
+rt_task_delete
+
+nano2count
+count2nano
+rt_set_oneshot_mode
+rt_set_periodic_mode
+start_rt_timer
+stop_rt_timer
+rt_sleep
+rt_get_time_ns
+
+Module parameters
+=================
+
+- "tick_arg", duration of a base periodic tick.  The RTAI skin can
+  express all delays and timeouts either as counts of ticks
+  (i.e. jiffy-based), or directly in nanoseconds in a tick-less
+  fashion. This paramater defines the duration of the base period in
+  microseconds; a null value selects the tick-less mode.
+
+Known variations from RTAI v3.x
+===============================
+
+None.

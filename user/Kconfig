@@ -3942,6 +3942,12 @@ config USER_CXXTEST_CXXTEST
 	help
 	  Applications to test the c++ build environment.
 
+comment "Real Time"
+config USER_XENOMAI
+	bool "Xenomai"
+	help
+	 Xenomai is a real-time development framework based on adeos(ipipe). 
+
 endmenu
 
 #############################################################################

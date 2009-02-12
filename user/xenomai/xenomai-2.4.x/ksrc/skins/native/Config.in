@@ -1,0 +1,31 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+dep_tristate 'Native skin' CONFIG_XENO_SKIN_NATIVE $CONFIG_XENO_OPT_NUCLEUS
+
+if [ "$CONFIG_XENO_SKIN_NATIVE" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'Native interface options'
+	if [ "$CONFIG_XENO_OPT_TIMING_PERIODIC" != "n" ]; then
+		int 'Base period (us)' CONFIG_XENO_OPT_NATIVE_PERIOD 0
+	else
+		define_int CONFIG_XENO_OPT_NATIVE_PERIOD 0
+	fi
+	dep_bool 'Message pipes' CONFIG_XENO_OPT_NATIVE_PIPE $CONFIG_XENO_OPT_PIPE
+	if [ "$CONFIG_XENO_OPT_NATIVE_PIPE" != "n" ]; then
+		int 'Bytes in buffer space' CONFIG_XENO_OPT_NATIVE_PIPE_BUFSZ 4096
+	fi
+	bool 'Counting semaphores' CONFIG_XENO_OPT_NATIVE_SEM
+	bool 'Event flags' CONFIG_XENO_OPT_NATIVE_EVENT
+	bool 'Mutexes' CONFIG_XENO_OPT_NATIVE_MUTEX
+	if [ "$CONFIG_XENO_OPT_NATIVE_MUTEX" != "n" ]; then
+		bool 'Condition variables' CONFIG_XENO_OPT_NATIVE_COND
+	fi
+	bool 'Message queues' CONFIG_XENO_OPT_NATIVE_QUEUE
+	bool 'Memory heaps' CONFIG_XENO_OPT_NATIVE_HEAP
+	bool 'Alarms' CONFIG_XENO_OPT_NATIVE_ALARM
+	bool 'Message passing support' CONFIG_XENO_OPT_NATIVE_MPS
+	bool 'Interrupts' CONFIG_XENO_OPT_NATIVE_INTR
+	endmenu
+fi

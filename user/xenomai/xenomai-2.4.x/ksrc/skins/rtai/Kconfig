@@ -1,0 +1,52 @@
+menuconfig XENO_SKIN_RTAI
+	depends on XENO_OPT_NUCLEUS
+	tristate "RTAI emulator"
+	help
+
+	An emulator of the RTAI system.
+
+if XENO_SKIN_RTAI
+
+config XENO_OPT_RTAI_PERIOD
+	int "Base period (us)" if XENO_OPT_TIMING_PERIODIC
+	default 0
+	help
+	Duration of the base periodic tick (in microseconds).
+
+	The RTAI skin can express all delays and timeouts either as
+	counts of ticks (i.e. jiffy-based), or directly in
+	nanoseconds in a tick-less fashion. This paramater defines the
+	duration of the base period in microseconds; a null value
+	selects the tick-less mode.
+
+	The base period can be overriden at runtime using the
+	"tick_arg" module parameter when loading the RTAI skin.
+
+	If in doubt, leave zero in this field.
+
+config XENO_OPT_RTAI_FIFO
+	bool "Fifos"
+	select XENO_OPT_PIPE
+	default y
+	help
+
+	Fifos are uni-directional communication channels allowing data
+	exchange between real-time tasks in kernel-space and regular
+	user-space processes.
+
+config XENO_OPT_RTAI_SEM
+	bool "Semaphores"
+	default y
+	help
+
+	Semaphores are synchronization objects granting RTAI
+	tasks a concurrent access to a given number of resources.
+
+config XENO_OPT_RTAI_SHM
+	bool "Shared Memory"
+	default y
+	help
+
+	SHM are Shared Memory objects across RTAI tasks.
+
+endif

@@ -1,0 +1,14 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+if [ "$CONFIG_XENOMAI" = "y" \
+     -a "$CONFIG_XENO_OPT_NUCLEUS" != "n" \
+     -a "$CONFIG_XENO_SKIN_RTDM" != "n" ]; then
+mainmenu_option next_comment
+comment 'Drivers'
+	source drivers/xenomai/serial/Config.in
+	source drivers/xenomai/testing/Config.in
+	source drivers/xenomai/can/Config.in
+endmenu
+fi

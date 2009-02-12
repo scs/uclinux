@@ -1,0 +1,1 @@
+latency:native+rtdm+timerbench:!@exec_prefix@/bin/latency;popall:control_c

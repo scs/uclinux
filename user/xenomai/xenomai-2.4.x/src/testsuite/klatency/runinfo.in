@@ -1,0 +1,1 @@
+latency:native+rtdm+timerbench+klat:!@exec_prefix@/bin/klatency;popall:control_c

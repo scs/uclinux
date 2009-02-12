@@ -1,0 +1,64 @@
+config XENO_DRIVERS_CAN_SJA1000
+	depends on XENO_DRIVERS_CAN
+	tristate "Philips SJA1000 CAN controller"
+	select XENO_DRIVERS_CAN_BUS_ERR
+
+config XENO_DRIVERS_CAN_SJA1000_ISA
+	depends on XENO_DRIVERS_CAN_SJA1000
+	tristate "Standard ISA controllers"
+	help
+
+	This driver is for CAN devices connected to the ISA bus of a PC
+	or a PC/104 system. The I/O port, interrupt number and a few other
+	hardware specific parameters can be defined via module parameters.
+
+config XENO_DRIVERS_CAN_SJA1000_MEM
+	depends on XENO_DRIVERS_CAN_SJA1000
+	tristate "Memory mapped controllers"
+	help
+
+	This driver is for memory mapped CAN devices. The memory address,
+	interrupt number and a few other hardware specific parameters can
+	be defined via module parameters.
+
+config XENO_DRIVERS_CAN_SJA1000_PEAK_PCI
+	depends on XENO_DRIVERS_CAN_SJA1000
+	tristate "PEAK PCI Card"
+	help
+
+	This driver is for the PCAN PCI, the PC-PCI CAN plug-in card (1 or
+	2 channel) from PEAK Systems (http://www.peak-system.com). To get
+	the second channel working, Xenomai's shared interrupt support
+	must be enabled.
+
+config XENO_DRIVERS_CAN_SJA1000_IXXAT_PCI
+	depends on XENO_DRIVERS_CAN_SJA1000
+	tristate "IXXAT PCI Card"
+	help
+
+	This driver is for the IXXAT PC-I 04/PCI card (1 or 2 channel)
+	from the IXXAT Automation GmbH (http://www.ixxat.de). To get
+	the second channel working, Xenomai's shared interrupt support
+	must be enabled.
+
+
+config XENO_DRIVERS_CAN_SJA1000_EMS_PCI
+	depends on XENO_DRIVERS_CAN_SJA1000
+	tristate "EMS CPC PCI Card"
+	help
+
+	This driver is for the 2 channel CPC PCI card from EMS Dr. Thomas
+	Wünsche (http://www.ems-wuensche.de). To get the second channel
+	working, Xenomai's shared interrupt support must be enabled.
+
+
+config XENO_DRIVERS_CAN_SJA1000_PEAK_DNG
+	depends on XENO_DRIVERS_CAN_SJA1000
+	tristate "PEAK Parallel Port Dongle"
+	help
+
+	This driver is for the PCAN Dongle, the PC parallel port to CAN
+	converter from PEAK Systems (http://www.peak-system.com). You need
+	to disable parallel port support in the kernel (CONFIG_PARPORT) for
+	proper operation. The interface type (sp or epp), I/O port and
+	interrupt number should be defined via module parameters.

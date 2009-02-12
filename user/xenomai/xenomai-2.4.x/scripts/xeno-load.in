@@ -1,0 +1,249 @@
+#! /bin/sh
+# Xenomai application loader script.
+# (Processes the .runinfo files)
+# June 2004, <rpm@xenomai.org>
+# Adapted to be run also under the BusyBox. If you want to test it under the BusyBox use
+# busybox sh xeno-info 
+
+usage='usage: xeno-load [[dir:]target]'
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+insmod=/sbin/insmod
+modprobe=/sbin/modprobe
+rmmod=/sbin/rmmod
+modext=.ko
+verbose=0
+spc=" 	"
+
+if test "x$1" = x--help; then
+  echo $usage
+  exit 0
+fi
+
+if test "x$1" = x--verbose; then
+  verbose=1
+  shift
+fi
+
+if test -z "$1" || test "x$1" = x--; then
+  target_dir=`pwd`
+  target_name=default
+else
+  qual_target=$1
+  shift
+  target_dir=`echo $qual_target|cut -d: -f1`
+  target_name=`echo $qual_target|cut -s -d: -f2`
+  if test "x$target_dir" = x; then
+     target_dir=`pwd`
+  fi
+  if test "x$target_name" = x; then
+     if `echo $target_dir | grep -q -e / -e .`; then
+        target_name=default
+     else
+        target_name=$target_dir
+        target_dir=.
+     fi
+  fi
+fi
+if test "x$1" = x--; then
+   shift
+fi
+cmdargs=$*
+
+run_info_file=$target_dir/.runinfo
+
+if test \! -r $run_info_file; then
+   echo "xeno-load: cannot find run info: $run_info_file"
+   exit 2
+fi
+
+if test $target_name = default; then
+  target_name=`cut -s -d: -f1 $run_info_file | head -n1`
+  if test "x$target_name" = x; then
+     echo "xeno-load: no target defined in $run_info_file"
+     exit 2
+  fi
+fi
+
+stanza=`grep "^[$spc]*$target_name[$spc]*:" $run_info_file`
+
+if test "x$stanza" = x; then
+   echo "xeno-load: cannot find run info for target $target_name"
+   exit 2
+fi
+
+
+xeno_moddir=`grep "^[$spc]*xeno_moddir[$spc]*=" $run_info_file`
+user_moddir=`grep "^[$spc]*user_moddir[$spc]*=" $run_info_file`
+
+if test \! "x$xeno_moddir" = x; then
+  eval $xeno_moddir
+fi
+
+eval $user_moddir
+
+if type sudo > /dev/null 2>&1; then
+  sudo=sudo
+fi
+
+if `$sudo $modprobe -nq xeno_nucleus > /dev/null 2>&1`; then
+   target_deps="${target_deps}nucleus+"
+else
+   target_deps=
+fi
+
+target_deps="${target_deps}`echo $stanza | cut -d: -f2`"
+target_info=`echo $stanza | cut -d: -f3`
+target_mesg=`echo $stanza | cut -s -d: -f4`
+
+test $verbose = 1 && echo "Running $target_name from $run_info_file"
+
+if test \! "x$target_mesg" = x; then
+  case "$target_mesg" in
+  control_c)
+    target_mesg="Type ^C to stop this application."
+    ;;
+  esac
+  echo "*"
+  echo "*"
+  echo "* $target_mesg"
+  echo "*"
+  echo "*"
+fi
+
+sync
+
+loadlist=`cat /proc/modules 2>/dev/null | ( \
+  while read lm; do \
+    set -- $lm; \
+    loadlist="$loadlist $1"; \
+  done  ; echo $loadlist )`
+
+( cd $target_dir ;
+
+inslist=""
+children_pids=""
+
+cleanup () {
+
+    if test \! "x$children_pids" = x; then
+       $sudo kill -SIGINT $children_pids > /dev/null 2>&1
+       children_pids=""
+       sleep 1
+    fi
+    if test \! "x$inslist" = x; then
+       for mod in $inslist ; do
+	  test $verbose = 1 && echo "+ $rmmod $mod"
+	  $sudo $rmmod $mod
+       done
+       inslist=""
+    fi
+}
+
+trap cleanup INT
+
+while test -n "$target_deps" ; do
+  mod=`echo $target_deps|cut -d+ -f1`
+  target_deps=`echo $target_deps|cut -s -d+ -f2-`
+  if test -h $xeno_moddir/xeno_$mod$modext; then
+     # Substitute the symlink with the target name since
+     # new modutils (>= 2.5.48) will use the actual name.
+     mod=`file -b $xeno_moddir/xeno_$mod$modext|sed -e "s,.*xeno_\([a-z0-9A-Z]*\)$modext.*,\1,"`
+  fi
+  if `echo $loadlist | grep -vq "\\bxeno_$mod\\b"`; then
+     # If we cannot find the module in our install dir, try Linux's
+     # one.
+     if test -r $xeno_moddir/xeno_$mod$modext; then
+        test $verbose = 1 && echo "+ $insmod $xeno_moddir/xeno_$mod$modext"
+        $sudo $insmod $xeno_moddir/xeno_$mod$modext
+	if test $? = 0 ; then
+           inslist="xeno_$mod $inslist"
+           loadlist="$loadlist $mod"
+	else
+	   echo "ERROR: cannot load $xeno_moddir/xeno_$mod$modext"
+	   break
+        fi
+     elif `$sudo $modprobe -n xeno_$mod > /dev/null 2>&1`; then
+        test $verbose = 1 && echo "+ $modprobe xeno_$mod"
+        $sudo $modprobe xeno_$mod
+        inslist="xeno_$mod $inslist"
+        loadlist="$loadlist $mod"
+     fi
+  fi
+done
+
+while test -n "$target_info" ; do
+  action=`echo $target_info|cut -d';' -f1`
+  target_info=`echo $target_info|cut -s -d';' -f2-`
+  set -- $action
+
+  case "$1" in
+
+    push)
+
+	mod=`basename $2 $modext`
+        if test -r $user_moddir/$mod$modext; then
+           modpath="$user_moddir/$mod"
+        else
+           modpath="$mod"
+        fi
+	if `echo $loadlist | grep -vq "\\b$mod\\b"`; then
+	   test $verbose = 1 && echo "+ $insmod $modpath$modext"
+	   $sudo $insmod $modpath$modext
+	   if test $? = 0; then
+              loadlist="$loadlist $mod"
+	      inslist="$mod $inslist"
+	   else
+	      echo "ERROR: cannot load $modpath$modext"
+	   fi
+	fi
+	;;
+
+    pop)
+
+	shift
+	if test "x$*" = x; then
+           rmlist=`echo $inslist | cut -s -f1 -d' '`
+        else
+           rmlist=$*
+	fi
+        _inslist="$inslist"
+	if test \! "x$rmlist" = x; then
+           for mod in $rmlist ; do
+	      test $verbose = 1 && echo "+ $rmmod $mod"
+	      $sudo $rmmod $mod && _inslist=`echo $_inslist | sed -e "s,$mod,,g"`
+           done
+        inslist="$_inslist"
+	fi
+	;;
+
+    popall|flush)
+
+        cleanup
+	;;
+
+    *)
+
+        case "$1" in
+	  exec|spawn) shift ;;
+	  klog) set -- \! tail -f /var/log/messages ;;
+	esac
+	e=`echo $* | sed -e "s,^[$spc]*![$spc]*\\(.*\\)$,\\1,"`
+        test "$e" = "$*" && suflag= || suflag=$sudo
+	set -- $e
+	e=`echo $* | sed -e "s,\\(.*\\)&[$spc]*$,\\1,"`
+        test "$e" = "$*" && waitflag=1 || waitflag=0
+	set -- $e
+	test $verbose = 1 && echo "+ spawning command ($* $cmdargs)"
+	if test $waitflag = 1; then
+           $suflag $* $cmdargs
+        else
+           $suflag $* $cmdargs &
+	   children_pids="$! $children_pids"
+	fi
+	;;
+  esac
+
+done )
+
+exit 0

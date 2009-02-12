@@ -1,0 +1,2 @@
+# real-time heap device (Xenomai:rtheap)
+KERNEL=="rtheap", MODE="0666"

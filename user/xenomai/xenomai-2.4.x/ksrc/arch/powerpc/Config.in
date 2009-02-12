@@ -1,0 +1,19 @@
+mainmenu_option next_comment
+comment 'Real-time sub-system'
+
+if [ "$CONFIG_IPIPE" = "n" ]; then
+    comment "Xenomai depends on Adeos interrupt pipeline"
+else
+    bool 'Xenomai' CONFIG_XENOMAI
+
+    source kernel/xenomai/Config.in
+
+    if [ "$CONFIG_XENOMAI" = "y" -a "$CONFIG_XENO_OPT_NUCLEUS" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'Machine'
+	bool 'Enable FPU support' CONFIG_XENO_HW_FPU
+	endmenu
+    fi
+fi
+
+endmenu

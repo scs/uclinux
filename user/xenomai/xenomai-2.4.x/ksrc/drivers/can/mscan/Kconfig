@@ -1,0 +1,40 @@
+config XENO_DRIVERS_CAN_MSCAN
+	depends on XENO_DRIVERS_CAN && PPC_MPC52xx
+	tristate "MSCAN driver for MPC52xx"
+	default n
+
+config XENO_DRIVERS_CAN_MSCAN_1
+	depends on XENO_DRIVERS_CAN_MSCAN
+	bool "Enable CAN 1"
+	default y
+
+config XENO_DRIVERS_CAN_MSCAN_2
+	depends on XENO_DRIVERS_CAN_MSCAN
+	bool "Enable CAN 2"
+	default y
+
+config XENO_DRIVERS_CAN_MSCAN_CLOCK
+	depends on XENO_DRIVERS_CAN_MSCAN
+	int "Clock Frequency in Hz"
+	default 66000000
+	help
+
+	The MSCAN driver selects the oscillator clock (SYS_XTAL_IN) as clock
+	source for MSCAN, which is typically 33 MHz. Due to a hardware bug on
+	the MPC5200 Rev. A chips, the IP bus clock (IP_CLK) is used instead,
+	which is typically 66 or 132 MHz.
+
+choice
+	depends on XENO_DRIVERS_CAN_MSCAN
+	prompt "Pin Configuration"
+	default I2C1/TMR01
+	help
+
+config XENO_DRIVERS_CAN_MSCAN_ALT
+	bool "CAN 1 on I2C1 pins, CAN 2 on TMR01 pins"
+
+config XENO_DRIVERS_CAN_MSCAN_PSC2
+	bool "CAN 1 and 2 on PSC2 pins"
+
+endchoice
+

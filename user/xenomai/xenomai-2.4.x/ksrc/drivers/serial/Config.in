@@ -1,0 +1,17 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+mainmenu_option next_comment
+comment 'Serial drivers'
+
+dep_tristate '16550A compatible UARTs' CONFIG_XENO_DRIVERS_16550A $CONFIG_XENO_SKIN_RTDM
+
+if [ "$CONFIG_XENO_DRIVERS_16550A" != "n" ]; then
+	choice 'Hardware access mode'	\
+	"Port-based		CONFIG_XENO_DRIVERS_16550A_PIO	\
+	 Memory-mapped		CONFIG_XENO_DRIVERS_16550A_MMIO	\
+	 Any			CONFIG_XENO_DRIVERS_16550A_ANY" Port-based
+fi
+
+endmenu

@@ -1,0 +1,116 @@
+Overview
+========
+
+The VxWorks (R) emulation module on top of Xenomai is currently
+available to kernel-based applications, and to user-space applications
+through a direct call interface to the module. The VxWorks module can
+also be used over the event-driven simulation engine.
+
+ xeno_vxworks.ko: VxWorks emulator in kernel space.
+libvxworks.so: System call interface from user-space.
+libvxworks_sim.a: VxWorks emulation over the event-driven simulator.
+
+The VxWorks (R) emulation module currently mimicks the following
+services:
+
+taskSpawn, taskInit, taskActivate, taskDelete, taskDeleteForce, taskSuspend, 
+taskResume, taskPrioritySet, taskPriorityGet, taskLock, taskUnlock, taskIdSelf,
+taskSafe, taskUnsafe, taskDelay, taskIdVerify, taskTcb, taskRestart
+
+taskCreateHookAdd, taskCreateHookDelete, taskSwitchHookAdd, taskSwitchHookDelete
+taskDeleteHookAdd, taskDeleteHookDelete
+
+taskName, taskNameToId, taskIdDefault, taskIsReady, taskIsSuspended
+
+semGive, semTake, semFlush, semDelete, semBCreate, semMCreate, semCCreate
+
+wdCreate, wdDelete, wdStart, wdCancel
+
+msgQCreate, msgQDelete, msgQNumMsgs, msgQReceive, msgQSend
+
+intContext, intCount, intLevelSet, intLock, intUnlock
+
+sysClkConnect, sysClkDisable, sysClkEnable, sysClkRateGet, sysClkRateSet
+
+tickAnnounce, tickGet, tickSet
+
+kernelTimeSlice, kernelVersion
+
+printErrno, errnoSet, errnoGet, errnoOfTaskGet, errnoOfTaskSet
+
+
+
+Known variations from VxWorks/WIND
+==================================
+
+You may observe some variations from VxWorks, if you find such a variation and
+you think it would be easy to correct, please send a mail to the xenomai mailing
+list. Here are the known variations:
+
+- taskInit ignores the pStackBase argument, and the flags VX_PRIVATE_ENV,
+  VX_NO_STACK_FILL, VX_UNBREAKABLE.
+
+- taskInit gives a default name if NULL was passed as argument.
+
+- For the moment, the status member of task control blocks is never updated to
+  reflect the status of a task.
+
+- The tcb of a task launched with taskSpawn is automatically reclaimed by the
+  system whereas the tcb of a task launched with taskInit (hence passed by the
+  user) is not. Which means that if you want to inspect your tcb post-mortem,
+  you have to use taskInit.
+
+- The errno returned by some functions may be different from those of the
+  genuine functions. The emulator functions may even return errors where the
+  genuine did not.
+
+- Some tasks management functions which accept 0 as argument in the genuine OS
+  may not accept it in the emulator.
+
+- The error S_taskLib_TASK_HOOK_TABLE_FULL has not the same value as in the
+  genuine OS.
+
+- The exit() service, only exiting the current thread, is called
+  taskExit(). The user-space "exit" service is the regular service that
+  exits all threads.
+
+- Functions taking function pointers as arguments do not use FUNCPTR, which mean
+  that the function pointer types are verified at compile time.
+
+- Passing a negative argument to maxMsgs for msgQCreate returns 0 and sets
+  errno to S_msgQLib_INVALID_QUEUE_TYPE
+
+- Passing a argument with non defined bits to options for msgQCreate returns 0.
+  VxWorks returns a valid msqId.
+
+- msgQSend() might return S_memLib_NOT_ENOUGH_MEMORY in case of
+  dynamic memory shortage when called from user-space, for messages
+  longer than 128 bytes. This service might also return
+  S_msgQLib_INVALID_MSG_LENGTH whenever the message buffer address is
+  NULL.
+
+- msgQReceive() might return S_objLib_OBJ_UNAVAILABLE if the timeout
+  parameter is different from NO_WAIT, but the caller cannot be put to
+  sleep. This is for instance the case whenever the caller is not a
+  VxWorks task, or the scheduler is locked.
+
+- wdStart() returns S_objLib_OBJ_UNAVAILABLE when a userland caller
+  attempts to start a watchdog created from a different process.
+
+- In case the documented VxWorks API does not explicitly handle the
+  case, calling blocking services outside of any VxWorks task context or
+  under scheduler lock, might return the POSIX error value "EPERM".
+
+- When called from user-space, all blocking services might return
+  prematurely with the POSIX error value "EINTR", whenever a Linux
+  signal is received by the sleeping task and the signal action flag
+  clears SA_RESTART. This also includes taskDelete() which might need
+  to wait for the deleted task to exit a safe section
+  (taskSafe/taskUnsafe) before proceeding.
+
+Module parameters
+=================
+
+- "tick_arg", duration of a base periodic tick. The VxWorks skin
+  expresses all delays and timeouts as counts of ticks. This parameter
+  defines the duration of a VxWorks clock tick expressed in microseconds.

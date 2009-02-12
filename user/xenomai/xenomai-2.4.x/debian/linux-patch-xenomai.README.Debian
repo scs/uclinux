@@ -1,0 +1,15 @@
+Xenomai kernel patches in Debian
+================================
+
+With this package, you can patch and build kernels suitable for usage with
+Xenomai. This can be done with, e.g.:
+
+# cd /usr/src/linux-source-2.6.24
+# fakeroot make-kpkg --initrd --added-patches xenomai kernel_image
+
+This is intended for vanilla and Debian kernel sources.
+
+NOTE: In the kernel config, PARAVIRT should be turned off for Xenomai kernels
+      to compile successfully.
+
+ -- Roland Stigge <stigge@antcom.de>, Fri, 11 Apr 2008 09:02:28 +0200

@@ -1,0 +1,4191 @@
+diff --git a/arch/ppc/config.in b/arch/ppc/config.in
+index 2f826e4..f2a0f68 100644
+--- a/arch/ppc/config.in
++++ b/arch/ppc/config.in
+@@ -863,6 +863,7 @@ else
+   fi
+ fi
+ 
++bool 'Interrupt pipeline' CONFIG_IPIPE
+ bool 'Networking support' CONFIG_NET
+ bool 'Sysctl support' CONFIG_SYSCTL
+ bool 'System V IPC' CONFIG_SYSVIPC
+diff --git a/arch/ppc/kernel/Makefile b/arch/ppc/kernel/Makefile
+index 96b1cde..332382e 100644
+--- a/arch/ppc/kernel/Makefile
++++ b/arch/ppc/kernel/Makefile
+@@ -46,12 +46,14 @@ export-objs			:= ppc_ksyms.o time.o ocp.o ppc4xx_setup.o \
+ 					ppc4xx_dma.o ppc4xx_sgdma.o \
+ 					ppc4xx_stbdma.o ppc4xx_pm.o \
+ 					gt64260_common.o mpc5xxx_common.o \
+-					ppc85xx_common.o ppc83xx_common.o
++					ppc85xx_common.o ppc83xx_common.o \
++					ipipe-root.o ipipe-core.o
+ 
+ obj-y				:= entry.o traps.o irq.o idle.o time.o misc.o \
+ 					process.o signal.o ptrace.o align.o \
+ 					semaphore.o syscalls.o setup.o \
+ 					cputable.o ppc_htab.o
++obj-$(CONFIG_IPIPE)		+= ipipe-root.o ipipe-core.o
+ ifneq ($(CONFIG_6xx),y)
+ obj-y				+= idle_gen.o
+ endif
+diff --git a/arch/ppc/kernel/entry.S b/arch/ppc/kernel/entry.S
+index d19d49d..cdb86ff 100644
+--- a/arch/ppc/kernel/entry.S
++++ b/arch/ppc/kernel/entry.S
+@@ -53,6 +53,21 @@ _GLOBAL(DoSyscall)
+ 	lis	r10,0x1000
+ 	andc	r11,r11,r10
+ 	stw	r11,_CCR(r1)
++#ifdef CONFIG_IPIPE
++	addi	r3,r1,GPR0
++	bl	__ipipe_syscall_root
++	cmpwi	r3,0
++	lwz	r3,GPR3(r1)
++	lwz	r0,GPR0(r1)
++	lwz	r4,GPR4(r1)
++	lwz	r5,GPR5(r1)
++	lwz	r6,GPR6(r1)
++	lwz	r7,GPR7(r1)
++	lwz	r8,GPR8(r1)
++	lwz	r9,GPR9(r1)
++	bgt	restore
++	blt	ret_from_syscall_1
++#endif /* CONFIG_IPIPE */
+ #ifdef SHOW_SYSCALLS
+ #ifdef SHOW_SYSCALLS_TASK
+ 	lis	r31,show_syscalls_task@ha
+@@ -280,7 +295,11 @@ ret_from_fork:
+ 	lwz	r0,TASK_PTRACE(r2)
+ 	andi.	r0,r0,PT_TRACESYS
+ 	bnel-	syscall_trace
++#ifdef CONFIG_IPIPE
++	b	ret_from_except_1
++#else	
+ 	b	ret_from_except
++#endif
+ 
+ 	.globl	ret_from_intercept
+ ret_from_intercept:
+@@ -288,10 +307,21 @@ ret_from_intercept:
+ 	 * We may be returning from RTL and cannot do the normal checks
+ 	 * -- Cort
+ 	 */
++	/*
++	 * We may also be returning from Adeos and cannot do the normal checks either
++	 * -- rpm
++	 */
+ 	cmpi	0,r3,0
+ 	beq	restore
++	b	ret_from_except_1
+ 	.globl	ret_from_except
+ ret_from_except:
++#ifdef CONFIG_IPIPE
++        bl	__ipipe_check_root
++        cmpwi	r3, 0
++        beq-	restore
++#endif /* CONFIG_IPIPE */
++ret_from_except_1:
+ 	lwz	r3,_MSR(r1)	/* Returning to user mode? */
+ 	andi.	r3,r3,MSR_PR
+ 	beq+	do_signal_ret	/* if so, check need_resched and signals */
+diff --git a/arch/ppc/kernel/head.S b/arch/ppc/kernel/head.S
+index 7b9e0c2..2605305 100644
+--- a/arch/ppc/kernel/head.S
++++ b/arch/ppc/kernel/head.S
+@@ -435,7 +435,11 @@ HardwareInterrupt:
+ 	bl	transfer_to_handler
+ 	.globl do_IRQ_intercept
+ do_IRQ_intercept:
+-	.long	do_IRQ;
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_irq
++#else /* !CONFIG_IPIPE */
++	.long	do_IRQ
++#endif /* CONFIG_IPIPE */
+ 	.long	ret_from_intercept
+ 
+ /* Alignment exception */
+@@ -485,7 +489,11 @@ Decrementer:
+ 	bl	transfer_to_handler
+ 	.globl timer_interrupt_intercept
+ timer_interrupt_intercept:
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_timer
++#else /* !CONFIG_IPIPE */
+ 	.long	timer_interrupt
++#endif /* CONFIG_IPIPE */
+ 	.long	ret_from_intercept
+ 
+ 	STD_EXCEPTION(0xa00, Trap_0a, UnknownException)
+diff --git a/arch/ppc/kernel/head_440.S b/arch/ppc/kernel/head_440.S
+index a52bf16..d8cbb41 100644
+--- a/arch/ppc/kernel/head_440.S
++++ b/arch/ppc/kernel/head_440.S
+@@ -539,7 +539,11 @@ interrupt_base:
+ 	li      r4,0
+ 	bl      transfer_to_handler
+ _GLOBAL(do_IRQ_intercept)
+-	.long   do_IRQ
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_irq
++#else /* !CONFIG_IPIPE */
++	.long	do_IRQ
++#endif /* CONFIG_IPIPE */
+ 	.long   ret_from_intercept
+ 	.long	0x500
+ 
+@@ -590,7 +594,11 @@ _GLOBAL(do_IRQ_intercept)
+ 	li      r20,MSR_KERNEL
+ 	bl      transfer_to_handler
+ _GLOBAL(timer_interrupt_intercept)
+-	.long   timer_interrupt
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_timer
++#else /* !CONFIG_IPIPE */
++	.long	timer_interrupt
++#endif /* CONFIG_IPIPE */
+ 	.long   ret_from_intercept
+ 	.long	0x1000
+ 
+diff --git a/arch/ppc/kernel/head_44x.S b/arch/ppc/kernel/head_44x.S
+index bc7f216..7f53079 100644
+--- a/arch/ppc/kernel/head_44x.S
++++ b/arch/ppc/kernel/head_44x.S
+@@ -552,7 +552,11 @@ interrupt_base:
+ 	li      r4,0
+ 	bl      transfer_to_handler
+ _GLOBAL(do_IRQ_intercept)
+-	.long   do_IRQ
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_irq
++#else /* !CONFIG_IPIPE */
++	.long	do_IRQ
++#endif /* CONFIG_IPIPE */
+ 	.long   ret_from_intercept
+ 	.long	0x500
+ 
+@@ -603,7 +607,11 @@ _GLOBAL(do_IRQ_intercept)
+ 	li      r20,MSR_KERNEL
+ 	bl      transfer_to_handler
+ _GLOBAL(timer_interrupt_intercept)
+-	.long   timer_interrupt
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_timer
++#else /* !CONFIG_IPIPE */
++	.long	timer_interrupt
++#endif /* CONFIG_IPIPE */
+ 	.long   ret_from_intercept
+ 	.long	0x1000
+ 
+diff --git a/arch/ppc/kernel/head_4xx.S b/arch/ppc/kernel/head_4xx.S
+index 2f5d73f..fda2742 100644
+--- a/arch/ppc/kernel/head_4xx.S
++++ b/arch/ppc/kernel/head_4xx.S
+@@ -384,7 +384,11 @@ label:
+ 	li	r4,0
+ 	bl	transfer_to_handler
+ _GLOBAL(do_IRQ_intercept)
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_irq
++#else /* !CONFIG_IPIPE */
+ 	.long	do_IRQ
++#endif /* CONFIG_IPIPE */
+ 	.long	ret_from_intercept
+ 
+ /* 0x0600 - Alignment Exception
+@@ -456,7 +460,11 @@ _GLOBAL(do_IRQ_intercept)
+ 	li	r20,MSR_KERNEL
+ 	bl	transfer_to_handler
+ _GLOBAL(timer_interrupt_intercept)
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_timer
++#else /* !CONFIG_IPIPE */
+ 	.long	timer_interrupt
++#endif /* CONFIG_IPIPE */
+ 	.long	ret_from_intercept
+ 
+ #if 0
+diff --git a/arch/ppc/kernel/head_8xx.S b/arch/ppc/kernel/head_8xx.S
+index d610508..b9de7ff 100644
+--- a/arch/ppc/kernel/head_8xx.S
++++ b/arch/ppc/kernel/head_8xx.S
+@@ -231,7 +231,11 @@ HardwareInterrupt:
+ 	bl	transfer_to_handler
+ 	.globl	do_IRQ_intercept
+ do_IRQ_intercept:
+-	.long	do_IRQ;
++#ifdef CONFIG_IPIPE
++	.long   __ipipe_grab_irq
++#else /* !CONFIG_IPIPE */
++	.long	do_IRQ
++#endif /* CONFIG_IPIPE */
+ 	.long	ret_from_intercept
+ 
+ /* Alignment exception */
+@@ -268,7 +272,11 @@ Decrementer:
+ 	bl	transfer_to_handler
+ 	.globl	timer_interrupt_intercept
+ timer_interrupt_intercept:
+-	.long	timer_interrupt
++#ifdef CONFIG_IPIPE
++	.long   __ipipe_grab_timer
++#else /* !CONFIG_IPIPE */
++	.long   timer_interrupt
++#endif /* CONFIG_IPIPE */
+ 	.long	ret_from_intercept
+ 
+ 	STD_EXCEPTION(0xa00, Trap_0a, UnknownException)
+diff --git a/arch/ppc/kernel/head_e500.S b/arch/ppc/kernel/head_e500.S
+index 9d9fc68..f3149c4 100644
+--- a/arch/ppc/kernel/head_e500.S
++++ b/arch/ppc/kernel/head_e500.S
+@@ -618,7 +618,11 @@ interrupt_base:
+ 	li      r4,0
+ 	bl      transfer_to_handler
+ _GLOBAL(do_IRQ_intercept)
+-	.long   do_IRQ
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_irq
++#else /* !CONFIG_IPIPE */
++	.long	do_IRQ
++#endif /* CONFIG_IPIPE */
+ 	.long   ret_from_intercept
+ 	.long	0x500
+ 
+@@ -669,7 +673,11 @@ _GLOBAL(do_IRQ_intercept)
+ 	li      r20,MSR_KERNEL
+ 	bl      transfer_to_handler
+ _GLOBAL(timer_interrupt_intercept)
+-	.long   timer_interrupt
++#ifdef CONFIG_IPIPE
++	.long	__ipipe_grab_timer
++#else /* !CONFIG_IPIPE */
++	.long	timer_interrupt
++#endif /* CONFIG_IPIPE */
+ 	.long   ret_from_intercept
+ 	.long	0x900
+ 
+diff --git a/arch/ppc/kernel/idle.c b/arch/ppc/kernel/idle.c
+index 29a95bf..ea58c00 100644
+--- a/arch/ppc/kernel/idle.c
++++ b/arch/ppc/kernel/idle.c
+@@ -50,6 +50,7 @@ int idled(void)
+ 	current->counter = -100;
+ 	init_idle();
+ 	for (;;) {
++		ipipe_suspend_domain();
+ #ifdef CONFIG_SMP
+ 		if (!do_power_save) {
+ 			/*
+diff --git a/arch/ppc/kernel/ipipe-core.c b/arch/ppc/kernel/ipipe-core.c
+new file mode 100644
+index 0000000..4034392
+--- /dev/null
++++ b/arch/ppc/kernel/ipipe-core.c
+@@ -0,0 +1,265 @@
++/* -*- linux-c -*-
++ * linux/arch/ppc/kernel/ipipe-core.c
++ *
++ * Copyright (C) 2002-2005 Philippe Gerum.
++ * Copyright (C) 2004 Wolfgang Grandegger (Adeos/ppc port over 2.4).
++ * Copyright (C) 2005 Heikki Lindholm (PowerPC 970 fixes).
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
++ * USA; either version 2 of the License, or (at your option) any later
++ * version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Architecture-dependent I-PIPE core support for PowerPC.
++ */
++
++#include <linux/config.h>
++#include <linux/kernel.h>
++#include <linux/smp.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/bitops.h>
++#include <linux/interrupt.h>
++#include <linux/irq.h>
++#include <linux/module.h>
++#include <asm/system.h>
++#include <asm/atomic.h>
++#include <asm/hardirq.h>
++#include <asm/io.h>
++#include <asm/time.h>
++
++/* Current reload value for the decrementer. */
++unsigned long __ipipe_decr_ticks;
++
++/* Next tick date (timebase value). */
++unsigned long long __ipipe_decr_next[IPIPE_NR_CPUS];
++
++struct pt_regs __ipipe_tick_regs[IPIPE_NR_CPUS];
++
++#ifdef CONFIG_POWER4
++extern struct irqaction k2u3_cascade_action;
++extern int openpic2_get_irq(struct pt_regs *regs);
++#endif
++
++#ifdef CONFIG_SMP
++
++static cpumask_t __ipipe_cpu_sync_map;
++
++static cpumask_t __ipipe_cpu_lock_map;
++
++static ipipe_spinlock_t __ipipe_cpu_barrier = IPIPE_SPIN_LOCK_UNLOCKED;
++
++static atomic_t __ipipe_critical_count = ATOMIC_INIT(0);
++
++static void (*__ipipe_cpu_sync) (void);
++
++/* Always called with hw interrupts off. */
++
++void __ipipe_do_critical_sync(unsigned irq)
++{
++	ipipe_declare_cpuid;
++
++	ipipe_load_cpuid();
++
++	cpu_set(cpuid, __ipipe_cpu_sync_map);
++
++	/*
++	 * Now we are in sync with the lock requestor running on another
++	 * CPU. Enter a spinning wait until he releases the global
++	 * lock.
++	 */
++	spin_lock_hw(&__ipipe_cpu_barrier);
++
++	/* Got it. Now get out. */
++
++	if (__ipipe_cpu_sync)
++		/* Call the sync routine if any. */
++		__ipipe_cpu_sync();
++
++	spin_unlock_hw(&__ipipe_cpu_barrier);
++
++	cpu_clear(cpuid, __ipipe_cpu_sync_map);
++}
++
++#endif	/* CONFIG_SMP */
++
++/*
++ * ipipe_critical_enter() -- Grab the superlock excluding all CPUs
++ * but the current one from a critical section. This lock is used when
++ * we must enforce a global critical section for a single CPU in a
++ * possibly SMP system whichever context the CPUs are running.
++ */
++unsigned long ipipe_critical_enter(void (*syncfn) (void))
++{
++	unsigned long flags;
++
++	local_irq_save_hw(flags);
++
++#ifdef CONFIG_SMP
++	if (num_online_cpus() > 1) {	/* We might be running a SMP-kernel on a UP box... */
++		ipipe_declare_cpuid;
++		cpumask_t lock_map;
++
++		ipipe_load_cpuid();
++
++		if (!cpu_test_and_set(cpuid, __ipipe_cpu_lock_map)) {
++			while (cpu_test_and_set(BITS_PER_LONG - 1,
++						__ipipe_cpu_lock_map)) {
++				int n = 0;
++				do {
++					cpu_relax();
++				} while (++n < cpuid);
++			}
++
++			spin_lock_hw(&__ipipe_cpu_barrier);
++
++			__ipipe_cpu_sync = syncfn;
++
++			/* Send the sync IPI to all processors but the current one. */
++			send_IPI_allbutself(IPIPE_CRITICAL_VECTOR);
++
++			cpus_andnot(lock_map, cpu_online_map,
++				    __ipipe_cpu_lock_map);
++
++			while (!cpus_equal(__ipipe_cpu_sync_map, lock_map))
++				cpu_relax();
++		}
++
++		atomic_inc(&__ipipe_critical_count);
++	}
++#endif	/* CONFIG_SMP */
++
++	return flags;
++}
++
++/* ipipe_critical_exit() -- Release the superlock. */
++
++void ipipe_critical_exit(unsigned long flags)
++{
++#ifdef CONFIG_SMP
++	if (num_online_cpus() > 1) {	/* We might be running a SMP-kernel on a UP box... */
++		ipipe_declare_cpuid;
++
++		ipipe_load_cpuid();
++
++		if (atomic_dec_and_test(&__ipipe_critical_count)) {
++			spin_unlock_hw(&__ipipe_cpu_barrier);
++
++			while (!cpus_empty(__ipipe_cpu_sync_map))
++				cpu_relax();
++
++			cpu_clear(cpuid, __ipipe_cpu_lock_map);
++			cpu_clear(BITS_PER_LONG - 1, __ipipe_cpu_lock_map);
++		}
++	}
++#endif	/* CONFIG_SMP */
++
++	local_irq_restore_hw(flags);
++}
++
++void __ipipe_init_platform(void)
++{
++	unsigned timer_virq;
++
++	/*
++	 * Allocate a virtual IRQ for the decrementer trap early to
++	 * get it mapped to IPIPE_VIRQ_BASE
++	 */
++
++	timer_virq = ipipe_alloc_virq();
++
++	if (timer_virq != IPIPE_TIMER_VIRQ)
++		panic("I-pipe: cannot reserve timer virq #%d (got #%d)",
++		      IPIPE_TIMER_VIRQ, timer_virq);
++
++	__ipipe_decr_ticks = tb_ticks_per_jiffy;
++}
++
++int ipipe_get_sysinfo(struct ipipe_sysinfo *info)
++{
++	info->ncpus = num_online_cpus();
++	info->cpufreq = ipipe_cpu_freq();
++	info->archdep.tmirq = IPIPE_TIMER_VIRQ;
++	info->archdep.tmfreq = info->cpufreq;
++
++	return 0;
++}
++
++/*
++ * ipipe_trigger_irq() -- Push the interrupt at front of the pipeline
++ * just like if it has been actually received from a hw source. Also
++ * works for virtual interrupts.
++ */
++int ipipe_trigger_irq(unsigned irq)
++{
++	unsigned long flags;
++
++	if (irq >= IPIPE_NR_IRQS ||
++	    (ipipe_virtual_irq_p(irq)
++	     && !test_bit(irq - IPIPE_VIRQ_BASE, &__ipipe_virtual_irq_map)))
++		return -EINVAL;
++
++	local_irq_save_hw(flags);
++
++	__ipipe_handle_irq(irq, NULL);
++
++	local_irq_restore_hw(flags);
++
++	return 1;
++}
++
++static void __ipipe_set_decr(void)
++{
++	ipipe_declare_cpuid;
++
++	ipipe_load_cpuid();
++
++	disarm_decr[cpuid] = (__ipipe_decr_ticks != tb_ticks_per_jiffy);
++#ifdef CONFIG_40x
++	/* Enable and set auto-reload. */
++	mtspr(SPRN_TCR, mfspr(SPRN_TCR) | TCR_ARE);
++	mtspr(SPRN_PIT, __ipipe_decr_ticks);
++#else	/* !CONFIG_40x */
++	__ipipe_decr_next[cpuid] = __ipipe_read_timebase() + __ipipe_decr_ticks;
++	set_dec(__ipipe_decr_ticks);
++#endif	/* CONFIG_40x */
++}
++
++int ipipe_tune_timer(unsigned long ns, int flags)
++{
++	unsigned long x, ticks;
++
++	if (flags & IPIPE_RESET_TIMER)
++		ticks = tb_ticks_per_jiffy;
++	else {
++		ticks = ns * tb_ticks_per_jiffy / (1000000000 / HZ);
++
++		if (ticks > tb_ticks_per_jiffy)
++			return -EINVAL;
++	}
++
++	x = ipipe_critical_enter(&__ipipe_set_decr);	/* Sync with all CPUs */
++	__ipipe_decr_ticks = ticks;
++	__ipipe_set_decr();
++	ipipe_critical_exit(x);
++
++	return 0;
++}
++
++EXPORT_SYMBOL(__ipipe_decr_ticks);
++EXPORT_SYMBOL(__ipipe_decr_next);
++EXPORT_SYMBOL(ipipe_critical_enter);
++EXPORT_SYMBOL(ipipe_critical_exit);
++EXPORT_SYMBOL(ipipe_trigger_irq);
++EXPORT_SYMBOL(ipipe_get_sysinfo);
++EXPORT_SYMBOL(ipipe_tune_timer);
+diff --git a/arch/ppc/kernel/ipipe-root.c b/arch/ppc/kernel/ipipe-root.c
+new file mode 100644
+index 0000000..cb23557
+--- /dev/null
++++ b/arch/ppc/kernel/ipipe-root.c
+@@ -0,0 +1,420 @@
++/* -*- linux-c -*-
++ * linux/arch/ppc/kernel/ipipe-root.c
++ *
++ * Copyright (C) 2002-2005 Philippe Gerum (Adeos/ppc port over 2.6).
++ * Copyright (C) 2004 Wolfgang Grandegger (Adeos/ppc port over 2.4).
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
++ * USA; either version 2 of the License, or (at your option) any later
++ * version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Architecture-dependent I-pipe support for PowerPC.
++ */
++
++#include <linux/config.h>
++#include <linux/kernel.h>
++#include <linux/sched.h>
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/interrupt.h>
++#include <linux/irq.h>
++#include <linux/errno.h>
++#include <linux/sys.h>
++#include <asm/unistd.h>
++#include <asm/system.h>
++#include <asm/hardirq.h>
++#include <asm/atomic.h>
++#include <asm/io.h>
++#include <asm/time.h>
++#include <asm/mmu_context.h>
++
++extern irq_desc_t irq_desc[];
++
++static struct hw_interrupt_type __ipipe_std_irq_dtype[NR_IRQS];
++
++static void __ipipe_override_irq_enable(unsigned irq)
++{
++	unsigned long flags;
++
++	local_irq_save_hw(flags);
++	ipipe_irq_unlock(irq);
++	__ipipe_std_irq_dtype[irq].enable(irq);
++	local_irq_restore_hw(flags);
++}
++
++static void __ipipe_override_irq_disable(unsigned irq)
++{
++	unsigned long flags;
++
++	local_irq_save_hw(flags);
++	ipipe_irq_lock(irq);
++	__ipipe_std_irq_dtype[irq].disable(irq);
++	local_irq_restore_hw(flags);
++}
++
++static void __ipipe_override_irq_end(unsigned irq)
++{
++	unsigned long flags;
++
++	local_irq_save_hw(flags);
++
++	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
++		ipipe_irq_unlock(irq);
++
++	__ipipe_std_irq_dtype[irq].end(irq);
++
++	local_irq_restore_hw(flags);
++}
++
++static void __ipipe_override_irq_affinity(unsigned irq, cpumask_t mask)
++{
++	unsigned long flags;
++
++	local_irq_save_hw(flags);
++	__ipipe_std_irq_dtype[irq].set_affinity(irq, mask);
++	local_irq_restore_hw(flags);
++}
++
++static void __ipipe_enable_sync(void)
++{
++	__ipipe_decr_next[ipipe_processor_id()] =
++		__ipipe_read_timebase() + get_dec();
++}
++
++/*
++ * __ipipe_enable_pipeline() -- We are running on the boot CPU, hw
++ * interrupts are off, and secondary CPUs are still lost in space.
++ */
++void __ipipe_enable_pipeline(void)
++{
++	unsigned long flags;
++	unsigned irq;
++
++	flags = ipipe_critical_enter(&__ipipe_enable_sync);
++
++	/* First, virtualize all interrupts from the root domain. */
++
++	for (irq = 0; irq < NR_IRQS; irq++)
++		ipipe_virtualize_irq(ipipe_root_domain,
++				     irq,
++				     (ipipe_irq_handler_t)&__ipipe_do_IRQ,
++				     NULL,
++				     &__ipipe_ack_irq,
++				     IPIPE_HANDLE_MASK | IPIPE_PASS_MASK);
++
++	/*
++	 * We use a virtual IRQ to handle the timer irq (decrementer trap)
++	 * which has been allocated early in __ipipe_init_platform().
++	 */
++
++	ipipe_virtualize_irq(ipipe_root_domain,
++			     IPIPE_TIMER_VIRQ,
++			     (ipipe_irq_handler_t)&__ipipe_do_timer,
++			     NULL,
++			     NULL, IPIPE_HANDLE_MASK | IPIPE_PASS_MASK);
++
++	/*
++	 * Interpose on the IRQ control routines so we can make them
++	 * atomic using hw masking and prevent the interrupt log from
++	 * being untimely flushed.
++	 */
++
++	for (irq = 0; irq < NR_IRQS; irq++) {
++		if (irq_desc[irq].handler != NULL)
++			__ipipe_std_irq_dtype[irq] = *irq_desc[irq].handler;
++	}
++
++	/*
++	 * The original controller structs are often shared, so we first
++	 * save them all before changing any of them. Notice that we don't
++	 * override the ack() handler since we will enforce the necessary
++	 * setup in __ipipe_ack_irq().
++	 */
++
++	for (irq = 0; irq < NR_IRQS; irq++) {
++		struct hw_interrupt_type *handler = irq_desc[irq].handler;
++
++		if (handler == NULL)
++			continue;
++
++		if (handler->enable != NULL)
++			handler->enable = &__ipipe_override_irq_enable;
++
++		if (handler->disable != NULL)
++			handler->disable = &__ipipe_override_irq_disable;
++
++		if (handler->end != NULL)
++			handler->end = &__ipipe_override_irq_end;
++
++		if (handler->set_affinity != NULL)
++			handler->set_affinity = &__ipipe_override_irq_affinity;
++	}
++
++	__ipipe_decr_next[ipipe_processor_id()] =
++		__ipipe_read_timebase() + get_dec();
++
++	ipipe_critical_exit(flags);
++}
++
++int __ipipe_ack_irq(unsigned irq)
++{
++	irq_desc_t *desc = irq_desc + irq;
++	unsigned long flags;
++	ipipe_declare_cpuid;
++
++	if (desc->handler == NULL ||
++	    desc->handler->ack == NULL)
++		return 1;
++
++	/*
++	 * No need to mask IRQs at hw level: we are always called from
++	 * __ipipe_handle_irq(), so interrupts are already off. We
++	 * stall the pipeline so that spin_lock_irq*() ops won't
++	 * unintentionally flush it, since this could cause infinite
++	 * recursion.
++	 */
++
++	ipipe_load_cpuid();
++	flags = ipipe_test_and_stall_pipeline();
++	desc->handler->ack(irq);
++	ipipe_restore_pipeline_nosync(ipipe_percpu_domain[cpuid], flags, cpuid);
++
++	return 1;
++}
++
++/*
++ * __ipipe_handle_irq() -- IPIPE's generic IRQ handler. An optimistic
++ * interrupt protection log is maintained here for each domain. Hw
++ * interrupts are off on entry.
++ */
++void __ipipe_handle_irq(int irq, struct pt_regs *regs)
++{
++	struct ipipe_domain *this_domain, *next_domain;
++	struct list_head *head, *pos;
++	ipipe_declare_cpuid;
++	int m_ack, s_ack;
++
++	m_ack = (regs == NULL);	/* Software-triggered IRQs do not need
++				 * any ack. */
++	if (irq >= IPIPE_NR_IRQS) {
++		printk(KERN_ERR "I-pipe: spurious interrupt %d\n", irq);
++		return;
++	}
++
++	ipipe_load_cpuid();
++
++	this_domain = ipipe_percpu_domain[cpuid];
++
++	if (unlikely(test_bit(IPIPE_STICKY_FLAG, &this_domain->irqs[irq].control)))
++		head = &this_domain->p_link;
++	else {
++		head = __ipipe_pipeline.next;
++		next_domain = list_entry(head, struct ipipe_domain, p_link);
++		if (likely(test_bit(IPIPE_WIRED_FLAG, &next_domain->irqs[irq].control))) {
++			if (!m_ack && next_domain->irqs[irq].acknowledge != NULL)
++				next_domain->irqs[irq].acknowledge(irq);
++			if (likely(__ipipe_dispatch_wired(next_domain, irq)))
++				goto finalize;
++			return;
++		}
++	}
++
++	/* Ack the interrupt. */
++
++	s_ack = m_ack;
++	pos = head;
++
++	while (pos != &__ipipe_pipeline) {
++		next_domain = list_entry(pos, struct ipipe_domain, p_link);
++		/*
++		 * For each domain handling the incoming IRQ, mark it as
++		 * pending in its log.
++		 */
++		if (test_bit(IPIPE_HANDLE_FLAG,
++			     &next_domain->irqs[irq].control)) {
++			/*
++			 * Domains that handle this IRQ are polled for
++			 * acknowledging it by decreasing priority order. The
++			 * interrupt must be made pending _first_ in the
++			 * domain's status flags before the PIC is unlocked.
++			 */
++
++			next_domain->cpudata[cpuid].irq_counters[irq].total_hits++;
++			next_domain->cpudata[cpuid].irq_counters[irq].pending_hits++;
++			__ipipe_set_irq_bit(next_domain, cpuid, irq);
++
++			/*
++			 * Always get the first master acknowledge available.
++			 * Once we've got it, allow slave acknowledge
++			 * handlers to run (until one of them stops us).
++			 */
++			if (next_domain->irqs[irq].acknowledge != NULL) {
++				if (!m_ack)
++					m_ack = next_domain->irqs[irq].acknowledge(irq);
++				else if (test_bit
++					 (IPIPE_SHARED_FLAG,
++					  &next_domain->irqs[irq].control) && !s_ack)
++					s_ack = next_domain->irqs[irq].acknowledge(irq);
++			}
++		}
++
++		/*
++		 * If the domain does not want the IRQ to be passed down the
++		 * interrupt pipe, exit the loop now.
++		 */
++
++		if (!test_bit(IPIPE_PASS_FLAG, &next_domain->irqs[irq].control))
++			break;
++
++		pos = next_domain->p_link.next;
++	}
++
++finalize:
++	/*
++	 * Now walk the pipeline, yielding control to the highest
++	 * priority domain that has pending interrupt(s) or
++	 * immediately to the current domain if the interrupt has been
++	 * marked as 'sticky'. This search does not go beyond the
++	 * current domain in the pipeline.
++	 */
++
++	__ipipe_walk_pipeline(head, cpuid);
++}
++
++asmlinkage int __ipipe_grab_irq(struct pt_regs *regs)
++{
++	extern int ppc_spurious_interrupts;
++	ipipe_declare_cpuid;
++	int irq, first = 1;
++
++	if ((irq = ppc_md.get_irq(regs)) >= 0) {
++		__ipipe_handle_irq(irq, regs);
++		first = 0;
++	} else if (irq != -2 && first)
++		ppc_spurious_interrupts++;
++
++	ipipe_load_cpuid();
++
++	return (ipipe_percpu_domain[cpuid] == ipipe_root_domain &&
++		!test_bit(IPIPE_STALL_FLAG,
++			  &ipipe_root_domain->cpudata[cpuid].status));
++}
++
++void __ipipe_do_IRQ(int irq, struct pt_regs *regs)
++{
++	int cpu = smp_processor_id();
++	hardirq_enter(cpu);
++	ppc_irq_dispatch_handler(regs, irq);
++	hardirq_exit(cpu);
++
++	if (softirq_pending(cpu))
++		do_softirq();
++}
++
++asmlinkage int __ipipe_grab_timer(struct pt_regs *regs)
++{
++	ipipe_declare_cpuid;
++
++#ifdef CONFIG_POWER4
++	/* On 970 CPUs DEC cannot be disabled, and without setting DEC
++	 * here, DEC interrupt would be triggered as soon as interrupts
++	 * are enabled in __ipipe_sync_stage
++	 */
++	set_dec(0x7fffffff);
++#endif
++
++	__ipipe_tick_regs[cpuid].msr = regs->msr; /* for do_timer() */
++
++	__ipipe_handle_irq(IPIPE_TIMER_VIRQ, regs);
++
++	ipipe_load_cpuid();
++
++#ifndef CONFIG_40x
++	if (__ipipe_decr_ticks != tb_ticks_per_jiffy) {
++		unsigned long long next_date, now;
++
++		next_date = __ipipe_decr_next[cpuid];
++
++		while ((now = __ipipe_read_timebase()) >= next_date)
++			next_date += __ipipe_decr_ticks;
++
++		set_dec(next_date - now);
++
++		__ipipe_decr_next[cpuid] = next_date;
++	}
++#endif	/* !CONFIG_40x */
++
++	return (ipipe_percpu_domain[cpuid] == ipipe_root_domain &&
++		!test_bit(IPIPE_STALL_FLAG,
++			  &ipipe_root_domain->cpudata[cpuid].status));
++}
++
++void __ipipe_do_timer(int irq, struct pt_regs *regs)
++{
++	timer_interrupt(regs);
++}
++
++int __ipipe_check_root(struct pt_regs *regs)
++{
++	ipipe_declare_cpuid;
++	/*
++	 * This routine is called with hw interrupts off, so no migration
++	 * can occur while checking the identity of the current domain.
++	 */
++	ipipe_load_cpuid();
++	return ipipe_percpu_domain[cpuid] == ipipe_root_domain;
++}
++
++int __ipipe_syscall_root(struct pt_regs *regs)
++{
++	ipipe_declare_cpuid;
++	unsigned long flags;
++
++	/*
++	 * This routine either returns:
++	 * 0 -- if the syscall is to be passed to Linux;
++	 * >0 -- if the syscall should not be passed to Linux, and no
++	 * tail work should be performed;
++	 * <0 -- if the syscall should not be passed to Linux but the
++	 * tail work has to be performed (for handling signals etc).
++	 */
++
++	if (__ipipe_syscall_watched_p(current, regs->gpr[0]) &&
++	    __ipipe_event_monitored_p(IPIPE_EVENT_SYSCALL) &&
++	    __ipipe_dispatch_event(IPIPE_EVENT_SYSCALL,regs) > 0) {
++		if (ipipe_current_domain == ipipe_root_domain) {
++			/*
++			 * Sync pending VIRQs before _TIF_NEED_RESCHED
++			 * is tested.
++			 */
++			ipipe_lock_cpu(flags);
++			if ((ipipe_root_domain->cpudata[cpuid].irq_pending_hi & IPIPE_IRQMASK_VIRT) != 0)
++				__ipipe_sync_stage(IPIPE_IRQMASK_VIRT);
++			ipipe_unlock_cpu(flags);
++			return -1;
++		}
++		return 1;
++	}
++
++	return 0;
++}
++
++EXPORT_SYMBOL(_switch_to);
++EXPORT_SYMBOL(context_map);
++EXPORT_SYMBOL(last_task_used_math);
++#ifdef FEW_CONTEXTS
++EXPORT_SYMBOL(nr_free_contexts);
++EXPORT_SYMBOL(context_mm);
++EXPORT_SYMBOL(steal_context);
++#endif
+diff --git a/arch/ppc/kernel/irq.c b/arch/ppc/kernel/irq.c
+index 8c9f63d..2558665 100644
+--- a/arch/ppc/kernel/irq.c
++++ b/arch/ppc/kernel/irq.c
+@@ -433,7 +433,9 @@ void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
+ 
+ 	kstat.irqs[cpu][irq]++;
+ 	spin_lock(&desc->lock);
++#ifndef CONFIG_IPIPE
+ 	ack_irq(irq);
++#endif /* CONFIG_IPIPE */
+ 	/*
+ 	   REPLAY is when Linux resends an IRQ that was dropped earlier
+ 	   WAITING is used by probe to mark irqs that are being tested
+diff --git a/arch/ppc/kernel/ppc_ksyms.c b/arch/ppc/kernel/ppc_ksyms.c
+index d90d323..513c65d 100644
+--- a/arch/ppc/kernel/ppc_ksyms.c
++++ b/arch/ppc/kernel/ppc_ksyms.c
+@@ -314,6 +314,7 @@ EXPORT_SYMBOL(screen_info);
+ #endif
+ 
+ EXPORT_SYMBOL(__delay);
++#ifndef CONFIG_IPIPE
+ EXPORT_SYMBOL(__sti);
+ EXPORT_SYMBOL(__sti_end);
+ EXPORT_SYMBOL(__cli);
+@@ -322,6 +323,7 @@ EXPORT_SYMBOL(__save_flags_ptr);
+ EXPORT_SYMBOL(__save_flags_ptr_end);
+ EXPORT_SYMBOL(__restore_flags);
+ EXPORT_SYMBOL(__restore_flags_end);
++#endif /* CONFIG_IPIPE */
+ EXPORT_SYMBOL(timer_interrupt_intercept);
+ EXPORT_SYMBOL(timer_interrupt);
+ EXPORT_SYMBOL(do_IRQ_intercept);
+diff --git a/arch/ppc/kernel/traps.c b/arch/ppc/kernel/traps.c
+index aa4eaff..8b21d95 100644
+--- a/arch/ppc/kernel/traps.c
++++ b/arch/ppc/kernel/traps.c
+@@ -211,6 +211,9 @@ MachineCheckException(struct pt_regs *regs)
+ {
+ 	unsigned long reason = get_reason(regs);
+ 
++	if (ipipe_trap_notify(IPIPE_TRAP_MCE,regs))
++	    	return;
++
+ 	if (user_mode(regs)) {
+ 		_exception(SIGBUS, regs, BUS_ADRERR, regs->nip);
+ 		return;
+@@ -314,6 +317,8 @@ SMIException(struct pt_regs *regs)
+ void
+ UnknownException(struct pt_regs *regs)
+ {
++	if (ipipe_trap_notify(IPIPE_TRAP_UNKNOWN,regs))
++	    	return;
+ 	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx    %s\n",
+ 	       regs->nip, regs->msr, regs->trap, print_tainted());
+ 	_exception(SIGTRAP, regs, 0, 0);
+@@ -322,6 +327,8 @@ UnknownException(struct pt_regs *regs)
+ void
+ InstructionBreakpoint(struct pt_regs *regs)
+ {
++	if (ipipe_trap_notify(IPIPE_TRAP_IABR,regs))
++	    	return;
+ 	if (debugger_iabr_match(regs))
+ 		return;
+ 	_exception(SIGTRAP, regs, TRAP_BRKPT, 0);
+@@ -330,6 +337,8 @@ InstructionBreakpoint(struct pt_regs *regs)
+ void
+ RunModeException(struct pt_regs *regs)
+ {
++	if (ipipe_trap_notify(IPIPE_TRAP_RM,regs))
++	    	return;
+ 	_exception(SIGTRAP, regs, 0, 0);
+ }
+ 
+@@ -382,6 +391,8 @@ static void emulate_single_step(struct pt_regs *regs)
+ {
+ 	if (single_stepping(regs)) {
+ 		clear_single_step(regs);
++		if (ipipe_trap_notify(IPIPE_TRAP_SSTEP,regs))
++		    	return;
+ 		if (debugger_sstep(regs))
+ 			return;
+ 		_exception(SIGTRAP, regs, TRAP_TRACE, 0);
+@@ -394,6 +405,9 @@ ProgramCheckException(struct pt_regs *regs)
+ 	unsigned int reason = get_reason(regs);
+ 	extern int do_mathemu(struct pt_regs *regs);
+ 
++	if (ipipe_trap_notify(IPIPE_TRAP_PCE,regs))
++	    	return;
++
+ #ifdef CONFIG_MATH_EMULATION
+ 	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
+ 	 * but there seems to be a hardware bug on the 405GP (RevD)
+@@ -457,6 +471,8 @@ void
+ SingleStepException(struct pt_regs *regs)
+ {
+ 	regs->msr &= ~MSR_SE;  /* Turn off 'trace' bit */
++	if (ipipe_trap_notify(IPIPE_TRAP_SSTEP,regs))
++	    	return;
+ 	if (debugger_sstep(regs))
+ 		return;
+ 	_exception(SIGTRAP, regs, TRAP_TRACE, 0);
+@@ -473,6 +489,8 @@ AlignmentException(struct pt_regs *regs)
+ 		emulate_single_step(regs);
+ 		return;
+ 	}
++	if (ipipe_trap_notify(IPIPE_TRAP_ALIGNMENT,regs))
++	    	return;
+ 	if (fixed == -EFAULT) {
+ 		/* fixed == -EFAULT means the operand address was bad */
+ 		if (user_mode(regs))
+@@ -510,6 +528,9 @@ SoftwareEmulation(struct pt_regs *regs)
+ 	extern int Soft_emulate_8xx(struct pt_regs *);
+ 	int errcode;
+ 
++	if (ipipe_trap_notify(IPIPE_TRAP_SOFTEMU,regs))
++	    	return;
++
+ 	if (!user_mode(regs)) {
+ 		debugger(regs);
+ 		die("Kernel Mode Software FPU Emulation", regs, SIGFPE);
+@@ -538,6 +559,9 @@ void DebugException(struct pt_regs *regs)
+ {
+ 	unsigned long debug_status;
+ 
++	if (ipipe_trap_notify(IPIPE_TRAP_DEBUG,regs))
++	    	return;
++
+ 	debug_status = mfspr(SPRN_DBSR);
+ 
+ 	regs->msr &= ~MSR_DE;  /* Turn off 'debug' bit */
+@@ -574,6 +598,8 @@ TAUException(struct pt_regs *regs)
+ void
+ AltivecAssistException(struct pt_regs *regs)
+ {
++	if (ipipe_trap_notify(IPIPE_TRAP_ALTASSIST,regs))
++	    	return;
+ 	if (regs->msr & MSR_VEC)
+ 		giveup_altivec(current);
+ 	/* XXX quick hack for now: set the non-Java bit in the VSCR */
+@@ -603,6 +629,9 @@ SPEFloatingPointException(struct pt_regs *regs)
+ 	int fpexc_mode;
+ 	int code = 0;
+ 
++	if (ipipe_trap_notify(IPIPE_TRAP_SPE,regs))
++	    	return;
++
+ 	spefscr = current->thread.spefscr;
+ 	fpexc_mode = current->thread.fpexc_mode;
+ 
+diff --git a/arch/ppc/mm/fault.c b/arch/ppc/mm/fault.c
+index 19fe78e..dd424f5 100644
+--- a/arch/ppc/mm/fault.c
++++ b/arch/ppc/mm/fault.c
+@@ -119,6 +119,9 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
+ 		is_write = error_code & 0x02000000;
+ #endif /* CONFIG_4xx || CONFIG_BOOKE */
+ 
++	if (ipipe_trap_notify(IPIPE_TRAP_ACCESS,regs))
++	    	return;
++
+ #if defined(CONFIG_XMON) || defined(CONFIG_KGDB)
+ 	if (debugger_fault_handler && regs->trap == 0x300) {
+ 		debugger_fault_handler(regs);
+diff --git a/include/asm-ppc/hw_irq.h b/include/asm-ppc/hw_irq.h
+index 8f0e170..1f05622 100644
+--- a/include/asm-ppc/hw_irq.h
++++ b/include/asm-ppc/hw_irq.h
+@@ -10,6 +10,60 @@ extern unsigned long do_IRQ_intercept;
+ extern int timer_interrupt(struct pt_regs *);
+ extern void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq);
+ 
++#ifdef CONFIG_IPIPE
++void __ipipe_stall_root(void);
++void __ipipe_unstall_root(void);
++unsigned long __ipipe_test_root(void);
++unsigned long __ipipe_test_and_stall_root(void);
++void __ipipe_restore_root(unsigned long flags);
++
++#define __cli() __ipipe_stall_root()
++#define __sti()	__ipipe_unstall_root()
++#define __save_flags_ptr(pflags)  \
++do { \
++   *(pflags) = (!__ipipe_test_root()) << 15; \
++} while(0)
++#define __save_flags(flags)   __save_flags_ptr((unsigned long *)&(flags))
++#define __save_and_cli(flags) \
++do { \
++    (flags) = (!__ipipe_test_and_stall_root()) << 15;	\
++} while(0)
++#define __save_and_sti(flags) ({__save_flags(flags);__sti();})
++#define __restore_flags(flags) 	__ipipe_restore_root(!((flags) & MSR_EE))
++
++static inline void local_irq_disable_hw(void)
++{
++	unsigned long msr;
++	msr = mfmsr();
++	mtmsr(msr & ~MSR_EE);
++	__asm__ __volatile__("": : :"memory");
++}
++
++static inline void local_irq_enable_hw(void)
++{
++	unsigned long msr;
++	__asm__ __volatile__("": : :"memory");
++	msr = mfmsr();
++	mtmsr(msr | MSR_EE);
++}
++
++static inline void local_irq_save_ptr_hw(unsigned long *flags)
++{
++	unsigned long msr;
++	msr = mfmsr();
++	*flags = msr;
++	mtmsr(msr & ~MSR_EE);
++	__asm__ __volatile__("": : :"memory");
++}
++
++#define local_save_flags_hw(flags)	((flags) = mfmsr())
++#define local_irq_save_hw(flags)	local_irq_save_ptr_hw(&flags)
++#define local_irq_restore_hw(flags)	mtmsr(flags)
++#define local_test_iflag_hw(x)		((x) & MSR_EE)
++#define irqs_disabled_hw()		((mfmsr() & MSR_EE) == 0)
++
++#else /* !CONFIG_IPIPE */
++
+ extern void __sti(void);
+ extern void __cli(void);
+ extern void __restore_flags(unsigned long);
+@@ -20,6 +74,8 @@ extern unsigned long __sti_end, __cli_end, __restore_flags_end, __save_flags_ptr
+ #define __save_and_cli(flags) ({__save_flags(flags);__cli();})
+ #define __save_and_sti(flags) ({__save_flags(flags);__sti();})
+ 
++#endif /* CONFIG_IPIPE */
++
+ extern void do_lost_interrupts(unsigned long);
+ 
+ #define mask_irq(irq) ({if (irq_desc[irq].handler && irq_desc[irq].handler->disable) irq_desc[irq].handler->disable(irq);})
+diff --git a/include/asm-ppc/ipipe.h b/include/asm-ppc/ipipe.h
+new file mode 100644
+index 0000000..959a786
+--- /dev/null
++++ b/include/asm-ppc/ipipe.h
+@@ -0,0 +1,215 @@
++/* -*- linux-c -*-
++ * include/asm-ppc/ipipe.h
++ *
++ * Copyright (C) 2002-2005 Philippe Gerum.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
++ * USA; either version 2 of the License, or (at your option) any later
++ * version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ */
++
++#ifndef __PPC_IPIPE_H
++#define __PPC_IPIPE_H
++
++#include <linux/config.h>
++
++#ifdef CONFIG_IPIPE
++
++#include <asm/ptrace.h>
++#include <asm/irq.h>
++#include <asm/bitops.h>
++#include <linux/threads.h>
++
++#define IPIPE_ARCH_STRING	"1.2-02"
++#define IPIPE_MAJOR_NUMBER	1
++#define IPIPE_MINOR_NUMBER	2
++#define IPIPE_PATCH_NUMBER	2
++
++#define IPIPE_NR_XIRQS		NR_IRQS
++#define IPIPE_IRQ_ISHIFT	5	/* 25 for 32bits arch. */
++
++/*
++ * The first virtual interrupt is reserved for the timer (see
++ * __ipipe_init_platform).
++ */
++#define IPIPE_TIMER_VIRQ	IPIPE_VIRQ_BASE
++
++#ifdef CONFIG_SMP
++#error "I-pipe/ppc: SMP not supported"
++#else /* !CONFIG_SMP */
++#define ipipe_processor_id()	0
++#endif	/* CONFIG_SMP */
++
++#define prepare_to_switch(next)		\
++do {						\
++	ipipe_schedule_notify(current, next);	\
++	local_irq_disable_hw();			\
++} while(0)
++
++#define task_hijacked(p)						\
++	({								\
++		int __x__ = ipipe_current_domain != ipipe_root_domain;	\
++		/* We would need to clear the SYNC flag for the root domain */ \
++		/* over the current processor in SMP mode. */		\
++		local_irq_enable_hw(); __x__;				\
++	})
++
++ /* PPC traps */
++#define IPIPE_TRAP_ACCESS	 0	/* Data or instruction access exception */
++#define IPIPE_TRAP_ALIGNMENT	 1	/* Alignment exception */
++#define IPIPE_TRAP_ALTUNAVAIL	 2	/* Altivec unavailable */
++#define IPIPE_TRAP_PCE		 3	/* Program check exception */
++#define IPIPE_TRAP_MCE		 4	/* Machine check exception */
++#define IPIPE_TRAP_UNKNOWN	 5	/* Unknown exception */
++#define IPIPE_TRAP_IABR		 6	/* Instruction breakpoint */
++#define IPIPE_TRAP_RM		 7	/* Run mode exception */
++#define IPIPE_TRAP_SSTEP	 8	/* Single-step exception */
++#define IPIPE_TRAP_NREC		 9	/* Non-recoverable exception */
++#define IPIPE_TRAP_SOFTEMU	10	/* Software emulation */
++#define IPIPE_TRAP_DEBUG	11	/* Debug exception */
++#define IPIPE_TRAP_SPE		12	/* SPE exception */
++#define IPIPE_TRAP_ALTASSIST	13	/* Altivec assist exception */
++#define IPIPE_NR_FAULTS		14
++/* Pseudo-vectors used for kernel events */
++#define IPIPE_FIRST_EVENT	IPIPE_NR_FAULTS
++#define IPIPE_EVENT_SYSCALL	(IPIPE_FIRST_EVENT)
++#define IPIPE_EVENT_SCHEDULE	(IPIPE_FIRST_EVENT + 1)
++#define IPIPE_EVENT_SIGWAKE	(IPIPE_FIRST_EVENT + 2)
++#define IPIPE_EVENT_SETSCHED	(IPIPE_FIRST_EVENT + 3)
++#define IPIPE_EVENT_INIT	(IPIPE_FIRST_EVENT + 4)
++#define IPIPE_EVENT_EXIT	(IPIPE_FIRST_EVENT + 5)
++#define IPIPE_EVENT_CLEANUP	(IPIPE_FIRST_EVENT + 6)
++#define IPIPE_LAST_EVENT	IPIPE_EVENT_CLEANUP
++#define IPIPE_NR_EVENTS		(IPIPE_LAST_EVENT + 1)
++
++struct ipipe_domain;
++
++struct ipipe_sysinfo {
++
++	int ncpus;		/* Number of CPUs on board */
++	u64 cpufreq;		/* CPU frequency (in Hz) */
++
++	/* Arch-dependent block */
++
++	struct {
++		unsigned tmirq;	/* Timer tick IRQ */
++		u64 tmfreq;	/* Timer frequency */
++	} archdep;
++};
++
++#define ipipe_read_tsc(t)					\
++	({							\
++	unsigned long __tbu;					\
++	__asm__ __volatile__ ("1: mftbu %0\n"			\
++			      "mftb %1\n"			\
++			      "mftbu %2\n"			\
++			      "cmpw %2,%0\n"			\
++			      "bne- 1b\n"			\
++			      :"=r" (((unsigned long *)&t)[0]),	\
++			      "=r" (((unsigned long *)&t)[1]),	\
++			      "=r" (__tbu));			\
++	t;							\
++	})
++
++#define __ipipe_read_timebase()					\
++	({							\
++	unsigned long long t;					\
++	ipipe_read_tsc(t);					\
++	t;							\
++	})
++
++extern unsigned tb_ticks_per_jiffy;
++#define ipipe_cpu_freq()	(HZ * tb_ticks_per_jiffy)
++#define ipipe_tsc2ns(t)		(((t) * 1000) / (ipipe_cpu_freq() / 1000000))
++
++/* Private interface -- Internal use only */
++
++#define __ipipe_check_platform()	do { } while(0)
++
++void __ipipe_init_platform(void);
++
++#define __ipipe_enable_irqdesc(irq)	do { irq_desc[irq].status &= ~IRQ_DISABLED; } while(0)
++
++#define __ipipe_enable_irq(irq)	enable_irq(irq)
++
++#define __ipipe_disable_irq(irq)	disable_irq(irq)
++
++void __ipipe_enable_pipeline(void);
++
++int __ipipe_ack_irq(unsigned irq);
++
++void __ipipe_do_IRQ(int irq,
++		    struct pt_regs *regs);
++
++void __ipipe_do_timer(int irq,
++		      struct pt_regs *regs);
++
++void __ipipe_do_critical_sync(unsigned irq,
++			      void *cookie);
++
++extern unsigned long __ipipe_decr_ticks;
++
++extern unsigned long long __ipipe_decr_next[];
++
++extern struct pt_regs __ipipe_tick_regs[];
++
++void __ipipe_handle_irq(int irq,
++			struct pt_regs *regs);
++
++#define __ipipe_tick_irq	IPIPE_TIMER_VIRQ
++
++static inline unsigned long __ipipe_ffnz(unsigned long ul)
++{
++	__asm__ __volatile__("cntlzw %0, %1":"=r"(ul):"r"(ul & (-ul)));
++	return 31 - ul;
++}
++
++/*
++ * When running handlers, enable hw interrupts for all domains but the
++ * one heading the pipeline, so that IRQs can never be significantly
++ * deferred for the latter.
++ */
++#define __ipipe_run_isr(ipd, irq, cpuid)				\
++do {									\
++	local_irq_enable_nohead(ipd);					\
++	if (ipd == ipipe_root_domain)					\
++		if (likely(irq == IPIPE_TIMER_VIRQ || !ipipe_virtual_irq_p(irq)))	\
++			ipd->irqs[irq].handler(irq, __ipipe_tick_regs + cpuid);		\
++		else {							\
++			hardirq_enter();				\
++			ipd->irqs[irq].handler(irq, ipd->irqs[irq].cookie);\
++			hardirq_exit();					\
++		}							\
++	else {								\
++		__clear_bit(IPIPE_SYNC_FLAG, &cpudata->status);		\
++		ipd->irqs[irq].handler(irq, ipd->irqs[irq].cookie);	\
++		__set_bit(IPIPE_SYNC_FLAG, &cpudata->status);		\
++	}								\
++	local_irq_disable_nohead(ipd);					\
++} while(0)
++
++#define __ipipe_syscall_watched_p(p, sc)	\
++	(((p)->flags & PF_EVNOTIFY) || (unsigned long)sc >= NR_syscalls)
++
++#ifndef fastcall
++#define fastcall
++#endif
++
++#else /* !CONFIG_IPIPE */
++
++#define task_hijacked(p)	0
++
++#endif /* CONFIG_IPIPE */
++
++#endif	/* !__PPC_IPIPE_H */
+diff --git a/include/asm-ppc/mmu_context.h b/include/asm-ppc/mmu_context.h
+index 6c6c141..38c33de 100644
+--- a/include/asm-ppc/mmu_context.h
++++ b/include/asm-ppc/mmu_context.h
+@@ -148,12 +148,15 @@ static inline void get_mmu_context(struct mm_struct *mm)
+  */
+ static inline void destroy_context(struct mm_struct *mm)
+ {
++	unsigned long flags;
+ 	if (mm->context != NO_CONTEXT) {
++		local_irq_save_hw_cond(flags);
+ 		clear_bit(mm->context, context_map);
+ 		mm->context = NO_CONTEXT;
+ #ifdef FEW_CONTEXTS
+ 		atomic_inc(&nr_free_contexts);
+ #endif
++		local_irq_restore_hw_cond(flags);
+ 	}
+ }
+ 
+@@ -171,9 +174,12 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+  */
+ static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm)
+ {
++	unsigned long flags;
++	local_irq_save_hw_cond(flags);
+ 	current->thread.pgdir = mm->pgd;
+ 	get_mmu_context(mm);
+ 	set_context(mm->context, mm->pgd);
++	local_irq_restore_hw_cond(flags);
+ }
+ 
+ extern void mmu_context_init(void);
+diff --git a/include/asm-ppc/system.h b/include/asm-ppc/system.h
+index b507256..65542aa 100644
+--- a/include/asm-ppc/system.h
++++ b/include/asm-ppc/system.h
+@@ -81,7 +81,9 @@ struct device_node;
+ extern void note_scsi_host(struct device_node *, void *);
+ 
+ struct task_struct;
+-#define prepare_to_switch()	do { } while(0)
++#ifndef CONFIG_IPIPE
++#define prepare_to_switch(next)	do { } while(0)
++#endif /* CONFIG_IPIPE */
+ #define switch_to(prev,next,last) _switch_to((prev),(next),&(last))
+ extern void _switch_to(struct task_struct *, struct task_struct *,
+ 		       struct task_struct **);
+diff --git a/include/linux/ipipe.h b/include/linux/ipipe.h
+new file mode 100644
+index 0000000..c5b5e54
+--- /dev/null
++++ b/include/linux/ipipe.h
+@@ -0,0 +1,760 @@
++/* -*- linux-c -*-
++ * include/linux/ipipe.h
++ *
++ * Copyright (C) 2002-2005 Philippe Gerum.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
++ * USA; either version 2 of the License, or (at your option) any later
++ * version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ */
++
++#ifndef __LINUX_IPIPE_H
++#define __LINUX_IPIPE_H
++
++#include <linux/config.h>
++#include <linux/spinlock.h>
++#include <linux/cache.h>
++#include <asm/ipipe.h>
++
++#ifdef CONFIG_IPIPE
++
++#include <linux/kernel.h>
++#include <linux/list.h>
++#include <linux/smp.h>
++
++#define IPIPE_VERSION_STRING	IPIPE_ARCH_STRING
++#define IPIPE_RELEASE_NUMBER	((IPIPE_MAJOR_NUMBER << 16) | \
++				 (IPIPE_MINOR_NUMBER <<  8) | \
++				 (IPIPE_PATCH_NUMBER))
++
++#define IPIPE_ROOT_PRIO		100
++#define IPIPE_ROOT_ID		0
++#define IPIPE_ROOT_NPTDKEYS	4	/* Must be <= BITS_PER_LONG */
++
++#define IPIPE_RESET_TIMER	0x1
++#define IPIPE_GRAB_TIMER	0x2
++
++/* Global domain flags */
++#define IPIPE_SPRINTK_FLAG	0	/* Synchronous printk() allowed */
++#define IPIPE_AHEAD_FLAG	1	/* Domain always heads the pipeline */
++
++#define IPIPE_STALL_FLAG	0	/* Stalls a pipeline stage -- guaranteed at bit #0 */
++#define IPIPE_SYNC_FLAG		1	/* The interrupt syncer is running for the domain */
++#define IPIPE_NOSTACK_FLAG	2	/* Domain currently runs on a foreign stack */
++
++#define IPIPE_SYNC_MASK		(1 << IPIPE_SYNC_FLAG)
++
++#define IPIPE_HANDLE_FLAG	0
++#define IPIPE_PASS_FLAG		1
++#define IPIPE_ENABLE_FLAG	2
++#define IPIPE_DYNAMIC_FLAG	IPIPE_HANDLE_FLAG
++#define IPIPE_STICKY_FLAG	3
++#define IPIPE_SYSTEM_FLAG	4
++#define IPIPE_LOCK_FLAG		5
++#define IPIPE_SHARED_FLAG	6
++#define IPIPE_WIRED_FLAG	7
++#define IPIPE_EXCLUSIVE_FLAG	8
++
++#define IPIPE_HANDLE_MASK	(1 << IPIPE_HANDLE_FLAG)
++#define IPIPE_PASS_MASK		(1 << IPIPE_PASS_FLAG)
++#define IPIPE_ENABLE_MASK	(1 << IPIPE_ENABLE_FLAG)
++#define IPIPE_DYNAMIC_MASK	IPIPE_HANDLE_MASK
++#define IPIPE_STICKY_MASK	(1 << IPIPE_STICKY_FLAG)
++#define IPIPE_SYSTEM_MASK	(1 << IPIPE_SYSTEM_FLAG)
++#define IPIPE_LOCK_MASK		(1 << IPIPE_LOCK_FLAG)
++#define IPIPE_SHARED_MASK	(1 << IPIPE_SHARED_FLAG)
++#define IPIPE_WIRED_MASK	(1 << IPIPE_WIRED_FLAG)
++#define IPIPE_EXCLUSIVE_MASK	(1 << IPIPE_EXCLUSIVE_FLAG)
++
++#define IPIPE_DEFAULT_MASK	(IPIPE_HANDLE_MASK|IPIPE_PASS_MASK)
++#define IPIPE_STDROOT_MASK	(IPIPE_HANDLE_MASK|IPIPE_PASS_MASK|IPIPE_SYSTEM_MASK)
++
++#define IPIPE_EVENT_SELF        0x80000000
++
++/* Number of virtual IRQs */
++#define IPIPE_NR_VIRQS		BITS_PER_LONG
++/* First virtual IRQ # */
++#define IPIPE_VIRQ_BASE		(((IPIPE_NR_XIRQS + BITS_PER_LONG - 1) / BITS_PER_LONG) * BITS_PER_LONG)
++/* Total number of IRQ slots */
++#define IPIPE_NR_IRQS		(IPIPE_VIRQ_BASE + IPIPE_NR_VIRQS)
++/* Number of indirect words needed to map the whole IRQ space. */
++#define IPIPE_IRQ_IWORDS	((IPIPE_NR_IRQS + BITS_PER_LONG - 1) / BITS_PER_LONG)
++#define IPIPE_IRQ_IMASK		(BITS_PER_LONG - 1)
++#define IPIPE_IRQMASK_ANY	(~0L)
++#define IPIPE_IRQMASK_VIRT	(IPIPE_IRQMASK_ANY << (IPIPE_VIRQ_BASE / BITS_PER_LONG))
++
++typedef unsigned long cpumask_t;
++
++#define cpus_andnot(dst,src1,src2)	((dst) = (src1) & ~(src2))
++#define cpus_and(dst,src1,src2)		((dst) = (src1) & (src2))
++#define cpus_equal(src1,src2)		((src1) == (src2))
++#define cpus_empty(src)			((src) == 0)
++#define cpus_clear(dst)			((dst) = 0)
++#define cpus_weight(src)		hweight32(src)
++#define cpu_clear(cpu,dst)		((dst) &= ~(1UL << (cpu)))
++#define cpu_isset(cpu,src)		((src) & (1UL << (cpu)))
++#define cpu_set(cpu,dst)		((dst) |= (1UL << (cpu)))
++#define cpumask_of_cpu(cpu)		(1UL << (cpu))
++#define cpu_test_and_set(cpu,dst)	test_and_set_bit(cpu,&dst)
++#define cpu_test_and_clear(cpu,dst)	test_and_clear_bit(cpu,&dst)
++#define first_cpu(src)			(ffs(src) - 1)
++
++#define num_online_cpus()	smp_num_cpus
++#define CPU_MASK_NONE		0
++#define CPU_MASK_ALL		(~0)
++#define for_each_online_cpu(cpu) for ((cpu) = 0; (cpu) < NR_CPUS; (cpu)++) \
++					if (cpu_isset(cpu,cpu_online_map))
++
++#ifdef CONFIG_SMP
++
++#define IPIPE_NR_CPUS		NR_CPUS
++#define ipipe_declare_cpuid	int cpuid
++#define ipipe_load_cpuid()	do { \
++					(cpuid) = ipipe_processor_id();	\
++				} while(0)
++#define ipipe_lock_cpu(flags)	do { \
++					local_irq_save_hw(flags); \
++					(cpuid) = ipipe_processor_id(); \
++				} while(0)
++#define ipipe_unlock_cpu(flags)	local_irq_restore_hw(flags)
++#define ipipe_get_cpu(flags)	ipipe_lock_cpu(flags)
++#define ipipe_put_cpu(flags)	ipipe_unlock_cpu(flags)
++#define ipipe_current_domain	(ipipe_percpu_domain[ipipe_processor_id()])
++
++#else /* !CONFIG_SMP */
++
++#define IPIPE_NR_CPUS		1
++#define ipipe_declare_cpuid	const int cpuid = 0
++#define ipipe_load_cpuid()	do { } while(0)
++#define ipipe_lock_cpu(flags)	local_irq_save_hw(flags)
++#define ipipe_unlock_cpu(flags)	local_irq_restore_hw(flags)
++#define ipipe_get_cpu(flags)	do { flags = 0; } while(0)
++#define ipipe_put_cpu(flags)	do { } while(0)
++#define ipipe_current_domain	(ipipe_percpu_domain[0])
++
++#endif /* CONFIG_SMP */
++
++#define ipipe_virtual_irq_p(irq)	((irq) >= IPIPE_VIRQ_BASE && \
++					 (irq) < IPIPE_NR_IRQS)
++
++typedef void (*ipipe_irq_handler_t)(unsigned irq,
++				    void *cookie);
++
++#define IPIPE_SAME_HANDLER	((ipipe_irq_handler_t)(-1))
++
++typedef int (*ipipe_irq_ackfn_t)(unsigned irq);
++
++typedef int (*ipipe_event_handler_t)(unsigned event,
++				     struct ipipe_domain *from,
++				     void *data);
++struct ipipe_domain {
++
++	struct list_head p_link;	/* Link in pipeline */
++
++	struct ipcpudata {
++		unsigned long status;
++		unsigned long irq_pending_hi;
++		unsigned long irq_pending_lo[IPIPE_IRQ_IWORDS];
++		struct ipirqcnt {
++			unsigned long pending_hits;
++			unsigned long total_hits;
++		} irq_counters[IPIPE_NR_IRQS];
++		unsigned long long evsync;
++	} ____cacheline_aligned_in_smp cpudata[IPIPE_NR_CPUS];
++
++	struct {
++		unsigned long control;
++		ipipe_irq_ackfn_t acknowledge;
++		ipipe_irq_handler_t handler;
++		void *cookie;
++	} ____cacheline_aligned irqs[IPIPE_NR_IRQS];
++
++	ipipe_event_handler_t evhand[IPIPE_NR_EVENTS]; /* Event handlers. */
++	unsigned long long evself;	/* Self-monitored event bits. */
++	unsigned long flags;
++	unsigned domid;
++	const char *name;
++	int priority;
++	void *pdd;
++};
++
++#define IPIPE_HEAD_PRIORITY	(-1) /* For domains always heading the pipeline */
++
++struct ipipe_domain_attr {
++
++	unsigned domid;		/* Domain identifier -- Magic value set by caller */
++	const char *name;	/* Domain name -- Warning: won't be dup'ed! */
++	int priority;		/* Priority in interrupt pipeline */
++	void (*entry) (void);	/* Domain entry point */
++	void *pdd;		/* Per-domain (opaque) data pointer */
++};
++
++/* The following macros must be used hw interrupts off. */
++
++#define __ipipe_irq_cookie(ipd,irq)	(ipd)->irqs[irq].cookie
++#define __ipipe_irq_handler(ipd,irq)	(ipd)->irqs[irq].handler
++
++#define __ipipe_cpudata_irq_hits(ipd,cpuid,irq)	((ipd)->cpudata[cpuid].irq_counters[irq].total_hits)
++
++#define __ipipe_set_irq_bit(ipd,cpuid,irq) \
++do { \
++	if (!test_bit(IPIPE_LOCK_FLAG,&(ipd)->irqs[irq].control)) { \
++		__set_bit(irq & IPIPE_IRQ_IMASK,&(ipd)->cpudata[cpuid].irq_pending_lo[irq >> IPIPE_IRQ_ISHIFT]); \
++		__set_bit(irq >> IPIPE_IRQ_ISHIFT,&(ipd)->cpudata[cpuid].irq_pending_hi); \
++	} \
++} while(0)
++
++#define __ipipe_clear_pend(ipd,cpuid,irq) \
++do { \
++	__clear_bit(irq & IPIPE_IRQ_IMASK,&(ipd)->cpudata[cpuid].irq_pending_lo[irq >> IPIPE_IRQ_ISHIFT]); \
++	if ((ipd)->cpudata[cpuid].irq_pending_lo[irq >> IPIPE_IRQ_ISHIFT] == 0) \
++		__clear_bit(irq >> IPIPE_IRQ_ISHIFT,&(ipd)->cpudata[cpuid].irq_pending_hi); \
++} while(0)
++
++#define __ipipe_lock_irq(ipd,cpuid,irq) \
++do { \
++	if (!test_and_set_bit(IPIPE_LOCK_FLAG,&(ipd)->irqs[irq].control)) \
++		__ipipe_clear_pend(ipd,cpuid,irq); \
++} while(0)
++
++#define __ipipe_unlock_irq(ipd,irq) \
++do { \
++	int __cpuid, __nr_cpus = num_online_cpus(); \
++	if (test_and_clear_bit(IPIPE_LOCK_FLAG,&(ipd)->irqs[irq].control)) \
++		for (__cpuid = 0; __cpuid < __nr_cpus; __cpuid++) \
++			if ((ipd)->cpudata[__cpuid].irq_counters[irq].pending_hits > 0) { /* We need atomic ops next. */ \
++				set_bit(irq & IPIPE_IRQ_IMASK,&(ipd)->cpudata[__cpuid].irq_pending_lo[irq >> IPIPE_IRQ_ISHIFT]); \
++				set_bit(irq >> IPIPE_IRQ_ISHIFT,&(ipd)->cpudata[__cpuid].irq_pending_hi); \
++			} \
++} while(0)
++
++#define __ipipe_clear_irq(ipd,irq) \
++do { \
++	int __cpuid, __nr_cpus = num_online_cpus(); \
++	clear_bit(IPIPE_LOCK_FLAG,&(ipd)->irqs[irq].control); \
++	for (__cpuid = 0; __cpuid < __nr_cpus; __cpuid++) { \
++		(ipd)->cpudata[__cpuid].irq_counters[irq].pending_hits = 0; \
++		__ipipe_clear_pend(ipd,__cpuid,irq); \
++	} \
++} while(0)
++
++#define spin_lock_hw(x)			spin_lock(x)
++#define spin_unlock_hw(x)		spin_unlock(x)
++#define spin_trylock_hw(x)		spin_trylock(x)
++#define write_lock_hw(x)		write_lock(x)
++#define write_unlock_hw(x)		write_unlock(x)
++#define write_trylock_hw(x)		write_trylock(x)
++#define read_lock_hw(x)			read_lock(x)
++#define read_unlock_hw(x)		read_unlock(x)
++
++typedef spinlock_t			ipipe_spinlock_t;
++typedef rwlock_t			ipipe_rwlock_t;
++#define IPIPE_SPIN_LOCK_UNLOCKED	SPIN_LOCK_UNLOCKED
++#define IPIPE_RW_LOCK_UNLOCKED		RW_LOCK_UNLOCKED
++
++#define spin_lock_irqsave_hw(x,flags)		\
++do {						\
++	local_irq_save_hw(flags);		\
++	spin_lock_hw(x);			\
++} while (0)
++
++#define spin_unlock_irqrestore_hw(x,flags)	\
++do {						\
++	spin_unlock_hw(x);			\
++	local_irq_restore_hw(flags);		\
++} while (0)
++
++#define spin_lock_irq_hw(x)			\
++do {						\
++	local_irq_disable_hw();			\
++	spin_lock_hw(x);			\
++} while (0)
++
++#define spin_unlock_irq_hw(x)			\
++do {						\
++	spin_unlock_hw(x);			\
++	local_irq_enable_hw();			\
++} while (0)
++
++#define read_lock_irqsave_hw(lock, flags)	\
++do {						\
++	local_irq_save_hw(flags);		\
++	read_lock_hw(lock);			\
++} while (0)
++
++#define read_unlock_irqrestore_hw(lock, flags)	\
++do {						\
++	read_unlock_hw(lock);			\
++	local_irq_restore_hw(flags);		\
++} while (0)
++
++#define write_lock_irqsave_hw(lock, flags)	\
++do {						\
++	local_irq_save_hw(flags);		\
++	write_lock_hw(lock);			\
++} while (0)
++
++#define write_unlock_irqrestore_hw(lock, flags)	\
++do {						\
++	write_unlock_hw(lock);			\
++	local_irq_restore_hw(flags);		\
++} while (0)
++
++extern struct ipipe_domain *ipipe_percpu_domain[];
++
++extern struct ipipe_domain ipipe_root;
++
++#define ipipe_root_domain (&ipipe_root)
++
++extern unsigned __ipipe_printk_virq;
++
++extern unsigned long __ipipe_virtual_irq_map;
++
++extern struct list_head __ipipe_pipeline;
++
++extern ipipe_spinlock_t __ipipe_pipelock;
++
++extern int __ipipe_event_monitors[];
++
++/* Private interface */
++
++void ipipe_init(void);
++
++#ifdef CONFIG_PROC_FS
++void ipipe_init_proc(void);
++#else	/* !CONFIG_PROC_FS */
++#define ipipe_init_proc()	do { } while(0)
++#endif	/* CONFIG_PROC_FS */
++
++void __ipipe_init_stage(struct ipipe_domain *ipd);
++
++void __ipipe_cleanup_domain(struct ipipe_domain *ipd);
++
++void __ipipe_add_domain_proc(struct ipipe_domain *ipd);
++
++void __ipipe_remove_domain_proc(struct ipipe_domain *ipd);
++
++void __ipipe_flush_printk(unsigned irq, void *cookie);
++
++void __ipipe_stall_root(void);
++
++void __ipipe_unstall_root(void);
++
++unsigned long __ipipe_test_root(void);
++
++unsigned long __ipipe_test_and_stall_root(void);
++
++void FASTCALL(__ipipe_walk_pipeline(struct list_head *pos, int cpuid));
++
++void FASTCALL(__ipipe_restore_root(unsigned long flags));
++
++int FASTCALL(__ipipe_schedule_irq(unsigned irq, struct list_head *head));
++
++int FASTCALL(__ipipe_dispatch_event(unsigned event, void *data));
++
++int FASTCALL(__ipipe_dispatch_wired(struct ipipe_domain *head, unsigned irq));
++
++void FASTCALL(__ipipe_sync_stage(unsigned long syncmask));
++
++#ifndef __ipipe_sync_pipeline
++#define __ipipe_sync_pipeline(syncmask) __ipipe_sync_stage(syncmask)
++#endif
++
++#ifndef __ipipe_run_irqtail
++#define __ipipe_run_irqtail() do { } while(0)
++#endif
++
++#define __ipipe_pipeline_head_p(ipd) (&(ipd)->p_link == __ipipe_pipeline.next)
++
++/*
++ * Keep the following as a macro, so that client code could check for
++ * the support of the invariant pipeline head optimization.
++ */
++#define __ipipe_pipeline_head() list_entry(__ipipe_pipeline.next,struct ipipe_domain,p_link)
++
++#define __ipipe_event_monitored_p(ev) \
++	(__ipipe_event_monitors[ev] > 0 || (ipipe_current_domain->evself & (1LL << ev)))
++
++#ifdef CONFIG_SMP
++
++cpumask_t __ipipe_set_irq_affinity(unsigned irq,
++				   cpumask_t cpumask);
++
++int FASTCALL(__ipipe_send_ipi(unsigned ipi,
++			      cpumask_t cpumask));
++
++#endif /* CONFIG_SMP */
++
++/* Called with hw interrupts off. */
++static inline void __ipipe_switch_to(struct ipipe_domain *out,
++				     struct ipipe_domain *in, int cpuid)
++{
++	void ipipe_suspend_domain(void);
++
++	/*
++	 * "in" is guaranteed to be closer than "out" from the head of the
++	 * pipeline (and obviously different).
++	 */
++
++	out->cpudata[cpuid].evsync = 0;
++	ipipe_percpu_domain[cpuid] = in;
++
++	ipipe_suspend_domain();	/* Sync stage and propagate interrupts. */
++	ipipe_load_cpuid();	/* Processor might have changed. */
++
++	if (ipipe_percpu_domain[cpuid] == in)
++		/*
++		 * Otherwise, something has changed the current domain under
++		 * our feet recycling the register set; do not override.
++		 */
++		ipipe_percpu_domain[cpuid] = out;
++}
++
++#define ipipe_sigwake_notify(p)	\
++do {					\
++	if (((p)->flags & PF_EVNOTIFY) && __ipipe_event_monitored_p(IPIPE_EVENT_SIGWAKE)) \
++		__ipipe_dispatch_event(IPIPE_EVENT_SIGWAKE,p);		\
++} while(0)
++
++#define ipipe_exit_notify(p)	\
++do {				\
++	if (((p)->flags & PF_EVNOTIFY) && __ipipe_event_monitored_p(IPIPE_EVENT_EXIT)) \
++		__ipipe_dispatch_event(IPIPE_EVENT_EXIT,p);		\
++} while(0)
++
++#define ipipe_setsched_notify(p)	\
++do {					\
++	if (((p)->flags & PF_EVNOTIFY) && __ipipe_event_monitored_p(IPIPE_EVENT_SETSCHED)) \
++		__ipipe_dispatch_event(IPIPE_EVENT_SETSCHED,p);		\
++} while(0)
++
++#define ipipe_schedule_notify(prev, next)				\
++do {									\
++	if ((((prev)->flags|(next)->flags) & PF_EVNOTIFY) &&		\
++	    __ipipe_event_monitored_p(IPIPE_EVENT_SCHEDULE))		\
++		__ipipe_dispatch_event(IPIPE_EVENT_SCHEDULE,next);	\
++} while(0)
++
++#define ipipe_trap_notify(ex, regs)		\
++({						\
++	ipipe_declare_cpuid;			\
++	int ret = 0;				\
++	ipipe_load_cpuid();			\
++	if ((test_bit(IPIPE_NOSTACK_FLAG, &ipipe_current_domain->cpudata[cpuid].status) || \
++	     ((current)->flags & PF_EVNOTIFY)) &&			\
++	    __ipipe_event_monitored_p(ex))				\
++		ret = __ipipe_dispatch_event(ex, regs);			\
++	ret;								\
++})
++
++static inline void ipipe_init_notify(struct task_struct *p)
++{
++	if (__ipipe_event_monitored_p(IPIPE_EVENT_INIT))
++		__ipipe_dispatch_event(IPIPE_EVENT_INIT,p);
++}
++
++struct mm_struct;
++
++static inline void ipipe_cleanup_notify(struct mm_struct *mm)
++{
++	if (__ipipe_event_monitored_p(IPIPE_EVENT_CLEANUP))
++		__ipipe_dispatch_event(IPIPE_EVENT_CLEANUP,mm);
++}
++
++/* Public interface */
++
++int ipipe_register_domain(struct ipipe_domain *ipd,
++			  struct ipipe_domain_attr *attr);
++
++int ipipe_unregister_domain(struct ipipe_domain *ipd);
++
++void ipipe_suspend_domain(void);
++
++int ipipe_virtualize_irq(struct ipipe_domain *ipd,
++			 unsigned irq,
++			 ipipe_irq_handler_t handler,
++			 void *cookie,
++			 ipipe_irq_ackfn_t acknowledge,
++			 unsigned modemask);
++
++static inline int ipipe_share_irq(unsigned irq,
++				  ipipe_irq_ackfn_t acknowledge)
++{
++	return ipipe_virtualize_irq(ipipe_current_domain,
++				    irq,
++				    IPIPE_SAME_HANDLER,
++				    NULL,
++				    acknowledge,
++				    IPIPE_SHARED_MASK | IPIPE_HANDLE_MASK |
++				    IPIPE_PASS_MASK);
++}
++
++int ipipe_control_irq(unsigned irq,
++		      unsigned clrmask,
++		      unsigned setmask);
++
++unsigned ipipe_alloc_virq(void);
++
++int ipipe_free_virq(unsigned virq);
++
++int FASTCALL(ipipe_trigger_irq(unsigned irq));
++
++static inline int ipipe_propagate_irq(unsigned irq)
++{
++	return __ipipe_schedule_irq(irq, ipipe_current_domain->p_link.next);
++}
++
++static inline int ipipe_schedule_irq(unsigned irq)
++{
++
++	return __ipipe_schedule_irq(irq, &ipipe_current_domain->p_link);
++}
++
++void FASTCALL(ipipe_stall_pipeline_from(struct ipipe_domain *ipd));
++
++unsigned long FASTCALL(ipipe_test_and_stall_pipeline_from(struct ipipe_domain *ipd));
++
++void FASTCALL(ipipe_unstall_pipeline_from(struct ipipe_domain *ipd));
++
++unsigned long FASTCALL(ipipe_test_and_unstall_pipeline_from(struct ipipe_domain *ipd));
++
++void FASTCALL(ipipe_restore_pipeline_from(struct ipipe_domain *ipd,
++					  unsigned long x));
++
++static inline unsigned long ipipe_test_pipeline_from(struct ipipe_domain *ipd)
++{
++	unsigned long flags, x;
++	ipipe_declare_cpuid;
++
++	ipipe_get_cpu(flags);
++	x = test_bit(IPIPE_STALL_FLAG, &ipd->cpudata[cpuid].status);
++	ipipe_put_cpu(flags);
++
++	return x;
++}
++
++static inline void ipipe_restore_pipeline_nosync(struct ipipe_domain *ipd,
++						 unsigned long x, int cpuid)
++{
++	/*
++	 * If cpuid is current, then it must be held on entry
++	 * (ipipe_get_cpu/local_irq_save_hw/local_irq_disable_hw).
++	 */
++
++	if (x)
++		__set_bit(IPIPE_STALL_FLAG, &ipd->cpudata[cpuid].status);
++	else
++		__clear_bit(IPIPE_STALL_FLAG, &ipd->cpudata[cpuid].status);
++}
++
++static inline void ipipe_stall_pipeline_head(void)
++{
++	ipipe_declare_cpuid;
++	unsigned long flags;
++
++	ipipe_lock_cpu(flags);
++	__set_bit(IPIPE_STALL_FLAG, &__ipipe_pipeline_head()->cpudata[cpuid].status);
++}
++
++static inline unsigned long ipipe_test_and_stall_pipeline_head(void)
++{
++	unsigned long flags;
++	ipipe_declare_cpuid;
++
++	ipipe_lock_cpu(flags);
++	return __test_and_set_bit(IPIPE_STALL_FLAG, &__ipipe_pipeline_head()->cpudata[cpuid].status);
++}
++
++void ipipe_unstall_pipeline_head(void);
++
++void FASTCALL(__ipipe_restore_pipeline_head(struct ipipe_domain *head,
++					    unsigned long x));
++
++static inline void ipipe_restore_pipeline_head(unsigned long x)
++{
++	struct ipipe_domain *head = __ipipe_pipeline_head();
++	/* On some archs, __test_and_set_bit() might return different
++	 * truth value than test_bit(), so we test the exclusive OR of
++	 * both statuses, assuming that the lowest bit is always set in
++	 * the truth value (if this is wrong, the failed optimization will
++	 * be caught in __ipipe_restore_pipeline_head() if
++	 * CONFIG_DEBUG_KERNEL is set). */
++	if ((x ^ test_bit(IPIPE_STALL_FLAG, &head->cpudata[ipipe_processor_id()].status)) & 1)
++		__ipipe_restore_pipeline_head(head,x);
++}
++
++#define ipipe_unstall_pipeline() \
++	ipipe_unstall_pipeline_from(ipipe_current_domain)
++
++#define ipipe_test_and_unstall_pipeline() \
++	ipipe_test_and_unstall_pipeline_from(ipipe_current_domain)
++
++#define ipipe_test_pipeline() \
++	ipipe_test_pipeline_from(ipipe_current_domain)
++
++#define ipipe_test_and_stall_pipeline() \
++	ipipe_test_and_stall_pipeline_from(ipipe_current_domain)
++
++#define ipipe_stall_pipeline() \
++	ipipe_stall_pipeline_from(ipipe_current_domain)
++
++#define ipipe_restore_pipeline(x) \
++	ipipe_restore_pipeline_from(ipipe_current_domain, (x))
++
++void ipipe_init_attr(struct ipipe_domain_attr *attr);
++
++int ipipe_get_sysinfo(struct ipipe_sysinfo *sysinfo);
++
++int ipipe_tune_timer(unsigned long ns,
++		     int flags);
++
++unsigned long ipipe_critical_enter(void (*syncfn) (void));
++
++void ipipe_critical_exit(unsigned long flags);
++
++static inline void ipipe_set_printk_sync(struct ipipe_domain *ipd)
++{
++	set_bit(IPIPE_SPRINTK_FLAG, &ipd->flags);
++}
++
++static inline void ipipe_set_printk_async(struct ipipe_domain *ipd)
++{
++	clear_bit(IPIPE_SPRINTK_FLAG, &ipd->flags);
++}
++
++static inline void ipipe_set_foreign_stack(struct ipipe_domain *ipd)
++{
++	/* Must be called hw interrupts off. */
++	ipipe_declare_cpuid;
++	__set_bit(IPIPE_NOSTACK_FLAG, &ipd->cpudata[cpuid].status);
++}
++
++static inline void ipipe_clear_foreign_stack(struct ipipe_domain *ipd)
++{
++	/* Must be called hw interrupts off. */
++	ipipe_declare_cpuid;
++	__clear_bit(IPIPE_NOSTACK_FLAG, &ipd->cpudata[cpuid].status);
++}
++
++#define ipipe_safe_current()					\
++({								\
++	ipipe_declare_cpuid;					\
++	struct task_struct *p;					\
++	ipipe_load_cpuid();					\
++	p = test_bit(IPIPE_NOSTACK_FLAG,			\
++		     &ipipe_percpu_domain[cpuid]->cpudata[cpuid].status) ? &init_task : current; \
++	p; \
++})
++
++ipipe_event_handler_t ipipe_catch_event(struct ipipe_domain *ipd,
++					unsigned event,
++					ipipe_event_handler_t handler);
++
++cpumask_t ipipe_set_irq_affinity(unsigned irq,
++				 cpumask_t cpumask);
++
++int FASTCALL(ipipe_send_ipi(unsigned ipi,
++			    cpumask_t cpumask));
++
++int ipipe_setscheduler_root(struct task_struct *p,
++			    int policy,
++			    int prio);
++
++int ipipe_reenter_root(struct task_struct *prev,
++		       int policy,
++		       int prio);
++
++int ipipe_alloc_ptdkey(void);
++
++int ipipe_free_ptdkey(int key);
++
++int FASTCALL(ipipe_set_ptd(int key,
++			   void *value));
++
++void *FASTCALL(ipipe_get_ptd(int key));
++
++#define local_irq_enable_hw_cond()		local_irq_enable_hw()
++#define local_irq_disable_hw_cond()		local_irq_disable_hw()
++#define local_irq_save_hw_cond(flags)	local_irq_save_hw(flags)
++#define local_irq_restore_hw_cond(flags)	local_irq_restore_hw(flags)
++
++#define local_irq_enable_nohead(ipd)			\
++	do {						\
++		if (!__ipipe_pipeline_head_p(ipd))	\
++			local_irq_enable_hw();		\
++	} while(0)
++
++#define local_irq_disable_nohead(ipd)		\
++	do {						\
++		if (!__ipipe_pipeline_head_p(ipd))	\
++			local_irq_disable_hw();		\
++	} while(0)
++
++#define spin_lock_irqsave_hw_cond(lock,flags)	spin_lock_irqsave_hw(lock,flags)
++#define spin_unlock_irqrestore_hw_cond(lock,flags) spin_unlock_irqrestore_hw(lock,flags)
++#define spin_lock_hw_cond(lock)			spin_lock_hw(lock)
++#define spin_unlock_hw_cond(lock)		spin_unlock_hw(lock)
++
++#define ipipe_irq_lock(irq)						\
++	do {								\
++		ipipe_declare_cpuid;					\
++		ipipe_load_cpuid();					\
++		__ipipe_lock_irq(ipipe_percpu_domain[cpuid], cpuid, irq);\
++	} while(0)
++
++#define ipipe_irq_unlock(irq)						\
++	do {								\
++		ipipe_declare_cpuid;					\
++		ipipe_load_cpuid();					\
++		__ipipe_unlock_irq(ipipe_percpu_domain[cpuid], irq);	\
++	} while(0)
++
++#define ipipe_root_domain_p		(ipipe_current_domain == ipipe_root_domain)
++
++#else	/* !CONFIG_IPIPE */
++
++#define ipipe_root_domain_p		1
++
++#define ipipe_init()			do { } while(0)
++#define ipipe_suspend_domain()	do { } while(0)
++#define ipipe_sigwake_notify(p)	do { } while(0)
++#define ipipe_setsched_notify(p)	do { } while(0)
++#define ipipe_init_notify(p)		do { } while(0)
++#define ipipe_exit_notify(p)		do { } while(0)
++#define ipipe_trap_notify(t,r)	0
++#define ipipe_cleanup_notify(mm)	do { } while(0)
++#define ipipe_init_proc()		do { } while(0)
++
++#define spin_lock_hw(lock)			spin_lock(lock)
++#define spin_unlock_hw(lock)			spin_unlock(lock)
++#define spin_lock_irq_hw(lock)		spin_lock_irq(lock)
++#define spin_unlock_irq_hw(lock)		spin_unlock_irq(lock)
++#define spin_lock_irqsave_hw(lock,flags)	spin_lock_irqsave(lock, flags)
++#define spin_unlock_irqrestore_hw(lock,flags)	spin_unlock_irqrestore(lock, flags)
++
++#define local_irq_enable_hw_cond()		do { } while(0)
++#define local_irq_disable_hw_cond()		do { } while(0)
++#define local_irq_save_hw_cond(flags)	do { (void)(flags); } while(0)
++#define local_irq_restore_hw_cond(flags)	do { } while(0)
++#define spin_lock_irqsave_hw_cond(lock,flags)	do { (void)(flags); spin_lock(lock); } while(0)
++#define spin_unlock_irqrestore_hw_cond(lock,flags)	spin_unlock(lock)
++#define spin_lock_hw_cond(lock)		do { } while(0)
++#define spin_unlock_hw_cond(lock)		do { } while(0)
++
++#define ipipe_irq_lock(irq)		do { } while(0)
++#define ipipe_irq_unlock(irq)		do { } while(0)
++
++#endif	/* CONFIG_IPIPE */
++
++#endif	/* !__LINUX_IPIPE_H */
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index fd9560d..f5fff36 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -6,6 +6,7 @@
+ extern unsigned long event;
+ 
+ #include <linux/config.h>
++#include <linux/ipipe.h>
+ #include <linux/binfmts.h>
+ #include <linux/threads.h>
+ #include <linux/kernel.h>
+@@ -91,6 +92,11 @@ extern int last_pid;
+ #define TASK_UNINTERRUPTIBLE	2
+ #define TASK_ZOMBIE		4
+ #define TASK_STOPPED		8
++#ifdef CONFIG_IPIPE
++#define TASK_NOWAKEUP          1024
++#else  /* !CONFIG_IPIPE */
++#define TASK_NOWAKEUP          0
++#endif /* CONFIG_IPIPE */
+ 
+ #define __set_task_state(tsk, state_value)		\
+ 	do { (tsk)->state = (state_value); } while (0)
+@@ -418,6 +424,9 @@ struct task_struct {
+ #ifdef CONFIG_SHOW_PNAME_ON_DISPLAY
+ 	char PName[8]; /* 8 characters from the ProcessName for the Display */
+ #endif
++#ifdef CONFIG_IPIPE
++        void *ptd[IPIPE_ROOT_NPTDKEYS];
++#endif
+ };
+ 
+ /*
+@@ -438,6 +447,11 @@ struct task_struct {
+ #define PF_FSTRANS	0x00008000	/* inside a filesystem transaction */
+ 
+ #define PF_USEDFPU	0x00100000	/* task used FPU this quantum (SMP) */
++#ifdef CONFIG_IPIPE
++#define PF_EVNOTIFY    0x40000000	/* Notify other domains about internal events */
++#else
++#define PF_EVNOTIFY    0
++#endif /* CONFIG_IPIPE */
+ 
+ /*
+  * Ptrace flags
+diff --git a/init/main.c b/init/main.c
+index 510efe9..da69da1 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -412,6 +412,11 @@ asmlinkage void __init start_kernel(void)
+ 	softirq_init();
+ 	time_init();
+ 	WATCHDOG_RESET;
++	/*
++	 * We need to wait for the interrupt and time subsystems to be
++	 * initialized before enabling the pipeline.
++	 */
++ 	ipipe_init();
+ 
+ 	/*
+ 	 * HACK ALERT! This is early. We're enabling the console before
+@@ -548,6 +553,7 @@ static void __init do_basic_setup(void)
+ #ifdef CONFIG_SYSCTL
+ 	sysctl_init();
+ #endif
++	ipipe_init_proc();
+ 
+ 	/*
+ 	 * Ok, at this point all CPU's should be initialized, so
+diff --git a/kernel/Makefile b/kernel/Makefile
+index 02c4d3a..3985e7a 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -16,6 +16,7 @@ obj-y     = sched.o dma.o fork.o exec_domain.o panic.o printk.o \
+ 	    sysctl.o acct.o capability.o ptrace.o timer.o user.o \
+ 	    signal.o sys.o kmod.o context.o
+ 
++obj-$(CONFIG_IPIPE) += ipipe/ipipe.o
+ obj-$(CONFIG_UID16) += uid16.o
+ obj-$(CONFIG_MODULES) += ksyms.o
+ obj-$(CONFIG_PM) += pm.o
+@@ -29,4 +30,6 @@ ifneq ($(CONFIG_IA64),y)
+ CFLAGS_sched.o := $(PROFILING) -fno-omit-frame-pointer
+ endif
+ 
++subdir-$(CONFIG_IPIPE) += ipipe
++
+ include $(TOPDIR)/Rules.make
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 35283a3..719b506 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -439,6 +439,7 @@ fake_volatile:
+ #ifdef CONFIG_BSD_PROCESS_ACCT
+ 	acct_process(code);
+ #endif
++ 	ipipe_exit_notify(tsk);
+ 	__exit_mm(tsk);
+ 
+ 	lock_kernel();
+diff --git a/kernel/fork.c b/kernel/fork.c
+index c146ad4..0cdcc53 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -239,7 +239,9 @@ static struct mm_struct * mm_init(struct mm_struct * mm)
+ 	atomic_set(&mm->mm_count, 1);
+ 	init_rwsem(&mm->mmap_sem);
+ 	mm->page_table_lock = SPIN_LOCK_UNLOCKED;
++	spin_lock_hw_cond(&init_mm.page_table_lock);
+ 	mm->pgd = pgd_alloc(mm);
++	spin_unlock_hw_cond(&init_mm.page_table_lock);
+ 	mm->def_flags = 0;
+ 	if (mm->pgd)
+ 		return mm;
+@@ -270,9 +272,13 @@ struct mm_struct * mm_alloc(void)
+  */
+ void __mmdrop(struct mm_struct *mm)
+ {
++    	unsigned long flags;
+ 	BUG_ON(mm == &init_mm);
++	spin_lock_irqsave_hw_cond(&init_mm.page_table_lock,flags);
++	local_irq_enable_hw_cond();
+ 	pgd_free(mm->pgd);
+ 	check_pgt_cache();
++	spin_unlock_irqrestore_hw_cond(&init_mm.page_table_lock,flags);
+ 	destroy_context(mm);
+ 	free_mm(mm);
+ }
+@@ -284,6 +290,7 @@ void mmput(struct mm_struct *mm)
+ {
+ 	if (atomic_dec_and_lock(&mm->mm_users, &mmlist_lock)) {
+ 		extern struct mm_struct *swap_mm;
++		ipipe_cleanup_notify(mm);
+ 		if (swap_mm == mm)
+ 			swap_mm = list_entry(mm->mmlist.next, struct mm_struct, mmlist);
+ 		list_del(&mm->mmlist);
+@@ -598,7 +605,7 @@ static inline void copy_flags(unsigned long clone_flags, struct task_struct *p)
+ {
+ 	unsigned long new_flags = p->flags;
+ 
+-	new_flags &= ~(PF_SUPERPRIV | PF_USEDFPU);
++	new_flags &= ~(PF_SUPERPRIV | PF_USEDFPU | PF_EVNOTIFY);
+ 	new_flags |= PF_FORKNOEXEC;
+ 	if (!(clone_flags & CLONE_PTRACE))
+ 		p->ptrace = 0;
+@@ -828,6 +835,14 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
+ 		}
+ 	}
+ #endif
++#ifdef CONFIG_IPIPE
++	{
++	int k;
++
++	for (k = 0; k < IPIPE_ROOT_NPTDKEYS; k++)
++	    p->ptd[k] = NULL;
++	}
++#endif /* CONFIG_IPIPE */
+ 	wake_up_process(p);		/* do this last */
+ 	++total_forks;
+ 	if (clone_flags & CLONE_VFORK)
+diff --git a/kernel/ipipe/Makefile b/kernel/ipipe/Makefile
+new file mode 100644
+index 0000000..fcce2f8
+--- /dev/null
++++ b/kernel/ipipe/Makefile
+@@ -0,0 +1,7 @@
++O_TARGET := ipipe.o
++
++obj-y := core.o generic.o
++
++export-objs := $(obj-y)
++
++include $(TOPDIR)/Rules.make
+diff --git a/kernel/ipipe/core.c b/kernel/ipipe/core.c
+new file mode 100644
+index 0000000..37418d1
+--- /dev/null
++++ b/kernel/ipipe/core.c
+@@ -0,0 +1,1054 @@
++/* -*- linux-c -*-
++ * linux/kernel/ipipe/core.c
++ *
++ * Copyright (C) 2002-2005 Philippe Gerum.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
++ * USA; either version 2 of the License, or (at your option) any later
++ * version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Architecture-independent I-PIPE core support.
++ */
++
++#include <linux/sched.h>
++#include <linux/module.h>
++#include <linux/irq.h>
++#include <linux/bitops.h>
++#include <linux/ipipe.h>
++#include <linux/interrupt.h>
++#ifdef CONFIG_PROC_FS
++#include <linux/proc_fs.h>
++#endif	/* CONFIG_PROC_FS */
++
++struct ipipe_domain ipipe_root =
++	{ .cpudata = {[0 ... IPIPE_NR_CPUS-1] =
++		{ .status = (1<<IPIPE_STALL_FLAG) } } };
++
++struct ipipe_domain *ipipe_percpu_domain[IPIPE_NR_CPUS] =
++	{[0 ... IPIPE_NR_CPUS - 1] = &ipipe_root };
++
++ipipe_spinlock_t __ipipe_pipelock = IPIPE_SPIN_LOCK_UNLOCKED;
++
++struct list_head __ipipe_pipeline;
++
++unsigned long __ipipe_virtual_irq_map = 0;
++
++unsigned __ipipe_printk_virq;
++
++int __ipipe_event_monitors[IPIPE_NR_EVENTS];
++
++/*
++ * ipipe_init() -- Initialization routine of the IPIPE layer. Called
++ * by the host kernel early during the boot procedure.
++ */
++void ipipe_init(void)
++{
++	struct ipipe_domain *ipd = &ipipe_root;
++
++	__ipipe_check_platform();	/* Do platform dependent checks first. */
++
++	/*
++	 * A lightweight registration code for the root domain. We are
++	 * running on the boot CPU, hw interrupts are off, and
++	 * secondary CPUs are still lost in space.
++	 */
++
++	INIT_LIST_HEAD(&__ipipe_pipeline);
++
++	ipd->name = "Linux";
++	ipd->domid = IPIPE_ROOT_ID;
++	ipd->priority = IPIPE_ROOT_PRIO;
++
++	__ipipe_init_stage(ipd);
++
++	INIT_LIST_HEAD(&ipd->p_link);
++	list_add_tail(&ipd->p_link, &__ipipe_pipeline);
++
++	__ipipe_init_platform();
++
++	__ipipe_printk_virq = ipipe_alloc_virq();	/* Cannot fail here. */
++	ipd->irqs[__ipipe_printk_virq].handler = &__ipipe_flush_printk;
++	ipd->irqs[__ipipe_printk_virq].cookie = NULL;
++	ipd->irqs[__ipipe_printk_virq].acknowledge = NULL;
++	ipd->irqs[__ipipe_printk_virq].control = IPIPE_HANDLE_MASK;
++
++	__ipipe_enable_pipeline();
++
++	printk(KERN_INFO "I-pipe %s: pipeline enabled.\n",
++	       IPIPE_VERSION_STRING);
++}
++
++void __ipipe_init_stage(struct ipipe_domain *ipd)
++{
++	int cpuid, n;
++
++	for (cpuid = 0; cpuid < IPIPE_NR_CPUS; cpuid++) {
++		ipd->cpudata[cpuid].irq_pending_hi = 0;
++
++		for (n = 0; n < IPIPE_IRQ_IWORDS; n++)
++			ipd->cpudata[cpuid].irq_pending_lo[n] = 0;
++
++		for (n = 0; n < IPIPE_NR_IRQS; n++) {
++			ipd->cpudata[cpuid].irq_counters[n].pending_hits = 0;
++			ipd->cpudata[cpuid].irq_counters[n].total_hits = 0;
++		}
++		ipd->cpudata[cpuid].evsync = 0;
++	}
++
++	for (n = 0; n < IPIPE_NR_IRQS; n++) {
++		ipd->irqs[n].acknowledge = NULL;
++		ipd->irqs[n].handler = NULL;
++		ipd->irqs[n].control = IPIPE_PASS_MASK;	/* Pass but don't handle */
++	}
++
++	for (n = 0; n < IPIPE_NR_EVENTS; n++)
++		ipd->evhand[n] = NULL;
++
++	ipd->evself = 0;
++
++#ifdef CONFIG_SMP
++	ipd->irqs[IPIPE_CRITICAL_IPI].acknowledge = &__ipipe_ack_system_irq;
++	ipd->irqs[IPIPE_CRITICAL_IPI].handler = &__ipipe_do_critical_sync;
++	ipd->irqs[IPIPE_CRITICAL_IPI].cookie = NULL;
++	/* Immediately handle in the current domain but *never* pass */
++	ipd->irqs[IPIPE_CRITICAL_IPI].control =
++		IPIPE_HANDLE_MASK|IPIPE_STICKY_MASK|IPIPE_SYSTEM_MASK;
++#endif	/* CONFIG_SMP */
++}
++
++void __ipipe_cleanup_domain(struct ipipe_domain *ipd)
++{
++	ipipe_unstall_pipeline_from(ipd);
++
++#ifdef CONFIG_SMP
++	{
++		int cpu;
++
++		for_each_online_cpu(cpu) {
++			while (ipd->cpudata[cpu].irq_pending_hi != 0)
++				cpu_relax();
++		}
++	}
++#endif	/* CONFIG_SMP */
++}
++
++void __ipipe_stall_root(void)
++{
++	ipipe_declare_cpuid;
++	unsigned long flags;
++
++	ipipe_get_cpu(flags); /* Care for migration. */
++	set_bit(IPIPE_STALL_FLAG, &ipipe_root_domain->cpudata[cpuid].status);
++	ipipe_put_cpu(flags);
++}
++
++void __ipipe_unstall_root(void)
++{
++	ipipe_declare_cpuid;
++
++	local_irq_disable_hw();
++
++	ipipe_load_cpuid();
++
++	__clear_bit(IPIPE_STALL_FLAG, &ipipe_root_domain->cpudata[cpuid].status);
++
++	if (unlikely(ipipe_root_domain->cpudata[cpuid].irq_pending_hi != 0))
++		__ipipe_sync_pipeline(IPIPE_IRQMASK_ANY);
++
++	local_irq_enable_hw();
++}
++
++unsigned long __ipipe_test_root(void)
++{
++	unsigned long flags, x;
++	ipipe_declare_cpuid;
++
++	ipipe_get_cpu(flags); /* Care for migration. */
++	x = test_bit(IPIPE_STALL_FLAG, &ipipe_root_domain->cpudata[cpuid].status);
++	ipipe_put_cpu(flags);
++
++	return x;
++}
++
++unsigned long __ipipe_test_and_stall_root(void)
++{
++	unsigned long flags, x;
++	ipipe_declare_cpuid;
++
++	ipipe_get_cpu(flags); /* Care for migration. */
++	x = test_and_set_bit(IPIPE_STALL_FLAG,
++			     &ipipe_root_domain->cpudata[cpuid].status);
++	ipipe_put_cpu(flags);
++
++	return x;
++}
++
++void fastcall __ipipe_restore_root(unsigned long x)
++{
++	if (x)
++		__ipipe_stall_root();
++	else
++		__ipipe_unstall_root();
++}
++
++void fastcall ipipe_stall_pipeline_from(struct ipipe_domain *ipd)
++{
++	ipipe_declare_cpuid;
++#ifdef CONFIG_SMP
++	unsigned long flags;
++
++	ipipe_lock_cpu(flags); /* Care for migration. */
++
++	__set_bit(IPIPE_STALL_FLAG, &ipd->cpudata[cpuid].status);
++
++	if (!__ipipe_pipeline_head_p(ipd))
++		ipipe_unlock_cpu(flags);
++#else	/* CONFIG_SMP */
++	set_bit(IPIPE_STALL_FLAG, &ipd->cpudata[cpuid].status);
++
++	if (__ipipe_pipeline_head_p(ipd))
++		local_irq_disable_hw();
++#endif	/* CONFIG_SMP */
++}
++
++unsigned long fastcall ipipe_test_and_stall_pipeline_from(struct ipipe_domain *ipd)
++{
++	ipipe_declare_cpuid;
++	unsigned long s;
++#ifdef CONFIG_SMP
++	unsigned long flags;
++
++	ipipe_lock_cpu(flags); /* Care for migration. */
++
++	s = __test_and_set_bit(IPIPE_STALL_FLAG, &ipd->cpudata[cpuid].status);
++
++	if (!__ipipe_pipeline_head_p(ipd))
++		ipipe_unlock_cpu(flags);
++#else	/* CONFIG_SMP */
++	s = test_and_set_bit(IPIPE_STALL_FLAG, &ipd->cpudata[cpuid].status);
++
++	if (__ipipe_pipeline_head_p(ipd))
++		local_irq_disable_hw();
++#endif	/* CONFIG_SMP */
++
++	return s;
++}
++
++/*
++ * ipipe_unstall_pipeline_from() -- Unstall the pipeline and
++ * synchronize pending interrupts for a given domain. See
++ * __ipipe_walk_pipeline() for more information.
++ */
++void fastcall ipipe_unstall_pipeline_from(struct ipipe_domain *ipd)
++{
++	struct list_head *pos;
++	unsigned long flags;
++	ipipe_declare_cpuid;
++
++	ipipe_lock_cpu(flags);
++
++	__clear_bit(IPIPE_STALL_FLAG, &ipd->cpudata[cpuid].status);
++
++	if (ipd == ipipe_percpu_domain[cpuid])
++		pos = &ipd->p_link;
++	else
++		pos = __ipipe_pipeline.next;
++
++	__ipipe_walk_pipeline(pos, cpuid);
++
++	if (__ipipe_pipeline_head_p(ipd))
++		local_irq_enable_hw();
++	else
++		ipipe_unlock_cpu(flags);
++}
++
++unsigned long fastcall ipipe_test_and_unstall_pipeline_from(struct ipipe_domain *ipd)
++{
++	unsigned long flags, x;
++	ipipe_declare_cpuid;
++
++	ipipe_get_cpu(flags);
++	x = test_bit(IPIPE_STALL_FLAG, &ipd->cpudata[cpuid].status);
++	ipipe_unstall_pipeline_from(ipd);
++	ipipe_put_cpu(flags);
++
++	return x;
++}
++
++void fastcall ipipe_restore_pipeline_from(struct ipipe_domain *ipd,
++					  unsigned long x)
++{
++	if (x)
++		ipipe_stall_pipeline_from(ipd);
++	else
++		ipipe_unstall_pipeline_from(ipd);
++}
++
++void ipipe_unstall_pipeline_head(void)
++{
++	struct ipipe_domain *head;
++	unsigned long flags;
++	ipipe_declare_cpuid;
++
++	ipipe_lock_cpu(flags);
++	head = __ipipe_pipeline_head();
++	__clear_bit(IPIPE_STALL_FLAG, &head->cpudata[cpuid].status);
++
++	if (unlikely(head->cpudata[cpuid].irq_pending_hi != 0)) {
++		if (likely(head == ipipe_percpu_domain[cpuid]))
++			__ipipe_sync_pipeline(IPIPE_IRQMASK_ANY);
++		else
++			__ipipe_walk_pipeline(&head->p_link, cpuid);
++        }
++
++	local_irq_enable_hw();
++}
++
++void fastcall __ipipe_restore_pipeline_head(struct ipipe_domain *head, unsigned long x)
++{
++	ipipe_declare_cpuid;
++	unsigned long flags;
++
++	ipipe_get_cpu(flags);
++
++	if (x) {
++#ifdef CONFIG_DEBUG_KERNEL
++		static int warned;
++		if (!warned && test_and_set_bit(IPIPE_STALL_FLAG, &head->cpudata[cpuid].status)) {
++			/*
++			 * Already stalled albeit ipipe_restore_pipeline_head()
++			 * should have detected it? Send a warning once.\n");
++			 */
++			warned = 1;
++			printk(KERN_WARNING
++				   "I-pipe: ipipe_restore_pipeline_head() optimization failed.\n");
++			dump_stack();
++		}
++#else /* !CONFIG_DEBUG_KERNEL */
++		set_bit(IPIPE_STALL_FLAG, &head->cpudata[cpuid].status);
++#endif /* CONFIG_DEBUG_KERNEL */
++	}
++	else {
++		/* Hw interrupts must be off already. */
++		__clear_bit(IPIPE_STALL_FLAG, &head->cpudata[cpuid].status);
++		if (unlikely(head->cpudata[cpuid].irq_pending_hi != 0)) {
++			if (likely(head == ipipe_percpu_domain[cpuid]))
++				__ipipe_sync_pipeline(IPIPE_IRQMASK_ANY);
++			else
++				__ipipe_walk_pipeline(&head->p_link, cpuid);
++		}
++		local_irq_enable_hw();
++	}
++}
++
++/* __ipipe_walk_pipeline(): Plays interrupts pending in the log. Must
++   be called with local hw interrupts disabled. */
++
++void fastcall __ipipe_walk_pipeline(struct list_head *pos, int cpuid)
++{
++	struct ipipe_domain *this_domain = ipipe_percpu_domain[cpuid];
++
++	while (pos != &__ipipe_pipeline) {
++		struct ipipe_domain *next_domain =
++		    list_entry(pos, struct ipipe_domain, p_link);
++
++		if (test_bit
++		    (IPIPE_STALL_FLAG, &next_domain->cpudata[cpuid].status))
++			break;	/* Stalled stage -- do not go further. */
++
++		if (next_domain->cpudata[cpuid].irq_pending_hi != 0) {
++
++			if (next_domain == this_domain)
++				__ipipe_sync_stage(IPIPE_IRQMASK_ANY);
++			else {
++				__ipipe_switch_to(this_domain, next_domain,
++						  cpuid);
++
++				ipipe_load_cpuid();	/* Processor might have changed. */
++
++				if (this_domain->cpudata[cpuid].
++				    irq_pending_hi != 0
++				    && !test_bit(IPIPE_STALL_FLAG,
++						 &this_domain->cpudata[cpuid].status))
++					__ipipe_sync_stage(IPIPE_IRQMASK_ANY);
++			}
++
++			break;
++		} else if (next_domain == this_domain)
++			break;
++
++		pos = next_domain->p_link.next;
++	}
++}
++
++/*
++ * ipipe_suspend_domain() -- Suspend the current domain, switching to
++ * the next one which has pending work down the pipeline.
++ */
++void ipipe_suspend_domain(void)
++{
++	struct ipipe_domain *this_domain, *next_domain;
++	struct list_head *ln;
++	unsigned long flags;
++	ipipe_declare_cpuid;
++
++	ipipe_lock_cpu(flags);
++
++	this_domain = next_domain = ipipe_percpu_domain[cpuid];
++
++	__clear_bit(IPIPE_STALL_FLAG, &this_domain->cpudata[cpuid].status);
++
++	if (this_domain->cpudata[cpuid].irq_pending_hi != 0)
++		goto sync_stage;
++
++	for (;;) {
++		ln = next_domain->p_link.next;
++
++		if (ln == &__ipipe_pipeline)
++			break;
++
++		next_domain = list_entry(ln, struct ipipe_domain, p_link);
++
++		if (test_bit(IPIPE_STALL_FLAG,
++			     &next_domain->cpudata[cpuid].status))
++			break;
++
++		if (next_domain->cpudata[cpuid].irq_pending_hi == 0)
++			continue;
++
++		ipipe_percpu_domain[cpuid] = next_domain;
++
++sync_stage:
++
++		__ipipe_sync_stage(IPIPE_IRQMASK_ANY);
++
++		ipipe_load_cpuid();	/* Processor might have changed. */
++
++		if (ipipe_percpu_domain[cpuid] != next_domain)
++			/*
++			 * Something has changed the current domain under our
++			 * feet, recycling the register set; take note.
++			 */
++			this_domain = ipipe_percpu_domain[cpuid];
++	}
++
++	ipipe_percpu_domain[cpuid] = this_domain;
++
++	ipipe_unlock_cpu(flags);
++}
++
++/* ipipe_alloc_virq() -- Allocate a pipelined virtual/soft interrupt.
++ * Virtual interrupts are handled in exactly the same way than their
++ * hw-generated counterparts wrt pipelining.
++ */
++unsigned ipipe_alloc_virq(void)
++{
++	unsigned long flags, irq = 0;
++	int ipos;
++
++	spin_lock_irqsave_hw(&__ipipe_pipelock, flags);
++
++	if (__ipipe_virtual_irq_map != ~0) {
++		ipos = ffz(__ipipe_virtual_irq_map);
++		set_bit(ipos, &__ipipe_virtual_irq_map);
++		irq = ipos + IPIPE_VIRQ_BASE;
++	}
++
++	spin_unlock_irqrestore_hw(&__ipipe_pipelock, flags);
++
++	return irq;
++}
++
++/*
++ * ipipe_virtualize_irq() -- Attach a handler (and optionally a hw
++ * acknowledge routine) to an interrupt for the given domain.
++ */
++
++int ipipe_virtualize_irq(struct ipipe_domain *ipd,
++			 unsigned irq,
++			 ipipe_irq_handler_t handler,
++			 void *cookie,
++			 ipipe_irq_ackfn_t acknowledge,
++			 unsigned modemask)
++{
++	unsigned long flags;
++	int err;
++
++	if (irq >= IPIPE_NR_IRQS)
++		return -EINVAL;
++
++	if (ipd->irqs[irq].control & IPIPE_SYSTEM_MASK)
++		return -EPERM;
++
++	if (!test_bit(IPIPE_AHEAD_FLAG, &ipd->flags))
++		/* Silently unwire interrupts for non-heading domains. */
++		modemask &= ~IPIPE_WIRED_MASK;
++
++	spin_lock_irqsave_hw(&__ipipe_pipelock, flags);
++
++	if (handler != NULL) {
++
++		if (handler == IPIPE_SAME_HANDLER) {
++			handler = ipd->irqs[irq].handler;
++			cookie = ipd->irqs[irq].cookie;
++
++			if (handler == NULL) {
++				err = -EINVAL;
++				goto unlock_and_exit;
++			}
++		} else if ((modemask & IPIPE_EXCLUSIVE_MASK) != 0 &&
++			   ipd->irqs[irq].handler != NULL) {
++			err = -EBUSY;
++			goto unlock_and_exit;
++		}
++
++		if ((modemask & (IPIPE_SHARED_MASK | IPIPE_PASS_MASK)) ==
++		    IPIPE_SHARED_MASK) {
++			err = -EINVAL;
++			goto unlock_and_exit;
++		}
++
++		/* Wired interrupts can only be delivered to domains
++		 * always heading the pipeline. */
++
++		if ((modemask & IPIPE_WIRED_MASK) != 0) {
++			if ((modemask & (IPIPE_SHARED_MASK | IPIPE_PASS_MASK | IPIPE_STICKY_MASK)) != 0) {
++				err = -EINVAL;
++				goto unlock_and_exit;
++			}
++			modemask |= (IPIPE_HANDLE_MASK);
++		}
++
++		if ((modemask & IPIPE_STICKY_MASK) != 0)
++			modemask |= IPIPE_HANDLE_MASK;
++	} else
++		modemask &=
++		    ~(IPIPE_HANDLE_MASK | IPIPE_STICKY_MASK |
++		      IPIPE_SHARED_MASK | IPIPE_EXCLUSIVE_MASK | IPIPE_WIRED_MASK);
++
++	if (acknowledge == NULL) {
++		if ((modemask & IPIPE_SHARED_MASK) == 0) {
++			if (!ipipe_virtual_irq_p(irq)) {
++				/* Acknowledge handler unspecified for a hw
++				   interrupt -- this is ok in non-shared
++				   management mode, but we will force the use
++				   of the Linux-defined handler instead. */
++				acknowledge = ipipe_root_domain->irqs[irq].acknowledge;
++			}
++		}
++		else {
++			/* A valid acknowledge handler to be called in shared mode
++			   is required when declaring a shared IRQ. */
++			err = -EINVAL;
++			goto unlock_and_exit;
++		}
++	}
++
++	ipd->irqs[irq].handler = handler;
++	ipd->irqs[irq].cookie = cookie;
++	ipd->irqs[irq].acknowledge = acknowledge;
++	ipd->irqs[irq].control = modemask;
++
++	if (irq < NR_IRQS && handler != NULL && !ipipe_virtual_irq_p(irq)) {
++		__ipipe_enable_irqdesc(irq);
++
++		if ((modemask & IPIPE_ENABLE_MASK) != 0) {
++			if (ipd != ipipe_current_domain) {
++				/* IRQ enable/disable state is domain-sensitive, so we may
++				   not change it for another domain. What is allowed
++				   however is forcing some domain to handle an interrupt
++				   source, by passing the proper 'ipd' descriptor which
++				   thus may be different from ipipe_current_domain. */
++				err = -EPERM;
++				goto unlock_and_exit;
++			}
++			
++			__ipipe_enable_irq(irq);
++		}
++	}
++
++	err = 0;
++
++      unlock_and_exit:
++
++	spin_unlock_irqrestore_hw(&__ipipe_pipelock, flags);
++
++	return err;
++}
++
++/* ipipe_control_irq() -- Change modes of a pipelined interrupt for
++ * the current domain. */
++
++int ipipe_control_irq(unsigned irq, unsigned clrmask, unsigned setmask)
++{
++	unsigned long flags;
++
++	if (irq >= IPIPE_NR_IRQS)
++		return -EINVAL;
++
++	if (ipipe_current_domain->irqs[irq].control & IPIPE_SYSTEM_MASK)
++		return -EPERM;
++
++	if (((setmask | clrmask) & IPIPE_SHARED_MASK) != 0)
++		return -EINVAL;
++
++	if (ipipe_current_domain->irqs[irq].handler == NULL)
++		setmask &= ~(IPIPE_HANDLE_MASK | IPIPE_STICKY_MASK);
++
++	if ((setmask & IPIPE_STICKY_MASK) != 0)
++		setmask |= IPIPE_HANDLE_MASK;
++
++	if ((clrmask & (IPIPE_HANDLE_MASK | IPIPE_STICKY_MASK)) != 0)	/* If one goes, both go. */
++		clrmask |= (IPIPE_HANDLE_MASK | IPIPE_STICKY_MASK);
++
++	spin_lock_irqsave_hw(&__ipipe_pipelock, flags);
++
++	ipipe_current_domain->irqs[irq].control &= ~clrmask;
++	ipipe_current_domain->irqs[irq].control |= setmask;
++
++	if ((setmask & IPIPE_ENABLE_MASK) != 0)
++		__ipipe_enable_irq(irq);
++	else if ((clrmask & IPIPE_ENABLE_MASK) != 0)
++		__ipipe_disable_irq(irq);
++
++	spin_unlock_irqrestore_hw(&__ipipe_pipelock, flags);
++
++	return 0;
++}
++
++/* __ipipe_dispatch_event() -- Low-level event dispatcher. */
++
++int fastcall __ipipe_dispatch_event (unsigned event, void *data)
++{
++	struct ipipe_domain *start_domain, *this_domain, *next_domain;
++	ipipe_event_handler_t evhand;
++	struct list_head *pos, *npos;
++	unsigned long flags;
++	ipipe_declare_cpuid;
++	int propagate = 1;
++
++	ipipe_lock_cpu(flags);
++
++	start_domain = this_domain = ipipe_percpu_domain[cpuid];
++
++	list_for_each_safe(pos,npos,&__ipipe_pipeline) {
++
++		/*
++		 * Note: Domain migration may occur while running
++		 * event or interrupt handlers, in which case the
++		 * current register set is going to be recycled for a
++		 * different domain than the initiating one. We do
++		 * care for that, always tracking the current domain
++		 * descriptor upon return from those handlers.
++		 */
++		next_domain = list_entry(pos,struct ipipe_domain,p_link);
++
++		/*
++		 * Keep a cached copy of the handler's address since
++		 * ipipe_catch_event() may clear it under our feet.
++		 */
++
++		evhand = next_domain->evhand[event];
++
++		if (evhand != NULL) {
++			ipipe_percpu_domain[cpuid] = next_domain;
++			next_domain->cpudata[cpuid].evsync |= (1LL << event);
++			ipipe_unlock_cpu(flags);
++			propagate = !evhand(event,start_domain,data);
++			ipipe_lock_cpu(flags);
++			next_domain->cpudata[cpuid].evsync &= ~(1LL << event);
++			if (ipipe_percpu_domain[cpuid] != next_domain)
++				this_domain = ipipe_percpu_domain[cpuid];
++		}
++
++		if (next_domain != ipipe_root_domain &&	/* NEVER sync the root stage here. */
++		    next_domain->cpudata[cpuid].irq_pending_hi != 0 &&
++		    !test_bit(IPIPE_STALL_FLAG,&next_domain->cpudata[cpuid].status)) {
++			ipipe_percpu_domain[cpuid] = next_domain;
++			__ipipe_sync_pipeline(IPIPE_IRQMASK_ANY);
++			ipipe_load_cpuid();
++			if (ipipe_percpu_domain[cpuid] != next_domain)
++				this_domain = ipipe_percpu_domain[cpuid];
++		}
++
++		ipipe_percpu_domain[cpuid] = this_domain;
++
++		if (next_domain == this_domain || !propagate)
++			break;
++	}
++
++	ipipe_unlock_cpu(flags);
++
++	return !propagate;
++}
++
++/*
++ * __ipipe_dispatch_wired -- Wired interrupt dispatcher. Wired
++ * interrupts are immediately and unconditionally delivered to the
++ * domain heading the pipeline upon receipt, and such domain must have
++ * been registered as an invariant head for the system (priority ==
++ * IPIPE_HEAD_PRIORITY). The motivation for using wired interrupts is
++ * to get an extra-fast dispatching path for those IRQs, by relying on
++ * a straightforward logic based on assumptions that must always be
++ * true for invariant head domains.  The following assumptions are
++ * made when dealing with such interrupts:
++ *
++ * 1- Wired interrupts are purely dynamic, i.e. the decision to
++ * propagate them down the pipeline must be done from the head domain
++ * ISR.
++ * 2- Wired interrupts cannot be shared or sticky.
++ * 3- The root domain cannot be an invariant pipeline head, in
++ * consequence of what the root domain cannot handle wired
++ * interrupts.
++ * 4- Wired interrupts must have a valid acknowledge handler for the
++ * head domain (if needed), and in any case, must not rely on handlers
++ * provided by lower priority domains during the acknowledge cycle
++ * (see __ipipe_handle_irq).
++ *
++ * Called with hw interrupts off.
++ */
++int fastcall __ipipe_dispatch_wired(struct ipipe_domain *head, unsigned irq)
++{
++	struct ipcpudata *cpudata;
++	struct ipipe_domain *old;
++	ipipe_declare_cpuid;
++
++	ipipe_load_cpuid();
++
++	if (head->irqs[irq].acknowledge != NULL)
++		head->irqs[irq].acknowledge(irq);
++
++	cpudata = &head->cpudata[cpuid];
++	cpudata->irq_counters[irq].total_hits++;
++
++	if (test_bit(IPIPE_LOCK_FLAG, &head->irqs[irq].control)) {
++		/* If we can't process this IRQ right now, we must
++		 * mark it as pending, so that it will get played
++		 * during normal log sync when the corresponding
++		 * interrupt source is eventually unlocked. */
++		cpudata->irq_counters[irq].pending_hits++;
++		return 0;
++	}
++
++	if (test_bit(IPIPE_STALL_FLAG, &cpudata->status)) {
++		cpudata->irq_counters[irq].pending_hits++;
++		__ipipe_set_irq_bit(head, cpuid, irq);
++		return 0;
++	}
++
++	old = ipipe_percpu_domain[cpuid];
++	ipipe_percpu_domain[cpuid] = head; /* Switch to the head domain. */
++
++	__set_bit(IPIPE_STALL_FLAG, &cpudata->status);
++	head->irqs[irq].handler(irq,head->irqs[irq].cookie); /* Call the ISR. */
++	__ipipe_run_irqtail();
++	__clear_bit(IPIPE_STALL_FLAG, &cpudata->status);
++
++	/* We expect the caller to start a complete pipeline walk upon
++	 * return, so that propagated interrupts will get played. */
++
++	if (ipipe_percpu_domain[cpuid] == head)
++		ipipe_percpu_domain[cpuid] = old; /* Back to the preempted domain. */
++
++	return 1;
++}
++
++/*
++ * __ipipe_sync_stage() -- Flush the pending IRQs for the current
++ * domain (and processor). This routine flushes the interrupt log
++ * (see "Optimistic interrupt protection" from D. Stodolsky et al. for
++ * more on the deferred interrupt scheme). Every interrupt that
++ * occurred while the pipeline was stalled gets played. WARNING:
++ * callers on SMP boxen should always check for CPU migration on
++ * return of this routine. One can control the kind of interrupts
++ * which are going to be sync'ed using the syncmask
++ * parameter. IPIPE_IRQMASK_ANY plays them all, IPIPE_IRQMASK_VIRT
++ * plays virtual interrupts only.
++ *
++ * This routine must be called with hw interrupts off.
++ */
++void fastcall __ipipe_sync_stage(unsigned long syncmask)
++{
++	unsigned long mask, submask;
++	struct ipcpudata *cpudata;
++	struct ipipe_domain *ipd;
++	ipipe_declare_cpuid;
++	int level, rank;
++	unsigned irq;
++
++	ipipe_load_cpuid();
++	ipd = ipipe_percpu_domain[cpuid];
++	cpudata = &ipd->cpudata[cpuid];
++
++	if (__test_and_set_bit(IPIPE_SYNC_FLAG, &cpudata->status))
++		return;
++
++	/*
++	 * The policy here is to keep the dispatching code interrupt-free
++	 * by stalling the current stage. If the upper domain handler
++	 * (which we call) wants to re-enable interrupts while in a safe
++	 * portion of the code (e.g. SA_INTERRUPT flag unset for Linux's
++	 * sigaction()), it will have to unstall (then stall again before
++	 * returning to us!) the stage when it sees fit.
++	 */
++	while ((mask = (cpudata->irq_pending_hi & syncmask)) != 0) {
++		level = __ipipe_ffnz(mask);
++
++		while ((submask = cpudata->irq_pending_lo[level]) != 0) {
++			rank = __ipipe_ffnz(submask);
++			irq = (level << IPIPE_IRQ_ISHIFT) + rank;
++
++			if (test_bit(IPIPE_LOCK_FLAG, &ipd->irqs[irq].control)) {
++				__clear_bit(rank, &cpudata->irq_pending_lo[level]);
++				continue;
++			}
++
++			if (--cpudata->irq_counters[irq].pending_hits == 0) {
++				__clear_bit(rank, &cpudata->irq_pending_lo[level]);
++				if (cpudata->irq_pending_lo[level] == 0)
++					__clear_bit(level, &cpudata->irq_pending_hi);
++			}
++
++			__set_bit(IPIPE_STALL_FLAG, &cpudata->status);
++			__ipipe_run_isr(ipd, irq, cpuid);
++#ifdef CONFIG_SMP
++			{
++				int _cpuid = ipipe_processor_id();
++
++				if (_cpuid != cpuid) {	/* Handle CPU migration. */
++					/*
++					 * We expect any domain to clear the SYNC bit each
++					 * time it switches in a new task, so that preemptions
++					 * and/or CPU migrations (in the SMP case) over the
++					 * ISR do not lock out the log syncer for some
++					 * indefinite amount of time. In the Linux case,
++					 * schedule() handles this (see kernel/sched.c). For
++					 * this reason, we don't bother clearing it here for
++					 * the source CPU in the migration handling case,
++					 * since it must have scheduled another task in by
++					 * now.
++					 */
++					cpuid = _cpuid;
++					cpudata = &ipd->cpudata[cpuid];
++					__set_bit(IPIPE_SYNC_FLAG, &cpudata->status);
++				}
++			}
++#endif	/* CONFIG_SMP */
++
++			__clear_bit(IPIPE_STALL_FLAG, &cpudata->status);
++		}
++	}
++
++	__clear_bit(IPIPE_SYNC_FLAG, &cpudata->status);
++}
++
++#ifdef CONFIG_PROC_FS
++
++#include <linux/proc_fs.h>
++
++static struct proc_dir_entry *ipipe_proc_root;
++
++static int __ipipe_version_info_proc(char *page,
++				     char **start,
++				     off_t off, int count, int *eof, void *data)
++{
++	int len = sprintf(page, "%s\n", IPIPE_VERSION_STRING);
++
++	len -= off;
++
++	if (len <= off + count)
++		*eof = 1;
++
++	*start = page + off;
++
++	if(len > count)
++		len = count;
++
++	if(len < 0)
++		len = 0;
++
++	return len;
++}
++
++static int __ipipe_common_info_proc(char *page,
++				    char **start,
++				    off_t off, int count, int *eof, void *data)
++{
++	struct ipipe_domain *ipd = (struct ipipe_domain *)data;
++	unsigned long ctlbits;
++	unsigned irq, _irq;
++	char *p = page;
++	int len;
++
++	spin_lock(&__ipipe_pipelock);
++
++	if (test_bit(IPIPE_AHEAD_FLAG,&ipd->flags))
++		p += sprintf(p, "Invariant head");
++	else
++		p += sprintf(p, "Priority=%d", ipd->priority);
++
++	p += sprintf(p, ", Id=0x%.8x\n", ipd->domid);
++
++	irq = 0;
++
++	while (irq < IPIPE_NR_IRQS) {
++		ctlbits =
++			(ipd->irqs[irq].
++			 control & (IPIPE_HANDLE_MASK | IPIPE_PASS_MASK |
++				    IPIPE_STICKY_MASK | IPIPE_WIRED_MASK));
++		if (irq >= IPIPE_NR_XIRQS && !ipipe_virtual_irq_p(irq)) {
++			/*
++			 * There might be a hole between the last external
++			 * IRQ and the first virtual one; skip it.
++			 */
++			irq++;
++			continue;
++		}
++
++		if (ipipe_virtual_irq_p(irq)
++		    && !test_bit(irq - IPIPE_VIRQ_BASE,
++				 &__ipipe_virtual_irq_map)) {
++			/* Non-allocated virtual IRQ; skip it. */
++			irq++;
++			continue;
++		}
++
++		/*
++		 * Attempt to group consecutive IRQ numbers having the
++		 * same virtualization settings in a single line.
++		 */
++
++		_irq = irq;
++
++		while (++_irq < IPIPE_NR_IRQS) {
++			if (ipipe_virtual_irq_p(_irq) !=
++			    ipipe_virtual_irq_p(irq)
++			    || (ipipe_virtual_irq_p(_irq)
++				&& !test_bit(_irq - IPIPE_VIRQ_BASE,
++					     &__ipipe_virtual_irq_map))
++			    || ctlbits != (ipd->irqs[_irq].
++			     control & (IPIPE_HANDLE_MASK |
++					IPIPE_PASS_MASK |
++					IPIPE_STICKY_MASK)))
++				break;
++		}
++
++		if (_irq == irq + 1)
++			p += sprintf(p, "irq%u: ", irq);
++		else
++			p += sprintf(p, "irq%u-%u: ", irq, _irq - 1);
++
++		/*
++		 * Statuses are as follows:
++		 * o "accepted" means handled _and_ passed down the pipeline.
++		 * o "grabbed" means handled, but the interrupt might be
++		 * terminated _or_ passed down the pipeline depending on
++		 * what the domain handler asks for to the I-pipe.
++		 * o "wired" is basically the same as "grabbed", except that
++		 * the interrupt is unconditionally delivered to an invariant
++		 * pipeline head domain.
++		 * o "passed" means unhandled by the domain but passed
++		 * down the pipeline.
++		 * o "discarded" means unhandled and _not_ passed down the
++		 * pipeline. The interrupt merely disappears from the
++		 * current domain down to the end of the pipeline.
++		 */
++		if (ctlbits & IPIPE_HANDLE_MASK) {
++			if (ctlbits & IPIPE_PASS_MASK)
++				p += sprintf(p, "accepted");
++			else if (ctlbits & IPIPE_WIRED_MASK)
++				p += sprintf(p, "wired");
++			else
++				p += sprintf(p, "grabbed");
++		} else if (ctlbits & IPIPE_PASS_MASK)
++			p += sprintf(p, "passed");
++		else
++			p += sprintf(p, "discarded");
++
++		if (ctlbits & IPIPE_STICKY_MASK)
++			p += sprintf(p, ", sticky");
++
++		if (ipipe_virtual_irq_p(irq))
++			p += sprintf(p, ", virtual");
++
++		p += sprintf(p, "\n");
++
++		irq = _irq;
++	}
++
++	spin_unlock(&__ipipe_pipelock);
++
++	len = p - page;
++
++	if (len <= off + count)
++		*eof = 1;
++
++	*start = page + off;
++
++	len -= off;
++
++	if (len > count)
++		len = count;
++
++	if (len < 0)
++		len = 0;
++
++	return len;
++}
++
++void __ipipe_add_domain_proc(struct ipipe_domain *ipd)
++{
++	create_proc_read_entry(ipd->name,0444,ipipe_proc_root,&__ipipe_common_info_proc,ipd);
++}
++
++void __ipipe_remove_domain_proc(struct ipipe_domain *ipd)
++{
++	remove_proc_entry(ipd->name,ipipe_proc_root);
++}
++
++void ipipe_init_proc(void)
++{
++	ipipe_proc_root = create_proc_entry("ipipe",S_IFDIR, 0);
++	create_proc_read_entry("version",0444,ipipe_proc_root,&__ipipe_version_info_proc,NULL);
++	__ipipe_add_domain_proc(ipipe_root_domain);
++}
++
++#endif	/* CONFIG_PROC_FS */
++
++EXPORT_SYMBOL(ipipe_virtualize_irq);
++EXPORT_SYMBOL(ipipe_control_irq);
++EXPORT_SYMBOL(ipipe_suspend_domain);
++EXPORT_SYMBOL(ipipe_alloc_virq);
++EXPORT_SYMBOL(ipipe_stall_pipeline_from);
++EXPORT_SYMBOL(ipipe_test_and_stall_pipeline_from);
++EXPORT_SYMBOL(ipipe_unstall_pipeline_from);
++EXPORT_SYMBOL(ipipe_restore_pipeline_from);
++EXPORT_SYMBOL(ipipe_test_and_unstall_pipeline_from);
++EXPORT_SYMBOL(ipipe_unstall_pipeline_head);
++EXPORT_SYMBOL(__ipipe_restore_pipeline_head);
++EXPORT_SYMBOL(ipipe_percpu_domain);
++EXPORT_SYMBOL(ipipe_root);
++EXPORT_SYMBOL(ipipe_setscheduler_root);
++EXPORT_SYMBOL(ipipe_reenter_root);
++EXPORT_SYMBOL(__ipipe_unstall_root);
++EXPORT_SYMBOL(__ipipe_stall_root);
++EXPORT_SYMBOL(__ipipe_restore_root);
++EXPORT_SYMBOL(__ipipe_test_and_stall_root);
++EXPORT_SYMBOL(__ipipe_test_root);
++EXPORT_SYMBOL(__ipipe_dispatch_event);
++EXPORT_SYMBOL(__ipipe_dispatch_wired);
++EXPORT_SYMBOL(__ipipe_sync_stage);
++EXPORT_SYMBOL(__ipipe_pipeline);
++EXPORT_SYMBOL(__ipipe_pipelock);
++EXPORT_SYMBOL(__ipipe_virtual_irq_map);
+diff --git a/kernel/ipipe/generic.c b/kernel/ipipe/generic.c
+new file mode 100644
+index 0000000..78dd07f
+--- /dev/null
++++ b/kernel/ipipe/generic.c
+@@ -0,0 +1,443 @@
++/* -*- linux-c -*-
++ * linux/kernel/ipipe/generic.c
++ *
++ * Copyright (C) 2002-2005 Philippe Gerum.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
++ * USA; either version 2 of the License, or (at your option) any later
++ * version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ * Architecture-independent I-PIPE services.
++ */
++
++#include <linux/version.h>
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/sched.h>
++#ifdef CONFIG_PROC_FS
++#include <linux/proc_fs.h>
++#endif	/* CONFIG_PROC_FS */
++#include <linux/interrupt.h>
++#include <asm/hw_irq.h>
++
++MODULE_DESCRIPTION("I-pipe");
++MODULE_LICENSE("GPL");
++
++static int __ipipe_ptd_key_count;
++
++static unsigned long __ipipe_ptd_key_map;
++
++/* ipipe_register_domain() -- Link a new domain to the pipeline. */
++
++int ipipe_register_domain(struct ipipe_domain *ipd,
++			  struct ipipe_domain_attr *attr)
++{
++	struct list_head *pos;
++	unsigned long flags;
++
++	if (ipipe_current_domain != ipipe_root_domain) {
++		printk(KERN_WARNING
++		       "I-pipe: Only the root domain may register a new domain.\n");
++		return -EPERM;
++	}
++
++	if (attr->priority == IPIPE_HEAD_PRIORITY &&
++	    test_bit(IPIPE_AHEAD_FLAG,&__ipipe_pipeline_head()->flags))
++		return -EAGAIN;	/* Cannot override current head. */
++
++	flags = ipipe_critical_enter(NULL);
++
++	list_for_each(pos, &__ipipe_pipeline) {
++		struct ipipe_domain *_ipd =
++			list_entry(pos, struct ipipe_domain, p_link);
++		if (_ipd->domid == attr->domid)
++			break;
++	}
++
++	ipipe_critical_exit(flags);
++
++	if (pos != &__ipipe_pipeline)
++		/* A domain with the given id already exists -- fail. */
++		return -EBUSY;
++
++	ipd->name = attr->name;
++	ipd->domid = attr->domid;
++	ipd->pdd = attr->pdd;
++	ipd->flags = 0;
++
++	if (attr->priority == IPIPE_HEAD_PRIORITY) {
++		ipd->priority = INT_MAX;
++		__set_bit(IPIPE_AHEAD_FLAG,&ipd->flags);
++	}
++	else
++		ipd->priority = attr->priority;
++
++	__ipipe_init_stage(ipd);
++
++	INIT_LIST_HEAD(&ipd->p_link);
++
++#ifdef CONFIG_PROC_FS
++	__ipipe_add_domain_proc(ipd);
++#endif /* CONFIG_PROC_FS */
++
++	flags = ipipe_critical_enter(NULL);
++
++	list_for_each(pos, &__ipipe_pipeline) {
++		struct ipipe_domain *_ipd =
++			list_entry(pos, struct ipipe_domain, p_link);
++		if (ipd->priority > _ipd->priority)
++			break;
++	}
++
++	list_add_tail(&ipd->p_link, pos);
++
++	ipipe_critical_exit(flags);
++
++	printk(KERN_WARNING "I-pipe: Domain %s registered.\n", ipd->name);
++
++	/*
++	 * Finally, allow the new domain to perform its initialization
++	 * chores.
++	 */
++
++	if (attr->entry != NULL) {
++		ipipe_declare_cpuid;
++
++		ipipe_lock_cpu(flags);
++
++		ipipe_percpu_domain[cpuid] = ipd;
++		attr->entry();
++		ipipe_percpu_domain[cpuid] = ipipe_root_domain;
++
++		ipipe_load_cpuid();	/* Processor might have changed. */
++
++		if (ipipe_root_domain->cpudata[cpuid].irq_pending_hi != 0 &&
++		    !test_bit(IPIPE_STALL_FLAG,
++			      &ipipe_root_domain->cpudata[cpuid].status))
++			__ipipe_sync_stage(IPIPE_IRQMASK_ANY);
++
++		ipipe_unlock_cpu(flags);
++	}
++
++	return 0;
++}
++
++/* ipipe_unregister_domain() -- Remove a domain from the pipeline. */
++
++int ipipe_unregister_domain(struct ipipe_domain *ipd)
++{
++	unsigned long flags;
++
++	if (ipipe_current_domain != ipipe_root_domain) {
++		printk(KERN_WARNING
++		       "I-pipe: Only the root domain may unregister a domain.\n");
++		return -EPERM;
++	}
++
++	if (ipd == ipipe_root_domain) {
++		printk(KERN_WARNING
++		       "I-pipe: Cannot unregister the root domain.\n");
++		return -EPERM;
++	}
++#ifdef CONFIG_SMP
++	{
++		int nr_cpus = num_online_cpus(), _cpuid;
++		unsigned irq;
++
++		/*
++		 * In the SMP case, wait for the logged events to drain on
++		 * other processors before eventually removing the domain
++		 * from the pipeline.
++		 */
++
++		ipipe_unstall_pipeline_from(ipd);
++
++		flags = ipipe_critical_enter(NULL);
++
++		for (irq = 0; irq < IPIPE_NR_IRQS; irq++) {
++			clear_bit(IPIPE_HANDLE_FLAG, &ipd->irqs[irq].control);
++			clear_bit(IPIPE_STICKY_FLAG, &ipd->irqs[irq].control);
++			set_bit(IPIPE_PASS_FLAG, &ipd->irqs[irq].control);
++		}
++
++		ipipe_critical_exit(flags);
++
++		for (_cpuid = 0; _cpuid < nr_cpus; _cpuid++)
++			for (irq = 0; irq < IPIPE_NR_IRQS; irq++)
++				while (ipd->cpudata[_cpuid].irq_counters[irq].pending_hits > 0)
++					cpu_relax();
++	}
++#endif	/* CONFIG_SMP */
++
++#ifdef CONFIG_PROC_FS
++	__ipipe_remove_domain_proc(ipd);
++#endif /* CONFIG_PROC_FS */
++
++	/*
++	 * Simply remove the domain from the pipeline and we are almost done.
++	 */
++
++	flags = ipipe_critical_enter(NULL);
++	list_del_init(&ipd->p_link);
++	ipipe_critical_exit(flags);
++
++	__ipipe_cleanup_domain(ipd);
++
++	printk(KERN_WARNING "I-pipe: Domain %s unregistered.\n", ipd->name);
++
++	return 0;
++}
++
++/*
++ * ipipe_propagate_irq() -- Force a given IRQ propagation on behalf of
++ * a running interrupt handler to the next domain down the pipeline.
++ * ipipe_schedule_irq() -- Does almost the same as above, but attempts
++ * to pend the interrupt for the current domain first.
++ */
++int fastcall __ipipe_schedule_irq(unsigned irq, struct list_head *head)
++{
++	struct list_head *ln;
++	unsigned long flags;
++	ipipe_declare_cpuid;
++
++	if (irq >= IPIPE_NR_IRQS ||
++	    (ipipe_virtual_irq_p(irq)
++	     && !test_bit(irq - IPIPE_VIRQ_BASE, &__ipipe_virtual_irq_map)))
++		return -EINVAL;
++
++	ipipe_lock_cpu(flags);
++
++	ln = head;
++
++	while (ln != &__ipipe_pipeline) {
++		struct ipipe_domain *ipd =
++			list_entry(ln, struct ipipe_domain, p_link);
++
++		if (test_bit(IPIPE_HANDLE_FLAG, &ipd->irqs[irq].control)) {
++			ipd->cpudata[cpuid].irq_counters[irq].total_hits++;
++			ipd->cpudata[cpuid].irq_counters[irq].pending_hits++;
++			__ipipe_set_irq_bit(ipd, cpuid, irq);
++			ipipe_unlock_cpu(flags);
++			return 1;
++		}
++
++		ln = ipd->p_link.next;
++	}
++
++	ipipe_unlock_cpu(flags);
++
++	return 0;
++}
++
++/* ipipe_free_virq() -- Release a virtual/soft interrupt. */
++
++int ipipe_free_virq(unsigned virq)
++{
++	if (!ipipe_virtual_irq_p(virq))
++		return -EINVAL;
++
++	clear_bit(virq - IPIPE_VIRQ_BASE, &__ipipe_virtual_irq_map);
++
++	return 0;
++}
++
++void ipipe_init_attr(struct ipipe_domain_attr *attr)
++{
++	attr->name = "anon";
++	attr->domid = 1;
++	attr->entry = NULL;
++	attr->priority = IPIPE_ROOT_PRIO;
++	attr->pdd = NULL;
++}
++
++/*
++ * ipipe_catch_event() -- Interpose or remove an event handler for a
++ * given domain.
++ */
++ipipe_event_handler_t ipipe_catch_event(struct ipipe_domain *ipd,
++					unsigned event,
++					ipipe_event_handler_t handler)
++{
++	ipipe_event_handler_t old_handler;
++	unsigned long flags;
++	int self = 0, cpuid;
++
++	if (event & IPIPE_EVENT_SELF) {
++		event &= ~IPIPE_EVENT_SELF;
++		self = 1;
++	}
++
++	if (event >= IPIPE_NR_EVENTS)
++		return NULL;
++
++	flags = ipipe_critical_enter(NULL);
++
++	if (!(old_handler = xchg(&ipd->evhand[event],handler)))	{
++		if (handler) {
++			if (self)
++				ipd->evself |= (1LL << event);
++			else
++				__ipipe_event_monitors[event]++;
++		}
++	}
++	else if (!handler) {
++		if (ipd->evself & (1LL << event))
++			ipd->evself &= ~(1LL << event);
++		else
++			__ipipe_event_monitors[event]--;
++	} else if ((ipd->evself & (1LL << event)) && !self) {
++			__ipipe_event_monitors[event]++;
++			ipd->evself &= ~(1LL << event);
++	} else if (!(ipd->evself & (1LL << event)) && self) {
++			__ipipe_event_monitors[event]--;
++			ipd->evself |= (1LL << event);
++	}
++	
++	ipipe_critical_exit(flags);
++
++	if (!handler && ipipe_root_domain_p) {
++		/*
++		 * If we cleared a handler on behalf of the root
++		 * domain, we have to wait for any current invocation
++		 * to drain, since our caller might subsequently unmap
++		 * the target domain. To this aim, this code
++		 * synchronizes with __ipipe_dispatch_event(),
++		 * guaranteeing that either the dispatcher sees a null
++		 * handler in which case it discards the invocation
++		 * (which also prevents from entering a livelock), or
++		 * finds a valid handler and calls it. Symmetrically,
++		 * ipipe_catch_event() ensures that the called code
++		 * won't be unmapped under our feet until the event
++		 * synchronization flag is cleared for the given event
++		 * on all CPUs.
++		 */
++
++		for_each_online_cpu(cpuid) {
++			while (ipd->cpudata[cpuid].evsync & (1LL << event)) {
++				set_current_state(TASK_INTERRUPTIBLE);
++				schedule_timeout(HZ / 50);
++			}
++		}
++	}
++
++	return old_handler;
++}
++
++cpumask_t ipipe_set_irq_affinity (unsigned irq, cpumask_t cpumask)
++{
++#ifdef CONFIG_SMP
++	if (irq >= IPIPE_NR_XIRQS)
++		/* Allow changing affinity of external IRQs only. */
++		return CPU_MASK_NONE;
++
++	if (num_online_cpus() > 1)
++		/* Allow changing affinity of external IRQs only. */
++		return __ipipe_set_irq_affinity(irq,cpumask);
++#endif /* CONFIG_SMP */
++
++	return CPU_MASK_NONE;
++}
++
++int fastcall ipipe_send_ipi (unsigned ipi, cpumask_t cpumask)
++
++{
++#ifdef CONFIG_SMP
++	switch (ipi) {
++
++	case IPIPE_SERVICE_IPI0:
++	case IPIPE_SERVICE_IPI1:
++	case IPIPE_SERVICE_IPI2:
++	case IPIPE_SERVICE_IPI3:
++
++		break;
++
++	default:
++
++		return -EINVAL;
++	}
++
++	return __ipipe_send_ipi(ipi,cpumask);
++#endif /* CONFIG_SMP */
++
++	return -EINVAL;
++}
++
++int ipipe_alloc_ptdkey (void)
++{
++	unsigned long flags;
++	int key = -1;
++
++	spin_lock_irqsave_hw(&__ipipe_pipelock,flags);
++
++	if (__ipipe_ptd_key_count < IPIPE_ROOT_NPTDKEYS) {
++		key = ffz(__ipipe_ptd_key_map);
++		set_bit(key,&__ipipe_ptd_key_map);
++		__ipipe_ptd_key_count++;
++	}
++
++	spin_unlock_irqrestore_hw(&__ipipe_pipelock,flags);
++
++	return key;
++}
++
++int ipipe_free_ptdkey (int key)
++{
++	unsigned long flags;
++
++	if (key < 0 || key >= IPIPE_ROOT_NPTDKEYS)
++		return -EINVAL;
++
++	spin_lock_irqsave_hw(&__ipipe_pipelock,flags);
++
++	if (test_and_clear_bit(key,&__ipipe_ptd_key_map))
++		__ipipe_ptd_key_count--;
++
++	spin_unlock_irqrestore_hw(&__ipipe_pipelock,flags);
++
++	return 0;
++}
++
++int fastcall ipipe_set_ptd (int key, void *value)
++
++{
++	if (key < 0 || key >= IPIPE_ROOT_NPTDKEYS)
++		return -EINVAL;
++
++	current->ptd[key] = value;
++
++	return 0;
++}
++
++void *fastcall ipipe_get_ptd (int key)
++
++{
++	if (key < 0 || key >= IPIPE_ROOT_NPTDKEYS)
++		return NULL;
++
++	return current->ptd[key];
++}
++
++EXPORT_SYMBOL(ipipe_register_domain);
++EXPORT_SYMBOL(ipipe_unregister_domain);
++EXPORT_SYMBOL(ipipe_free_virq);
++EXPORT_SYMBOL(ipipe_init_attr);
++EXPORT_SYMBOL(ipipe_catch_event);
++EXPORT_SYMBOL(ipipe_alloc_ptdkey);
++EXPORT_SYMBOL(ipipe_free_ptdkey);
++EXPORT_SYMBOL(ipipe_set_ptd);
++EXPORT_SYMBOL(ipipe_get_ptd);
++EXPORT_SYMBOL(ipipe_set_irq_affinity);
++EXPORT_SYMBOL(ipipe_send_ipi);
++EXPORT_SYMBOL(__ipipe_schedule_irq);
+diff --git a/kernel/printk.c b/kernel/printk.c
+index c2d6893..d3247bd 100644
+--- a/kernel/printk.c
++++ b/kernel/printk.c
+@@ -413,8 +413,89 @@ static void emit_log_char(char c)
+  * then changes console_loglevel may break. This is because console_loglevel
+  * is inspected when the actual printing occurs.
+  */
++#ifdef CONFIG_IPIPE
++
++static ipipe_spinlock_t __ipipe_printk_lock = IPIPE_SPIN_LOCK_UNLOCKED;
++
++static int __ipipe_printk_fill;
++
++static char __ipipe_printk_buf[LOG_BUF_LEN];
++
++static int do_printk(const char *fmt, ...);
++
++void __ipipe_flush_printk (unsigned virq, void *cookie)
++{
++	char *p = __ipipe_printk_buf;
++	int len, lmax, out = 0;
++	unsigned long flags;
++
++	goto start;
++
++	do {
++		spin_unlock_irqrestore_hw(&__ipipe_printk_lock,flags);
++ start:
++		lmax = __ipipe_printk_fill;
++		while (out < lmax) {
++			len = strlen(p) + 1;
++			do_printk("%s",p);
++			p += len;
++			out += len;
++		}
++		spin_lock_irqsave_hw(&__ipipe_printk_lock,flags);
++	}
++	while (__ipipe_printk_fill != lmax);
++
++	__ipipe_printk_fill = 0;
++
++	spin_unlock_irqrestore_hw(&__ipipe_printk_lock,flags);
++}
++
++int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
++{
++	int i = vsnprintf(buf,size,fmt,args);
++	return (i >= size) ? (size - 1) : i;
++}
++
+ asmlinkage int printk(const char *fmt, ...)
+ {
++    	unsigned long flags, oldcount;
++	int r, fbytes;
++	va_list args;
++
++	va_start(args, fmt);
++
++	spin_lock_irqsave_hw(&__ipipe_printk_lock,flags);
++
++	oldcount = __ipipe_printk_fill;
++	fbytes = LOG_BUF_LEN - __ipipe_printk_fill;
++
++	if (fbytes > 1)	{
++		r = vscnprintf(__ipipe_printk_buf + __ipipe_printk_fill,
++			       fbytes, fmt, args) + 1; /* account for the null byte */
++		__ipipe_printk_fill += r;
++	} else
++		r = 0;
++
++	spin_unlock_irqrestore_hw(&__ipipe_printk_lock,flags);
++
++	if (ipipe_current_domain == ipipe_root_domain ||
++	    test_bit(IPIPE_SPRINTK_FLAG,&ipipe_current_domain->flags) ||
++	    oops_in_progress) {
++		__ipipe_flush_printk(__ipipe_printk_virq, NULL);
++	}
++	else if (oldcount == 0)
++	    	ipipe_trigger_irq(__ipipe_printk_virq);
++
++	va_end(args);
++
++	return r;
++}
++
++static int do_printk(const char *fmt, ...)
++#else /* !CONFIG_IPIPE */
++asmlinkage int printk(const char *fmt, ...)
++#endif /* CONFIG_IPIPE */
++{
+ 	va_list args;
+ 	unsigned long flags;
+ 	int printed_len;
+@@ -486,6 +567,7 @@ asmlinkage int printk(const char *fmt, ...)
+ out:
+ 	return printed_len;
+ }
++
+ EXPORT_SYMBOL(printk);
+ 
+ /**
+diff --git a/kernel/sched.c b/kernel/sched.c
+index afd6d35..739b39b 100644
+--- a/kernel/sched.c
++++ b/kernel/sched.c
+@@ -29,6 +29,7 @@
+ #include <linux/completion.h>
+ #include <linux/prefetch.h>
+ #include <linux/compiler.h>
++#include <linux/module.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -359,6 +360,8 @@ static inline int try_to_wake_up(struct task_struct * p, int synchronous)
+ 	 * We want the common case fall through straight, thus the goto.
+ 	 */
+ 	spin_lock_irqsave(&runqueue_lock, flags);
++	if (p->state & TASK_NOWAKEUP)
++		goto out;
+ 	p->state = TASK_RUNNING;
+ 	if (task_on_runqueue(p))
+ 		goto out;
+@@ -535,7 +538,57 @@ needs_resched:
+ 
+ asmlinkage void schedule_tail(struct task_struct *prev)
+ {
++#ifdef CONFIG_IPIPE
++	local_irq_disable();
++	local_irq_enable_hw();
++#endif /* CONFIG_IPIPE */
+ 	__schedule_tail(prev);
++	ipipe_init_notify(current);
++#ifdef CONFIG_IPIPE
++	local_irq_enable();
++#endif /* CONFIG_IPIPE */
++}
++
++static struct delayed_mmreq {
++	int in;
++	int out;
++	int count;
++#define MAX_DELAYED_MM  128  /* need ^2 here. */
++	struct mm_struct *mm[MAX_DELAYED_MM];
++} delayed_mmtab[NR_CPUS];
++
++static void __ipipe_delay_mmdrop (struct task_struct *prev)
++{
++    	if (!prev->mm) {
++		struct delayed_mmreq *p = delayed_mmtab + prev->processor;
++		struct mm_struct *oldmm = prev->active_mm;
++		BUG_ON(p->count >= MAX_DELAYED_MM);
++		/*
++		 * Prevent the mm from being dropped in schedule()
++		 * since this could cause 1) large latencies to high
++		 * priority domains hijacking Linux tasks, 2) subtle
++		 * mm recycling error at task exit due to
++		 * co-scheduling issues, then pend a request to drop
++		 * it later in __ipipe_mmdrop_sync() when Linux is
++		 * back in control.
++		 */
++		atomic_inc(&oldmm->mm_count);
++		p->mm[p->in] = oldmm;
++		p->in = (p->in + 1) & (MAX_DELAYED_MM - 1);
++		p->count++;
++	}
++}
++
++static void __ipipe_sync_mmdrop (void)
++{
++    	struct delayed_mmreq *p = delayed_mmtab + smp_processor_id();
++
++	while (p->out != p->in) {
++		struct mm_struct *oldmm = p->mm[p->out];
++		mmdrop(oldmm);
++		p->out = (p->out + 1) & (MAX_DELAYED_MM - 1);
++		p->count--;
++	}
+ }
+ 
+ /*
+@@ -672,7 +725,8 @@ repeat_schedule:
+ 	 * but prev is set to (the just run) 'last' process by switch_to().
+ 	 * This might sound slightly confusing but makes tons of sense.
+ 	 */
+-	prepare_to_switch();
++	prepare_to_switch(next);
++	__ipipe_delay_mmdrop(prev);
+ 	{
+ 		struct mm_struct *mm = next->mm;
+ 		struct mm_struct *oldmm = prev->active_mm;
+@@ -706,6 +760,9 @@ repeat_schedule:
+ 	}
+ #endif
+ 	switch_to(prev, next, prev);
++	if (task_hijacked(prev))
++	    return;
++	__ipipe_sync_mmdrop();
+ 	__schedule_tail(prev);
+ 
+ same_process:
+@@ -1004,6 +1061,7 @@ static int setscheduler(pid_t pid, int policy,
+ 	retval = 0;
+ 	p->policy = policy;
+ 	p->rt_priority = lp.sched_priority;
++	ipipe_setsched_notify(p);
+ 
+ 	current->need_resched = 1;
+ 
+@@ -1408,3 +1466,34 @@ void __init sched_init(void)
+ 	atomic_inc(&init_mm.mm_count);
+ 	enter_lazy_tlb(&init_mm, current, cpu);
+ }
++
++#ifdef CONFIG_IPIPE
++
++int ipipe_setscheduler_root (struct task_struct *p, int policy, int prio)
++{
++	read_lock_irq(&tasklist_lock);
++	spin_lock(&runqueue_lock);
++
++	p->policy = policy;
++	p->rt_priority = prio;
++	current->need_resched = 1;
++
++	spin_unlock(&runqueue_lock);
++	read_unlock_irq(&tasklist_lock);
++
++	return 0;
++}
++
++int ipipe_reenter_root (struct task_struct *prev, int policy, int prio)
++{
++    	__schedule_tail(prev);
++	reacquire_kernel_lock(current);
++	local_irq_enable();
++
++	if (current->policy != policy || current->rt_priority != prio)
++		return ipipe_setscheduler_root(current,policy,prio);
++
++	return 0;
++}
++
++#endif /* CONFIG_IPIPE */
+diff --git a/kernel/signal.c b/kernel/signal.c
+index 77371a0..7fb130d 100644
+--- a/kernel/signal.c
++++ b/kernel/signal.c
+@@ -495,6 +495,7 @@ static int send_signal(int sig, struct siginfo *info, struct sigpending *signals
+ static inline void signal_wake_up(struct task_struct *t)
+ {
+ 	t->sigpending = 1;
++	ipipe_sigwake_notify(t); /* t->sigpending must be set first. */
+ 
+ #ifdef CONFIG_SMP
+ 	/*

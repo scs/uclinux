@@ -1,0 +1,58 @@
+menuconfig XENO_SKIN_RTDM
+	depends on XENO_OPT_NUCLEUS
+	tristate "Real-Time Driver Model"
+	default y
+	help
+
+	This API skin allows to write real-time drivers against a common
+	light weight interface in kernel mode, but use them across all other
+	skins in both kernel and user mode.
+
+if XENO_SKIN_RTDM
+
+config XENO_OPT_RTDM_PERIOD
+	int "Base period (us)" if XENO_OPT_TIMING_PERIODIC
+	default 0
+	help
+	Duration of the base periodic tick (in microseconds).
+
+	The RTDM skin can express all delays and timeouts either as
+	counts of ticks (i.e. jiffy-based), or directly in
+	nanoseconds in a tick-less fashion. This paramater defines the
+	duration of the base period in microseconds; a null value
+	selects the tick-less mode.
+
+	The base period can be overriden at runtime using the
+	"tick_arg" module parameter when loading the RTDM skin.
+
+	If in doubt, leave zero in this field.
+
+config XENO_OPT_RTDM_FILDES
+	int "Maximum number of RTDM file descriptors"
+	default 128
+	help
+
+	This option defines the maximum number of RTDM file descriptors
+	which can be opened at the same time. RTDM file descriptors are
+	a global resource all applications share, either via the RTDM skin
+	directly or via the embedded services of the POSIX skin.
+
+config XENO_OPT_RTDM_SELECT
+	bool "Select support for RTDM file descriptors"
+	select XENO_OPT_SELECT
+	help
+
+	This option allows RTDM-based file descriptors to be used with
+	select-like services.
+
+config XENO_OPT_DEBUG_RTDM
+	bool "RTDM debugging support"
+	depends on XENO_OPT_DEBUG
+	default y
+	help
+
+	This option activates debugging checks for the RTDM subsystem.
+	It is a recommended option for analysing potential issues in RTDM
+	drivers. A minor runtime overhead is added.
+
+endif

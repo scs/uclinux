@@ -1,0 +1,2 @@
+# real-time pipe devices (Xenomai:rtpipe)
+KERNEL=="rtp[0-9]*", MODE="0666"

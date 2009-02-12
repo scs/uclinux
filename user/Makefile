@@ -432,6 +432,7 @@ dir_$(CONFIG_USER_WGET)                     += wget
 dir_$(CONFIG_USER_WHETSTONE_WHETSTONE)      += whetstone
 dir_$(CONFIG_USER_WIRELESS_TOOLS)           += wireless_tools
 dir_$(CONFIG_USER_WLAN_NG)                  += wlan-ng
+dir_$(CONFIG_USER_XENOMAI)					+= xenomai
 dir_$(CONFIG_USER_ZEBRA_BGPD_BGPD)          += zebra
 dir_$(CONFIG_USER_ZEBRA_OSPFD_OSPFD)        += zebra
 dir_$(CONFIG_USER_ZEBRA_RIPD_RIPD)          += zebra

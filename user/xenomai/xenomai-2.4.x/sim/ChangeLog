@@ -1,0 +1,226 @@
+2007-07-20  Gilles Chanteperdrix  <gilles.chanteperdrix@gmail.com>
+
+	* skins/posix/testsuite/tclock.c: Implement posix clock unit test.
+
+2007-07-08  Philippe Gerum  <rpm@xenomai.org>
+
+	* vmutils/Makefile.am: Dissociate CFLAGS and CXXFLAGS
+	(specifically, -fwritable-strings is only supported by g++ in
+	recent GCC releases).
+
+2007-07-07  Philippe Gerum  <rpm@xenomai.org>
+
+	* vmutils/tclist++.{cc, h}, vmutils/strings.{cc, h}: Do not
+	overload main type ctors() with quad-type args on 64bit archs.
+
+2007-05-21  Gilles Chanteperdrix  <gilles.chanteperdrix@laposte.net>
+
+	* configure.in: Fix libpng detection to work with recent versions
+	of libpng.
+
+2007-02-01  Jim Huang  <jserv.tw@gmail.com>
+
+	* sim/vm/thread.cc, sim/vm/thread.h: Fix compilation w/ gcc-4.x.
+
+2006-06-09  Gilles Chanteperdrix  <gilles.chanteperdrix@laposte.net>
+
+	* skins/posix/testsuite/xntest.c: Make verbosity configurable.
+
+	* skins/vxworks/testsuite/xntest.c: Make verbosity configurable.
+
+	* skins/vxworks/testsuite/*.c: Delete the created tasks before
+	test end.
+
+	* skins/vxworks/testsuite/*.c (rootTask): Replace
+	S_semlib_INVALID_OPTION with S_semlib_INVALID_QUEUE_TYPE.
+
+	* skins/vxworks/testsuite/t010823-1.c (rootTask): Pass a non NULL
+	stack pointer to taskInit when running this test under vxworks.
+
+2006-05-12  Philippe Gerum  <rpm@xenomai.org>
+
+	* sim/vm/thread.cc (XenoThread): Raise stack size to 32k.
+
+2006-04-09  Philippe Gerum  <rpm@xenomai.org>
+
+	* sim/scope/gdbhelper.cc (splitInput): Re-init the result buffer
+	so that large GDB output involving multiple read loops don't
+	recycle old contents spuriously.
+
+	* sim/scope/tcl/gdb.tcl (gdb:seek): Auto-limit the backtrace dump
+	to the inner last 32 frames in order to work-around issues GDB 6.x
+	has with ucontext(2) driven co-routines.
+
+2006-01-04  Gilles Chanteperdrix  <gilles.chanteperdrix@laposte.net>
+
+	* configure.in: Add nucleus scalable scheduler and watchdog
+	options.
+
+2005-12-19  Gilles Chanteperdrix  <gilles.chanteperdrix@laposte.net>
+
+	* gcic/GNUmakefile.am: reconfigure instrumented gcc whenever
+	installation directory changes.
+
+	* adapter/adapter.cc (kroot): call xnpod_delete_thread at thread
+	death.
+
+2005-09-28  Philippe Gerum  <rpm@xenomai.org>
+
+	* sim: Xenomai migration.
+
+2005-05-20  Philippe Gerum  <rpm@xenomai.org>
+
+	* gcic/gcic.cc (patchSource): Add no-instrumentation mode.
+
+2005-05-06  Philippe Gerum  <rpm@xenomai.org>
+
+	* scope/bridge.cc (formatArgs): Do not return va_list; some archs
+	may define this as a non-scalar type (i.e. PPC).
+
+	* scope/gdbhelper.cc (translateProto), vmutils/interface.h,
+	include/nucleus/asm/system.h: Stop using dollars in identifiers.
+
+2005-04-22  Philippe Gerum  <rpm@xenomai.org>
+
+	* examples: Move example code to the new per-skin demo directory.
+
+2005-02-09  Philippe Gerum  <rpm@xenomai.org>
+
+	* vm/thread.cc (joinClientThreads): Lower interrupt masking level
+	to flush all pending IRQs while idling.
+
+2005-02-08  Philippe Gerum  <rpm@xenomai.org>
+
+	* include/nucleus/asm/system.h: Add missing PAGE_ALIGN and
+	PAGE_MASK.
+
+	* gcic/gcic.cc (main): Properly drain __xeno_skin_init and
+	__xeno_user_init hook at link time.
+
+2005-01-19  Philippe Gerum  <rpm@xenomai.org>
+
+	* configure.in: Solve chicken-and-egg problem related to the
+	installation directory.
+
+2004-12-27  Philippe Gerum  <rpm@xenomai.org>
+
+	* include/nucleus/asm/system.h (xnarch_read_environ): Fix crash.
+
+2004-06-05  Philippe Gerum  <rpm@xenomai.org>
+
+	* sim: Purge ISVC support.
+
+2004-05-22  Philippe Gerum  <rpm@xenomai.org>
+
+	* sim: Fix path to shared files (icons and tcl).
+
+2004-05-10  Philippe Gerum  <rpm@xenomai.org>
+
+	* sim: Adapted to the fusion branch from vesuvio.
+
+2004-04-20  Philippe Gerum  <rpm@xenomai.org>
+
+	* vm/trigger.cc (body): Fix a bug causing the trigger to be lost
+	when it is reprogrammed on the fly to a regressing timeout date.
+
+	* gcic/gcic.cc (main): Drain __xeno_skin_init() instead of
+	mvm_init_skin() at link time.
+
+2004-04-19  Philippe Gerum  <rpm@xenomai.org>
+
+	* include/asm/rtai_xeno.h, vm/simapi.cc: Provide support for the
+	aperiodic time source now supported by the Xenomai nucleus.
+
+2004-01-11  Philippe Gerum  <rpm@xenomai.org>
+
+	* include/asm/rtai_xeno.h (xnarch_enter_root): Update prototype.
+
+2003-12-28  Gilles Chanteperdrix  <gilles.chanteperdrix@laposte.net>
+
+	* vmutils: added tclUtil.c et tclUtil.h to remove the dependence
+	of libmvmutils upon libtcl.
+
+	* rtai-sim: remove all dependencies upon libtcl, except for the
+	scope subdirectory. Doing so prevents conflicts with tcl8.4 and
+	higher which link against the NPTL, since the latter is
+	incompatible with the lightweight-context switching implemented by
+	the simulation engine over setcontext()/getcontext().
+
+2003-12-02  Philippe Gerum  <rpm@xenomai.org>
+
+	* tkimg: Fix for tk8.4.
+
+	* gcic/gcc-2.95.3.patch: Renamed from gcc-2.95.3.diff.
+
+	* gcic/gcc-2.95.3.patch: Add -DYYTOKENTYPE to CxFLAGS to work
+	around conflicting enum values generated by recent versions of
+	bison. This hack fools bison so that the produced enum is never
+	read.
+
+2003-11-30  Philippe Gerum  <rpm@xenomai.org>
+
+	* vmutils/Makefile.am (libmvmutils_la_CPPFLAGS), scope/Makefile.am
+	(xenoscope_CPPFLAGS): Add -DUSE_COMPAT_CONST for compiling against
+	tcl8.4.
+
+	* configure.in: Whine if libelf-dev is not found on the build
+	system.
+
+2003-11-15  Philippe Gerum  <rpm@xenomai.org>
+
+	* vm/manager.cc (MvmManager::tick()): Allow for virtual
+	time mode, i.e. zero-time charge simulation.
+	
+2003-11-12  Philippe Gerum  <rpm@xenomai.org>
+
+	* rtai-sim: Fix CC overrides using $(top_builddir).
+
+	* tkimg/acinclude.m4: Expunge useless macros and overcome RedHat's
+	insanities regarding tclConfig.sh.
+
+2003-11-11  Philippe Gerum  <rpm@xenomai.org>
+
+	* acinclude.m4: Removed -fpcc-struct-return from CXXFLAGS. We
+	won't link with libraries compiled using non-GCC exotic compilers.
+
+	* gcic/gcic.cc (main): Get rid of the non-GCC support, we don't
+	need it, and we don't want to need it, ever. Also add some
+	consistency checks to abort GCIC whenever the requested operation
+	would lead to a failure. Finally, switch --with-gcic-compiler on
+	by default if the compiler used in building the MVM is not
+	compatible with the GCC base of the instrumenter (i.e. 2.95.x).
+
+2003-11-09  Philippe Gerum  <rpm@xenomai.org>
+
+	* scope/tcl: Change "Xenomai" to "RTAI/MVM" in messages.
+
+	* skins: Force -g, discard -O2 in CFLAGS.
+
+	* vmutils, vm: Force -g if MVM_DEBUG is on.
+
+2003-11-08  Philippe Gerum  <rpm@xenomai.org>
+
+	* tkimg/acinclude.m4: Fix use of TCL_SHARED_LIB_PREFIX and
+	TCL_UNSHARED_LIB_PREFIX.
+
+2003-11-07  Philippe Gerum  <rpm@xenomai.org>
+
+	* tkimg/acinclude.m4: Update Tcl/Tk detection rules.
+
+	* configure.in: Fix inquiry for elf.h, libelf.h and
+	libelf/libelf.h.
+
+	* examples/psos+/satch/Makefile.am: Force --use-gcic-compiler flag
+	so that GCC 3.x installs don't choke on our 2.x pre-processor
+	output.
+
+	* scope/postscript.cc: Kill offending finite() declaration. We
+	don't need it anymore with modern libm support.
+
+2003-11-05  Philippe Gerum  <rpm@xenomai.org>
+
+	* Kconfig: Make XENO_MVM_DEBUG depend on extended configuration.
+
+2003-10-31  Philippe Gerum  <rpm@xenomai.org>
+
+	* Started (based on the final Xenomai 1.1.1 standalone release).

@@ -1,0 +1,458 @@
+dnl Process this file with autoconf to produce a configure script.
+
+AC_PREREQ(2.59)
+
+AC_INIT([Xenomai simulator],m4_normalize(m4_include([../config/version])),xenomai-help@gna.org,xenosim)
+AC_CONFIG_HEADERS(include/xeno_config.h)
+AC_CONFIG_AUX_DIR(../config)
+AC_CONFIG_SRCDIR(vm/thread.cc)
+AC_PREFIX_DEFAULT(/usr/xenomai)
+AC_CANONICAL_BUILD
+AC_CANONICAL_HOST
+AC_PROG_INSTALL
+
+AC_ARG_WITH(CC,
+    AS_HELP_STRING([--with-cc=compiler], [use specific C compiler]),
+    [
+	case "$withval" in
+	"" | y | ye | yes | n | no)
+	    AC_MSG_ERROR([You must supply an argument to --with-cc.])
+	  ;;
+	esac
+	CC="$withval"
+    ])
+AC_PROG_CC
+CFLAGS="-O2"
+
+AC_ARG_WITH(CXX,
+    AS_HELP_STRING([--with-cxx=compiler], [use specific C++ compiler]),
+    [ case "$withval" in
+	"" | y | ye | yes | n | no)
+	    AC_MSG_ERROR([You must supply an argument to --with-cxx.])
+	  ;;
+	esac
+	CXX="$withval" ])
+AC_PROG_CXX
+CXXFLAGS="-O2"
+
+AC_DEFINE_UNQUOTED(CONFIG_XENO_MVM_BUILD_STRING,"$build",[Build system alias])
+MVM_BUILD_STRING="$build"
+AC_DEFINE_UNQUOTED(CONFIG_XENO_MVM_HOST_STRING,"$host",[Host system alias])
+MVM_HOST_STRING="$host"
+
+AM_INIT_AUTOMAKE([foreign no-exeext dist-bzip2])
+AM_MAINTAINER_MODE
+AC_PROG_LIBTOOL
+AM_PROG_LEX
+
+if test \! -r $srcdir/../ksrc/nucleus ; then
+    AC_MSG_ERROR([Missing Xenomai source tree in parent directory])
+fi
+
+AC_MSG_CHECKING(for atomic core mode)
+AC_ARG_ENABLE(atomic_core,
+	AS_HELP_STRING([--enable-atomic-core], [Enable MVM atomic core mode]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_MVM_ATOMIC_CORE=y ;;
+	*) unset CONFIG_XENO_MVM_ATOMIC_CORE ;;
+	esac])
+AC_MSG_RESULT(${CONFIG_XENO_MVM_ATOMIC_CORE:-no})
+
+AC_MSG_CHECKING(for scalable scheduler)
+AC_ARG_ENABLE(nucleus-scalable-sched,
+	AS_HELP_STRING([--enable-nucleus-scalable-sched], 
+                        [Enable scalable scheduler in nucleus]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_OPT_SCALABLE_SCHED=y ;;
+	*) unset CONFIG_XENO_OPT_SCALABLE_SCHED ;;
+	esac])
+AC_MSG_RESULT(${CONFIG_XENO_OPT_SCALABLE_SCHED:-no})
+
+AC_MSG_CHECKING(for debug support)
+AC_ARG_ENABLE(debug,
+	AS_HELP_STRING([--enable-debug], [Enable debug support]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_OPT_DEBUG=y ;;
+	*) unset CONFIG_XENO_OPT_DEBUG ;;
+	esac])
+AC_MSG_RESULT(${CONFIG_XENO_OPT_DEBUG:-no})
+
+AC_MSG_CHECKING(for watchdog support)
+AC_ARG_ENABLE(nucleus-debug,
+	AS_HELP_STRING([--enable-nucleus-watchdog], [Enable watchdog support in nucleus]),
+	[case "$enableval" in
+	y | yes) CONFIG_XENO_OPT_WATCHDOG=y ;;
+	*) unset CONFIG_XENO_OPT_WATCHDOG ;;
+	esac])
+AC_MSG_RESULT(${CONFIG_XENO_OPT_WATCHDOG:-no})
+
+if test x$CONFIG_XENO_OPT_DEBUG = xy; then
+   CXXFLAGS="-g"
+   CFLAGS="-g"
+   defaultwrap=yes
+else
+   defaultwrap=no
+fi
+
+AC_MSG_CHECKING([for GCC tarball])
+
+AC_ARG_WITH(gcc-tarball,
+    AS_HELP_STRING([--with-gcc-tarball=<gcc-tarball>], [Host GCC tarball for MVM/GCIC]),
+    [
+	case "$withval" in
+	"" | y | ye | yes | n | no)
+	    AC_MSG_ERROR([You must supply an argument to --with-gcc-tarball])
+	  ;;
+	esac
+	CONFIG_XENO_MVM_GCC_TARBALL="$withval"
+    ])
+
+if test x$CONFIG_XENO_MVM_GCC_TARBALL = x ; then
+   CONFIG_XENO_MVM_GCC_TARBALL="/tmp/gcc-2.95.3.tar.bz2"
+fi
+
+if test \! -r $prefix/libexec/gcic/.gcic-installed ; then
+   if test \! -r "${CONFIG_XENO_MVM_GCC_TARBALL}" ; then
+      dnl We are going to need the source GCC tarball to build the
+      dnl instrumenter and we cannot find it: this is bad news.
+      if test x$CONFIG_XENO_MVM_GCC_TARBALL = x ; then
+         AC_MSG_RESULT([unspecified (use --with-gcc-tarball to specify one)])
+      else
+         AC_MSG_RESULT([not found at $CONFIG_XENO_MVM_GCC_TARBALL])
+      fi
+      AC_MSG_ERROR([Cannot read GCC tarball])
+   else
+      AC_MSG_RESULT([$CONFIG_XENO_MVM_GCC_TARBALL])
+   fi
+else
+   AC_MSG_RESULT([not needed (instrumenter already built)])
+fi
+
+MVM_GCC_TARBALL=$CONFIG_XENO_MVM_GCC_TARBALL
+
+AC_MSG_CHECKING(Wrap Tcl-scripts in executables)
+AC_ARG_ENABLE(tclwrap,
+	AS_HELP_STRING([ --enable-tclwrap], [Wrap Tcl scripts in the executable files]),
+	[CONFIG_XENO_MVM_TCLWRAP=$enableval],
+	[CONFIG_XENO_MVM_TCLWRAP=$defaultwrap])
+AC_MSG_RESULT($CONFIG_XENO_MVM_TCLWRAP)
+
+dnl Some programs and libs.
+
+AC_GCC_MVM_MOREFLAGS
+AC_PATH_XREQUIRED()
+SC_PUBLIC_TCL_HEADERS()
+SC_PATH_TCLCONFIG()
+SC_LOAD_TCLCONFIG()
+SC_PATH_TKCONFIG()
+SC_LOAD_TKCONFIG()
+SC_PATH_TIX()
+
+dnl Some additional headers.
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(limits.h strings.h unistd.h malloc.h fcntl.h sys/time.h elf.h libelf.h libelf/libelf.h)
+
+dnl Some compiler characteristics.
+AC_TYPE_UID_T
+AC_TYPE_MODE_T
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_FUNC_MMAP
+AC_FUNC_VFORK
+AC_HEADER_TIME
+AC_STRUCT_TM
+AC_STRUCT_TIMEZONE
+AC_POSIX_SIGHANDLER
+
+dnl Locate some utilities.
+AC_PATH_PROG(MVM_PROG_PATCH,patch,/usr/bin/patch,/usr/local/bin:$PATH)
+gccas=`$CC --print-prog-name=as`
+AC_PATH_PROG(MVM_GCCAS,as,$gccas,$PATH)
+gccld=`$CC --print-prog-name=ld`
+AC_PATH_PROG(MVM_GCCLD,ld,$gccld,$PATH)
+
+AC_MSG_CHECKING(for infinity)
+AC_CACHE_VAL(ac_cv_func_or_macro_infinity,
+[AC_TRY_LINK(
+[#include <math.h>],
+[double inf = infinity();],
+[ac_cv_func_or_macro_infinity=yes],
+[ac_cv_func_or_macro_infinity=no])])
+if [[ $ac_cv_func_or_macro_infinity = yes ]]; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_INFINITY,1,[Kconfig])
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(for O_BINARY)
+AC_CACHE_VAL(ac_cv_open_binary_mode,
+[AC_TRY_COMPILE(
+[#include <fcntl.h>],
+[int nullfd = open("/dev/null",O_RDONLY|O_BINARY);],
+[ac_cv_open_binary_mode=yes],
+[ac_cv_open_binary_mode=no])])
+if [[ $ac_cv_open_binary_mode = yes ]]; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_BINARY_OPEN,1,[Kconfig])
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(for GNU quad_t)
+AC_CACHE_VAL(ac_cv_gnu_quad_t,
+[AC_TRY_COMPILE(
+[#include <sys/types.h>],
+[quad_t q = 0;],
+[ac_cv_gnu_quad_t=yes],
+[ac_cv_gnu_quad_t=no])])
+if [[ $ac_cv_gnu_quad_t = yes ]]; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_GNU_QUAD_T,1,[Kconfig])
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(for makecontext)
+AC_CACHE_VAL(ac_cv_func_makecontext,
+[AC_TRY_RUN([
+#include <ucontext.h>
+void life () {}
+int main () {
+ ucontext_t context;
+ if (!getcontext(&context)) {
+     makecontext(&context,(void (*)(void))life,0);
+     return 0;
+     }
+ return 1;
+}],
+[ac_cv_func_makecontext=yes],
+[ac_cv_func_makecontext=no],
+[ac_cv_func_makecontext=yes])])
+if [[ $ac_cv_func_makecontext = yes ]]; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_MAKECONTEXT,1,[Kconfig])
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(for socklen_t)
+AC_CACHE_VAL(ac_cv_socklen_t,
+[AC_TRY_COMPILE(
+[#include <sys/types.h>
+ #include <sys/socket.h>],
+[socklen_t len = 0;],
+[ac_cv_socklen_t=yes],
+[ac_cv_socklen_t=no])])
+if [[ $ac_cv_socklen_t = yes ]]; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_SOCKLEN_T,1,[Kconfig])
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(for glibc2 malloc)
+AC_CACHE_VAL(ac_cv_glibc2_malloc,
+[AC_TRY_COMPILE(
+[#include <malloc.h>],
+[int opt = M_MMAP_MAX;],
+[ac_cv_glibc2_malloc=yes],
+[ac_cv_glibc2_malloc=no])])
+if [[ $ac_cv_glibc2_malloc = yes ]]; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_GLIBC2_MALLOC,1,[Kconfig])
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(stack direction)
+AC_CACHE_VAL(ac_cv_stack_direction,
+[AC_TRY_RUN([
+int main () {
+char c1;
+char c2;
+return &c1 < &c2;
+}],
+[ac_cv_stack_direction=downwarding],
+[ac_cv_stack_direction=upwarding],
+[ac_cv_stack_direction=downwarding])])
+if [[ $ac_cv_stack_direction = downwarding ]]; then
+  AC_MSG_RESULT(downwarding)
+  AC_DEFINE(HAVE_DOWNWARDING_STACK,1,[Kconfig])
+else
+  AC_MSG_RESULT(upwarding)
+  AC_DEFINE(HAVE_UPWARDING_STACK,1,[Kconfig])
+fi
+
+AC_CACHE_CHECK(for usleep declaration, ac_cv_header_usleep,
+  [AC_EGREP_HEADER(usleep, unistd.h,
+  ac_cv_header_usleep=yes, ac_cv_header_usleep=no)])
+test $ac_cv_header_usleep = yes && AC_DEFINE(HAVE_USLEEP,1,[Kconfig])
+
+test x$CONFIG_XENO_OPT_SCALABLE_SCHED = xy && AC_DEFINE(CONFIG_XENO_OPT_SCALABLE_SCHED,1,[config])
+
+if test x$CONFIG_XENO_OPT_DEBUG = xy; then
+  AC_DEFINE(CONFIG_XENO_OPT_DEBUG,1,[config])
+  AC_DEFINE(CONFIG_XENO_MVM_DEBUG,1,[config])
+fi
+
+test x$CONFIG_XENO_OPT_WATCHDOG = xy && AC_DEFINE(CONFIG_XENO_OPT_WATCHDOG,1,[config])
+
+dnl Some required routines.
+AC_FUNC_ALLOCA
+AC_FUNC_FNMATCH
+AC_FUNC_MEMCMP
+AC_FUNC_MMAP
+AC_TYPE_SIGNAL
+AC_FUNC_STRCOLL
+AC_FUNC_VFORK
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS(gethostname gettimeofday mkdir putenv select socket strcspn strdup strerror strspn strstr strtod strtol strtoul select socket)
+
+AC_CHECK_HEADER(netinet/tcp.h,
+	[AC_DEFINE(HAVE_NETINET_TCP,1,[config])]
+)
+MVM_LDADD=
+AC_CHECK_LIB(elf, elf_begin,
+	[MVM_LDADD="$MVM_LDADD -lelf" ; AC_DEFINE(HAVE_LIBELF,1,[config])],
+	AC_MSG_ERROR([Cannot find libelf (development version) on this system])
+)
+AC_CHECK_LIB(dl, dlopen,
+	[MVM_LDADD="$MVM_LDADD -ldl" ; AC_DEFINE(HAVE_LIBDL,1,[config])]
+)
+AC_CHECK_LIB(nsl, gethostbyname,
+	[MVM_LDADD="$MVM_LDADD -lnsl" ; AC_DEFINE(HAVE_LIBNSL,1,[config])]
+)
+AC_CHECK_LIB(socket, connect,
+	[MVM_LDADD="$MVM_LDADD -lsocket" ; AC_DEFINE(HAVE_LIBSOCKET,1,[config])]
+)
+AC_CHECK_HEADER(png.h,,
+	AC_MSG_ERROR([Cannot find png.h (part of libpng development version) on this system])
+)
+AC_CHECK_LIB(png, png_get_io_ptr, [LIBPNG_OK=1],
+	AC_MSG_ERROR([Cannot find libpng (development version) on this system])
+)
+AC_CHECK_LIB(z, deflate, [LIBZ_OK=1],
+	AC_MSG_ERROR([Cannot find libz on this system])
+)
+
+AH_BOTTOM([#ifndef _XENO_SIM_CONFIG_H
+#define  _XENO_SIM_CONFIG_H 1])
+
+AH_BOTTOM([#ifndef HAVE_INFINITY
+#define infinity() (HUGE_VAL)
+#endif /* !HAVE_INFINITY */])
+
+AH_BOTTOM([#ifndef HAVE_SOCKLEN_T
+typedef int socklen_t; 
+#endif])
+
+AH_BOTTOM([#ifndef HAVE_USLEEP
+#ifdef __cplusplus
+extern "C"
+#endif
+void usleep(unsigned us);
+#endif])
+
+AH_BOTTOM([#ifdef HAVE_POSIX_SIGHANDLER
+typedef void (*SIGHANDLER_TYPE)(int);
+#else
+typedef void (*SIGHANDLER_TYPE)();
+#endif])
+
+AH_BOTTOM([#ifndef HAVE_BINARY_OPEN
+#define O_BINARY 0
+#endif /* !HAVE_BINARY_OPEN */])
+
+AH_BOTTOM([#ifndef HAVE_GNU_QUAD_T
+/* We absolutely need a compiler supporting the "long long" spec here */
+typedef long long int gnuquad_t;
+typedef unsigned long long int u_gnuquad_t;
+#else
+#include <sys/types.h>
+typedef quad_t gnuquad_t;
+typedef u_quad_t u_gnuquad_t;
+#endif /* !HAVE_GNU_QUAD_T */])
+
+AH_BOTTOM([#endif /* !_XENO_SIM_CONFIG_H */])
+
+dnl Nucleus setup -- set reasonable values.
+AC_DEFINE_UNQUOTED(CONFIG_XENO_OPT_TIMING_PERIODIC,1,[config])
+AC_DEFINE_UNQUOTED(CONFIG_XENO_OPT_TIMER_HEAP,1,[config])
+AC_DEFINE_UNQUOTED(CONFIG_XENO_OPT_TIMER_HEAP_CAPACITY,256,[config])
+AC_DEFINE_UNQUOTED(CONFIG_XENO_OPT_SYS_HEAPSZ,128,[config])
+AC_DEFINE(CONFIG_XENO_OPT_REGISTRY,1,[config])
+AC_DEFINE_UNQUOTED(CONFIG_XENO_OPT_REGISTRY_NRSLOTS,1024,[config])
+
+dnl Native skin options -- force all in.
+AC_DEFINE(CONFIG_XENO_OPT_NATIVE_SEM,1,[config])
+AC_DEFINE(CONFIG_XENO_OPT_NATIVE_EVENT,1,[config])
+AC_DEFINE(CONFIG_XENO_OPT_NATIVE_MUTEX,1,[config])
+AC_DEFINE(CONFIG_XENO_OPT_NATIVE_COND,1,[config])
+AC_DEFINE(CONFIG_XENO_OPT_NATIVE_QUEUE,1,[config])
+AC_DEFINE(CONFIG_XENO_OPT_NATIVE_HEAP,1,[config])
+AC_DEFINE(CONFIG_XENO_OPT_NATIVE_ALARM,1,[config])
+AC_DEFINE(CONFIG_XENO_OPT_NATIVE_MPS,1,[config])
+
+dnl Compatibility skin options -- force all in.
+AC_DEFINE(CONFIG_XENO_OPT_RTAI_SEM,1,[config])
+
+dnl Periodic timing support -- default to reasonable values
+AC_DEFINE(CONFIG_XENO_OPT_NATIVE_PERIOD,0,[config])
+AC_DEFINE(CONFIG_XENO_OPT_POSIX_PERIOD,0,[config])
+AC_DEFINE(CONFIG_XENO_OPT_RTDM_PERIOD,0,[config])
+AC_DEFINE(CONFIG_XENO_OPT_PSOS_PERIOD,1000,[config])
+AC_DEFINE(CONFIG_XENO_OPT_VXWORKS_PERIOD,1000,[config])
+AC_DEFINE(CONFIG_XENO_OPT_VRTX_PERIOD,1000,[config])
+AC_DEFINE(CONFIG_XENO_OPT_UITRON_PERIOD,1000,[config])
+AC_DEFINE(CONFIG_XENO_OPT_RTAI_PERIOD,0,[config])
+
+
+AC_SUBST(MVM_LDADD)
+AC_SUBST(MVM_CFLAGS)
+AC_SUBST(MVM_CXXFLAGS)
+AC_SUBST(MVM_GCC_TARBALL)
+AC_SUBST(MVM_BUILD_STRING)
+AC_SUBST(MVM_HOST_STRING)
+
+dnl
+dnl Produce automake conditionals.
+dnl
+
+AM_CONDITIONAL(CONFIG_XENO_MVM_TCLWRAP,test x$tclwrap = xyes)
+AM_CONDITIONAL(CONFIG_XENO_MVM_ATOMIC_CORE,test x$CONFIG_XENO_MVM_ATOMIC_CORE = xy)
+
+dnl
+dnl Build the Makefiles
+dnl
+
+base=asm-sim
+AC_CONFIG_LINKS([include/asm/xenomai:../include/$base])
+
+AC_CONFIG_SUBDIRS(tkimg)
+
+AC_CONFIG_FILES([ \
+     Makefile \
+     vmutils/Makefile \
+     vm/Makefile \
+     adapter/Makefile \
+     skins/Makefile \
+     nucleus/Makefile \
+     include/Makefile \
+     skins/psos+/Makefile \
+     skins/vxworks/Makefile \
+     skins/vxworks/testsuite/Makefile \
+     skins/vrtx/Makefile \
+     skins/uitron/Makefile \
+     skins/posix/Makefile \
+     skins/posix/testsuite/Makefile \
+     skins/posix/demos/Makefile \
+     skins/native/Makefile \
+     skins/rtai/Makefile \
+     gcic/Makefile \
+     scope/Makefile \
+     ])
+
+AC_OUTPUT()

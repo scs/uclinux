@@ -1,0 +1,458 @@
+#! /bin/sh
+
+# Adapted to be run also under the BusyBox. 
+# If you want to test it this way, do: sh xeno-test
+# BusyBox >= 1.1.3 with a make defconfig should provide all needed applets.
+
+prefix="@prefix@"
+pkgdatadir="@exec_prefix@/share/xenomai"
+
+myusage() {
+    cat >&1 <<EOF
+xeno-test [options]
+  runs latency test in all 3 test-modes
+  -w <number>	spawn N workloads (dd if=/dev/zero of=/dev/null) default=1
+  -d <device>	used as alternate src in workload (dd if=$device ..)
+		The device must be mounted, and (unfortunately) cannot
+		be an NFS mount a real device (ex /dev/hda) will
+		generate interrupts
+  -W <script>   script is an alternate workload.  If you need to pass args
+		to your program, use quotes.  The program must clean
+		up its children when it gets a SIGTERM
+  -P <cmd>	cmd is run before and after rt-tests
+		(forex: 'ntpdate -b <host>' or 'ntpq -p')
+  -L	     	writes logs to /tmp/test-`uname -r`-<timestamp>
+  -N <name>	like -L, but writes to name-<timestamp> (in PWD)
+		name can be full or relative pathname
+  -v		verbose
+  -M <email>	sends output to given addr
+  -m		sends output to xenomai-data@gna.org
+  -U <url>	uploads output to given URL
+  -D <datefmt>	alternate options to date, for timestamp (dflt: 
+
+  # following options are passed thru to latency
+  -s	print statistics of sampled data (default on)
+  -h	print histogram of sampled data (default on, implies -s)
+  -q	quiet, dont print 1 sec sampled data (default on, off if !-T)
+  -T <sec test>		 (default: 120 sec)
+  -l <data/header lines> (default 21)
+  -H <bucketcount>	 (default 100)
+  -B <bucketsize ns>	 (default 1000 ns)
+  -p <sample_period_us>	 (default 100 us)
+EOF
+    # NB: many defaults are coded in latency
+    exit 1
+}
+
+echo "xeno-test: started $*"
+#set -e	# ctrl-C's should end everything, not just subshells. 
+	# commenting it out may help to debug stuff.
+
+set -o notify	# see dd's finish immediately.(or not!)
+
+withBusybox=0
+if sh --help 2>&1| grep -q BusyBox; then
+    withBusybox=1;
+# else running a real /bin/sh (bash) shell
+fi
+echo withBusybox is $withBusybox
+pidFile=/var/lock/`basename $0.$$`.pids
+
+checkUtilities() {
+  # Check for needed helper utilities
+  neededApplets="awk basename cut date dd dirname egrep grep head
+		       kill md5sum mount sleep test top uname zcat"
+  foundAll=1
+  for  _j in $neededApplets
+  do
+    if test -z "`which $_j`"; then
+      echo "Please build busybox with support for applet $_j"
+      foundAll=0
+    fi
+  done
+  if ! type getopts 2>&1 >/dev/null; then
+    echo "Please build busybox's ash with support for getopts"
+    foundAll=0
+  fi
+  if test $foundAll -eq 0 ; then 
+      needApplets=""
+      foundAll=""
+      exit 3
+  fi
+  needApplets=""
+  foundAll=""
+}
+
+checkHelpers() {
+  foundAll=1
+  if test -z "`which script`" -a -n "$logging"; then
+      echo "You will not be able to log (-L option) as script is missing"
+      foundAll=0
+  fi
+  if test -z "`which mail`" -a "$sendit" = 'm' ; then
+      echo "You will not be able send mail (-m/-M options) as mail is missing"
+      foundAll=0
+  fi
+  if test -z "`which curl`" -a "$sendit" = 'm' ; then
+      echo "You will not be able to upload (-U option) as curl is missing"
+      foundAll=0
+  fi
+  if test $foundAll -eq 0 ; then 
+      foundAll=""
+      exit 3
+  fi
+  foundAll=""
+}
+
+loudly() {
+    [ "$1" = "" ] && return
+    # run task after announcing it
+    echo; date;
+    echo running: $*
+    eval $* &			# eval helps w complex cmds, like zegrep -E
+    wait $!
+}
+
+# defaults for cpu workload 
+device=/dev/zero	
+dd_jobs=
+
+# used in generate-loads
+mkload() { dd if=$device of=/dev/null $* & }
+
+generate_loads() {
+    jobsct=$1;
+    # if test -z "$1"; then echo Skipping generate_loads; return; fi
+    shift 1
+    if test 0 -eq $withBusybox ; then
+	reaper() { echo something died a $! or $* ; sleep 1;  }
+	trap reaper CHLD
+	trap cleanup_load EXIT	# under all exit conditions
+    fi
+    while test $jobsct -ge 1; do 
+        jobsct=$(($jobsct-1));
+        mkload
+        dd_jobs="$dd_jobs $!" ;
+    done
+
+    echo dd workload started, pids $dd_jobs stored in $pidFile
+    echo  $dd_jobs > $pidFile
+    jobsct=""
+}
+
+cleanup_load() {
+    # kill the workload
+    if test -z "$dd_jobs" -a -r $pidFile; then
+      dd_jobs=`cat $pidFile`
+      rm -f $pidFile
+    fi
+
+    if test -z "$dd_jobs" ; then
+        echo "cleanup_load: no dd_jobs found"
+    else
+	for _j in $dd_jobs
+	do
+	  ps | grep $_j
+	  kill $_j
+	done
+    fi
+    unset dd_jobs;
+}
+
+whatconf="XENO|IPIPE|PREEMPT|CONFIG_ACPI|CONFIG_PM|CPU_FREQ|CONFIG_DEBUG_SPINLOCK|CONFIG_FRAME_POINTER"
+
+
+boxinfo() { # static info, show once
+    loudly `dirname $0`/xeno-config --verbose
+    loudly `dirname $0`/xeno-info
+
+    loudly cat /proc/cpuinfo	# bogomips changes under CPU_FREQ
+    loudly md5sum /proc/cpuinfo	'# cpuinfo fingerprint'
+
+    # how much of the config do we want ?
+    filter=" grep -E '$whatconf'"
+    [ "$verbose" = 1 ] && filter=
+    if test -f /proc/config.gz; then # get the config
+         loudly zcat /proc/config.gz | $filter
+    elif test -f /lib/modules/`uname -r`/build/.config
+    then
+	loudly cat /lib/modules/`uname -r`/build/.config | $filter
+    fi
+
+    [ -d /proc/adeos ] && for f in /proc/adeos/*; do loudly cat $f; done
+    [ -d /proc/ipipe ] && for f in /proc/ipipe/*; do loudly cat $f; done
+    filter=""
+}
+
+boxstatus() {     # get dynamic status
+    loudly cat /proc/interrupts
+    loudly cat /proc/loadavg
+    loudly cat /proc/meminfo
+
+    if [ -d /proc/xenomai ]; then
+	for f in /proc/xenomai/*;   do [ -f $f ] && loudly cat $f; done
+	for f in /proc/xenomai/*/*; do [ -f $f ] && loudly cat $f; done
+    fi
+    [ -n "$prepost" ] && loudly $prepost
+    if test 0 -eq $withBusybox ; then
+	loudly top -bn1c | head -n $(( 12 + $workload ))
+    else
+	loudly top | head -n $(( 12 + $workload ))
+    fi
+}
+
+
+run_w_load() {
+    local latpass
+    local sbpass
+
+    while :; do 
+	case $1 in
+	*=*)
+	    eval "$1"
+	    shift;;
+	*)
+	    break;;
+	esac
+    done
+
+    latpass="$*";
+    [ "$latpass" = '' ] && latpass='-sh -T 120'
+    [ "$sbpass" = '' ] && sbpass='-h'
+
+    boxinfo
+    loudly generate_loads $workload
+    boxstatus
+    (
+        cd $pkgdatadir/testsuite/latency
+	loudly ./run -- $XENOT_LATENCY $latpass -t0 '# latency'
+	loudly ./run -- $XENOT_LATENCY $latpass -t1 '# latency'
+	loudly ./run -- $XENOT_LATENCY $latpass -t2 '# latency'
+    )
+    (	cd $pkgdatadir/testsuite/switchtest
+	loudly ./run -- -T 120 $XENOT_SWITCHTEST '# switchtest'
+    )
+    (	cd $pkgdatadir/testsuite/switchbench
+	loudly ./run -- $XENOT_SWITCHBENCH $sbpass '# switchbench'
+    )
+    (	cd $pkgdatadir/testsuite/cyclic
+	loudly ./run -- -p 10 -n -l 1000 $XENOT_CYCLIC '# cyclictest'
+    )
+
+    if [ "$XENOT_IRQBENCH" != "" ] ; then
+	(
+	    cd $pkgdatadir/testsuite/irqbench
+	    loudly ./run -- -P 10 $XENOT_IRQBENCH -t0 '# irqbench user'
+	    loudly ./run -- -P 10 $XENOT_IRQBENCH -t1 '# irqbench kernel'
+	    loudly ./run -- -P 10 $XENOT_IRQBENCH -t2 '# irqbench irq-handler'
+	    loudly ./run -- -P 10 $XENOT_IRQBENCH -t3 '# irqbench hard-irq-handler'
+	)
+    fi
+
+    boxstatus
+    cleanup_load
+}
+
+#####################
+# MAIN
+checkUtilities
+
+if [ -f /proc/config.gz ] ; then
+
+    # check/warn on problem configs
+    eval `zcat /proc/config.gz | grep CONFIG_CPU_FREQ` ;
+    if [ ! -z "$CONFIG_CPU_FREQ" ] ; then
+	echo "warning: CONFIG_CPU_FREQ=$CONFIG_CPU_FREQ may be problematic"
+    fi
+fi
+
+workload=1	# default = 1 job
+
+# *pass get all legit options, except -N, -L
+latpass=	# pass thru to latency
+sbpass=         # pass thru to switchbench
+loadpass=	# pass thru to subshell, not to actual tests
+
+logging=	# no logging by default
+logfile=test-`uname -r` # defaults to test-`uname -r`-<datestampe>
+logprefix=/tmp/	# someplace usually there
+prepost=	# command to run pre, and post test (ex ntpq -p)
+
+email='xenomai-data@gna.org'		# may reject til you subscribe
+sentby='xenotest.sender@xenomai.org'	# tbd
+url=
+sendit=		# send it by m-mail, u-url
+verbose=
+dateargs='+%y%m%d.%H%M%S'
+
+sendit() {
+    file=$1
+    if test "$sendit" = 'm' ; then
+	echo "mailing $file to $email"
+	if test -n "$file" ; then
+	    mail -s 'xeno-test results' $email -- -F $sentby < $file
+	else
+	    cat - | mail -s 'xeno-test results' $email -- -F $sentby
+	fi
+    elif test "$sendit" = 'u' ; then
+	echo "uploading $file to $url"
+	which curl && curl -T $file $url
+	# -x $proxy >/tmp/.submit_result
+	# which wget && curl -T $file $url \
+    else
+	echo "sendit unsupported option '$sendit'"
+    fi
+    file=""
+}
+
+handle_options() {	# called for XENOTEST_OPTS, ARGV
+    case $FOO in
+
+	# latency & switchbench passthrus
+	h)
+	    latpass="$latpass -$FOO"
+	    sbpass="$sbpass -$FOO" ;;
+	p)
+	    latpass="$latpass -$FOO $OPTARG"
+	    sbpass="$sbpass -$FOO $OPTARG" ;;
+
+	# latency only passthrus
+	s|q)
+	    latpass="$latpass -$FOO" ;;
+	T|l|H|B)
+	    latpass="$latpass -$FOO $OPTARG" ;;
+
+	# workload related
+	d) 
+	    device=$OPTARG    
+	    echo creating workload using dd if=$device
+	    if !(mount | grep -q ^$device) ; then
+		echo d option must be a block device, ie one of:
+		mount | cut -d\  -f1 | egrep -ve 'sysfs|proc|depts'
+		exit 1;
+	    fi
+	    loadpass="$loadpass -d $device"
+	    ;;
+	w)
+	    workload=$OPTARG
+	    loadpass="$loadpass -w $OPTARG"  ;;
+	W)
+	    altwork=$OPTARG
+	    loadpass="$loadpass -W '$OPTARG'"  ;;
+	P)
+	    prepost=$OPTARG 
+	    loadpass="$loadpass -P '$OPTARG'"  ;;
+
+	# output disposition
+	L)
+	    logging=1
+	    logfile=test-`uname -r`  ;;
+	N)
+	    logging=1
+	    logprefix=$OPTARG ;;
+	M)
+	    email=$OPTARG 
+	    sendit='m' ;;
+	m)
+	    sendit='m' ;;
+	U)
+	    url=$OPTARG 
+	    sendit='u' ;;
+	v)
+	    verbose=1 ;;
+	D)
+	    dateargs=$OPTARG ;;
+	?)
+	    myusage ;;
+    esac
+}
+
+# process options from envar, then from cmd-line
+while getopts 'd:shqvT:l:H:B:uLN:w:W:p:mM:U:P:D:' FOO $XENOTEST_OPTS ; do
+    handle_options;
+done
+while getopts 'd:shqvT:l:H:B:uLN:w:W:p:mM:U:P:D:' FOO ; do
+    handle_options;
+done
+
+checkHelpers
+
+# all args have been handled, and split into 2 passthrus
+shift $(($OPTIND - 1));
+
+if test -f pidFile && ! test -w $pidFile ; then
+  echo  "pidfile $pidFile not writable "; 
+  exit 4
+fi
+
+echo "xeno-test: running tests"
+
+wfile=$logprefix$logfile-`date $dateargs`
+if test "$logging" != "" ; then
+    # restart inside a script invocation, passing appropriate args
+    script -c "`dirname $0`/xeno-test $loadpass $latpass $*" $wfile
+    res="$?"
+    if test "$res" = "0" ; then
+	sendit $wfile
+    fi
+else
+    if test "$altwork" != "" ; then
+	mkload() { exec $altwork; }
+    fi
+    run_w_load sbpass="$sbpass" $latpass $* 2>&1 | tee $wfile
+    res="$?"
+    if test "$sendit" != '' && test $res -eq 0  ; then
+       sendit $wfile
+    fi
+fi
+
+echo "xeno-test: finished"
+exit 0
+
+
+#################################################
+#
+#DONE:
+#
+#1. added -W <program invocation>
+#
+#The program should generate a load that is appropriately demanding
+#upon cpu, interrupts, devices, etc.
+#
+#It should also work when invoked more than once, and scale the loads
+#reasonably linearly (since the -w will count by N).
+#
+#Also, if it spawns subtasks, it should end them all when it gets SIGTERM.
+#
+#
+#2. added timestamp to the output filename to avoid overwriting
+#   previous results.
+#
+#3. added -p 'command', which runs command before, between, and after
+#   the latency tests.
+#
+#
+#TODO:
+#
+#1. get workload child reaper to work when child is killed from
+#separate window, or when it finishes.  Forex, 'dd if=/dev/hda ...'
+#will eventually finish, and should be restarted to keep the load up.
+#Figure out why killall didnt work properly.
+#
+#2. Much more testing.  Heres a weak start. You migth be better off
+#using and improving test/test-xeno-test.rb.
+#
+##!/bin/bash
+#PATH=.:$PATH
+#xeno-test -L
+#xeno-test -N foo -T 18 -l 6 -s
+#xeno-test -L -N foo1-
+#xeno-test -m
+#xeno-test -T 1 -M $USER@localhost
+#xeno-test -N foo0 -w0 -l 5 -T 30 -h
+#xeno-test -L -N foo4- -w4
+#xeno-test -L -N foo4W- -w4 -W 'dd if=/dev/hda1 of=/dev/null'
+#
+#3. Repeat the same tests under the BusyBox.
+#
+#4. Check for border cases like missing awk, curl, mail, script, /proc/config.gz

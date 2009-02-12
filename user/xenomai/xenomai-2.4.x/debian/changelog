@@ -1,0 +1,152 @@
+xenomai (2.4.4-3) unstable; urgency=low
+
+  * debian/rules: Fixed concurrent ./configure + make runs, thanks to Albin
+    Tonnerre (Closes: #486461)
+
+ -- Roland Stigge <stigge@antcom.de>  Mon, 16 Jun 2008 11:44:01 +0200
+
+xenomai (2.4.4-2) unstable; urgency=low
+
+  * Backported kernel 2.6.24 patches for x86, powerpc and arm (for lenny) from
+    xenomai 2.4.3
+  * debian/control: Standards-Version: 3.8.0
+
+ -- Roland Stigge <stigge@antcom.de>  Thu, 12 Jun 2008 14:27:12 +0200
+
+xenomai (2.4.4-1) unstable; urgency=low
+
+  * New upstream release
+  * debian/rules: configure --enable-arm-mach=generic for ARM
+  * debian/control: Standards-Version: 3.8.0
+
+ -- Roland Stigge <stigge@antcom.de>  Mon, 09 Jun 2008 14:28:01 +0200
+
+xenomai (2.4.4~svn20080526-1) experimental; urgency=low
+
+  * New upstream snapshot
+
+ -- Roland Stigge <stigge@antcom.de>  Mon, 26 May 2008 11:58:30 +0200
+
+xenomai (2.4.3-7) unstable; urgency=low
+
+  * Included patch from Riku Voipio to fix ARM compile issues
+    (Closes: #477720)
+
+ -- Roland Stigge <stigge@antcom.de>  Thu, 24 Apr 2008 23:18:01 +0200
+
+xenomai (2.4.3-6) unstable; urgency=low
+
+  * Added lintian override for recursive include directories (necessary
+    according to upstream)
+  * Added missing man pages (can be removed when integrated upstream)
+  * debian/rules: Fixed klatency/run script to be proper shell script
+
+ -- Roland Stigge <stigge@antcom.de>  Tue, 22 Apr 2008 12:23:22 +0200
+
+xenomai (2.4.3-5) unstable; urgency=low
+
+  * Install xeno-config into libxenomai-dev where the executable is
+
+ -- Roland Stigge <stigge@antcom.de>  Sat, 19 Apr 2008 22:15:07 +0200
+
+xenomai (2.4.3-4) unstable; urgency=low
+
+  * Move /usr/lib/xenomai to original upstream /usr/share/xenomai
+
+ -- Roland Stigge <stigge@antcom.de>  Fri, 18 Apr 2008 19:51:49 +0200
+
+xenomai (2.4.3-3) unstable; urgency=low
+
+  * debian/rules: Separated prepare-patch.sh calls for individual
+    architectures (Closes: #473098)
+
+ -- Roland Stigge <stigge@antcom.de>  Thu, 10 Apr 2008 10:01:33 +0200
+
+xenomai (2.4.3-2) unstable; urgency=low
+
+  * Enable x86 patches for both i386 and amd64 (Closes: #473098)
+
+ -- Roland Stigge <stigge@antcom.de>  Tue, 01 Apr 2008 10:04:51 +0200
+
+xenomai (2.4.3-1) unstable; urgency=low
+
+  * New upstream release
+  * Added debian/watch
+
+ -- Roland Stigge <stigge@antcom.de>  Tue, 25 Mar 2008 14:13:50 +0100
+
+xenomai (2.4.2-3) unstable; urgency=low
+
+  * Fixed bashisms by using "#!/bin/bash" (Closes: #471871)
+
+ -- Roland Stigge <stigge@antcom.de>  Sat, 22 Mar 2008 17:01:11 +0100
+
+xenomai (2.4.2-2) unstable; urgency=low
+
+  * debian/copyright: Refined Copyrights
+  * debian/control: Added ia64 to remaining relevant Architecture lines
+  * debian/rules: Moved DEBIAN/rules adjustment for architecture independent
+    target to arch-indep target
+
+ -- Roland Stigge <stigge@antcom.de>  Thu, 28 Feb 2008 20:55:23 +0100
+
+xenomai (2.4.2-1) unstable; urgency=low
+
+  * Initial revision for the Debian Archive
+  * debian/control:
+    - Reorganized binary package structure
+    - Standards-Version: 3.7.3
+
+ -- Roland Stigge <stigge@antcom.de>  Wed, 20 Feb 2008 18:06:49 +0100
+
+xenomai (2.4.0-0+rc6) unstable; urgency=low
+
+  * Update prepare-patch.sh to use combined x86/i386 Xenomai tree.
+  * Split patch generation out of build-stamp so that it only gets
+    called once along with the configure.
+  * In pursuit of silencing lintian:
+    * Rename top level ChangeLog to changelog when installed.
+    * Add ldconfig to post install/remove scripts.
+    * Compress changelogs.
+
+ -- Paul Corner <paul_c@gna.org>  Wed, 14 Nov 2007 21:48:27 +0000
+
+xenomai (2.3.50-05+r2299) unstable; urgency=low
+
+  * Add top level ChangeLog and CREDITS to each package.
+  * rebuilt from SVN tag 2299
+
+ -- Paul Corner <paul_c@gna.org>  Thu, 15 Mar 2007 11:03:14 +0000
+
+xenomai (2.3.50-04) unstable; urgency=low
+
+  * Remove demo & snippets from the patches - Installed in xenomai-dev
+  * linux-patches-xenomai lists patches, architectures, & kernel version
+    in the package description meta-data.
+
+ -- Paul Corner <paul_c@gna.org>  Mon, 12 Mar 2007 17:30:00 +0000
+
+xenomai (2.3.50-03) unstable; urgency=low
+
+  * Revision 2281
+  * Fix bug in postinst script - Need to overwrite the symlink
+
+ -- Paul Corner <paul_c@gna.org>  Sun, 11 Mar 2007 20:30:00 +0000
+
+xenomai (2.3.50-02) unstable; urgency=low
+
+  * Apply patch to fix includedir bug - rules updated..
+  * debian/ contents added to EXTRA_DIST.
+
+ -- Paul Corner <paul_c@gna.org>  Wed,  7 Mar 2007 23:29:00 +0000
+
+xenomai (2.3.50-01) unstable; urgency=low
+
+  * Initial build.
+  * General notes: prepare-patch.sh generates a per-kernel/arch
+    for use with kernel-package - A single patch is needed for
+    apply/unapply steps. The scripts/prepare-kernel.sh appends a
+    few lines to some Makefiles which would cause problems on the
+    unapply stage.
+
+ -- Paul Corner <paul_c@gna.org>  Sat,  3 Mar 2007 12:00:00 +0000

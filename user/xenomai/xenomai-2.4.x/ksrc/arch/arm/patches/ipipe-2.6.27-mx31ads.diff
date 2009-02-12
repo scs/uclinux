@@ -1,0 +1,262 @@
+diff --git a/arch/arm/mach-mx3/mx31ads.c b/arch/arm/mach-mx3/mx31ads.c
+index 09dd8f4..a1e7947 100644
+--- a/arch/arm/mach-mx3/mx31ads.c
++++ b/arch/arm/mach-mx3/mx31ads.c
+@@ -22,6 +22,7 @@
+ #include <linux/init.h>
+ #include <linux/clk.h>
+ #include <linux/serial_8250.h>
++#include <linux/irq.h>
+ 
+ #include <mach/hardware.h>
+ #include <asm/mach-types.h>
+@@ -106,6 +107,88 @@ static inline void mxc_init_imx_uart(void)
+ }
+ #endif /* !SERIAL_IMX */
+ 
++static void mx31ads_expio_irq_handler(u32 irq, struct irq_desc *desc)
++{
++	u32 imr_val;
++	u32 int_valid;
++	u32 expio_irq;
++
++	imr_val = __raw_readw(PBC_INTMASK_SET_REG);
++	int_valid = __raw_readw(PBC_INTSTATUS_REG) & imr_val;
++
++	expio_irq = MXC_EXP_IO_BASE;
++	for (; int_valid != 0; int_valid >>= 1, expio_irq++) {
++		if ((int_valid & 1) == 0)
++			continue;
++
++		generic_handle_irq(expio_irq);
++	}
++}
++
++/*
++ * Disable an expio pin's interrupt by setting the bit in the imr.
++ * @param irq           an expio virtual irq number
++ */
++static void expio_mask_irq(u32 irq)
++{
++	u32 expio = MXC_IRQ_TO_EXPIO(irq);
++	/* mask the interrupt */
++	__raw_writew(1 << expio, PBC_INTMASK_CLEAR_REG);
++	__raw_readw(PBC_INTMASK_CLEAR_REG);
++}
++
++/*
++ * Acknowledge an expanded io pin's interrupt by clearing the bit in the isr.
++ * @param irq           an expanded io virtual irq number
++ */
++static void expio_ack_irq(u32 irq)
++{
++	u32 expio = MXC_IRQ_TO_EXPIO(irq);
++	/* clear the interrupt status */
++	__raw_writew(1 << expio, PBC_INTSTATUS_REG);
++}
++
++/*
++ * Enable a expio pin's interrupt by clearing the bit in the imr.
++ * @param irq           a expio virtual irq number
++ */
++static void expio_unmask_irq(u32 irq)
++{
++	u32 expio = MXC_IRQ_TO_EXPIO(irq);
++	/* unmask the interrupt */
++	__raw_writew(1 << expio, PBC_INTMASK_SET_REG);
++}
++
++static struct irq_chip expio_irq_chip = {
++	.ack = expio_ack_irq,
++	.mask = expio_mask_irq,
++	.unmask = expio_unmask_irq,
++};
++
++static void __init mx31ads_init_expio(void)
++{
++	int i;
++
++	printk(KERN_INFO "MX31ADS EXPIO(CPLD) hardware\n");
++
++	/*
++	 * Configure INT line as GPIO input
++	 */
++	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_GPIO1_4, IOMUX_CONFIG_GPIO));
++
++	/* disable the interrupt and clear the status */
++	__raw_writew(0xFFFF, PBC_INTMASK_CLEAR_REG);
++	__raw_writew(0xFFFF, PBC_INTSTATUS_REG);
++	for (i = MXC_EXP_IO_BASE; i < (MXC_EXP_IO_BASE + MXC_MAX_EXP_IO_LINES);
++	     i++) {
++		set_irq_chip(i, &expio_irq_chip);
++		set_irq_handler(i, handle_level_irq);
++		set_irq_flags(i, IRQF_VALID);
++	}
++	set_irq_type(EXPIO_PARENT_INT, IRQ_TYPE_LEVEL_HIGH);
++	set_irq_chained_handler(EXPIO_PARENT_INT, mx31ads_expio_irq_handler);
++}
++
+ /*!
+  * This structure defines static mappings for the i.MX31ADS board.
+  */
+@@ -142,6 +225,12 @@ void __init mx31ads_map_io(void)
+ 	iotable_init(mx31ads_io_desc, ARRAY_SIZE(mx31ads_io_desc));
+ }
+ 
++void __init mx31ads_init_irq(void)
++{
++	mxc_init_irq();
++	mx31ads_init_expio();
++}
++
+ /*!
+  * Board specific initialization.
+  */
+@@ -171,7 +260,7 @@ MACHINE_START(MX31ADS, "Freescale MX31ADS")
+ 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+ 	.boot_params    = PHYS_OFFSET + 0x100,
+ 	.map_io         = mx31ads_map_io,
+-	.init_irq       = mxc_init_irq,
++	.init_irq       = mx31ads_init_irq,
+ 	.init_machine   = mxc_board_init,
+ 	.timer          = &mx31ads_timer,
+ MACHINE_END
+diff --git a/arch/arm/plat-mxc/include/mach/board-mx31ads.h b/arch/arm/plat-mxc/include/mach/board-mx31ads.h
+index 1bc6fb0..745b488 100644
+--- a/arch/arm/plat-mxc/include/mach/board-mx31ads.h
++++ b/arch/arm/plat-mxc/include/mach/board-mx31ads.h
+@@ -90,6 +90,9 @@
+ #define PBC_INTMASK_CLEAR_REG	(PBC_INTMASK_CLEAR + PBC_BASE_ADDRESS)
+ #define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_4)
+ 
++#define MXC_EXP_IO_BASE		(MXC_MAX_INT_LINES + MXC_MAX_GPIO_LINES)
++#define MXC_IRQ_TO_EXPIO(irq)	((irq) - MXC_EXP_IO_BASE)
++
+ #define EXPIO_INT_LOW_BAT	(MXC_EXP_IO_BASE + 0)
+ #define EXPIO_INT_PB_IRQ	(MXC_EXP_IO_BASE + 1)
+ #define EXPIO_INT_OTG_FS_OVR	(MXC_EXP_IO_BASE + 2)
+diff --git a/arch/arm/mach-mx3/mx31ads.c b/arch/arm/mach-mx3/mx31ads.c
+index 60fb4e0..09dd8f4 100644
+--- a/arch/arm/mach-mx3/mx31ads.c
++++ b/arch/arm/mach-mx3/mx31ads.c
+@@ -31,6 +31,8 @@
+ #include <asm/mach/map.h>
+ #include <mach/common.h>
+ #include <mach/board-mx31ads.h>
++#include <mach/imx-uart.h>
++#include <mach/iomux-mx3.h>
+
+ /*!
+  * @file mx31ads.c
+@@ -84,6 +86,26 @@ static inline int mxc_init_extuart(void)
+ }
+ #endif
+
++#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
++static struct imxuart_platform_data uart_pdata = {
++	.flags = IMXUART_HAVE_RTSCTS,
++};
++
++static inline void mxc_init_imx_uart(void)
++{
++	mxc_iomux_mode(MX31_PIN_CTS1__CTS1);
++	mxc_iomux_mode(MX31_PIN_RTS1__RTS1);
++	mxc_iomux_mode(MX31_PIN_TXD1__TXD1);
++	mxc_iomux_mode(MX31_PIN_RXD1__RXD1);
++
++	imx_init_uart(0, &uart_pdata);
++}
++#else /* !SERIAL_IMX */
++static inline void mxc_init_imx_uart(void)
++{
++}
++#endif /* !SERIAL_IMX */
++
+ /*!
+  * This structure defines static mappings for the i.MX31ADS board.
+  */
+@@ -126,6 +148,7 @@ void __init mx31ads_map_io(void)
+ static void __init mxc_board_init(void)
+ {
+ 	mxc_init_extuart();
++	mxc_init_imx_uart();
+ }
+
+ static void __init mx31ads_timer_init(void)
+diff --git a/drivers/net/Kconfig b/drivers/net/Kconfig
+index 4a11296..9df7bb9 100644
+--- a/drivers/net/Kconfig
++++ b/drivers/net/Kconfig
+@@ -1386,7 +1386,8 @@ config FORCEDETH_NAPI
+ 
+ config CS89x0
+ 	tristate "CS89x0 support"
+-	depends on NET_PCI && (ISA || MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X)
++	depends on NET_ETHERNET && (ISA || EISA || MACH_IXDP2351 \
++		|| ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS)
+ 	---help---
+ 	  Support for CS89x0 chipset based Ethernet cards. If you have a
+ 	  network (Ethernet) card of this type, say Y and read the
+@@ -1397,6 +1398,11 @@ config CS89x0
+ 	  To compile this driver as a module, choose M here. The module
+ 	  will be called cs89x0.
+ 
++config CS89x0_NONISA_IRQ
++	def_bool y
++	depends on CS89x0 != n
++	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS
++
+ config TC35815
+ 	tristate "TOSHIBA TC35815 Ethernet support"
+ 	depends on NET_PCI && PCI && MIPS
+diff --git a/drivers/net/cs89x0.c b/drivers/net/cs89x0.c
+index ea6144a..5890a91 100644
+--- a/drivers/net/cs89x0.c
++++ b/drivers/net/cs89x0.c
+@@ -194,6 +194,12 @@ static unsigned int cs8900_irq_map[] = {IRQ_IXDP2X01_CS8900, 0, 0, 0};
+ #define CIRRUS_DEFAULT_IRQ	VH_INTC_INT_NUM_CASCADED_INTERRUPT_1 /* Event inputs bank 1 - ID 35/bit 3 */
+ static unsigned int netcard_portlist[] __used __initdata = {CIRRUS_DEFAULT_BASE, 0};
+ static unsigned int cs8900_irq_map[] = {CIRRUS_DEFAULT_IRQ, 0, 0, 0};
++#elif defined(CONFIG_MACH_MX31ADS)
++#include <mach/board-mx31ads.h>
++static unsigned int netcard_portlist[] __used __initdata = {
++	PBC_BASE_ADDRESS + PBC_CS8900A_IOBASE + 0x300, 0
++};
++static unsigned cs8900_irq_map[] = {EXPIO_INT_ENET_INT, 0, 0, 0};
+ #else
+ static unsigned int netcard_portlist[] __used __initdata =
+    { 0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240, 0x260, 0x280, 0x2a0, 0x2c0, 0x2e0, 0};
+@@ -802,7 +808,7 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
+ 	} else {
+ 		i = lp->isa_config & INT_NO_MASK;
+ 		if (lp->chip_type == CS8900) {
+-#if defined(CONFIG_MACH_IXDP2351) || defined(CONFIG_ARCH_IXDP2X01) || defined(CONFIG_ARCH_PNX010X)
++#ifdef CONFIG_CS89x0_NONISA_IRQ
+ 		        i = cs8900_irq_map[0];
+ #else
+ 			/* Translate the IRQ using the IRQ mapping table. */
+@@ -1029,6 +1035,7 @@ skip_this_frame:
+ 
+ void  __init reset_chip(struct net_device *dev)
+ {
++#if !defined(CONFIG_MACH_MX31ADS)
+ #if !defined(CONFIG_MACH_IXDP2351) && !defined(CONFIG_ARCH_IXDP2X01)
+ 	struct net_local *lp = netdev_priv(dev);
+ 	int ioaddr = dev->base_addr;
+@@ -1057,6 +1064,7 @@ void  __init reset_chip(struct net_device *dev)
+ 	reset_start_time = jiffies;
+ 	while( (readreg(dev, PP_SelfST) & INIT_DONE) == 0 && jiffies - reset_start_time < 2)
+ 		;
++#endif /* !CONFIG_MACH_MX31ADS */
+ }
+ 
+ 
+@@ -1304,7 +1312,7 @@ net_open(struct net_device *dev)
+ 	else
+ #endif
+ 	{
+-#if !defined(CONFIG_MACH_IXDP2351) && !defined(CONFIG_ARCH_IXDP2X01) && !defined(CONFIG_ARCH_PNX010X)
++#ifndef CONFIG_CS89x0_NONISA_IRQ
+ 		if (((1 << dev->irq) & lp->irq_map) == 0) {
+ 			printk(KERN_ERR "%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
+                                dev->name, dev->irq, lp->irq_map);

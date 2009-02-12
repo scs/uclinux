@@ -1,0 +1,963 @@
+%!
+%%Title: TkPlotter PostScript Header
+%%Created:      Sun Sep 15 02:24:35 1991 Thierry MALLARD (tm@axlog.fr)
+%%Modified:     Thu Mar 19 11:57:07 1992 Christophe COGNAULT (chris@axlog.fr)
+%%Modified:     Thu Mar 19 11:57:07 1992 Christophe COGNAULT (chris@axlog.fr)
+%%Modified:     Wed Jul 7 12:19:38 1998 Roland Westrelin (rwestrel@lhpca.univ-lyon1.fr)
+%%Pages: (atend)
+
+/FONT 5 dict def
+
+/TKPLOT 60 dict dup begin
+	/Saved_x 0 def
+	/Saved_y 0 def
+	/SimuName () def
+	/FooterStr (TKPLOT) def
+	/NbPage 0 def
+	/Date () def
+
+	/DPI 0 def
+	/DPCM 0 def
+
+	/PageHeight 29.7 def	% tailles donnees en cm
+	/PageWidth 21 def
+
+	/FrameWidth 0.1 def
+
+	/LeftMargin 1 def	% tailles a partir du cadre
+	/RightMargin 1 def
+	/TopMargin 1 def
+	/BottomMargin 1 def
+
+	/CurveLeftMargin 1.0 def
+	/CurveRightMargin 0.5 def
+
+	/HeaderAdjust 0.5 def
+	/DisplayAdjust 0.5 def
+	/FooterAdjust 0.5 def
+
+	/ExtraLine 0.5 def
+	/InBetweenCurve 1 def
+
+	/HeaderScaleFont 15 def
+	/DateScaleFont 10 def
+	/DisplayScaleFont 10 def
+	/FooterScaleFont 15 def
+
+	/XScale 1 def
+	/YScale 1 def
+	/XYScale 1 def
+
+	/DottedArray [ 2 6 ] def
+	/ShortDottedArray [ 2 3 ] def
+
+	/X0 0 def
+	/Y0 0 def
+	/Lissage 0 def
+	/CntLissage 0 def
+	/GradLength 2.5 def
+	/YMin 3500 def
+
+	/MaxPathPoints 500 def
+	/NbPoints        0 def
+end
+def
+
+
+%%
+%% Create a new font
+%%
+/ReEncodeFont 
+{ % oldfont newfont encoding table => -
+  FONT begin
+	/newcodesandnames exch def
+	/newfontname exch def
+	/basefontname exch def
+	/basefontdict basefontname findfont def
+	/newfont basefontdict maxlength dict def
+	basefontdict
+	{
+		exch dup /FID ne
+		{
+			dup /Encoding eq
+			{
+				exch dup length array copy
+				newfont 3 1 roll put
+			}
+			{
+				exch newfont 3 1 roll put
+			} ifelse
+		}
+		{
+			pop pop
+		} ifelse
+	} forall
+	newfont /FontName newfontname put
+	newcodesandnames aload pop
+	newcodesandnames length 2 idiv
+	{
+		newfont /Encoding get 3 1 roll put
+	} repeat
+	newfontname newfont definefont pop
+  end
+} def
+
+
+%%
+%% Encoding vector used for creating new font
+%%
+/MyVec
+[ 8#351 /eacute
+  8#352 /egrave
+  8#353 /ecircumflex
+  8#354 /ccedilla
+] def
+
+
+%%
+%% Changing font
+%%
+/Times-Roman /My-Roman MyVec ReEncodeFont
+/Times-Bold /My-Bold MyVec ReEncodeFont
+/Times-BoldItalic /My-BoldItalic MyVec ReEncodeFont
+
+
+%%
+%% Move to upper left corner of frame
+%%
+/TopOfPage
+{
+  TKPLOT begin
+	LeftMargin BottomMargin PageHeight add moveto	
+  end
+} def
+
+%%
+%% Move to lower left corner of frame
+%%
+/BottomOfPage
+{
+  TKPLOT begin
+	LeftMargin BottomMargin moveto
+  end
+} def
+
+%%
+%% LineFeed
+%%
+/LF
+{
+  TKPLOT begin
+	0 currentfont FontHeight neg
+	rmoveto
+  end
+} def
+
+
+%%
+%% Carriage return
+%%
+/CR
+{
+  TKPLOT begin
+	LeftMargin currentpoint exch pop moveto
+  end
+} def
+
+
+%%
+%% CR + LF
+%%
+/CRLF
+{
+  CR LF
+} def
+
+
+%%
+%% Draw up arrow from currentpoint
+%%
+/UpArrow
+{ % x y => -
+	gsave
+	newpath
+	moveto
+		gsave
+		-30 rotate 0 -5 XYScale mul rlineto stroke
+		grestore
+
+		gsave
+		30 rotate 0 -5 XYScale mul rlineto stroke
+		grestore 
+	closepath
+	grestore
+} def
+
+
+%%
+%% Draw down arrow from currentpoint
+%%
+/DownArrow
+{ % x y => -
+	gsave
+	newpath
+	moveto
+		gsave
+		-30 rotate 0 5 XYScale mul rlineto stroke
+		grestore
+
+		gsave
+		30 rotate 0 5 XYScale mul rlineto stroke
+		grestore 
+	closepath
+	grestore
+} def
+
+
+%%
+%% Draw left arrow from currentpoint
+%%
+/LeftArrow
+{ % x y => -
+	gsave
+	newpath
+	moveto
+		gsave
+		-30 rotate 5 XYScale mul 0 rlineto stroke
+		grestore
+
+		gsave
+		30 rotate 5 XYScale mul 0 rlineto stroke
+		grestore
+	closepath
+	grestore
+} def
+
+
+%%
+%% Draw right arrow from currentpoint
+%%
+/RightArrow
+{ % x y => -
+	gsave
+	newpath
+	moveto
+		gsave
+		-30 rotate -5 XYScale mul 0 rlineto stroke
+		grestore
+
+		gsave
+		30 rotate -5 XYScale mul 0 rlineto stroke
+		grestore
+	closepath
+	grestore
+} def
+
+
+%%
+%% Draw horizontal graduation from currentpoint
+%%
+/HorizontalGrad
+{ % x y => -
+	gsave
+		newpath 
+		moveto
+		GradLength neg XYScale mul 0 rlineto 
+		GradLength 2 mul XYScale mul 0 rlineto
+		stroke
+	grestore
+} def
+
+%%
+%% Draw vertical graduation from currentpoint
+%%
+/VerticalGrad
+{ % x y => -
+	gsave
+		newpath
+		moveto
+		0 GradLength neg XYScale mul rlineto
+		0 GradLength 2 mul XYScale mul rlineto
+		stroke
+	grestore
+} def
+
+
+%%
+%% Show string centered on the page
+%%
+/CenterString
+{ % string => -
+  TKPLOT begin
+	dup stringwidth pop PageWidth exch sub 2 div 
+	LeftMargin add
+	currentpoint exch pop moveto
+	show  
+  end
+} def
+
+
+%%
+%% Show string left adjusted on frame
+%%
+/LeftString
+{ % string => -
+  TKPLOT begin
+	LeftMargin HeaderAdjust add
+	currentpoint exch pop moveto
+	show
+  end
+} def
+
+
+%%
+%% Show string right adjusted on frame
+%%
+/RightString
+{ % string => -
+  TKPLOT begin
+	dup stringwidth pop HeaderAdjust add 
+	LeftMargin PageWidth add exch sub
+	currentpoint exch pop moveto
+	show
+  end
+} def
+
+
+%%
+%% Show name of curve centered on page
+%%
+/ShowCurveName
+{ % string => -
+	dup CenterString
+	stringwidth
+	0 exch 5 add neg rmoveto
+	neg 0 rlineto
+	gsave
+		stroke
+	grestore
+} def
+
+
+%%
+%% Show y value from currentpoint
+%%
+/ShowOrd
+{ % val => -
+	gsave
+		currentpoint HorizontalGrad
+		ToString 
+		dup stringwidth pop 2 add
+		%%currentfont FontWidth add XScale mul neg 0 rmoveto
+		currentfont FontWidth add neg 0 rmoveto
+		show
+	grestore
+} def
+
+
+%%
+%% Show x value from currentpoint
+%%
+/ShowAbs
+{ % val => -
+	gsave
+		currentpoint VerticalGrad
+		ToString
+		dup stringwidth pop 2 div neg
+		%%currentfont FontHeight 2 add YScale mul neg rmoveto
+		currentfont FontHeight 2 add neg rmoveto
+		show
+	grestore
+} def
+
+
+%%
+%% convert integer to string
+%%
+/IntToString
+{ % int => string
+	dup
+	0 ne
+	{
+		dup abs log
+		cvi 1 add
+	}
+	{
+	  1 
+	} ifelse
+
+	1 index 0 lt { 1 add} if
+	string cvs
+} def
+
+%%
+%% Convert real to string
+%%
+/RealToString
+{ % real => string
+	dup cvi 0 ne 
+	{ 
+		dup 0 lt
+		{dup abs 1 exch}
+		{dup 0 exch} ifelse
+		log cvi add 
+		1 add
+	}
+	{1} 
+	ifelse
+	3 add string exch 100 mul round 100 div exch cvs
+} def
+
+
+%%
+%% Convert string to string : NONSENSE
+%%
+/StringToString
+{
+} def
+
+
+%%
+%% Convert certain types to string
+%% types allowed are integer,real,string
+%%
+/ToString 
+{ % any => string
+  TKPLOT begin
+	/integertype 0 def
+	/realtype 1 def
+	/stringtype 2 def
+
+	dup type exec 
+	[ /IntToString /RealToString /StringToString] exch get cvx exec
+  end
+} def
+
+
+%%
+%% return height of font
+%%
+/FontHeight
+{ % font => int
+	dup /FontBBox get dup 3 get exch 1 get sub
+	exch /FontMatrix get 3 get mul ceiling
+} def
+
+
+%%
+%% return width of font
+%%
+/FontWidth
+{ % font => int
+	dup /FontBBox get dup 2 get exch 0 get sub
+	exch /FontMatrix get 0 get mul ceiling
+} def
+
+
+%%
+%% Concatenate two strings
+%%
+/Concat
+{ % string1 string2 => string3
+	dup length 2 index length add string dup dup
+	5 -1 roll exch copy length
+	4 -1 roll putinterval
+} def
+
+
+%%
+%% draw curve axis
+%%
+/drawAxis
+{
+  TKPLOT begin
+	DisplayFont setfont 
+	currentpoint UpArrow
+
+	currentpoint newpath moveto
+
+	/Index 0 def
+
+	% draw Y axis and show ordonnee
+	currentpoint exch pop	%% last y string display
+	0 ExtraLine YScale mul neg rlineto
+	1 index 0 get 0 get	%% pixYMax on stack 
+	2 index 0 get 1 get	%% yval array on stack
+	%% change font if necessary
+	dup
+	length 1 sub currentfont FontHeight mul
+	2 index
+	exch div
+	dup 1 lt
+	{
+		currentfont exch 0.95 mul scalefont setfont
+	}
+	{
+		pop
+	} ifelse
+
+	{
+		0 index 0 get 
+		3 -1 roll sub 
+		YScale mul 
+		0 exch rlineto
+		0 index 1 get 0 eq
+		{ % draw X axis if val 0
+			0 index 0 index 0 get exch 1 get ne
+			{ % draw X axis only if yMin < 0 and yMax > 0
+				gsave 
+					currentpoint
+					newpath
+					moveto
+					2 index 1 get 0 get
+					XScale mul ExtraLine XScale mul add 
+					0 rlineto	% draw 0 line
+					DottedArray 0 setdash
+					stroke 
+				grestore
+			} if
+		} if
+
+		%% if room enough to display ordonnee
+		1 index currentpoint exch pop sub
+		currentfont FontHeight ge
+		{
+			%% show 0 value only if room enough
+			%% to show min value
+			0 index 1 get 0 eq
+			{
+				2 index 0 get 1 get 
+				dup length -1 add Index gt 
+				{
+					Index 1 add get 0 get
+					1 index 0 get exch sub 
+					currentfont FontHeight ge
+				}
+				{
+					pop true
+				} ifelse
+			}
+			{
+				true
+			} ifelse
+		
+			{
+			0 index 2 get ShowOrd
+			exch pop	% get rid of previous value
+			currentpoint exch pop exch
+			} if
+		} if
+
+		0 get 		%% push last y on stack
+
+		/Index Index 1 add def
+	} forall pop pop 
+	gsave
+	stroke
+	grestore
+
+	currentpoint /Y0 exch def /X0 exch def
+
+	DisplayFont setfont
+
+	0 index 0 get 1 get 
+	dup length -1 add get 1 get 0 ne
+	{
+		0 ExtraLine YScale mul neg rlineto
+	} if
+
+
+	/Index 0 def
+
+	% draw X axis and show abcisse
+	gsave
+	LeftMargin	%% last x string display
+	0 %1 index 1 get 0 get	%% pixXMax on stack 
+	2 index 1 get 1 get	%% xval array on stack
+	{
+		0 index 0 get
+		3 -1 roll sub
+		XScale mul 
+		0 rlineto
+
+		%% if room enough to display ordonnee
+		1 index currentpoint pop sub neg
+		%currentfont FontWidth  
+		1 index 2 get stringwidth pop ge
+		{
+			0 index 2 get ShowAbs
+			exch pop	% get rid of previous value
+			currentpoint pop exch
+		} if
+
+		0 get 		%% push last x on stack
+
+		/Index Index 1 add def
+	} forall pop pop 
+
+
+	ExtraLine 0 rlineto
+	currentpoint RightArrow
+
+	ShortDottedArray 0 setdash
+	stroke 
+	grestore
+	pop
+  end
+}
+def
+
+
+%%
+%% Save global data
+%%
+/Simulation
+{
+ TKPLOT begin
+  aload pop
+  /Date exch def
+  /SimuName exch def
+ end
+} def
+
+
+%%
+%% Draw external frame
+%%
+/DrawExternalFrame
+{ % - => -
+  TKPLOT begin
+	gsave
+	FrameWidth setlinewidth
+	BottomOfPage 
+	0 PageHeight rlineto
+	PageWidth 0 rlineto
+	0 PageHeight neg rlineto
+	closepath stroke
+	grestore
+  end
+} def
+
+
+%%
+%% Show header
+%%
+/Header
+{
+  TKPLOT begin
+	TopOfPage
+	HeaderFont FontHeight neg 0 exch rmoveto
+	DateFont setfont Date LeftString
+	HeaderFont setfont SimuName CenterString
+	DateFont setfont (Page : ) NbPage 2 string cvs Concat RightString
+	CR
+	currentfont FontHeight 2 div neg 0 exch rmoveto
+	PageWidth 0 rlineto
+	gsave
+		FrameWidth setlinewidth
+		stroke
+	grestore
+
+  end
+} def
+
+
+%%
+%% Show bottom of page
+%%
+/Footer
+{
+	gsave
+		FooterFont setfont
+		BottomOfPage
+		currentfont FontHeight neg 0 exch rmoveto
+		FooterStr RightString
+	grestore
+} def
+
+
+%%
+%% Handle change of page
+%%
+/ChangePage
+{
+  TKPLOT begin
+  	XYScale -1 exp dup scale
+  	/NbPage NbPage 1 add def
+  	DrawExternalFrame
+  	Header
+	/YMin PageHeight def
+  end
+} def
+
+
+%%
+%% Start new curve
+%%
+/NewDisplay
+{ % pixYmax => x y i.e next box coord
+  TKPLOT begin
+	NbPage 0 eq
+	{
+		PageHeight TopMargin BottomMargin add sub gt
+		{
+			(Y-AXIS OVERFLOW) show
+			stop
+		} if
+		ChangePage
+	}
+	{
+		ExtraLine 2 mul add InBetweenCurve add
+		DisplayFont FontHeight 2 mul add
+		YMin exch sub BottomMargin le
+		{
+			Footer
+			showpage
+			ChangePage
+		}
+		{
+			%YMin
+			%currentfont FontHeight sub LeftMargin exch
+		} ifelse
+	} ifelse
+  end
+} def
+
+
+%%
+%% Save data local to one curve
+%%
+/Caracteristics
+{
+  TKPLOT begin
+	dup 0 get /Lissage exch def
+	dup 1 get /CurveName exch def
+	pop
+  end
+} def
+
+
+%%
+%% Calculate left adjustement according to every curve to show
+%%
+
+/CalcDisplayAdjust
+{ % special array => -
+  TKPLOT begin
+	/DisplayAdjust 1.0 DisplayFont FontWidth mul def
+	0 1 2 index length -1 add
+	{
+		1 index exch get
+		0 index 2 get
+		{
+			DisplayFont setfont
+			%% change font if necessary
+			1 index 1 get ExtraLine 2 div add			% pixYMax
+			2 index 2 get length 1 sub currentfont FontHeight mul	% strings height
+			div
+			dup 1 lt
+			{
+				currentfont exch 0.95 mul scalefont setfont
+			}
+			{
+				pop
+			} ifelse
+
+			stringwidth pop CurveLeftMargin add dup DisplayAdjust gt
+			{/DisplayAdjust exch def}{pop} ifelse
+
+			0 index 0 get DisplayAdjust add ExtraLine add CurveRightMargin add
+			PageWidth ge
+			{
+				PageWidth CurveRightMargin sub
+				DisplayAdjust sub
+				ExtraLine sub
+				1 index 0 get div
+				/XScale exch def
+			} if
+		} forall
+		pop
+	} for
+
+	pop
+  end
+} def
+
+
+
+%%
+%% Draw curve axis and init its caracteristics
+%%
+/InitCurve
+{ % TGraphFrame => -
+  TKPLOT begin
+	dup 1 get 0 get 0 get NewDisplay
+	LeftMargin YMin moveto %CR
+	DisplayAdjust 0 rlineto
+	0 InBetweenCurve neg rlineto
+ 	dup 0 get Caracteristics
+	1 get drawAxis
+	pathbbox pop pop 
+	currentfont FontHeight 2 mul sub 
+	moveto
+	CurveName ShowCurveName
+	/CntLissage 0 def
+	/NbPoints   0 def
+        gsave newpath
+	SolidPattern
+  end
+} def
+
+
+%%
+%% End the drawing of a curve
+%%
+/EndCurve
+{ % oldx oldy => -
+  TKPLOT begin
+	stroke grestore
+	clear
+	pathbbox pop pop exch pop 
+	InBetweenCurve sub DisplayFont FontHeight 2 mul GradLength 2 mul add add /YMin exch def
+  end
+} def
+
+
+%%
+%% End all drawings
+%%
+/EndAllDrawings
+{ % - => -
+  TKPLOT begin
+	Footer
+	showpage
+  end
+} def
+
+
+%%
+%% Dashed pattern
+%%
+/SolidPattern
+{ % - => -
+  TKPLOT begin
+	/NbPoints 0 def stroke newpath
+        [] 0 setdash
+  end
+} def
+
+
+%%
+%% Dashed pattern
+%%
+/DashedPattern
+{ % d => -
+  TKPLOT begin
+	/NbPoints 0 def stroke newpath
+        XYScale mul 1 array astore 0 setdash
+  end
+} def
+
+
+%%
+%% Set the starting point of a Curve
+%%
+/ip
+{ % x y => newx newy
+  TKPLOT begin
+	X0 3 -1 roll XScale mul add
+	Y0 3 -1 roll YScale mul add
+	/CntLissage 0 def
+  end
+} def
+
+
+%%
+%% Draw to next point relative to X0,Y0
+%%
+/dp
+{ % oldx oldy x y => newx newy
+  TKPLOT begin
+        4 -1 roll 4 -1 roll
+	moveto
+	X0 3 -1 roll XScale mul add
+	Y0 3 -1 roll YScale mul add
+	1 index 1 index
+	Lissage 1 eq
+	{
+		CntLissage 0 eq { moveto } if
+		CntLissage 3 eq
+		{
+			curveto
+			/CntLissage 0 def
+		} if
+		/CntLissage CntLissage 1 add def
+	}% end lissage = 1
+	{
+		lineto
+	} ifelse % end lissage /= 1
+	/NbPoints NbPoints 1 add def
+	NbPoints MaxPathPoints ge { /NbPoints 0 def stroke newpath } if
+  end
+} def
+
+
+%%
+%% Define every used font
+%%
+/DefineDisplayFont
+{ % normalFont boldFont =>
+  TKPLOT begin
+	/HeaderFont 1 index findfont HeaderScaleFont XYScale mul scalefont def
+	/DateFont 2 index findfont DateScaleFont XYScale mul scalefont def
+	/DisplayFont 2 index findfont DisplayScaleFont XYScale mul scalefont def
+	/FooterFont 2 index findfont FooterScaleFont XYScale mul scalefont def
+	pop pop
+  end
+} def
+
+
+%%
+%% Initialize every variable according to dpi scale
+%%
+/Dpi
+{ % array => -
+  TKPLOT begin
+	dup 0 get /DPI exch def
+	/DPCM DPI 2.54 div def
+	
+	/PageHeight PageHeight TopMargin BottomMargin add sub DPCM mul def
+	/PageWidth PageWidth LeftMargin RightMargin add sub DPCM mul def
+
+	/FrameWidth FrameWidth DPCM mul cvi def
+
+	/LeftMargin LeftMargin DPCM mul def
+	/RightMargin RightMargin DPCM mul def
+	/TopMargin TopMargin DPCM mul def
+	/BottomMargin BottomMargin DPCM mul def
+
+	/CurveLeftMargin CurveLeftMargin DPCM mul def
+	/CurveRightMargin CurveRightMargin DPCM mul def
+
+	/HeaderAdjust HeaderAdjust DPCM mul def
+	/DisplayAdjust DisplayAdjust DPCM mul def
+	/FooterAdjust FooterAdjust DPCM mul def
+
+	
+	/XYScale DPI 72 div def
+
+	/DottedArray 4 XYScale mul 8 XYScale mul 2 array astore def
+	/ShortDottedArray 3 XYScale mul 3 XYScale mul 2 array astore def
+
+	/My-Roman /My-BoldItalic DefineDisplayFont
+
+	%% Extraline is extra line shown on each axis
+	%% InBetweenCurve is distance between two curves
+
+	/ExtraLine ExtraLine DisplayFont FontHeight mul def
+	/InBetweenCurve InBetweenCurve DisplayFont FontHeight mul def
+	/YMin PageHeight def
+
+	pop
+  end
+} def

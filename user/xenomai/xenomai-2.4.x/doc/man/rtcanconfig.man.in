@@ -1,0 +1,45 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for rtcanconfig
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH RTCANCONFIG 1 "2008-04-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+rtcanconfig \- Xenomai tool for configuring the CAN controller
+.SH SYNOPSIS
+.\" The general command line
+.B rtcanconfig
+.RI "<can-interface> [options] [up|down|start|stop|sleep]"
+.SH DESCRIPTION
+\fBrtcanconfig\fP is part of Xenomai. It is used to configure the CAN
+controller. The system must run a suitable Xenomai enabled kernel with the
+respective module (CAN).
+.SH OPTIONS
+\fBrtcanconfig\fP accepts the following options:
+.TP
+.B \-v, \-\-verbose
+be verbose
+.TP
+.B \-h, \-\-help
+a usage description
+.TP
+.B \-c, \-\-ctrlmode=CTRLMODE
+listenonly, loopback or none
+.TP
+.B \-b, \-\-baudrate=BPS
+baudrate in bits/sec
+.TP
+.B \-B, \-\-bittime=BTR0:BTR1
+BTR or standard bit-time
+.TP
+.B \-B, \-\-bittime=BRP:PROP_SEG:PHASE_SEG1:PHASE_SEG2:SJW:SAM
+.SH AUTHORS
+\fBrtcanconfig\fP was written by Wolfgang Grandegger <wg@grandegger.com> and
+Sebastian Smolorz <Sebastian.Smolorz@stud.uni-hannover.de>. This man page was
+written by Roland Stigge <stigge@antcom.de>.

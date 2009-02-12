@@ -1,0 +1,12 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+dep_tristate 'pSOS+ emulator' CONFIG_XENO_SKIN_PSOS $CONFIG_XENO_OPT_TIMING_PERIODIC
+
+if [ "$CONFIG_XENO_SKIN_PSOS" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'pSOS+ interface options'
+	int 'Base period (us)' CONFIG_XENO_OPT_PSOS_PERIOD 1000
+	endmenu
+fi

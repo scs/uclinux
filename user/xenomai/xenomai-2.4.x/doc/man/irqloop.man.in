@@ -1,0 +1,59 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for irqloop
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH IRQLOOP 1 "2008-04-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+irqloop \- Xenomai IRQ benchmark, target program
+.SH SYNOPSIS
+.\" The general command line
+.B irqloop
+.RI [ options ]
+.SH DESCRIPTION
+\fBirqloop\fP is part of the Xenomai test suite and benchmarks IRQs. It is the
+program running on the target machine which is running a suitable Xenomai
+enabled kernel with the respective module (xeno_posix). The additional tool
+\fBirqbench\fP (1) is running on a plain Linux host, connected via RS232 or
+Laplink with the target.
+.SH OPTIONS
+\fBirqloop\fP accepts the following options:
+.TP
+.B \-D <testing_device_no>
+number of testing device, default=0
+.TP
+.B \-t <test_mode>
+.RS 1.5i
+0=user task (default)
+.P
+1=kernel task
+.P
+2=IRQ handler
+.P
+3=hard-IRQ handler
+.RE
+.TP
+.B \-P <priority>
+task priority (test mode 0 and 1 only)
+.TP
+.B \-o <port_type>
+0=serial (default), 1=parallel
+.TP
+.B \-a <port_io_address>
+default=0x3f8/0x378
+.TP
+.B \-i <port_irq>
+default=4/7
+
+.SH "SEE ALSO"
+.BR /usr/share/doc/xenomai-doc/txt/irqloop.txt,
+.BR irqbench (1)
+.SH AUTHOR
+\fBirqloop\fP was written by Jan Kiszka <jan.kiszka@web.de>. This man page
+was written by Roland Stigge <stigge@antcom.de>.

@@ -1,0 +1,9 @@
+menu "Drivers"
+
+depends on XENO_OPT_NUCLEUS
+
+source "drivers/xenomai/serial/Kconfig"
+source "drivers/xenomai/testing/Kconfig"
+source "drivers/xenomai/can/Kconfig"
+
+endmenu

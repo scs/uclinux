@@ -1,0 +1,13 @@
+#
+# Xenomai configuration for Linux v2.4
+#
+
+dep_tristate 'uITRON-compliant skin' CONFIG_XENO_SKIN_UITRON $CONFIG_XENO_OPT_TIMING_PERIODIC
+
+if [ "$CONFIG_XENO_SKIN_UITRON" != "n" ]; then
+	mainmenu_option next_comment
+	comment 'uITRON interface options'
+	int 'Base period (us)' CONFIG_XENO_OPT_UITRON_PERIOD 1000
+	endmenu
+	define_bool CONFIG_XENO_OPT_MAP y
+fi

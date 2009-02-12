@@ -1,0 +1,46 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for irqbench
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH IRQBENCH 1 "2008-04-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+irqbench \- Xenomai IRQ benchmark, host control
+.SH SYNOPSIS
+.\" The general command line
+.B irqbench
+.RI [ options ]
+.SH DESCRIPTION
+\fBirqbench\fP is part of the Xenomai test suite and benchmarks IRQs. It is the
+controlling part running on a plain Linux host, connected via RS232 or Laplink
+with the target which is running a suitable Xenomai enabled kernel with the
+respective module (xeno_posix). The target must run \fBirqloop\fP (1).
+.SH OPTIONS
+\fBirqbench\fP accepts the following options:
+.TP
+.B \-p <period_us>
+signal period, default=100 us
+.TP
+.B \-T <test_duration_seconds>
+default=0, so ^C to end
+.TP
+.B \-o <port_type>
+0=serial (default), 1=parallel
+.TP
+.B \-a <port_io_address>
+default=0x3f8/0x378
+.TP
+.B \-f
+freeze trace for each new max latency
+.SH "SEE ALSO"
+.BR /usr/share/doc/xenomai-doc/txt/irqbench.txt,
+.BR irqloop (1)
+.SH AUTHOR
+\fBirqbench\fP was written by Jan Kiszka <jan.kiszka@web.de>. This man page
+was written by Roland Stigge <stigge@antcom.de>.

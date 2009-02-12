@@ -1,0 +1,40 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for switchbench
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH SWITCHBENCH 1 "2008-04-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+switchbench \- Xenomai latency test for task switches
+.SH SYNOPSIS
+.\" The general command line
+.B switchbench
+.RI [ options ]
+.SH DESCRIPTION
+\fBswitchbench\fP is part of Xenomai. It can be used to test task switch
+latencies. A suitable Xenomai enabled kernel with the respective module
+(xeno_posix) must be installed.
+.SH OPTIONS
+\fBswitchbench\fP accepts the following options:
+.TP
+.B \-h
+enable histogram
+.TP
+.B \-p <period_us>
+timer period
+.TP
+.B \-n <samples>
+number of samples to collect
+.TP
+.B \-i <samples>
+number of _first_ samples to ignore
+.SH AUTHOR
+\fBswitchbench\fP was written by Philippe Gerum <rpm@xenomai.org> and  Max
+Krasnyansky <maxk@qualcomm.com>. This man page was written by
+Roland Stigge <stigge@antcom.de>.

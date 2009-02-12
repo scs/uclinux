@@ -1,0 +1,27 @@
+-- arch/blackfin/patches
+
+Xenomai needs special kernel support to deliver fast and deterministic
+response time to external interrupts, and also to provide real-time
+services highly integrated with the standard Linux kernel.
+
+This support is provided by the Adeos real-time enabler [1], in the
+form of a kernel patch you have to apply against a vanilla kernel
+tree, before you attempt to compile the Xenomai codebase against the
+latter kernel.
+
+On the Blackfin architecture, Xenomai is supported on the BF527,
+BF533, BF537, BF548 and BF561(*) boards, either based on the uClinux
+releases published by the Blackfin project [2], or based on its
+development tree [3].
+
+Just apply the provided patch against the corresponding kernel
+release/milestone. You may want to have a look at the README.*INSTALL
+guides at the top of the Xenomai tree for more information.
+
+[1] http://www.gna.org/projects/adeos/
+[2] http://blackfin.uclinux.org/
+[3] git://sources.blackfin.uclinux.org/git/readonly-mirrors/linux-kernel.git
+
+Patch			        Based on GIT commit # / TAG
+------------------------------------------------------------------------
+2.6.28-blackfin.git-1.9-00	38a13eddc0a76bc73ebb2fe9e73361df5d0c35ff

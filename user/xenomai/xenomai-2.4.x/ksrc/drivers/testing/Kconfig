@@ -1,0 +1,35 @@
+menu "Testing drivers"
+
+config XENO_KLATENCY_MODULE
+        depends on MODULES
+	def_tristate m
+
+config XENO_DRIVERS_TIMERBENCH
+	depends on XENO_SKIN_RTDM
+	tristate "Timer benchmark driver"
+	help
+	Kernel-based benchmark driver for timer latency evaluation.
+	See testsuite/latency for a possible front-end.
+
+config XENO_DRIVERS_KLATENCY
+	depends on XENO_DRIVERS_TIMERBENCH && XENO_KLATENCY_MODULE
+	tristate "Kernel-only latency measurement module"
+	help
+	Kernel module for kernel-only latency measurement.
+
+config XENO_DRIVERS_IRQBENCH
+	depends on XENO_SKIN_RTDM
+	tristate "IRQ benchmark driver"
+	help
+	Loopback driver for IRQ latency evaluation over serial or parallel
+	port links. Additionally requires user-space helper and a logging tool
+	(see testsuite/irqbench).
+
+config XENO_DRIVERS_SWITCHTEST
+	depends on XENO_SKIN_RTDM
+	tristate "Context switch unit testing driver"
+	help
+	Kernel-based driver for unit testing context switches and
+	FPU switches.
+
+endmenu

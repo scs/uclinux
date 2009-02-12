@@ -1,0 +1,95 @@
+IRQ Latency Benchmark
+---------------------
+
+1. Overview
+
+This latency benchmark for external interrupts consists of three parts:
+
+1. xeno_irqbench (ksrc/drivers/testing)
+   RTDM driver for the test target to handle and reply to the IRQ events, or
+   forward them to user-space.
+
+2. irqloop (src/testsuite/irqbench)
+   xeno_irqbench control front-end and user-space loop-closer. Runs against
+   the POSIX skin on the test target.
+
+3. irqbench (src/testsuite/irqbench)
+   IRQ triggering and reaction measuring tool for the log system. Runs over
+   plain Linux on x86 hosts. Note that this tool will only be compiled
+   automatically with Xenomai if the target architecture is x86. To compile
+   it manually, invoke
+
+        <gcc-x86-compiler> irqbench.c -o irqbench -O2
+
+
+2. Hardware Setup
+
+To link both test and log system, a null-modem cable between 8250-compatible
+two RS232 ports or a Laplink cable between two PC parallel ports is required.
+The null-modem cable must provide at least the following links:
+
+        test target             log system
+        -----------             ----------
+          CTS(8)      <------     RTS(7)        IRQ trigger
+          RTS(7)      ------>     CTS(8)        reply
+
+          DCD(1)
+          and/or      <------     DTR(4)        trace trigger (optional)
+          DSR(6)
+
+        (Pin number on 9-pin sub-D socket)
+
+The relevant links of the Laplink cable are:
+
+        test target             log system
+        -----------             ----------
+         /ACK(10)     <------    DATA3(5)       IRQ trigger
+         DATA3(5)     ------>    /ACK(10)       reply
+
+         BUSY(11)     <------    DATA4(6)       trace trigger (optional)
+
+Test and log system can be started in arbitrary order, they will wait on
+each other.
+
+
+3. Test Scenarios
+
+The xeno_irqbench driver supports four different IRQ handling scenarios,
+selectable via "-t <test_mode>" on irqloop start-up:
+
+Mode 0 - Installs an IRQ handler that wakes up a user-space task. This task
+         is provided by irqloop. Once it is woken up, it will issue an IOCTL
+         to xeno_irqbench in order to generate the reply. This scenario is
+         typical for kernel-based device drivers.
+
+Mode 1 - Same as mode 0, except that the task resides inside the kernel and is
+         provided by xeno_irqbench itself. A typical scenario for kernel-based
+         RT-applications or drivers that handle IRQ requests inside a kernel
+         task.
+
+Mode 2 - Installs an IRQ handler that directly replies to the event. This
+         scenario measures the reactivity of driver IRQ handlers when handling
+         events immediately or taking timestamps.
+
+Mode 3 - In this mode, an additional I-pipe domain is registered on top of
+         Xenomai. The IRQ handler for immediate reply is then assigned to the
+         new domain. By pushing the handling above Xenomai, the IRQ reply
+         latency can widely be decoupled from RT-application-related delays.
+         The drawback is that no direct interaction with the Xenomai scheduler
+         is possible from the higher domain. Note that the nucleus option
+         CONFIG_XENO_OPT_PIPELINE_HEAD has to be switched off to be able to
+         use this mode.
+
+
+4. Measuring
+
+The log system runs each single IRQ measurement with local IRQs disabled. It
+will wait up to 100 times the current period on the test system's reply (after
+initial successful synchronisation, which happens with IRQs enabled). Note that
+these timeouts may disturb other processes or drivers on the log system.
+
+Keep in mind for test evaluations that, by design, irqbench will not trigger a
+new IRQ event before the reply on the previous one has arrived or timed out.
+Thus the specified test period may be dynamically expended in case of
+overload. But a maximum latency close or above the period will clearly
+indicate this.

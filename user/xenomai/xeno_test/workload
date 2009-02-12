@@ -1,0 +1,36 @@
+#!/bin/sh 
+
+echo "xeno-test: workload started $*"
+
+set -o notify # same as set -b: notify when background job terminates
+
+#pidFile=/var/lock/`basename $0.$$`.pids # basename: strip path $$: pid of myself
+
+device=/dev/zero
+dd_jobs=
+pidFile=/var/lock/xeno-workload
+
+rm -f $pidFile
+touch $pidFile
+
+# start workload
+# num of workload
+jobsct=1
+inc=1
+while test $jobsct -ge 1; do
+    jobsct=`expr $jobsct - $inc`
+    dd if=$device of=/dev/null count=2M & 
+    dd_jobs="$dd_jobs $!"  # $! PID of last background job
+    #whetstone 10000 &
+    dd if=$device of=/dev/null count=2M & 
+    dd_jobs="$dd_jobs $!"  # $! PID of last background job
+done
+echo dd workload started, pids $dd_jobs stored in $pidFile
+echo $dd_jobs > $pidFile
+
+while [ 1 ] ; do
+sleep 100
+done
+
+echo "xeno-test: workload finished"
+exit 0

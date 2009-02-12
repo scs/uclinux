@@ -1,0 +1,9 @@
+#!/bin/sh
+
+case "$1" in
+  purge | remove)
+  [ ! -L /etc/udev/rules.d/xenomai.rules ] || rm /etc/udev/rules.d/xenomai.rules
+  ;;
+esac
+
+#DEBHELPER#

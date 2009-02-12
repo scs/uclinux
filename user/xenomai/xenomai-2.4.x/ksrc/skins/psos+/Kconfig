@@ -1,0 +1,34 @@
+menuconfig XENO_SKIN_PSOS
+	depends on XENO_OPT_NUCLEUS
+	select XENO_OPT_TIMING_PERIODIC
+	tristate "pSOS+ emulator"
+	select XENO_OPT_REGISTRY if XENO_OPT_PERVASIVE
+	help
+
+	This API skin emulates WindRiver's pSOS+ operating system.
+
+if XENO_SKIN_PSOS
+
+config XENO_OPT_PSOS_PERIOD
+	int "Base period (us)"
+	default 1000
+	help
+	Duration of the base periodic tick (in microseconds).
+
+	The pSOS skin expresses all delays and timeouts as
+	counts of ticks. This parameter defines the duration
+	of a pSOS clock tick expressed in microseconds.
+
+	The base period can be overriden at runtime using the
+	"tick_arg" module parameter when loading the pSOS skin.
+
+config XENO_OPT_DEBUG_PSOS
+	bool "Debugging support"
+	depends on XENO_OPT_DEBUG
+	default y
+	help
+
+	When enabled, this option makes the skin warn about
+	auto-clean operations executed upon process termination.
+
+endif

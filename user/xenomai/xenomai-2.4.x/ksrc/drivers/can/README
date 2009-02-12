@@ -1,0 +1,144 @@
+RT-Socket-CAN - RTDM driver for CAN devices
+===========================================
+
+RT-Socket-CAN is an Open Source hard real-time protocol stack for CAN 
+devices based on BSD sockets. This implementation is for RTDM, the 
+Real-Time-Driver-Model. Note that there is a similar variant being 
+developed for standard Linux using the Linux networking stack.
+
+
+Status:
+------
+
+Currently drivers are available for the following CAN controllers and 
+devices:
+
+   SJA1000 ISA devices
+   SJA1000 Memory-mapped devices
+   SJA1000 esd EPPC405 embedded controller and CPCI405 boards
+   SJA1000 PEAK PCI card
+   SJA1000 PEAK parallel port Dongle
+   SJA1000 IXXAT PCI card
+   MSCAN for MPC5200 boards
+
+Utilities for RT-Socket-CAN are available in "src/utils/can".
+
+
+Installation:
+------------
+
+This example installation is for the DENX "linuxppc_2_4_devel" tree
+(Linux 2.4.25) using the ELDK (see http://www.denx.de). It works in a
+similar way for other kernels and distributions including Linux 2.6.
+
+
+o Kernel space part:
+
+  - Please install the Xenomai kernel space part as described in the
+    README.INSTALL.
+
+  - Configure RT-Socket-CAN as kernel modules as required by your 
+    hardware (and make sure that loadable module support is enabled):
+
+    $ cd <linux-kernel-root>
+    $ export CROSS_COMPILE=ppc_82xx-
+    $ make menuconfig
+    ... Select "Loadable module support  --->" 
+    [*] Enable loadable module support 
+    ... Exit
+    ... Select "Real-time sub-system --->"
+               "Real-time drivers --->" 
+                 "CAN bus controller --->"
+    [M] RT-Socket-CAN, CAN raw socket interface (NEW)
+    (1024) Size of receive ring buffers (must be 2^N) (NEW)
+    (4) Maximum number of devices (NEW)
+    (16) Maximum number of receive filters per device (NEW)
+    [M] MSCAN driver for MPC5200 (NEW)
+    [*] Enable CAN 1 (NEW)
+    [*] Enable CAN 2 (NEW)
+    (66000000) Clock Frequency in Hz (NEW)
+    (I2C1/TMR01) Pin Configuration
+    <M> Philips SJA1000 CAN controller (NEW)
+    <M>   Standard ISA devices
+    (4)   Maximum number of ISA devices (NEW)
+    <M>   PEAK PCI cards
+    ... Exit and save
+
+    Note: you can also statically link the MSCAN drivers into 
+    the kernel.
+
+
+  - Make the Linux kernel and RT-Socket-CAN modules and copy them to 
+    the root filesystem:
+
+    $ make dep
+    $ make uImage
+    $ cp -p arch/ppc/boot/images/uImage /tftpboot/icecube/uImage-rtcan
+    $ make modules
+    $ export DESTDIR=/opt/eldk/ppc_82xx
+    $ make modules_install INSTALL_MOD_PATH=$DESTDIR
+    $ find $DESTDIR/lib/modules/2.4.25/kernel/drivers/xenomai/rtcan
+    .../rtcan
+    .../rtcan/xeno_can.o
+    .../rtcan/mscan
+    .../rtcan/mscan/xeno_can_mscan.o
+    .../rtcan/sja1000/xeno_can_sja1000.o
+    .../rtcan/sja1000/xeno_can_peak_pci.o
+    .../rtcan/sja1000/xeno_can_isa.o
+
+  - Loading the RT-Socket-CAN modules
+
+    Now boot the Xenomai enabled kernel on your target system.
+
+    In case RT-Socket-CAN is built as kernel modules, you need to load 
+    them using modprobe or insmod, e.g. for this example build:
+
+    # export MODDIR=/lib/modules/2.4.25/kernel/drivers/xenomai/rtcan
+    # insmod $MODDIR/xeno_can.o
+    # insmod $MODDIR/mscan/xeno_can_mscan.o
+    # insmod $MODDIR/sja1000/xeno_can_sja1000.o
+    # insmod $MODDIR/sja1000/xeno_can_peak_pci.o
+
+    Note that various kernel module parameters can be passed with 
+    insmod. Please use "modinfo" to list them or check the 
+    corresponding source code files for further information.
+
+
+o User space part:
+
+  - User space CAN utilities for RT-Socket-CAN are available in
+    "src/utils/can". Please check the README in there for further 
+    information.
+
+
+Documentation:
+-------------
+
+The RTDM CAN profile is documented using Doxygen in Xenomai's
+"doc/generated/html/api/index.html"
+
+
+Feedback:
+--------
+
+Please report Xenomai related bugs and comments to the Xenomai mailing 
+list (xenomai-help@gna.org).
+
+Please report CAN related bugs and comments to the "Socketcan" mailing 
+list (Socketcan-users@lists.berlios.de) or directly to the main authors 
+Wolfgang Grandegger (wg@grandegger.com) or Sebastian Smolorz 
+(Sebastian.Smolorz@stud.uni-hannover.de). 
+
+
+Credits:
+-------
+
+See CREDITS file in this directory.
+
+
+License:
+-------
+
+RT-Socket-CAN is free software, and you are welcome to redistribute it 
+under the terms of the GNU General Public License. This program comes 
+with ABSOLUTELY NO WARRANTY. See "COPYING" for details.

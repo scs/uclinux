@@ -1,0 +1,156 @@
+#!/usr/bin/make -f
+
+# Author: Paul Corner <paul_c@gna.org>
+# Created on: Sat Mar 3 12:00 GMT 2007
+# License: GPL Ver. 2
+
+#export DH_VERBOSE=1
+
+DEB_HOST_GNU_CPU ?= $(shell dpkg-architecture -qDEB_HOST_GNU_CPU)
+DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+DEB_HOST_GNU_TYPE=$(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE=$(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+ifeq ($(DEB_HOST_ARCH), i386)
+# Note: Would like to use --includedir=/usr/include/xenomai, but
+# there appears to be a `make install` problem.
+	CONFIG_OPTS = \
+	            --enable-x86-tsc
+endif
+ifeq ($(DEB_HOST_ARCH), amd64)
+	CONFIG_OPTS = \
+	            --enable-smp \
+	            --enable-x86-tsc \
+	            --enable-x86-sep
+endif
+ifeq ($(DEB_HOST_ARCH), powerpc)
+	CONFIG_OPTS =
+endif
+ifeq ($(DEB_HOST_ARCH), armeb)
+	CONFIG_OPTS = --enable-arm-mach=generic --enable-arm-eabi
+endif
+ifeq ($(DEB_HOST_ARCH), armel)
+	CONFIG_OPTS = --enable-arm-mach=generic --enable-arm-eabi
+endif
+ifeq ($(DEB_HOST_ARCH), arm)
+	CONFIG_OPTS = --enable-arm-mach=generic
+endif
+	CONFIG_OPTS += --prefix=/usr \
+	            --includedir=/usr/include/xenomai \
+	            --mandir=/usr/share/man \
+
+ifneq ($(DEB_HOST_GNU_TYPE),$(DEB_BUILD_GNU_TYPE))
+	CONFIG_OPTS += --build $(DEB_BUILD_GNU_TYPE) --host $(DEB_HOST_GNU_TYPE)
+else
+	CONFIG_OPTS += --build $(DEB_BUILD_GNU_TYPE)
+endif
+
+build: build-arch build-indep
+
+build-arch: build-arch-stamp
+build-arch-stamp: config.status patch-stamp
+	dh_testdir
+	$(MAKE)
+	touch build-arch-stamp
+
+build-indep: build-indep-stamp
+build-indep-stamp: config.status
+	dh_testdir
+	touch build-indep-stamp
+
+patch-stamp:
+	dh_testdir
+	cp debian/linux-patch-xenomai.kpatches.in debian/linux-patch-xenomai.kpatches
+	for i in arm i386 powerpc x86_64 x86 ; do \
+		bash $(CURDIR)/debian/prepare-patch.sh $$i ; \
+	done
+	touch patch-stamp
+
+config.status: configure-stamp
+configure-stamp:
+	dh_testdir
+	./configure $(CONFIG_OPTS)
+	touch configure-stamp
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f *-stamp
+	dh_clean
+	if test -f Makefile ; then \
+	    $(MAKE) distclean ; \
+	fi
+	rm -fR $(CURDIR)/tmp
+	rm -f $(CURDIR)/*.patch
+	rm -f $(CURDIR)/debian/*.kpatches
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp/
+	dh_install --sourcedir=$(CURDIR)/debian/tmp
+	# xeno-config should be only in libxenomai-dev
+	rm -f $(CURDIR)/debian/xenomai-runtime/usr/bin/xeno-config
+	rm -f $(CURDIR)/debian/xenomai-runtime/usr/share/man/man1/xeno-config.1
+	for f in $(CURDIR)/ksrc/nucleus/udev/*.rules ; do \
+	    cat $$f >> $(CURDIR)/debian/libxenomai1/etc/udev/xenomai.rules ; \
+	done
+	# remove empty directory
+	rm -rf $(CURDIR)/debian/xenomai-doc/usr/share/doc/xenomai-doc/ps
+	cp debian/libxenomai1.lintian $(CURDIR)/debian/libxenomai1/usr/share/lintian/overrides/libxenomai1
+	cp debian/libxenomai-dev.lintian $(CURDIR)/debian/libxenomai-dev/usr/share/lintian/overrides/libxenomai-dev
+	dh_installkpatches
+
+# Build architecture-independent files here.
+binary-indep: build install
+	dh_testdir -i
+	dh_testroot -i
+	dh_installdocs -i -A CREDITS README.INSTALL TROUBLESHOOTING
+	dh_installchangelogs -i ChangeLog
+	dh_link -i
+	dh_strip -i
+	dh_compress -i -X.pdf
+	dh_fixperms -i
+	dh_makeshlibs -i
+	dh_installdeb -i
+	dh_shlibdeps -i
+	dh_gencontrol -i
+#	 Here follows a little hackery to insert the patch list        
+#	 into the control file for linux-patch-xenomai
+	cat $(CURDIR)/debian/linux-patch-xenomai.kpatches | \
+	    sed -e 's/^$$/./;s/^/ /' >> \
+	        $(CURDIR)/debian/linux-patch-xenomai/DEBIAN/control
+	dh_md5sums -i
+	dh_builddeb -i
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir -s
+	dh_testroot -s
+	dh_installman -s
+	dh_installdocs -s -A CREDITS README.INSTALL TROUBLESHOOTING
+	dh_installchangelogs -s ChangeLog
+	dh_link -s
+	dh_strip -s
+	dh_compress -s
+	dh_fixperms -s
+	dh_makeshlibs -s
+	dh_installdeb -s
+	dh_shlibdeps -s
+	dh_gencontrol -s
+#	 Echo config options to control.
+	echo " ." >> $(CURDIR)/debian/libxenomai1/DEBIAN/control
+	echo " Compiled with the following options." >> \
+	        $(CURDIR)/debian/libxenomai1/DEBIAN/control
+	echo "$(CONFIG_OPTS)" | awk '{ for ( i=1 ; i<=NF ; i++ ) print "   "$$i }' >> \
+	        $(CURDIR)/debian/libxenomai1/DEBIAN/control
+#	 End of hackery.
+	dh_md5sums -s
+	dh_builddeb -s
+
+# We have nothing to do by default.
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install

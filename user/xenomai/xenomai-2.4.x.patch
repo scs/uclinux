@@ -1,0 +1,41 @@
+diff -Nurp xenomai-2.4.x-clean/configure xenomai-2.4.x_new/configure
+--- xenomai-2.4.x-clean/configure	2008-12-04 19:21:40.000000000 +0800
++++ xenomai-2.4.x_new/configure	2009-02-10 12:13:48.000000000 +0800
+@@ -2081,11 +2081,11 @@ else
+ 	XENO_EMPTY_CFLAGS=false
+ fi
+ 
+-if eval test $includedir = /usr/include; then
+-  { { echo "$as_me:$LINENO: error: Using /usr/include as includedir is not supported. Please change your --prefix or specify another --includedir" >&5
+-echo "$as_me: error: Using /usr/include as includedir is not supported. Please change your --prefix or specify another --includedir" >&2;}
+-   { (exit 1); exit 1; }; }
+-fi
++#if eval test $includedir = /usr/include; then
++#  { { echo "$as_me:$LINENO: error: Using /usr/include as includedir is not supported. Please change your --prefix or specify another --includedir" >&5
++#echo "$as_me: error: Using /usr/include as includedir is not supported. Please change your --prefix or specify another --includedir" >&2;}
++#   { (exit 1); exit 1; }; }
++#fi
+ 
+ ac_config_headers="$ac_config_headers src/include/xeno_config.h"
+ 
+diff -Nurp xenomai-2.4.x-clean/Makefile.in xenomai-2.4.x_new/Makefile.in
+--- xenomai-2.4.x-clean/Makefile.in	2008-06-02 05:32:28.000000000 +0800
++++ xenomai-2.4.x_new/Makefile.in	2009-02-10 12:13:48.000000000 +0800
+@@ -671,7 +671,7 @@ dist-hook:
+ 	test -e $(srcdir)/doc || rm -rf $(distdir)/doc
+ 
+ dev devices:
+-	@$(mkinstalldirs) $(DESTDIR)/dev; \
++	$(mkinstalldirs) $(DESTDIR)/dev; \
+ 	if test x`id -u` = x0; then \
+            sudo= ; \
+         else if test \! "x`type $(SUDO)`" = x ; then \
+@@ -707,7 +707,7 @@ echo '*** privileges.' ; \
+           $$sudo mknod -m 666 $(DESTDIR)/dev/rtheap c 10 254 ; \
+         fi
+ 
+-install-exec-local: devices
++install-exec-local: #devices
+ 
+ install-user:
+ 	$(MAKE) SUDO=false install

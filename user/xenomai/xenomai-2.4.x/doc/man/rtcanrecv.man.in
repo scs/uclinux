@@ -1,0 +1,57 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for rtcanrecv
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH RTCANRECV 1 "2008-04-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+rtcanrecv \- Xenomai tool for receiving CAN messages
+.SH SYNOPSIS
+.\" The general command line
+.B rtcanrecv
+.RI "[<can-interface>] [Options]"
+.SH DESCRIPTION
+\fBrtcanrecv\fP is part of Xenomai. It is used to receive messages via a CAN
+interface. The system must run a suitable Xenomai enabled kernel with the
+respective module (xeno_native and the CAN driver).
+.SH OPTIONS
+<can-interface> is the CAN interface file.
+
+\fBrtcanrecv\fP accepts the following options:
+.TP
+.B \-f, \-\-filter=id:mask[:id:mask]...
+apply filter
+.TP
+.B \-e, \-\-error=mask
+receive error messages
+.TP
+.B \-t, \-\-timeout=MS
+timeout in ms
+.TP
+.B \-T, \-\-timestamp
+with absolute timestamp
+.TP
+.B \-R, \-\-timestamp-rel
+with relative timestamp
+.TP
+.B \-v, \-\-verbose
+be verbose
+.TP
+.B \-p, \-\-print=MODULO
+print every MODULO message
+.TP
+.B \-h, \-\-help
+this help
+.SH "SEE ALSO"
+.BR rtcanconfig (1),
+.BR rtcanrecv (1)
+.SH AUTHORS
+\fBrtcanrecv\fP was written by Wolfgang Grandegger <wg@grandegger.com>, Jan
+Kiszka <jan.kiszka@web.de> and Philippe Gerum <rpm@xenomai.org>. This man page
+was written by Roland Stigge <stigge@antcom.de>.
