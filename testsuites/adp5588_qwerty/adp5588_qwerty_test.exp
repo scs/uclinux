@@ -1,0 +1,145 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "Starting test."
+set timeout 8
+
+set case_num 0
+
+incr case_num
+                       
+expect  -re $kernel_prompt
+send -s "modprobe adp5588_keys\r"
+while 1 {
+expect {
+-re "input: adp5588-keys as" {
+
+	puts "\nmodule insert success.\n"
+                case_pass $case_num
+	break
+}
+
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+
+expect  -re $kernel_prompt
+send -s "lsmod\r"
+while 1 {
+expect {
+"adp5588_keys" {
+
+	puts "\nmodule ls success.\n"
+                case_pass $case_num
+	break
+}
+
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+
+send -s "cd /bin\r" 
+while 1 {
+   expect {
+      "root:/bin>" { 
+            break
+      }
+
+      timeout {                           
+         break
+         }
+     }
+}
+
+expect "root:/bin>"
+send -s "event_test /dev/input/event0\r" 
+while 1 {
+   expect {
+     -re "Input device name.*adp5588-keys.*Testing" { 
+         puts "\nPlease touch the board...\n"	 
+	 expect {
+		-re "Event: time .* type .* code .* value " { 
+                case_pass $case_num
+			}
+		
+		timeout {                           
+                case_fail $case_num
+			exit
+			}
+		}
+	 sleep 5
+	 send "\003"
+         break
+      }
+
+      timeout {                           
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+expect "root:/bin>"
+set timeout 50
+
+incr case_num
+
+send -s "rmmod adp5588_keys\r" 
+while 1 {
+   expect {
+      "root:/bin>" {
+                case_pass $case_num
+         break
+      }
+
+      timeout { 
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+incr case_num
+
+send -s "lsmod\r" 
+while 1 {
+   expect {
+      "root:/bin>" {
+                case_pass $case_num
+         break
+      }
+
+      timeout { 
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+log_file
+ 
+
