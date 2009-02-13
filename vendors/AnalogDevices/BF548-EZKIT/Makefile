@@ -46,7 +46,6 @@ romfs::
 		-a "ttyBF0:vt110:/bin/login -f root" /etc/inittab
 	$(ROMFSINST) -E CONFIG_USER_BUSYBOX_LOGIN -a "cat /etc/motd" /etc/rc
 
-	$(ROMFSINST) -e CONFIG_PATA_BF54X -a "echo 20 > /proc/sys/vm/pagecache_ratio" /etc/rc
 
 	set -e ; \
 	for f in $(ETC_FILES-y) ; do \
