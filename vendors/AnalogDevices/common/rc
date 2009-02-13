@@ -61,6 +61,15 @@ grep -qs nfsd /proc/filesystems && mount -t nfsd nfsd /proc/fs/nfsd
 [ -d /sys/kernel/security ] && mount -t securityfs securityfs /sys/kernel/security
 
 #
+# the default calculated values for these kernel controls are too small for
+# an embedded nommu system, so override them.  For more info check out
+# - ./Documentation/sysctl/vm.txt
+# - ./Documentation/filesystems/proc.txt
+#
+echo 4096 > /proc/sys/vm/min_free_kbytes
+echo 300  > /proc/sys/vm/vfs_cache_pressure
+
+#
 # Do random network setup
 #
 #dhcpcd &
