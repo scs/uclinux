@@ -111,6 +111,7 @@ if { $manual == 1 } {
         expect {
             -re "\r\n\[a-zA-Z0-9]" {
                 send_user "\nnxclock failed\n"
+                send -s "\3"
                 case_fail $case_num
             }
             timeout {
@@ -128,7 +129,7 @@ while 1 {
     expect {
         -re "nano-X: client closed socket" {
             send "\n"
-            expect  -re $kernel_prompt
+            expect -re $kernel_prompt
             case_pass $case_num
             break
         }
@@ -138,6 +139,10 @@ while 1 {
         }
     }
 }
+
+send "\n"
+expect -re $kernel_prompt
+sleep 1
 
 incr case_num
 send "nxkbd\r"
@@ -165,6 +170,7 @@ if { $manual == 1 } {
         expect {
             -re "\r\n\[a-zA-Z0-9]" {
                 send_user "\nnxkbd failed\n"
+                send -s "\3"
                 case_fail $case_num
             }
             timeout {
