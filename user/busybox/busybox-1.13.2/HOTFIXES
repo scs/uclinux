@@ -3,3 +3,4 @@ busybox-1.13.2-depmod.patch
 busybox-1.13.2-tar.patch
 busybox-1.13.2-init.patch
 busybox-1.13.2-modprobe.patch
+busybox-1.13.2-killall.patch
