@@ -6,13 +6,16 @@ USE_ECHO = $(shell test "$(CONFIG_$(1))" = "y" && echo "$(2)" || echo "$(3)")
 ifeq ($(CONFIGURE_SHARED_ENABLE),--enable-shared)
 CONF_SHARED_OPT = -shared
 CONF_XPLATFORM  = qws/linux-bfin-fdpic-g++
+HAVE_SHARED := y
 else
 CONF_SHARED_OPT = -static
 CONF_XPLATFORM  = qws/linux-bfin-flat-g++
+HAVE_SHARED := n
 endif
 
 CONFIG_QT_DEPTH ?= 8,16,24,32
 
+CONF_OPTS-y :=
 CONF_OPTS = \
 	-verbose \
 	-confirm-license \
@@ -57,9 +60,10 @@ CONF_OPTS += \
 # ahi/hybrid - non-Blackfin PDAs
 # svgalib - x86-only display driver
 CONF_OPTS += \
-	$(call USE_ECHO,LIB_DIRECTFB,-plugin-gfx-directfb,) \
 	$(call USE_ECHO,FB,-qt-gfx-linuxfb,-no-gfx-linuxfb) \
-	$(call USE_ECHO,LIB_QT_QVFB,-qt-gfx-qvfb,-no-gfx-qvfb) \
+	$(call USE_ECHO,LIB_QT_QVFB,-qt-gfx-qvfb,-no-gfx-qvfb)
+CONF_OPTS-$(HAVE_SHARED) += \
+	$(call USE_ECHO,LIB_DIRECTFB,-plugin-gfx-directfb,) \
 	-plugin-gfx-transformed \
 	-plugin-gfx-vnc
 

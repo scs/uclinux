@@ -4,7 +4,7 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +++ b/mkspecs/qws/linux-bfin-fdpic-g++/qmake.conf
 @@ -0,0 +1,18 @@
 +#
-+# qmake configuration for linux-bfin-g++
++# qmake configuration for linux-bfin-g++ (FDPIC)
 +#
 +
 +include(../linux-generic-g++/qmake.conf)
@@ -27,17 +27,18 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +#include "../../linux-g++/qplatformdefs.h"
 --- /dev/null
 +++ b/mkspecs/qws/linux-bfin-flat-g++/qmake.conf
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,20 @@
 +#
-+# qmake configuration for linux-bfin-g++
++# qmake configuration for linux-bfin-g++ (FLAT)
 +#
 +
 +include(../linux-generic-g++/qmake.conf)
 +
++DEFINES          += QT_NO_LIBRARY
 +QMAKE_CC          = bfin-uclinux-gcc
-+QMAKE_CFLAGS     += -DQT_LINUX_NOMMU
++QMAKE_CFLAGS     += -DQT_LINUX_NOMMU -DQT_NO_LIBRARY
 +QMAKE_CXX         = bfin-uclinux-g++
-+QMAKE_CXXFLAGS   += -DQT_LINUX_NOMMU
++QMAKE_CXXFLAGS   += -DQT_LINUX_NOMMU -DQT_NO_LIBRARY
 +QMAKE_LINK        = bfin-uclinux-g++
 +QMAKE_LINK_SHLIB  = bfin-uclinux-g++
 +QMAKE_LFLAGS     += -elf2flt
