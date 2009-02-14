@@ -66,6 +66,7 @@ CONF_OPTS-$(HAVE_SHARED) += \
 	$(call USE_ECHO,LIB_DIRECTFB,-plugin-gfx-directfb,) \
 	-plugin-gfx-transformed \
 	-plugin-gfx-vnc
+CONF_OPTS += $(CONF_OPTS-y)
 
 # sl5000/vr41xx/yopy - non-Blackfin PDAs
 CONF_OPTS += \
