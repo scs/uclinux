@@ -605,7 +605,7 @@ while 1 {
         # Read the uart0 register.
         send " x/1xw 0xffc00400\r" 
         expect {
-           -re "0xffc00400:\[\x20\t]+0x000d000d" {
+           -re "0xffc00400:\[\x20\t]+0x\[0-9a-fA-F]{8}\[\r\n]" {
                 case_pass $case_num
                 expect {
                         "(gdb) " {
