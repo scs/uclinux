@@ -17,12 +17,12 @@ test_command=`echo $whole_command_line | awk '{print $11}'`
 
 if [ "$test_pid" == "" ] && [ "$test_command" == "" ] ; then
 
- echo -e "1111 QUIT=$QUIT `date`\nNo test script is running."  >> test_runtime_control_log
+ echo -e "QUIT=$QUIT `date`\n1111 No test script is running."  >> test_runtime_control_log
  sleep 1200 
 
 else
 
- echo -e "2222 QUIT=$QUIT `date`\n$whole_command_line"  >> test_runtime_control_log
+ echo -e "QUIT=$QUIT `date`\n2222 $whole_command_line"  >> test_runtime_control_log
  script_name=`echo $whole_command_line | awk '{print $12}'`
  if [ "$script_name" == "./qt_source_test.exp" ] ; then
      sleep 7200
@@ -32,7 +32,7 @@ else
 
  test_name=`{ ps -p $test_pid | tail -1 | awk '{print $4}' ;}  2> /dev/null`
  if [ "$test_pid" != "" ] && [ "$test_name" != 'CMD' ] ; then
-   echo -e "3333 QUIT=$QUIT `date`\nProcess: $test_name, ID: $test_pid to be killed." >> test_runtime_control_log
+   echo -e "QUIT=$QUIT `date`\n3333 Process: $test_name, ID: $test_pid to be killed." >> test_runtime_control_log
    kill -9 $test_pid
  fi
 
@@ -43,7 +43,7 @@ kernel_test_pid=`echo $kernel_test_whole_command_line | awk '{print $2}'`
 kernel_test_command=`echo $kernel_test_whole_command_line | awk '{print $11}'`
 
 if [ "$kernel_test_pid" == "" ] && [ "$kernel_test_command" == "" ] ; then
-   echo -e "4444 QUIT=$QUIT `date`\nProcess: $kernel_test_command, ID: $kernel_test_pid to be killed. kill $$.!!" >> test_runtime_control_log
+   echo -e "QUIT=$QUIT `date`\n 4444 Process: $kernel_test_command, ID: $kernel_test_pid to be killed! kill $$.!!" >> test_runtime_control_log
 
 kill -9 $$
 
