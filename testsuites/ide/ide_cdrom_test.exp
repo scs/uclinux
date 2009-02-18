@@ -25,6 +25,7 @@ send "dmesg\r"
 while 1 {
    expect {
      -re "scsi.*Direct-Access.*ATA.*WDC" {
+                expect -re "$kernel_prompt"
                 case_pass $case_num
 		break
       }
@@ -42,9 +43,15 @@ incr case_num
 send "mount -t iso9660 /dev/sr0 /mnt\r" 
 while 1 {
    expect {
-      ">" {
+
+      -re "$kernel_prompt" {
                 case_pass $case_num
 		break
+      }
+
+      -re "failed|No " {
+                case_fail $case_num
+                exit
       }
 
       timeout {
@@ -59,7 +66,7 @@ incr case_num
 send "ls -al /mnt\r" 
 while 1 {
    expect {
-      ">" {
+    -re  "$kernel_prompt" {
                 case_pass $case_num
 		break
       }
@@ -77,6 +84,7 @@ while 1 {
    expect {
      -re "real.*user.*sys" {
                 case_pass $case_num
+                expect -re "$kernel_prompt"
                 break
       }
 
@@ -88,20 +96,39 @@ while 1 {
 }
 
 incr case_num
-send "cat /proc/filesystems\r" 
+set filesystems 0
+send "cat /proc/filesystems\r"
 while 1 {
-   expect {
-     -re "msdos.*vfat.*iso9660" {
-                case_pass $case_num
-		break
-      }
+    expect {
+        -re "vfat" {
+            incr filesystems
+        }
 
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
+        -re "msdos" {
+            incr filesystems
+        }
+
+        -re "iso9660" {
+            incr filesystems
+        }
+
+        -re "$kernel_prompt" {
+                                if { $filesystems == 3 } {
+                                    send_log "The three fs -- vfat,msdos and iso9660 are found!\n"
+                                    case_pass $case_num
+                                } else {
+                                    send_log "Not all of the vfat,msdos and iso9660 are found!\n"
+                                    case_fail $case_num
+                                }
+            break
+        }
+
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
+
 
 incr case_num
 send "df\r" 
@@ -111,6 +138,11 @@ while 1 {
                 case_pass $case_num
 		break
       }
+
+     "No such file or directory" {
+                case_fail $case_num
+                exit
+        }
 
       timeout {
                 case_fail $case_num

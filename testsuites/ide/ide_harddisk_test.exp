@@ -25,6 +25,7 @@ send "dmesg\r"
 while 1 {
     expect {
         "sda: sda1" {
+            expect -re $kernel_prompt
             case_pass $case_num
             break
         }
@@ -134,6 +135,7 @@ send "mke2fs /dev/sda1\r"
 while 1 {
     expect {
         -re "done.*done" {
+            expect -re "$kernel_prompt"
             case_pass $case_num
             break
         }
@@ -151,6 +153,12 @@ while 1 {
             case_pass $case_num
             break
         }
+ 
+        -re "failed|No " {
+                case_fail $case_num
+                exit
+        }
+
         timeout {
             case_fail $case_num
         }
@@ -170,12 +178,12 @@ while 1 {
         }
     }
 }
-
+set timeout 20
 incr case_num
 send "ls -al /mnt\r"
 while 1 {
     expect {
-        -re $kernel_prompt {
+        -re "pwd.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -186,32 +194,35 @@ while 1 {
 }
 
 incr case_num
+set filesystems 0
 send "cat /proc/filesystems\r"
 while 1 {
     expect {
-        -re "msdos.*$kernel_prompt" {
-            case_pass $case_num
+        -re "vfat" {
+            incr filesystems
+        }
+
+        -re "msdos" {
+            incr filesystems
+        }
+
+        -re "$kernel_prompt" {
+                                if { $filesystems == 2 } {
+                                    send_log "The two fs -- vfat and msdos are found!\n"
+                                    case_pass $case_num
+                                } else {
+                                    send_log "Not both of the vfat and msdos are found!\n"
+                                    case_fail $case_num
+                                }
             break
         }
+
         timeout {
             case_fail $case_num
         }
     }
 }
 
-incr case_num
-send "cat /proc/filesystems\r"
-while 1 {
-    expect {
-        -re "vfat.*$kernel_prompt" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
 incr case_num
 send "df\r"
 while 1 {
