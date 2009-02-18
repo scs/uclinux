@@ -71,7 +71,7 @@ index e4dcfb2..277986d 100644
 +	/* Trap into kgdb as the active CPU if gdb asks to switch. */
 +	thread = getthread(regs, -raw_smp_processor_id() - 2);
 +	if ((arch_kgdb_ops.flags & KGDB_THR_PROC_SWAP) &&
-+		kgdb_contthread) {
++		kgdb_contthread && kgdb_contthread == current) {
 +		kgdb_breakpoint();
 +		clocksource_touch_watchdog();
 +		local_irq_restore(flags);
