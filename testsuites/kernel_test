@@ -1843,12 +1843,6 @@ fi
       if [ $BOARD_TYPE == "BF548-EZKIT" ] ; then
           sleep 30
           cd $UCLINUX_DIST_TESTSUITES/usbdev
-          ./gadget_midi_test.exp >/dev/null  2>&1
-          cd $UCLINUX_DIST_TESTSUITES
-          ./reset_board.exp  >/dev/null  2>&1
-
-          sleep 30
-          cd $UCLINUX_DIST_TESTSUITES/usbdev
           ./gadget_storage_hd_test.exp >/dev/null  2>&1
           cd $UCLINUX_DIST_TESTSUITES
           ./reset_board.exp  >/dev/null  2>&1
