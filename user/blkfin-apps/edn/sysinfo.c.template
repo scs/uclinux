@@ -1,0 +1,4 @@
+printf("** System used for compilation: %SYSTEM%\n");
+printf("** C compiler: %CCVERSION%\n");
+printf("** Flags: %LIBCVERSION%\n");
+printf("** Date of compilation: %DATE%\n");

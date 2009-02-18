@@ -1,5 +1,6 @@
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <time.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -138,30 +139,37 @@ static float readProcCpuInfo (char *model, char *cache)
 	return f;
 }
 
+
 double timeval_subtract (struct timeval x, struct timeval y)
 {
 	struct timeval result;
 	double expired;
 
-	/* Perform the carry for the later subtraction by updating y. */
-	if (x.tv_usec < y.tv_usec) {
-		int nsec = (y.tv_usec - x.tv_usec) / 1000000 + 1;
-		y.tv_usec -= 1000000 * nsec;
-		y.tv_sec += nsec;
+	(result).tv_sec = (x).tv_sec - (y).tv_sec;
+	(result).tv_usec = (x).tv_usec - (y).tv_usec;
+	if ((result).tv_usec < 0) {
+		--(result).tv_sec;
+		(result).tv_usec += 1000000;
 	}
-
-	if (x.tv_usec - y.tv_usec > 1000000) {
-		int nsec = (x.tv_usec - y.tv_usec) / 1000000;
-		y.tv_usec += 1000000 * nsec;
-		y.tv_sec -= nsec;
-	}
-
-	/* Compute the time remaining to wait.
-		tv_usec is certainly positive. */
-	result.tv_sec = x.tv_sec - y.tv_sec;
-	result.tv_usec = x.tv_usec - y.tv_usec;
 
 	expired = fabs((float)result.tv_sec + ((float)result.tv_usec)/1000000.0);
+
+	return expired;
+}
+
+double timespec_subtract (struct timespec x, struct timespec y)
+{
+	struct timespec result;
+	double expired;
+
+	(result).tv_sec = (x).tv_sec - (y).tv_sec;
+	(result).tv_nsec = (x).tv_nsec - (y).tv_nsec;
+	if ((result).tv_nsec < 0) {
+		--(result).tv_sec;
+		(result).tv_nsec += 1000000000;
+	}
+
+	expired = fabs((float)result.tv_sec + ((float)result.tv_nsec)/1000000000.0);
 
 	return expired;
 }
@@ -169,35 +177,80 @@ double timeval_subtract (struct timeval x, struct timeval y)
 #define time_func(funct) 				\
 {							\
 	struct rusage start, stop;			\
-	unsigned long long count=0, i;				\
-	double expired_time;				\
+	struct timespec real_start, real_stop;		\
+	unsigned long long count=0, i;			\
+	double expired_time = 0.0, expired_real = 0.0, time;	\
+	char buf1[256], *buf2, *buf3;						\
 										\
-	printf("testing \"" #funct "\"\n");					\
-	/* Do two things - make cache hot, and see how many loops in		\
-	 * 1 second */								\
-	getrusage(RUSAGE_SELF, &start);						\
-	while (1) {								\
-		count++;							\
-		for (i = 0; i <= 10000 ; i++)					\
-			funct;							\
-		getrusage(RUSAGE_SELF, &stop);					\
-		if (timeval_subtract(stop.ru_utime, start.ru_utime) >= 1.0)	\
-			break;							\
-	}									\
+	sprintf(buf1, #funct);							\
+	if ((buf2 = strchr(buf1, '=')))						\
+		buf2 += 2; 							\
+	else 									\
+		buf2 = buf1;							\
+										\
+	if ((buf3 = strchr(buf1, '(')))						\
+		*buf3 = '\000';							\
+										\
+	sprintf(buf1, "%s                                           ", buf2);	\
+	buf1[15]='\000';							\
+	printf("%s", buf1);							\
+										\
+	time = 0.5;								\
+	while(expired_real < 1.0) {						\
+		time += 0.5;								\
+		clock_gettime(CLOCK_REALTIME, &real_start);				\
+		getrusage(RUSAGE_SELF, &start);						\
+		while (1) {								\
+			count++;							\
+			for (i = 0; i <= 10000 ; i++)					\
+				funct;							\
+			getrusage(RUSAGE_SELF, &stop);					\
+			if (timeval_subtract(stop.ru_utime, start.ru_utime) >= time)	\
+				break;							\
+		}									\
+		clock_gettime(CLOCK_REALTIME, &real_stop);				\
+		expired_real = timespec_subtract(real_start, real_stop);		\
+	}										\
 										\
 	count = count * LOOPS * 10000;						\
-	/* Do things about n seconds worth, and time it */			\
-	getrusage(RUSAGE_SELF, &start);						\
-	for (i = 0; i < count; i++) {						\
-		funct;								\
+	while(expired_real < (double)LOOPS) {					\
+		clock_gettime(CLOCK_REALTIME, &real_start);                             \
+		getrusage(RUSAGE_SELF, &start);						\
+		for (i = 0; i < count; i++) {						\
+			funct;								\
+		}									\
+		getrusage(RUSAGE_SELF, &stop);						\
+		clock_gettime(CLOCK_REALTIME, &real_stop);                              \
+		expired_time = timeval_subtract(stop.ru_utime, start.ru_utime);		\
+		expired_real = timespec_subtract(real_start, real_stop);		\
+		if (expired_real < (double)LOOPS || expired_time < (double)LOOPS || expired_time >= expired_real) \
+			count = count * 3 / 2;					\
 	}									\
-	getrusage(RUSAGE_SELF, &stop);						\
-	expired_time = timeval_subtract(stop.ru_utime, start.ru_utime);		\
 										\
-	printf("  Completed %llu loops in %f seconds\n", count, expired_time);	\
-	printf("  useconds per loop = %f\n", (expired_time*1000000) / count);	\
-	printf("  cycles per loop = %.1f\n", (expired_time*1000000) / count * MHz); \
+	if ((expired_time*1000000) / count * MHz < 10.0)			\
+		printf(" ");							\
+	if ((expired_time*1000000) / count * MHz < 100.0)			\
+		printf(" ");							\
+	if ((expired_time*1000000) / count * MHz < 1000.0)			\
+		printf(" ");							\
+	if ((expired_time*1000000) / count * MHz < 10000.0)			\
+		printf(" ");							\
+	printf("%.1f\n", (expired_time*1000000) / count * MHz); 		\
 										\
+}
+
+float calibrate(void)
+{
+	/* lets figure out the size of a tick */
+	struct rusage start, stop;
+
+	getrusage(RUSAGE_SELF, &start);
+	getrusage(RUSAGE_SELF, &stop);
+
+	while ((start.ru_utime.tv_sec == stop.ru_utime.tv_sec) && (start.ru_utime.tv_usec == stop.ru_utime.tv_usec))
+		getrusage(RUSAGE_SELF, &stop);
+
+	return timeval_subtract(stop.ru_utime, start.ru_utime);
 }
 
 void overhead(void)
@@ -214,14 +267,23 @@ int main(void)
 	int e[1] = {0xEEEE};
 	char *model;
 	char *cache;
-	float MHz;
+	float tick, MHz;
+
+	printf("\n**\n");
+#include "./sysinfo.c"
 
 	model = malloc(BUF_SIZ);
 	cache = malloc(BUF_SIZ);
 
 	MHz = readProcCpuInfo (model, cache);
-	printf("Testing on %s\nCache size %s\n", model, cache);
-	printf("MHz = %f\n", MHz);
+	tick=calibrate();
+
+	printf("**\n");
+	printf("** Testing on %s\n** Cache size %s\n", model, cache);
+	printf("** CPU MHz = %.0f  kernel tick = %1.1fms or %.0f CPU clocks\n", MHz, tick * 1000, MHz * 1000000.0 * tick);
+	printf("** running a test for %i seconds, (%.0f CPU clocks) tick size accounts for less than %.3f%% varation\n",
+		 LOOPS, MHz * 1000000.0 * LOOPS,  100 * tick / LOOPS);
+	printf("**\n");
 
 	/* Lets check for correctness before we test anything else */
 	int_output[0] = int_output[1] = 0;
@@ -229,6 +291,8 @@ int main(void)
 	/*
          * Declared as memory variable so it doesn't get optimized out
          */
+
+	printf("Test\tcycles per loop\n");
 
 	time_func(overhead());
 
