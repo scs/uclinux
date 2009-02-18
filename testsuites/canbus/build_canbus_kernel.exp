@@ -54,7 +54,7 @@ while 1 {
         }
 
         -re "Analog Devices BlackFin CAN Controller.*CAN_BLACKFIN.*\\\[.*]" {
-            send "y\r"
+            send "M\r"
         }
 
         -re "can4linux examples.*USER_CAN_EXAMPLES.*\\\[.*]" {

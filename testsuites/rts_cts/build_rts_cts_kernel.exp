@@ -38,11 +38,35 @@ while 1 {
         }
 
         -re "Enable UART0.*SERIAL_BFIN_UART0.*\\\[.*]" {
-            send "y\r"
+           if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "Enable UART0 hardware flow control.*BFIN_UART0_CTSRTS.*\\\[.*]" {
-            send "y\r"
+           if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Enable UART1.*SERIAL_BFIN_UART1.*\\\[.*]" {
+           if { $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Enable UART1 hardware flow control.*BFIN_UART1_CTSRTS.*\\\[.*]" {
+           if { $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "RTS/CTS test program.*USER_BLACKFIN_RTSCTSTEST.*\\\[.*]" {
