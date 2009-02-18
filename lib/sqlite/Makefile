@@ -1,4 +1,4 @@
-VER = sqlite-3.6.10
+VER = sqlite-3.6.11
 URL = http://sqlite.org/$(VER).tar.gz
 
 CONF_OPTS = --disable-tcl
