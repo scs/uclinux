@@ -1,4 +1,4 @@
-VER = nano-2.1.7
+VER = nano-2.1.9
 
 CONF_OPTS = \
 	--enable-tiny
