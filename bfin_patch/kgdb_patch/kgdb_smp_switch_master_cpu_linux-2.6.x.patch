@@ -15,9 +15,8 @@ kgdb should:
 
 Signed-off-by: Sonic Zhang <sonic.adi@gmail.com>
 ---
- include/linux/kgdb.h |   16 +++++++++++-
- kernel/kgdb.c        |   66 +++++++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 72 insertions(+), 10 deletions(-)
+ include/linux/kgdb.h
+ kernel/kgdb.c
 
 diff --git a/include/linux/kgdb.h b/include/linux/kgdb.h
 index 6adcc29..664e396 100644
@@ -47,7 +46,7 @@ diff --git a/kernel/kgdb.c b/kernel/kgdb.c
 index e4dcfb2..277986d 100644
 --- a/kernel/kgdb.c
 +++ b/kernel/kgdb.c
-@@ -565,6 +565,7 @@ static void kgdb_wait(struct pt_regs *regs)
+@@ -565,6 +565,7 @@
  {
  	unsigned long flags;
  	int cpu;
@@ -55,7 +54,7 @@ index e4dcfb2..277986d 100644
  
  	local_irq_save(flags);
  	cpu = raw_smp_processor_id();
-@@ -577,6 +578,8 @@ static void kgdb_wait(struct pt_regs *regs)
+@@ -577,10 +578,26 @@
  	smp_wmb();
  	atomic_set(&cpu_in_kgdb[cpu], 1);
  
@@ -64,24 +63,25 @@ index e4dcfb2..277986d 100644
  	/* Wait till primary CPU is done with debugging */
  	while (atomic_read(&passive_cpu_wait[cpu]))
  		cpu_relax();
-@@ -584,6 +587,16 @@ static void kgdb_wait(struct pt_regs *regs)
- 	kgdb_info[cpu].debuggerinfo = NULL;
- 	kgdb_info[cpu].task = NULL;
  
 +	/* Trap into kgdb as the active CPU if gdb asks to switch. */
 +	thread = getthread(regs, -raw_smp_processor_id() - 2);
 +	if ((arch_kgdb_ops.flags & KGDB_THR_PROC_SWAP) &&
 +		kgdb_contthread && kgdb_contthread == current) {
 +		kgdb_breakpoint();
++
++		kgdb_info[cpu].debuggerinfo = NULL;
++		kgdb_info[cpu].task = NULL;
++
 +		clocksource_touch_watchdog();
 +		local_irq_restore(flags);
 +		return;
 +	}
 + 
- 	/* fix up hardware debug registers on local cpu */
- 	if (arch_kgdb_ops.correct_hw_break)
- 		arch_kgdb_ops.correct_hw_break();
-@@ -1066,13 +1079,16 @@ static void gdb_cmd_query(struct kgdb_state *ks)
+ 	kgdb_info[cpu].debuggerinfo = NULL;
+ 	kgdb_info[cpu].task = NULL;
+ 
+@@ -1066,13 +1083,16 @@
  			sprintf(tmpstr, "shadowCPU%d",
  					(int)(-ks->threadid - 2));
  			kgdb_mem2hex(tmpstr, remcom_out_buffer, strlen(tmpstr));
@@ -99,7 +99,7 @@ index e4dcfb2..277986d 100644
  {
  	struct task_struct *thread;
  	char *ptr;
-@@ -1089,6 +1105,15 @@ static void gdb_cmd_task(struct kgdb_state *ks)
+@@ -1089,6 +1109,15 @@
  		kgdb_usethread = thread;
  		ks->kgdb_usethreadid = ks->threadid;
  		strcpy(remcom_out_buffer, "OK");
@@ -115,7 +115,26 @@ index e4dcfb2..277986d 100644
  		break;
  	case 'c':
  		ptr = &remcom_in_buffer[2];
-@@ -1106,6 +1131,8 @@ static void gdb_cmd_task(struct kgdb_state *ks)
+@@ -1102,10 +1131,27 @@
+ 				break;
+ 			}
+ 			kgdb_contthread = thread;
++#ifdef CONFIG_SMP
++			if ((arch_kgdb_ops.flags & KGDB_THR_PROC_SWAP) &&
++				thread != current) {
++				int cpu;
++				for_each_online_cpu(cpu) {
++					if (thread == kgdb_info[cpu].task) {
++						kgdb_roundup_cpu(
++							raw_smp_processor_id(),
++							0);
++						ks->kgdb_usethreadid = -cpu-2;
++						return 1;
++					}
++				}
++			}
++#endif
+ 		}
  		strcpy(remcom_out_buffer, "OK");
  		break;
  	}
@@ -124,7 +143,7 @@ index e4dcfb2..277986d 100644
  }
  
  /* Handle the 'T' thread query packets */
-@@ -1114,6 +1141,9 @@ static void gdb_cmd_thread(struct kgdb_state *ks)
+@@ -1114,6 +1160,9 @@
  	char *ptr = &remcom_in_buffer[1];
  	struct task_struct *thread;
  
@@ -134,7 +153,7 @@ index e4dcfb2..277986d 100644
  	kgdb_hex2long(&ptr, &ks->threadid);
  	thread = getthread(ks->linux_regs, ks->threadid);
  	if (thread)
-@@ -1223,7 +1253,12 @@ static int gdb_serial_stub(struct kgdb_state *ks)
+@@ -1223,7 +1272,12 @@
  	/* Clear the out buffer. */
  	memset(remcom_out_buffer, 0, sizeof(remcom_out_buffer));
  
@@ -148,7 +167,7 @@ index e4dcfb2..277986d 100644
  		unsigned char thref[8];
  		char *ptr;
  
-@@ -1238,6 +1273,7 @@ static int gdb_serial_stub(struct kgdb_state *ks)
+@@ -1238,6 +1292,7 @@
  		put_packet(remcom_out_buffer);
  	}
  
@@ -156,7 +175,7 @@ index e4dcfb2..277986d 100644
  	kgdb_usethread = kgdb_info[ks->cpu].task;
  	ks->kgdb_usethreadid = shadow_pid(kgdb_info[ks->cpu].task->pid);
  	ks->pass_exception = 0;
-@@ -1284,7 +1320,8 @@ static int gdb_serial_stub(struct kgdb_state *ks)
+@@ -1284,7 +1339,8 @@
  			gdb_cmd_query(ks);
  			break;
  		case 'H': /* task related */
@@ -166,7 +185,7 @@ index e4dcfb2..277986d 100644
  			break;
  		case 'T': /* Query thread status */
  			gdb_cmd_thread(ks);
-@@ -1324,6 +1361,7 @@ default_handle:
+@@ -1324,6 +1380,7 @@
  			if (error >= 0 || remcom_in_buffer[0] == 'D' ||
  			    remcom_in_buffer[0] == 'k') {
  				error = 0;
@@ -174,7 +193,7 @@ index e4dcfb2..277986d 100644
  				goto kgdb_exit;
  			}
  
-@@ -1464,11 +1502,15 @@ acquirelock:
+@@ -1464,11 +1521,15 @@
  	 * Get the passive CPU lock which will hold all the non-primary
  	 * CPU in a spin state while the debugger is active
  	 */
@@ -191,7 +210,7 @@ index e4dcfb2..277986d 100644
  	/*
  	 * spin_lock code is good enough as a barrier so we don't
  	 * need one here:
-@@ -1477,7 +1519,7 @@ acquirelock:
+@@ -1477,7 +1538,7 @@
  
  #ifdef CONFIG_SMP
  	/* Signal the other CPUs to enter kgdb_wait() */
@@ -200,7 +219,7 @@ index e4dcfb2..277986d 100644
  		kgdb_roundup_cpus(flags);
  #endif
  
-@@ -1496,7 +1538,6 @@ acquirelock:
+@@ -1496,7 +1557,6 @@
  	kgdb_post_primary_code(ks->linux_regs, ks->ex_vector, ks->err_code);
  	kgdb_deactivate_sw_breakpoints();
  	kgdb_single_step = 0;
@@ -208,7 +227,7 @@ index e4dcfb2..277986d 100644
  	exception_level = 0;
  
  	/* Talk to debugger with gdbserial protocol */
-@@ -1510,7 +1551,14 @@ acquirelock:
+@@ -1510,7 +1570,14 @@
  	kgdb_info[ks->cpu].task = NULL;
  	atomic_set(&cpu_in_kgdb[ks->cpu], 0);
  
@@ -224,7 +243,7 @@ index e4dcfb2..277986d 100644
  		for (i = NR_CPUS-1; i >= 0; i--)
  			atomic_set(&passive_cpu_wait[i], 0);
  		/*
-@@ -1536,9 +1584,9 @@ kgdb_restore:
+@@ -1536,9 +1603,9 @@
  int kgdb_nmicallback(int cpu, void *regs)
  {
  #ifdef CONFIG_SMP
