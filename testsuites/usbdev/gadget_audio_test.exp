@@ -96,11 +96,11 @@ while 1 {
 }
 
 incr case_num
-set timeout 10
-send "aplay -D plug:hw:1 ../audio/snd2fftw/samples/1000Hz_44100Hz_16bit_05sec.wav\r"
+set timeout 30
+send "aplay -D plug:hw:1 ../bluetoothalsa/test.wav\r"
 while 1 {
     expect {
-        -re "Playing WAVE.*Rate 44100 Hz, Mono.*>" {
+        -re "Playing WAVE.*Rate 44100 Hz, Stereo.*>" {
             case_pass $case_num
             break
         }
