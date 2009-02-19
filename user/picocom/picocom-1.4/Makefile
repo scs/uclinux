@@ -7,8 +7,6 @@ CFLAGS += -Wall
 
 # LD = gcc
 
-all: picocom
-
 picocom : picocom.o term.o
 #	$(LD) $(LDFLAGS) -o $@ $+ $(LDLIBS)
 
@@ -33,7 +31,8 @@ clean:
 	rm -f picocom.o term.o
 	rm -f *~
 	rm -f \#*\#
-	rm -f *.gdb
+
+distclean: clean
 	rm -f picocom
 
 realclean: distclean
@@ -41,6 +40,3 @@ realclean: distclean
 	rm -f picocom.8.html
 	rm -f picocom.8.ps
 	rm -f CHANGES
-
-romfs:
-	$(ROMFSINST) picocom /bin
