@@ -68,6 +68,10 @@ while 1 {
             send "Y\r"
         }
 
+        -re "Compile the kernel with frame pointers.*FRAME_POINTER.*\\\[.*]" {
+            send "Y\r"
+        }
+
         -re "KGDB: use kgdb over the serial console.*KGDB_SERIAL_CONSOLE.*\\\[.*]" {
             send "N\r"
         }
