@@ -16,6 +16,7 @@ dir_$(CONFIG_USER_MPD)                      += mpd
 dir_$(CONFIG_USER_NANO)                     += nano
 dir_$(CONFIG_USER_OPENNTPD)                 += openntpd
 dir_$(CONFIG_USER_PCMCIAUTILS)              += pcmciautils
+dir_$(CONFIG_USER_PICOCOM)                  += picocom
 dir_$(CONFIG_USER_PICTUREFLOW)              += pictureflow
 
 dir_$(CONFIG_CRAMFS)                        += cramfs

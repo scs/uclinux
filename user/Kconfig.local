@@ -180,8 +180,6 @@ config USER_BTSCO
 config USER_PCMCIAUTILS
 	bool "pcmciautils"
 	select LIB_LIBSYSFS
-config USER_PICOCOM
-	bool "picocom"
 config USER_DAGRAB_DAGRAB
 	bool "dagrab"
 config USER_CAN_EXAMPLES

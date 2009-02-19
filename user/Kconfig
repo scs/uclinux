@@ -3113,6 +3113,13 @@ config USER_PERL_PERL
 	help
 	  The PERL scripting language.
 
+config USER_PICOCOM
+	bool "picocom"
+	help
+	  a minimal dumb-terminal emulation program
+
+	  http://efault.net/npat/hacks/picocom/
+
 config USER_POTRACE_POTRACE
 	bool 'potrace'
 	help
