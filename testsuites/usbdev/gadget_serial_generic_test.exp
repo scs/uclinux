@@ -85,7 +85,7 @@ while 1 {
         -re "modprobe:|\[fF]ail" {
             case_fail $case_num
         }
-        -re "Gadget Serial.*loaded.*high speed BULK config" {
+        -re "Gadget Serial.*g_serial ready.*speed config.*Generic Serial config" {
             case_pass $case_num
             break
         }
@@ -100,7 +100,7 @@ set timeout 10
 send "dmesg|tail\r"
 while 1 {
     expect {
-        -re "Gadget Serial.*loaded.*high speed BULK config.*$kernel_prompt" {
+        -re "Gadget Serial.*g_serial ready.*speed config.*Generic Serial config.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -115,7 +115,7 @@ set host_spawn_id $spawn_id
 
 incr case_num
 set timeout 15
-send "su -\r"
+send "su\r"
 while 1 {
     expect {
         -re "\[pP]assword" {
@@ -177,7 +177,7 @@ set timeout 5
 send "cat /proc/bus/usb/devices\r"
 while 1 {
     expect {
-        -re "Product=Gadget Serial.*~#" {
+        -re "Product=Gadget Serial.*#" {
             case_pass $case_num
             break
         }
@@ -228,7 +228,7 @@ while 1 {
 
 incr case_num
 set timeout 4
-send "kermit $uclinux_path/testsuites/usbdev/configs/kermrc.ttyUSB0\r"
+send "kermit configs/kermrc.ttyUSB0\r"
 while 1 {
     expect {
         -re "ttyUSB0 Kermit>" {

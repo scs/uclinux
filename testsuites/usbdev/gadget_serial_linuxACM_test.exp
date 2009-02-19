@@ -85,7 +85,7 @@ while 1 {
         -re "modprobe:|\[fF]ail" {
             case_fail $case_num
         }
-        -re "Gadget Serial.*loaded.*high speed CDC-ACM config.*gs_setup_complete: status error, status=-75, actual=0, length=0" {
+        -re "Gadget Serial.*g_serial ready.*speed config.*CDC ACM config" {
             case_pass $case_num
             break
         }
@@ -100,7 +100,7 @@ set timeout 10
 send "dmesg|tail\r"
 while 1 {
     expect {
-        -re "Gadget Serial.*loaded.*high speed CDC-ACM config.*gs_setup_complete: status error, status=-75, actual=0, length=0\r\n$kernel_prompt" {
+        -re "Gadget Serial.*g_serial ready.*speed config.*CDC ACM config.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -115,7 +115,7 @@ set host_spawn_id $spawn_id
 
 incr case_num
 set timeout 15
-send "su -\r"
+send "su\r"
 while 1 {
     expect {
         -re "\[pP]assword" {
@@ -189,7 +189,7 @@ while 1 {
 
 incr case_num
 set timeout 4
-send "kermit $uclinux_path/testsuites/usbdev/configs/kermrc.ttyACM0\r"
+send "kermit configs/kermrc.ttyACM0\r"
 while 1 {
     expect {
         -re "ttyACM0 Kermit>" {
