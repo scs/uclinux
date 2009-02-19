@@ -1,0 +1,10 @@
+find picocom in PATH like all the other pc* scripts
+
+--- picocom-1.4/pcasc
++++ picocom-1.4/pcasc
+@@ -1,4 +1,4 @@
+ #!/bin/sh
+-exec ./picocom \
++exec picocom \
+     --send-cmd="ascii-xfr -sv -l5" \
+     --receive-cmd="ascii-xfr -rv" "$@"

@@ -1,0 +1,19 @@
+respect flags from environment
+
+--- picocom-1.4/Makefile
++++ picocom-1.4/Makefile
+@@ -2,12 +2,10 @@
+ VERSION=1.4
+ 
+ # CC = gcc
+-CPPFLAGS=-DVERSION_STR=\"$(VERSION)\" -DUUCP_LOCK_DIR=\"/var/lock\"
+-CFLAGS = -Wall -g
++CPPFLAGS+=-DVERSION_STR=\"$(VERSION)\" -DUUCP_LOCK_DIR=\"/var/lock\"
++CFLAGS += -Wall
+ 
+ # LD = gcc
+-LDFLAGS = -g
+-LDLIBS =
+ 
+ picocom : picocom.o term.o
+ #	$(LD) $(LDFLAGS) -o $@ $+ $(LDLIBS)
