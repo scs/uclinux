@@ -46,7 +46,7 @@ proc standby_test_case1 {} {
     global standby_fail
     global pm_state_str
 
-    set timeout [expr $wait_time + 8]
+    set timeout [expr $wait_time + 10]
     incr case_num
     send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
@@ -108,7 +108,7 @@ proc standby_test_case2 {} {
     global standby_fail
     global pm_state_str
 
-    set timeout [expr $wait_time + 8]
+    set timeout [expr $wait_time + 10]
     incr case_num
     send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
@@ -128,8 +128,8 @@ proc standby_test_case2 {} {
     set timeout 5
     expect -re "Full\r\n|lpa 0x41E1\r\n"
 
-    set timeout 20
-    incr pack_num 10
+    set timeout 30
+    incr pack_num 15
     send_user "pack_num=$pack_num\r"
     while 1 {
         expect {
