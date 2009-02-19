@@ -49,10 +49,10 @@ while 1 {
 
 set timeout 9
 incr case_num
-send "dmesg\r"
+send "dmesg|grep -i sd\r"
 while 1 {
     expect {
-        -re "scsi.*configured for UDMA.*sda: sda1.*$kernel_prompt" {
+        -re "sda: sda1.*Attached SCSI disk.*$kernel_prompt" {
             case_pass $case_num
             break
         }
