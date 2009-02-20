@@ -202,7 +202,7 @@ static bool strace_vforked = false;
 ({ \
 	pid_t __child_pid = fork(); \
 	if (__child_pid == -1 && errno == ENOSYS) { \
-		strace_vforked = 1; \
+		strace_vforked = true; \
 		__child_pid = vfork(); \
 	} \
 	__child_pid; \
