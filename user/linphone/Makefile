@@ -14,6 +14,12 @@ CONF_OPTS = \
 	--with-osip=$(STAGEDIR)/usr \
 	$(call USE_ENABLE,USER_BFIN_LINPHONE_VIDEO,video)
 
+# Don't require the intltool utils since we aren't going to actually
+# run them -- they're required in maintainer mode (linphone dev)
+export ac_cv_path_INTLTOOL_UPDATE  = true
+export ac_cv_path_INTLTOOL_MERGE   = true
+export ac_cv_path_INTLTOOL_EXTRACT = true
+
 include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
