@@ -95,6 +95,9 @@ while 1 {
     }
 }
 
+#it seems gadget audio need at least 5s before it can work
+sleep 5
+
 incr case_num
 set timeout 30
 send "aplay -D plug:hw:1 ../bluetoothalsa/test.wav\r"
