@@ -169,22 +169,6 @@ while 1 {
         }
 
 #sound card driver is needed
-        -re "I2C support \\\(I2C\\\).*\\\[.*]" {
-            if { $board_type == "BF527-EZKIT" } {
-                send "Y\r"
-            } else {
-                send "\r"
-            }
-        }
-
-        -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
-            if { $board_type == "BF527-EZKIT" } {
-                send "Y\r"
-            } else {
-                send "\r"
-            }
-        }
-
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "Y\r"
         }
@@ -206,35 +190,37 @@ while 1 {
         }
 
         -re "SoC I2S Audio for the ADI BF5xx chip.*SND_BF5XX_I2S.*\\\[.*]" {
-            if { $board_type == "BF527-EZKIT" } {
-                send "Y\r"
-            } else {
-                send "N\r"
-            }
-        }
-
-        -re "SoC SSM2602 Audio support for BF52x ezkit.*SND_BF5XX_SOC_SSM2602.*\\\[.*]" {
-            if { $board_type == "BF527-EZKIT" } {
-                send "Y\r"
-            } else {
-                send "N\r"
-            }
+            send "N\r"
         }
 
         -re "SoC AC97 Audio for the ADI BF5xx chip.*SND_BF5XX_AC97.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "Y\r"
-            } else {
-                send "N\r"
-            }
+            send "Y\r"
         }
 
         -re "SoC AD1980/1 Audio support for BF5xx.*SND_BF5XX_SOC_AD1980.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "Y\r"
-            } else {
+            send "Y\r"
+        }
+
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
+                #ad1981b conflicts with bfin-t350mcqb on BF527-EZKIT
                 send "N\r"
+            } else {
+                send "\r"
             }
+        }
+
+        -re "Blackfin on-chip MAC support.*BFIN_MAC.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
+                #ad1981b conflicts with BFIN_MAC on BF527-EZKIT
+                send "N\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Uncached DMA region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
+            send "2\r"
         }
 
         "\\\(*) \\\[*]" {
