@@ -1,7 +1,7 @@
 # version is based on current git snapshot from here (since releases are not
 # really made anymore by the mtd guys):
 # http://git.infradead.org/?p=mtd-utils.git;a=summary
-VER = 149d3c8ac8d32c05836ed8add1324561ce0952ad
+VER = cca27d4c0819ae244b33639a19bec82cc2895704
 
 TARGETS-y :=
 TARGETS-$(CONFIG_USER_MTDUTILS_ERASE)        += flash_erase
