@@ -172,7 +172,7 @@ while 1 {
         -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             case_fail $case_num
         }
-        -re "Gadget Zero.*using musb_hdrc.*source and sink data" {
+        -re "Gadget Zero.*zero ready.*(high|full) speed config.*source/sink" {
             break
         }
         timeout {
@@ -249,157 +249,193 @@ incr end_time $test_interval
 
 for {set count 1} {$cur_time <= $end_time} {incr count} {
     set cur_time [timestamp]
+    set timeout 10
 
     incr case_num
-    set timeout 5
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t1\r"
     while 1 {
         expect {
-            -re "test 1.*\[0-2]\\\.\[0-9]+ secs" {
+            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
                 case_pass $case_num
                 break
             }
-            timeout {
+            -re "(error|-->).*#" {
                 incr fail_count_t1
                 send_user "FAIL: testusb t1\n"
                 break
             }
+            timeout {
+                incr fail_count_t1
+                send_user "timeout: testusb t1\n"
+                case_fail $case_num
+            }
         }
     }
 
     incr case_num
-    set timeout 5
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t3\r"
     while 1 {
         expect {
-            -re "test 3.*\[0-2]\\\.\[0-9]+ secs" {
+            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
                 case_pass $case_num
                 break
             }
-            timeout {
+            -re "(error|-->).*#" {
                 incr fail_count_t3
                 send_user "FAIL: testusb t3\n"
                 break
             }
+            timeout {
+                incr fail_count_t3
+                send_user "timeout: testusb t3\n"
+                case_fail $case_num
+            }
         }
     }
 
     incr case_num
-    set timeout 5
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t5\r"
     while 1 {
         expect {
-            -re "test 5.*\[0-2]\\\.\[0-9]+ secs" {
+            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
                 case_pass $case_num
                 break
             }
-            timeout {
+            -re "(error|-->).*#" {
                 incr fail_count_t5
                 send_user "FAIL: testusb t5\n"
                 break
             }
+            timeout {
+                incr fail_count_t5
+                send_user "timeout: testusb t5\n"
+                case_fail $case_num
+            }
         }
     }
 
     incr case_num
-    set timeout 5
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t7\r"
     while 1 {
         expect {
-            -re "test 7.*\[0-2]\\\.\[0-9]+ secs" {
+            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
                 case_pass $case_num
                 break
             }
-            timeout {
+            -re "(error|-->).*#" {
                 incr fail_count_t7
                 send_user "FAIL: testusb t7\n"
                 break
             }
+            timeout {
+                incr fail_count_t7
+                send_user "timeout: testusb t7\n"
+                case_fail $case_num
+            }
         }
     }
 
     incr case_num
-    set timeout 5
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t2\r"
     while 1 {
         expect {
-            -re "test 2.*\[0-2]\\\.\[0-9]+ secs" {
+            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
                 case_pass $case_num
                 break
             }
-            timeout {
+            -re "(error|-->).*#" {
                 incr fail_count_t2
                 send_user "FAIL: testusb t2\n"
                 break
             }
+            timeout {
+                incr fail_count_t2
+                send_user "timeout: testusb t2\n"
+                case_fail $case_num
+            }
         }
     }
 
     incr case_num
-    set timeout 5
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t4\r"
     while 1 {
         expect {
-            -re "test 4.*\[0-2]\\\.\[0-9]+ secs" {
+            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
                 case_pass $case_num
                 break
             }
-            timeout {
+            -re "(error|-->).*#" {
                 incr fail_count_t4
                 send_user "FAIL: testusb t4\n"
                 break
             }
+            timeout {
+                incr fail_count_t4
+                send_user "timeout: testusb t4\n"
+                case_fail $case_num
+            }
         }
     }
 
     incr case_num
-    set timeout 5
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t6\r"
     while 1 {
         expect {
-            -re "test 6.*\[0-2]\\\.\[0-9]+ secs" {
+            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
                 case_pass $case_num
                 break
             }
-            timeout {
+            -re "(error|-->).*#" {
                 incr fail_count_t6
                 send_user "FAIL: testusb t6\n"
                 break
             }
+            timeout {
+                incr fail_count_t6
+                send_user "timeout: testusb t6\n"
+                case_fail $case_num
+            }
         }
     }
 
     incr case_num
-    set timeout 5
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t8\r"
     while 1 {
         expect {
-            -re "test 8.*\[0-2]\\\.\[0-9]+ secs" {
+            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
                 case_pass $case_num
+                break
+            }
+            -re "(error|-->).*#" {
+                incr fail_count_t8
+                send_user "FAIL: testusb t8\n"
                 break
             }
             timeout {
                 incr fail_count_t8
-                send_user "testusb t8 fail\n"
-                send_user "FAIL: testusb t8\n"
-                break
+                send_user "timeout: testusb t8\n"
+                case_fail $case_num
             }
         }
     }
 
     incr case_num
-    set timeout 5
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -at13\r"
     while 1 {
         expect {
-            -re "test 13.*\[0-3]\\\.\[0-9]+ secs" {
+            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
                 case_pass $case_num
+                break
+            }
+            -re "(error|-->).*#" {
+                incr fail_count_at13
+                send_user "FAIL: testusb at13\n"
                 break
             }
             timeout {
                 incr fail_count_at13
-                send_user "FAIL: testusb at13\n"
-                break
+                send_user "timeout: testusb at13\n"
+                case_fail $case_num
             }
         }
     }
