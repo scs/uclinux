@@ -8,6 +8,10 @@
 #include "edn.h"
 #include "data.h"
 
+#ifdef INLINE
+#include "edn.c"
+#endif
+
 /* seconds that each loop should run */
 #define LOOPS 10
 
@@ -176,6 +180,7 @@ double timespec_subtract (struct timespec x, struct timespec y)
 
 #define time_func(funct) 				\
 {							\
+	__label__ start_funct, end_funct, cal_start_funct, cal_end_funct, skip_cal, skip_func;	\
 	struct rusage start, stop;			\
 	struct timespec real_start, real_stop;		\
 	unsigned long long count=0, i;			\
@@ -195,29 +200,55 @@ double timespec_subtract (struct timespec x, struct timespec y)
 	buf1[15]='\000';							\
 	printf("%s", buf1);							\
 										\
-	time = 0.5;								\
-	while(expired_real < 1.0) {						\
-		time += 0.5;								\
+	if(max_count && (&&start_funct == &&end_funct)) {						\
+		printf("skipping, since it optimized out\n");			\
+		goto skip_func;							\
+	}									\
+	if (max_count && (&&cal_start_funct == && cal_end_funct)) {				\
+		count = max_count/10;						\
+		goto skip_cal;							\
+	}									\
+										\
+	time = 0.9;								\
+	while(expired_real < 1.0 || expired_real < expired_time) {			\
+		count=0;								\
+		time += 0.1;								\
 		clock_gettime(CLOCK_REALTIME, &real_start);				\
 		getrusage(RUSAGE_SELF, &start);						\
 		while (1) {								\
 			count++;							\
-			for (i = 0; i <= 10000 ; i++)					\
+			for (i = 0; i <= 10000 ; i++) {					\
+cal_start_funct:;									\
+asm __volatile__ ("1: /* start " #funct " */\n");					\
 				funct;							\
+asm __volatile__ ("2: /* end " #funct " */\n");						\
+cal_end_funct:;										\
+			}								\
 			getrusage(RUSAGE_SELF, &stop);					\
-			if (timeval_subtract(stop.ru_utime, start.ru_utime) >= time)	\
+			expired_time = timeval_subtract(stop.ru_utime, start.ru_utime);	\
+			if (expired_time >= time)					\
 				break;							\
 		}									\
 		clock_gettime(CLOCK_REALTIME, &real_stop);				\
 		expired_real = timespec_subtract(real_start, real_stop);		\
 	}										\
-										\
+											\
+skip_cal:;										\
+	if (!max_count)									\
+		max_count = count;							\
+	if (max_count < count)								\
+		count = max_count;							\
+											\
 	count = count * LOOPS * 10000;						\
 	while(expired_real < (double)LOOPS) {					\
 		clock_gettime(CLOCK_REALTIME, &real_start);                             \
 		getrusage(RUSAGE_SELF, &start);						\
-		for (i = 0; i < count; i++) {						\
+		for (i = 0; i <= count; i++) {						\
+start_funct:;		\
+asm __volatile__ ("3: /* start " #funct " */\n");    	\
 			funct;								\
+asm __volatile__ ("4: /* end " #funct " */\n");    	\
+end_funct:;		\
 		}									\
 		getrusage(RUSAGE_SELF, &stop);						\
 		clock_gettime(CLOCK_REALTIME, &real_stop);                              \
@@ -237,6 +268,7 @@ double timespec_subtract (struct timespec x, struct timespec y)
 		printf(" ");							\
 	printf("%.1f\n", (expired_time*1000000) / count * MHz); 		\
 										\
+skip_func:;									\
 }
 
 float calibrate(void)
@@ -253,9 +285,12 @@ float calibrate(void)
 	return timeval_subtract(stop.ru_utime, start.ru_utime);
 }
 
+#ifdef INLINE
+static __inline__ void overhead(void) __attribute__((always_inline));
+#endif
 void overhead(void)
 {
-	__asm__ __volatile__ ("nop;\n");
+	__asm__ __volatile__ ("nop;\n" : : : "memory");
 }
 
 int main(void)
@@ -268,6 +303,7 @@ int main(void)
 	char *model;
 	char *cache;
 	float tick, MHz;
+	unsigned long long max_count;
 
 	printf("\n**\n");
 #include "./sysinfo.c"
@@ -293,6 +329,8 @@ int main(void)
          */
 
 	printf("Test\tcycles per loop\n");
+
+	max_count = 0;
 
 	time_func(overhead());
 

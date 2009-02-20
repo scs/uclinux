@@ -1,5 +1,11 @@
 EXEC = edn
+
+ifndef INLINE
 OBJS = edn.o linux.o
+else
+OBJS = linux.o
+CFLAGS += -DINLINE
+endif
 
 all: $(EXEC)
 LDLIBS += -lrt
