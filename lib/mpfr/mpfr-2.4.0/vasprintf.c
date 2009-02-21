@@ -235,10 +235,14 @@ parse_arg_type (const char *format, struct printf_spec *specinfo)
       break;
     case 'h':
       if (*++format == 'h')
+#ifndef NPRINTF_HH
         {
           ++format;
           specinfo->arg_type = CHAR_ARG;
         }
+#else
+        specinfo->arg_type = UNSUPPORTED;
+#endif
       else
         specinfo->arg_type = SHORT_ARG;
       break;
@@ -246,7 +250,7 @@ parse_arg_type (const char *format, struct printf_spec *specinfo)
       if (*++format == 'l')
         {
           ++format;
-#ifdef HAVE_LONG_LONG
+#if defined (HAVE_LONG_LONG) && !defined(NPRINTF_LL)
           specinfo->arg_type = LONG_LONG_ARG;
 #else
           specinfo->arg_type = UNSUPPORTED;

@@ -27,7 +27,7 @@ MA 02110-1301, USA. */
 #define MPFR_VERSION_MAJOR 2
 #define MPFR_VERSION_MINOR 4
 #define MPFR_VERSION_PATCHLEVEL 0
-#define MPFR_VERSION_STRING "2.4.0"
+#define MPFR_VERSION_STRING "2.4.0-p1"
 
 /* Macros dealing with MPFR VERSION */
 #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))

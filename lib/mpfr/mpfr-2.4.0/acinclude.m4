@@ -722,6 +722,16 @@ if test "$ac_cv_type_intmax_t" == yes; then
          [AC_DEFINE([NPRINTF_J], 1, [gmp_printf cannot read intmax_t])])
 fi
 
+MPFR_FUNC_PRINTF_SPEC([%hhd], [char], [
+#include <gmp.h>
+         ], [gmp_],,
+         [AC_DEFINE([NPRINTF_HH], 1, [gmp_printf cannot use 'hh' length modifier])])
+
+MPFR_FUNC_PRINTF_SPEC([%lld], [long long int], [
+#include <gmp.h>
+         ], [gmp_],,
+         [AC_DEFINE([NPRINTF_LL], 1, [gmp_printf cannot read long long int])])
+
 MPFR_FUNC_PRINTF_SPEC([%.0Lf], [long double], [
 #include <gmp.h>
          ], [gmp_],,

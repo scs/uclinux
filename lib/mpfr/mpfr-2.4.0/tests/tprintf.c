@@ -150,6 +150,7 @@ check_mixed (void)
   short sh = -1;
   unsigned short ush = 1;
   int i = -1;
+  int j = 1;
   unsigned int ui = 1;
   long lo = -1;
   unsigned long ulo = 1;
@@ -178,11 +179,10 @@ check_mixed (void)
   mpfr_set_f (mpfr, mpf, GMP_RNDN);
   prec = mpfr_get_prec (mpfr);
 
-  check_vprintf ("a. %Ra, b. %hhu, c. %u, d. %lx%hhn", mpfr, uch, ui, ulo,
-                 &uch);
-  check_length (1, uch, 28, hhu);
-  check_vprintf ("a. %hhi, b. %Rb, c. %u, d. %li%ln", sch, mpfr, i, lo, &ulo);
-  check_length (2, ulo, 37, lu);
+  check_vprintf ("a. %Ra, b. %u, c. %lx%n", mpfr, ui, ulo, &j);
+  check_length (1, j, 22, d);
+  check_vprintf ("a. %c, b. %Rb, c. %u, d. %li%ln", i, mpfr, i, lo, &ulo);
+  check_length (2, ulo, 36, lu);
   check_vprintf ("a. %hi, b. %*f, c. %Re%hn", ush, 3, f, mpfr, &ush);
   check_length (3, ush, 29, hu);
   check_vprintf ("a. %hi, b. %f, c. %#.2Rf%n", sh, d, mpfr, &i);
@@ -204,7 +204,12 @@ check_mixed (void)
   check_length (9, sz, 30, zu);
 #endif
 
-#ifdef HAVE_LONG_LONG
+#ifndef NPRINTF_HH
+  check_vprintf ("a. %hhi, b. %Ra, c. %hhu%hhn", sch, mpfr, uch, &uch);
+  check_length (10, uch, 22, hhu);
+#endif
+
+#if defined(HAVE_LONG_LONG) && !defined(NPRINTF_LL)
   {
     long long llo = -1;
     unsigned long long ullo = 1;
