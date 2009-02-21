@@ -1,0 +1,39 @@
+This is a terse description of the new features added to readline-6.0 since
+the release of readline-5.2.
+
+1.  New Features in Readline
+
+a.  A new variable, rl_sort_completion_matches; allows applications to inhibit
+    match list sorting (but beware: some things don't work right if
+    applications do this).
+
+b.  A new variable, rl_completion_invoking_key; allows applications to discover
+    the key that invoked rl_complete or rl_menu_complete.
+
+c.  The functions rl_block_sigint and rl_release_sigint are now public and
+    available to calling applications who want to protect critical sections
+    (like redisplay).
+
+d.  The functions rl_save_state and rl_restore_state are now public and
+    available to calling applications; documented rest of readline's state
+    flag values.
+
+e.  A new user-settable variable, `history-size', allows setting the maximum
+    number of entries in the history list.
+
+f.  There is a new implementation of menu completion, with several improvements
+    over the old; the most notable improvement is a better `completions
+    browsing' mode.
+
+g.  The menu completion code now uses the rl_menu_completion_entry_function
+    variable, allowing applications to provide their own menu completion
+    generators.
+
+h.  There is support for replacing a prefix  of a pathname with a `...' when
+    displaying possible completions.  This is controllable by setting the
+    `completion-prefix-display-length' variable.  Matches with a common prefix
+    longer than this value have the common prefix replaced with `...'.
+
+i.  There is a new `revert-all-at-newline' variable.  If enabled, readline will
+    undo all outstanding changes to all history lines when `accept-line' is
+    executed.

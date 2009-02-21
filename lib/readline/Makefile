@@ -1,4 +1,5 @@
-VER = readline-5.2_p13
+VER = readline-6.0
+URL = ftp://ftp.gnu.org/gnu/readline/$(VER).tar.gz
 
 CONF_OPTS = $(CONFIGURE_SHARED_ENABLE)
 
@@ -14,5 +15,5 @@ endif
 	rm -f $(STAGEDIR)/usr/lib/*.old
 
 romfs:
-	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libreadline.so.5 /lib/
-	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libhistory.so.5 /lib/
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libreadline.so.6 /lib/
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libhistory.so.6 /lib/
