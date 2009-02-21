@@ -1,6 +1,6 @@
 /* mpf_eq -- Compare two floats up to a specified bit #.
 
-Copyright 1993, 1995, 1996, 2001, 2002 Free Software Foundation, Inc.
+Copyright 1993, 1995, 1996, 2001, 2002, 2008 Free Software Foundation, Inc.
 
 This file is part of the GNU MP Library.
 
@@ -19,6 +19,7 @@ along with the GNU MP Library.  If not, see http://www.gnu.org/licenses/.  */
 
 #include "gmp.h"
 #include "gmp-impl.h"
+#include "longlong.h"
 
 int
 mpf_eq (mpf_srcptr u, mpf_srcptr v, unsigned long int n_bits)
@@ -26,6 +27,8 @@ mpf_eq (mpf_srcptr u, mpf_srcptr v, unsigned long int n_bits)
   mp_srcptr up, vp;
   mp_size_t usize, vsize, size, i;
   mp_exp_t uexp, vexp;
+  mp_limb_t diff;
+  int cnt;
 
   uexp = u->_mp_exp;
   vexp = v->_mp_exp;
@@ -53,10 +56,8 @@ mpf_eq (mpf_srcptr u, mpf_srcptr v, unsigned long int n_bits)
   /* U and V have the same sign and are both non-zero.  */
 
   /* 2. Are the exponents different?  */
-  if (uexp > vexp)
-    return 0;			/* ??? handle (uexp = vexp + 1)   */
-  if (vexp > uexp)
-    return 0;			/* ??? handle (vexp = uexp + 1)   */
+  if (uexp != vexp)
+    return 0;
 
   usize = ABS (usize);
   vsize = ABS (vsize);
@@ -93,17 +94,26 @@ mpf_eq (mpf_srcptr u, mpf_srcptr v, unsigned long int n_bits)
       size = usize;
     }
 
-  if (size > (n_bits + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS)
-    size = (n_bits + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
+  up += usize;			/* point just above most significant limb */
+  vp += vsize;			/* point just above most significant limb */
 
-  up += usize - size;
-  vp += vsize - size;
+  count_leading_zeros (cnt, up[-1]);
+  if ((vp[-1] >> (GMP_LIMB_BITS - 1 - cnt)) != 1)
+    return 0;			/* msb positions different */
 
-  for (i = size - 1; i >= 0; i--)
+  n_bits += cnt - GMP_NAIL_BITS;
+
+  size = MIN (size, (n_bits + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS);
+
+  up -= size;			/* point at least significant relevant limb */
+  vp -= size;			/* point at least significant relevant limb */
+
+  for (i = size - 1; i > 0; i--)
     {
       if (up[i] != vp[i])
 	return 0;
     }
 
-  return 1;
+  diff = (up[0] ^ vp[0]) >> GMP_NUMB_BITS - 1 - (n_bits - 1) % GMP_NUMB_BITS;
+  return diff == 0;
 }
