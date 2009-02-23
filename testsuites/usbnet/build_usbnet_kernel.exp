@@ -49,16 +49,16 @@ while 1 {
             send "y\r"
         }
 
-        -re "USB Peripheral Controller.*PLX NET2272.*choice\\\[.]:" {
-            send "2\r"
+        -re "USB Peripheral Controller.*(\[0-9]+)\. PLX NET2272.*choice\\\[.*]:" {
+            send "$expect_out(1,string)\r"
         }
 
         -re "USB Gadget Drivers \\\[.*]" {
             send "y\r"
         }
 
-        -re "USB Gadget Drivers.*Ethernet Gadget.*choice\\\[.*]:" {
-            send "2\r"
+        -re "USB Gadget Drivers.*(\[0-9]+)\. Ethernet Gadget.*choice\\\[.*]:" {
+            send "$expect_out(1,string)\r"
         }
 
         -re "RNDIS support.*USB_ETH_RNDIS.*\\\[.*]" {
@@ -66,7 +66,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 
