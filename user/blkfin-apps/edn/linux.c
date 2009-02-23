@@ -9,7 +9,10 @@
 #include "data.h"
 
 #ifdef INLINE
+#define inlined 1
 #include "edn.c"
+#else
+#define inlined 0
 #endif
 
 /* seconds that each loop should run */
@@ -200,11 +203,11 @@ double timespec_subtract (struct timespec x, struct timespec y)
 	buf1[15]='\000';							\
 	printf("%s", buf1);							\
 										\
-	if(max_count && (&&start_funct == &&end_funct)) {						\
+	if(inlined && max_count && (&&start_funct == &&end_funct)) {						\
 		printf("skipping, since it optimized out\n");			\
 		goto skip_func;							\
 	}									\
-	if (max_count && (&&cal_start_funct == && cal_end_funct)) {				\
+	if (inlined && max_count && (&&cal_start_funct == && cal_end_funct)) {				\
 		count = max_count/10;						\
 		goto skip_cal;							\
 	}									\
