@@ -16,6 +16,9 @@ sysinfo.c:
 $(EXEC): sysinfo.c $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) -lm $(LDLIBS)
 
+romfs:
+	$(ROMFSINST) /bin/$(EXEC)
+
 clean:
 	rm -f *.o $(EXEC) *.gdb sysinfo.c
 
