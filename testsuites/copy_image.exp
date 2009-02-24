@@ -10,7 +10,7 @@ if { $HAVE_JFFS2_IMAGE == "1" } {
 }
 
 if { $HAVE_KERNEL_ONLY_IMAGE == "1" } {
-    catch {exec cp images/$kernel_only_image  /tftpboot}
+    catch {exec cp images/$compressed_kernel_only_image /tftpboot}
 }
 
 if { $HAVE_ROMFS_IMAGE == "1" } {

@@ -18,7 +18,6 @@ source ../reboot_kernel.exp
 
 step "start TEST - Format entire MMC/SD and create DOS FS"
 set case_num 0
-set test_flag 0
 set mmc_dev mmcblk0
 set mmc_dev_part mmcblk0p
 set mmc_dev1 mmcblk0p1
@@ -33,7 +32,7 @@ set timeout 5
 send "dmesg|grep mmc\r"
 while 1 {
     expect {
-        -re "mmc0: new SD card on SPI.*${mmc_dev}:.*${mmc_dev}:.*$kernel_prompt" {
+        -re "mmc0: new SD card.*${mmc_dev}:.*${mmc_dev}:.*$kernel_prompt" {
             send_user "MMC/SD card detected, test pass\n"
             case_pass $case_num
             break
@@ -51,10 +50,9 @@ send "mkdosfs -F 32 /dev/$mmc_dev\r"
 while 1 {
     expect {
         -re "No such .*$kernel_prompt" {
-            send_user "No $mmc_dev device, test fail\n"
             case_fail $case_num
         }
-        -re "mkdosfs.*$kernel_prompt" {
+        -re "mkdosfs \[0-9]\.\[0-9]+.*$kernel_prompt" {
             send_user "mkdosfs done, test pass\n"
             case_pass $case_num
             break
@@ -156,61 +154,7 @@ while 1 {
     }
 }
 
-step "Remove old partition in MMC/SD"
-set timeout 10
-send "fdisk /dev/$mmc_dev\r"
-expect -re "Command.*:"
-send "p\r"
-set timeout 10
-while 1 {
-    expect {
-        -re "/dev/$mmc_dev1" {
-            send "d\r"
-            expect -re "Partition number.*"
-            send "1\r"
-            expect -re "Command.*"
-            send "w\r"
-            break
-        }
-        eof {
-            send "q\r"
-            break
-        }
-        timeout {
-            send "q\r"
-            break
-        }
-    }
-}
-
-set timeout 10
-send "fdisk /dev/$mmc_dev\r"
-expect -re "Command.*:"
-send "p\r"
-set timeout 10
-while 1 {
-    expect {
-        -re "/dev/$mmc_dev2" {
-            send "d\r"
-            expect -re "Partition number.*"
-            send "2\r"
-            expect -re "Command.*"
-            send "w\r"
-            expect -re $kernel_prompt
-            break
-        }
-        eof {
-            send "q\r"
-            break
-        }
-        timeout {
-            send "q\r"
-            break
-        }
-    }
-}
-
-
+step "Create 2 partitions in MMC/SD"
 set timeout 10
 send "fdisk /dev/$mmc_dev\r"
 expect -re "Command.*:"
@@ -362,7 +306,6 @@ send "mkdosfs -F 32 /dev/$mmc_dev2\r"
 while 1 {
     expect {
         -re "No such .*$kernel_prompt" {
-            send_user "No $mmc_dev2 device, test fail\n"
             case_fail $case_num
         }
         -re "mkdosfs.*$kernel_prompt" {
@@ -402,16 +345,16 @@ incr case_num
 set timeout 60
 send "time dd if=/dev/zero of=/mnt/mmc1/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
-   expect {
-      -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_user "Generate a $FILE_SIZE MB file in mmc1 timeout, test fail\n"
-         case_fail $case_num
-      }
-   }
+    expect {
+        -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Generate a $FILE_SIZE MB file in mmc1 timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
 }
 
 set timeout 60
@@ -435,16 +378,16 @@ incr case_num
 set timeout 60
 send "time dd if=/dev/zero of=/mnt/mmc2/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
 while 1 {
-   expect {
-      -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_user "Generate a $FILE_SIZE MB file in mmc2 timeout, test fail\n"
-         case_fail $case_num
-      }
-   }
+    expect {
+        -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Generate a $FILE_SIZE MB file in mmc2 timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
 }
 
 set timeout 60
@@ -552,6 +495,87 @@ while 1 {
 
 step "Start bonnie++ test"
 
+set timeout 10
+send "fdisk /dev/$mmc_dev\r"
+expect -re "Command.*:"
+send "p\r"
+set timeout 10
+while 1 {
+    expect {
+        -re "/dev/$mmc_dev1" {
+            send "d\r"
+            expect -re "Partition number.*"
+            send "1\r"
+            expect -re "Command.*"
+            break
+        }
+        eof {
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+sleep 2
+send "p\r"
+while 1 {
+    expect {
+        -re "/dev/$mmc_dev2" {
+            send "d\r"
+            expect -re "Partition number.*"
+            send "2\r"
+            expect -re "Command.*"
+            send "w\r"
+            expect -re $kernel_prompt
+            break
+        }
+        eof {
+            send "q\r"
+            break
+        }
+        timeout {
+            send "q\r"
+            break
+        }
+    }
+}
+
+
+set timeout 10
+send "fdisk /dev/$mmc_dev\r"
+expect -re "Command.*:"
+send "n\r"
+expect -re "primary partition.*"
+send "p\r"
+expect -re "Partition number.*"
+send "1\r"
+expect -re "First cylinder.*"
+send "\r"
+expect -re "Last cylinder.*"
+send "\r"
+expect -re "Command.*"
+send "w\r"
+expect -re $kernel_prompt
+
+send_user "Whole card is created as ext2 partition\n"
+
+incr case_num
+set timeout 5
+send "ls /dev/$mmc_dev*\r"
+while 1 { 
+    expect {
+        -re "$mmc_dev.*$mmc_dev1.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
 incr case_num
 set timeout 90
 send "mke2fs /dev/$mmc_dev1\r"
@@ -569,9 +593,12 @@ while 1 {
     }
 }
 
+source ../reboot_kernel.exp
+sleep 5
+
 incr case_num
 set timeout 5
-send "mount -t ext2 /dev/$mmc_dev1 /mnt/mmc1\r"
+send "mount -t ext2 /dev/$mmc_dev1 /mnt\r"
 while 1 {
     expect {
         -re "mount.*failed.*$kernel_prompt" {
@@ -592,7 +619,7 @@ while 1 {
 
 set timeout 3600
 incr case_num
-send "bonnie++ -u root -d /mnt/mmc1\r"
+send "bonnie++ -u root -d /mnt -s 200M\r"
 while 1 {
     expect {
         -re "Hardware Trace" {
@@ -612,6 +639,8 @@ while 1 {
 
 
 step "TEST - Use MMC/SD as root FS"
+source ../reboot_kernel.exp
+sleep 5
 
 incr case_num
 set timeout 5
@@ -685,9 +714,9 @@ while 1 {
 sleep 5
 
 set timeout 10
-send -s "setenv mmcargs setenv bootargs root=2401 rw\r"
+send -s "setenv mmcargs setenv bootargs root=/dev/$mmc_dev1 rw\r"
 expect ">"
-send -s "setenv mmcboot \'tftpboot 0x1000000 vmlinux; run mmcargs; run addip; bootelf\'\r"
+send -s "setenv mmcboot \'tftpboot 0x1000000 $compressed_kernel_only_image; run mmcargs; run addip; bootm\'\r"
 expect ">"
 send -s "save\r"
 while 1 {
@@ -702,6 +731,7 @@ while 1 {
         }
     }
 }
+
 sleep 5
 
 set timeout 180
@@ -713,7 +743,7 @@ while 1 {
             case_fail $case_num
         }
 
-        -re "Sash command shell.*/$kernel_prompt " {
+        -re "Sash command shell.*/>" {
             send_user "successful boot attempt"
             case_pass $case_num
             break
@@ -782,8 +812,8 @@ while 1 {
 }
 
 incr case_num
-set timeout 20
-send "dmesg\r"
+set timeout 5
+send "dmesg|grep VFS\r"
 while 1 {
     expect {
         -re "VFS\\\: Mounted root \\\(ext2 filesystem\\\).*$kernel_prompt" {
@@ -808,8 +838,8 @@ while 1 {
     }
 }
 
-all_pass
-
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 send_user "Ending $argv0\n"
 
 log_file
