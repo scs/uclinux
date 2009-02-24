@@ -1,6 +1,6 @@
-diff -Nurp xenomai-2.4.x-clean/configure xenomai-2.4.x_new/configure
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/configure xenomai-2.4.x/configure
 --- xenomai-2.4.x-clean/configure	2008-12-04 19:21:40.000000000 +0800
-+++ xenomai-2.4.x_new/configure	2009-02-10 12:13:48.000000000 +0800
++++ xenomai-2.4.x/configure	2009-02-23 17:12:14.000000000 +0800
 @@ -2081,11 +2081,11 @@ else
  	XENO_EMPTY_CFLAGS=false
  fi
@@ -18,9 +18,42 @@ diff -Nurp xenomai-2.4.x-clean/configure xenomai-2.4.x_new/configure
  
  ac_config_headers="$ac_config_headers src/include/xeno_config.h"
  
-diff -Nurp xenomai-2.4.x-clean/Makefile.in xenomai-2.4.x_new/Makefile.in
+@@ -22569,10 +22569,10 @@ case $XENO_TARGET_ARCH in
+         ;;
+  blackfin)
+ 	# Produce libraries in FDPIC format.
+-	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -mfdpic"
+-	XENO_USER_LDFLAGS="$XENO_USER_CFLAGS -mfdpic"
+-	XENO_USER_APP_CFLAGS="$XENO_USER_APP_CFLAGS -mfdpic"
+-	XENO_USER_APP_LDFLAGS="$XENO_USER_APP_LDFLAGS -mfdpic"
++	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe"
++	XENO_USER_LDFLAGS="$XENO_USER_CFLAGS"
++	XENO_USER_APP_CFLAGS="$XENO_USER_APP_CFLAGS"
++	XENO_USER_APP_LDFLAGS="$XENO_USER_APP_LDFLAGS"
+         ;;
+  arm)
+ 	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -march=armv$CONFIG_XENO_ARM_ARCH"
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/configure.in xenomai-2.4.x/configure.in
+--- xenomai-2.4.x-clean/configure.in	2008-12-04 19:21:40.000000000 +0800
++++ xenomai-2.4.x/configure.in	2009-02-23 17:12:14.000000000 +0800
+@@ -648,10 +648,10 @@ case $XENO_TARGET_ARCH in
+         ;;
+  blackfin)
+ 	# Produce libraries in FDPIC format.
+-	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -mfdpic"
+-	XENO_USER_LDFLAGS="$XENO_USER_CFLAGS -mfdpic"
+-	XENO_USER_APP_CFLAGS="$XENO_USER_APP_CFLAGS -mfdpic"
+-	XENO_USER_APP_LDFLAGS="$XENO_USER_APP_LDFLAGS -mfdpic"
++	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe"
++	XENO_USER_LDFLAGS="$XENO_USER_CFLAGS"
++	XENO_USER_APP_CFLAGS="$XENO_USER_APP_CFLAGS"
++	XENO_USER_APP_LDFLAGS="$XENO_USER_APP_LDFLAGS"
+         ;;
+  arm)
+ 	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -march=armv$CONFIG_XENO_ARM_ARCH"
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/Makefile.in xenomai-2.4.x/Makefile.in
 --- xenomai-2.4.x-clean/Makefile.in	2008-06-02 05:32:28.000000000 +0800
-+++ xenomai-2.4.x_new/Makefile.in	2009-02-10 12:13:48.000000000 +0800
++++ xenomai-2.4.x/Makefile.in	2009-02-23 17:12:14.000000000 +0800
 @@ -671,7 +671,7 @@ dist-hook:
  	test -e $(srcdir)/doc || rm -rf $(distdir)/doc
  
@@ -39,3 +72,123 @@ diff -Nurp xenomai-2.4.x-clean/Makefile.in xenomai-2.4.x_new/Makefile.in
  
  install-user:
  	$(MAKE) SUDO=false install
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/skins/posix/Makefile.am xenomai-2.4.x/src/skins/posix/Makefile.am
+--- xenomai-2.4.x-clean/src/skins/posix/Makefile.am	2008-03-10 06:33:59.000000000 +0800
++++ xenomai-2.4.x/src/skins/posix/Makefile.am	2009-02-23 17:12:14.000000000 +0800
+@@ -2,7 +2,7 @@ includedir = $(prefix)/include/posix
+ 
+ lib_LTLIBRARIES = libpthread_rt.la
+ 
+-libpthread_rt_la_LDFLAGS = -version-info 1:0:0 -lpthread
++libpthread_rt_la_LDFLAGS = -version-info 1:0:0
+ 
+ libpthread_rt_la_SOURCES = \
+ 	init.c \
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/skins/posix/Makefile.in xenomai-2.4.x/src/skins/posix/Makefile.in
+--- xenomai-2.4.x-clean/src/skins/posix/Makefile.in	2008-06-02 05:32:28.000000000 +0800
++++ xenomai-2.4.x/src/skins/posix/Makefile.in	2009-02-23 17:12:14.000000000 +0800
+@@ -239,7 +239,7 @@ target_vendor = @target_vendor@
+ top_builddir = @top_builddir@
+ top_srcdir = @top_srcdir@
+ lib_LTLIBRARIES = libpthread_rt.la
+-libpthread_rt_la_LDFLAGS = -version-info 1:0:0 -lpthread
++libpthread_rt_la_LDFLAGS = -version-info 1:0:0
+ libpthread_rt_la_SOURCES = \
+ 	init.c \
+ 	thread.c \
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/testsuite/clocktest/Makefile.am xenomai-2.4.x/src/testsuite/clocktest/Makefile.am
+--- xenomai-2.4.x-clean/src/testsuite/clocktest/Makefile.am	2008-03-01 04:41:56.000000000 +0800
++++ xenomai-2.4.x/src/testsuite/clocktest/Makefile.am	2009-02-23 17:12:14.000000000 +0800
+@@ -9,7 +9,7 @@ clocktest_CPPFLAGS = -I$(top_srcdir)/inc
+ clocktest_LDFLAGS = $(XENO_POSIX_WRAPPERS) $(XENO_USER_LDFLAGS)
+ 
+ clocktest_LDADD = \
+-	../../skins/posix/libpthread_rt.la -lpthread -lrt
++	-lpthread -lrt ../../skins/posix/libpthread_rt.la
+ 
+ install-data-local:
+ 	$(mkinstalldirs) $(DESTDIR)$(testdir)
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/testsuite/clocktest/Makefile.in xenomai-2.4.x/src/testsuite/clocktest/Makefile.in
+--- xenomai-2.4.x-clean/src/testsuite/clocktest/Makefile.in	2008-06-02 05:32:28.000000000 +0800
++++ xenomai-2.4.x/src/testsuite/clocktest/Makefile.in	2009-02-23 17:12:14.000000000 +0800
+@@ -232,7 +232,7 @@ clocktest_SOURCES = clocktest.c
+ clocktest_CPPFLAGS = -I$(top_srcdir)/include/posix $(XENO_USER_CFLAGS) -I$(top_srcdir)/include
+ clocktest_LDFLAGS = $(XENO_POSIX_WRAPPERS) $(XENO_USER_LDFLAGS)
+ clocktest_LDADD = \
+-	../../skins/posix/libpthread_rt.la -lpthread -lrt
++	-lpthread -lrt ../../skins/posix/libpthread_rt.la
+ 
+ EXTRA_DIST = runinfo.in
+ all: all-am
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/testsuite/cyclic/Makefile.am xenomai-2.4.x/src/testsuite/cyclic/Makefile.am
+--- xenomai-2.4.x-clean/src/testsuite/cyclic/Makefile.am	2008-03-01 04:41:56.000000000 +0800
++++ xenomai-2.4.x/src/testsuite/cyclic/Makefile.am	2009-02-23 17:12:14.000000000 +0800
+@@ -9,7 +9,7 @@ cyclictest_CPPFLAGS = -I$(top_srcdir)/in
+ cyclictest_LDFLAGS = $(XENO_POSIX_WRAPPERS) $(XENO_USER_LDFLAGS)
+ 
+ cyclictest_LDADD = \
+-	../../skins/posix/libpthread_rt.la -lpthread -lrt
++	-lpthread -lrt ../../skins/posix/libpthread_rt.la
+ 
+ install-data-local:
+ 	$(mkinstalldirs) $(DESTDIR)$(testdir)
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/testsuite/cyclic/Makefile.in xenomai-2.4.x/src/testsuite/cyclic/Makefile.in
+--- xenomai-2.4.x-clean/src/testsuite/cyclic/Makefile.in	2008-06-02 05:32:28.000000000 +0800
++++ xenomai-2.4.x/src/testsuite/cyclic/Makefile.in	2009-02-23 17:12:14.000000000 +0800
+@@ -232,7 +232,7 @@ cyclictest_SOURCES = cyclictest.c
+ cyclictest_CPPFLAGS = -I$(top_srcdir)/include/posix $(XENO_USER_CFLAGS) -DIPIPE_TRACE=1 -I$(top_srcdir)/include
+ cyclictest_LDFLAGS = $(XENO_POSIX_WRAPPERS) $(XENO_USER_LDFLAGS)
+ cyclictest_LDADD = \
+-	../../skins/posix/libpthread_rt.la -lpthread -lrt
++	-lpthread -lrt ../../skins/posix/libpthread_rt.la
+ 
+ EXTRA_DIST = runinfo.in
+ all: all-am
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/testsuite/irqbench/Makefile.am xenomai-2.4.x/src/testsuite/irqbench/Makefile.am
+--- xenomai-2.4.x-clean/src/testsuite/irqbench/Makefile.am	2008-03-01 04:41:56.000000000 +0800
++++ xenomai-2.4.x/src/testsuite/irqbench/Makefile.am	2009-02-23 17:12:14.000000000 +0800
+@@ -19,7 +19,7 @@ irqloop_LDFLAGS = \
+ 	$(XENO_USER_LDFLAGS)
+ 
+ irqloop_LDADD = \
+-	../../skins/posix/libpthread_rt.la -lpthread -lrt
++	-lpthread -lrt ../../skins/posix/libpthread_rt.la
+ 
+ 
+ irqbench_SOURCES = irqbench.c
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/testsuite/irqbench/Makefile.in xenomai-2.4.x/src/testsuite/irqbench/Makefile.in
+--- xenomai-2.4.x-clean/src/testsuite/irqbench/Makefile.in	2008-06-02 05:32:28.000000000 +0800
++++ xenomai-2.4.x/src/testsuite/irqbench/Makefile.in	2009-02-23 17:12:14.000000000 +0800
+@@ -247,7 +247,7 @@ irqloop_LDFLAGS = \
+ 	$(XENO_USER_LDFLAGS)
+ 
+ irqloop_LDADD = \
+-	../../skins/posix/libpthread_rt.la -lpthread -lrt
++	-lpthread -lrt ../../skins/posix/libpthread_rt.la
+ 
+ irqbench_SOURCES = irqbench.c
+ irqbench_CPPFLAGS = \
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/testsuite/switchtest/Makefile.am xenomai-2.4.x/src/testsuite/switchtest/Makefile.am
+--- xenomai-2.4.x-clean/src/testsuite/switchtest/Makefile.am	2008-03-01 04:41:56.000000000 +0800
++++ xenomai-2.4.x/src/testsuite/switchtest/Makefile.am	2009-02-23 17:12:14.000000000 +0800
+@@ -9,7 +9,7 @@ switchtest_CPPFLAGS = -I$(top_srcdir)/in
+ switchtest_LDFLAGS =  $(XENO_POSIX_WRAPPERS) $(XENO_USER_LDFLAGS)
+ 
+ switchtest_LDADD = \
+-	../../skins/posix/libpthread_rt.la -lpthread -lrt
++	-lpthread -lrt ../../skins/posix/libpthread_rt.la
+ 
+ install-data-local:
+ 	$(mkinstalldirs) $(DESTDIR)$(testdir)
+diff -Nurp --exclude=.svn xenomai-2.4.x-clean/src/testsuite/switchtest/Makefile.in xenomai-2.4.x/src/testsuite/switchtest/Makefile.in
+--- xenomai-2.4.x-clean/src/testsuite/switchtest/Makefile.in	2008-06-02 05:32:28.000000000 +0800
++++ xenomai-2.4.x/src/testsuite/switchtest/Makefile.in	2009-02-23 17:12:14.000000000 +0800
+@@ -232,7 +232,7 @@ switchtest_SOURCES = switchtest.c
+ switchtest_CPPFLAGS = -I$(top_srcdir)/include/posix $(XENO_USER_CFLAGS) -g -I$(top_srcdir)/include
+ switchtest_LDFLAGS = $(XENO_POSIX_WRAPPERS) $(XENO_USER_LDFLAGS)
+ switchtest_LDADD = \
+-	../../skins/posix/libpthread_rt.la -lpthread -lrt
++	-lpthread -lrt ../../skins/posix/libpthread_rt.la
+ 
+ EXTRA_DIST = runinfo.in
+ all: all-am

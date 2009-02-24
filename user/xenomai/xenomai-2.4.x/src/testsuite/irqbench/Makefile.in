@@ -247,7 +247,7 @@ irqloop_LDFLAGS = \
 	$(XENO_USER_LDFLAGS)
 
 irqloop_LDADD = \
-	../../skins/posix/libpthread_rt.la -lpthread -lrt
+	-lpthread -lrt ../../skins/posix/libpthread_rt.la
 
 irqbench_SOURCES = irqbench.c
 irqbench_CPPFLAGS = \

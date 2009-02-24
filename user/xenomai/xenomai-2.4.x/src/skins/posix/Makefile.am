@@ -2,7 +2,7 @@ includedir = $(prefix)/include/posix
 
 lib_LTLIBRARIES = libpthread_rt.la
 
-libpthread_rt_la_LDFLAGS = -version-info 1:0:0 -lpthread
+libpthread_rt_la_LDFLAGS = -version-info 1:0:0
 
 libpthread_rt_la_SOURCES = \
 	init.c \
