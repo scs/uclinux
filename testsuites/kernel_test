@@ -323,16 +323,12 @@ if [ $BOARD_CONFIG = "BF548-EZKIT-USBDEV" ] ; then
     for i in `seq 0 75`;
     do
         AUTO_RUN_STATUS[$i]=0
-        if [ $(( n + 1 + i )) -le $(( n + 20 )) ] ; then
-            AUTO_RUN_STATUS[$(( n + i ))]="0"
-        fi
+        AUTO_RUN_STATUS[$(( n + i ))]="0"
     done
     for i in `seq 0 19`;
     do
         MANUAL_RUN_STATUS[$i]=0
-        if [ $(( n + 1 + i )) -le $(( n + 2 )) ] ; then
-            MANUAL_RUN_STATUS[$(( n + i ))]="0"
-        fi
+        MANUAL_RUN_STATUS[$(( n + i ))]="0"
     done
 
     AUTO_RUN_STATUS[$(( n + 18 ))]="1"
@@ -347,16 +343,12 @@ if [ $BOARD_CONFIG = "BF527-EZKIT-USBDEV" ] ; then
     for i in `seq 0 75`;
     do
         AUTO_RUN_STATUS[$i]=0
-        if [ $(( n + 1 + i )) -le $(( n + 20 )) ] ; then
-            AUTO_RUN_STATUS[$(( n + i ))]="0"
-        fi
+        AUTO_RUN_STATUS[$(( n + i ))]="0"
     done
     for i in `seq 0 19`;
     do
         MANUAL_RUN_STATUS[$i]=0
-        if [ $(( n + 1 + i )) -le $(( n + 2 )) ] ; then
-            MANUAL_RUN_STATUS[$(( n + i ))]="0"
-        fi
+        MANUAL_RUN_STATUS[$(( n + i ))]="0"
     done
 
     AUTO_RUN_STATUS[$(( n + 5 ))]="1"; AUTO_RUN_STATUS[$(( n + 12 ))]="1"; AUTO_RUN_STATUS[$(( n + 18 ))]="1"
