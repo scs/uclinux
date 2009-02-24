@@ -31,21 +31,6 @@ send "\r"
 expect -re $kernel_prompt
 
 incr case_num
-set timeout 5
-send "ifconfig\r"
-while 1 {
-    expect {
-        -re "$targetip.*$kernel_prompt" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
 set timeout 3
 send "mknod /dev/ttygserial c 127 0\r"
 while 1 {

@@ -32,21 +32,6 @@ sleep 3
 send "\r"
 expect -re $kernel_prompt
 
-incr case_num
-set timeout 5
-send "ifconfig\r"
-while 1 {
-    expect {
-        -re "$targetip.*$kernel_prompt" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
 set timeout 9
 incr case_num
 send "dmesg|grep -i sd\r"
