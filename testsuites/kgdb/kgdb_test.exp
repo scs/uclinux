@@ -673,6 +673,7 @@ while 1 {
 	}
 	incr case_num
 	send "info reg\r"
+        while 1 {
 	expect {
 		"Type *return* to continue" {
                 send "\r"
@@ -685,9 +686,9 @@ while 1 {
 			}
                         timeout {
                           puts "\nreg_addr_before timeout! \n"
-                        exit
                         }
 		}
+                break
 		}
 		timeout {
                 clean_host_gdb
@@ -695,6 +696,7 @@ while 1 {
 			exit
 		}
 	}
+        }
 	send "\r"
 	expect {
 		"(gdb) " {
@@ -743,6 +745,7 @@ while 1 {
         }
 	incr case_num
 	send "info reg\r"
+        while 1 {
 	expect {
 		"Type *return* to continue" {
                 send "\r"
@@ -761,9 +764,9 @@ while 1 {
 			}
                         timeout {
                           puts "\nreg_addr_after timeout! \n"
-                        exit
                         }
 		}
+                break
 		}
 		timeout {
                 clean_host_gdb
@@ -771,6 +774,7 @@ while 1 {
 			exit
 		}
 	}
+        }
 	send "\r"
 	expect {
 		"(gdb) " {
@@ -1164,6 +1168,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 	}
 	incr case_num
 	send "info reg\r"
+        while 1 {
 	expect {
 		"Type *return* to continue" {
                 send "\r"
@@ -1176,9 +1181,9 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 			}
                         timeout {
                           puts "\nreg_addr_before timeout! \n"
-                        exit
                         }
 		}
+                break
 		}
 		timeout {
                 clean_host_gdb
@@ -1186,6 +1191,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 			exit
 		}
 	}
+        }
         send "disassemble\r"
         expect {
                -re "$reg_addr_before.*\[\r\n](0x\[0-9a-fA-F]+)" {
@@ -1213,6 +1219,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         }
 	incr case_num
 	send "info reg\r"
+        while 1 {
 	expect {
 		"Type *return* to continue" {
                 send "\r"
@@ -1231,9 +1238,9 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 			}
                         timeout {
                           puts "\nreg_addr_after timeout! \n"
-                        exit
                         }
 		}
+                break
 		}
 		timeout {
                 clean_host_gdb
@@ -1241,6 +1248,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 			exit
 		}
 	}
+        }
 	incr case_num
 	send "print len\r"
 	expect {
