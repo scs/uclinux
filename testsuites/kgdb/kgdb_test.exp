@@ -965,7 +965,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 		}
 	}
         incr case_num
-        send "hbreak 47\r"
+        send "hbreak 48\r"
         expect {
               -re  "Hardware assisted breakpoint 6 at 0xfeb0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]" {
                 case_pass $case_num
