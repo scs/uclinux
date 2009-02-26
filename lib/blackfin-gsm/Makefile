@@ -17,6 +17,7 @@ LDFLAGS += -lm
 FLAGS=CC=$(CC) CCFLAGS='$(CCFLAGS)' AR=$(AR) WAV49=
 
 all: tgsm
+	mkdir -p $(STAGEDIR)/usr/lib $(STAGEDIR)/usr/include
 	cp gsm/lib/libgsm.a $(STAGEDIR)/usr/lib
 	cp gsm/inc/*.h $(STAGEDIR)/usr/include
 
