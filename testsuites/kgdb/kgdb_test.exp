@@ -683,12 +683,12 @@ while 1 {
                           puts "\nreg_addr_before $reg_addr_before \n"
                           expect "(gdb)"
                           case_pass $case_num
+                          break
 			}
                         timeout {
                           puts "\nreg_addr_before timeout! \n"
                         }
 		}
-                break
 		}
 		timeout {
                 clean_host_gdb
@@ -761,12 +761,12 @@ while 1 {
 				    send_user "\n"
 				    case_fail $case_num
 				}
+                         break
 			}
                         timeout {
                           puts "\nreg_addr_after timeout! \n"
                         }
 		}
-                break
 		}
 		timeout {
                 clean_host_gdb
@@ -1178,12 +1178,12 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
                           puts "\nreg_addr_before $reg_addr_before \n"
                           expect "(gdb)"
                           case_pass $case_num
+                          break
 			}
                         timeout {
                           puts "\nreg_addr_before timeout! \n"
                         }
 		}
-                break
 		}
 		timeout {
                 clean_host_gdb
@@ -1235,12 +1235,12 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 				    send_user "\n"
 				    case_fail $case_num
 				}
+                        break
 			}
                         timeout {
                           puts "\nreg_addr_after timeout! \n"
                         }
 		}
-                break
 		}
 		timeout {
                 clean_host_gdb
