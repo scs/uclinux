@@ -1,4 +1,4 @@
-VER = mpfr-2.4.0
+VER = mpfr-2.4.1
 
 include $(ROOTDIR)/tools/autotools.mk
 
