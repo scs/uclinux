@@ -114,7 +114,8 @@ set timeout 20
 send "./null_point\r"
 while 1 {
     expect {
-        -re "Hardware Trace.*SIGSEGV" {
+        -re "Hardware Trace" {
+            expect -re $kernel_prompt
             case_pass $case_num
             break
         }

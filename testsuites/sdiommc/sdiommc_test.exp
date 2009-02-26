@@ -124,6 +124,7 @@ while 1 {
     }
 }
 
+sleep 1
 set timeout 5
 send "ls /mnt/mmc\r"
 while 1 {
@@ -220,7 +221,7 @@ while 1 {
 incr case_num
 set timeout 5
 send "ls /dev/$mmc_dev*\r"
-while 1 { 
+while 1 {
     expect {
         -re "$mmc_dev.*$mmc_dev1.*$mmc_dev2.*$kernel_prompt" {
             case_pass $case_num
@@ -241,7 +242,7 @@ send "mkdir /mnt/mmc2\r"
 incr case_num
 set timeout 5
 send "ls /sys/block/$mmc_dev\r"
-while 1 { 
+while 1 {
     expect {
         -re "($mmc_dev_part\[12])+.*$kernel_prompt" {
             case_pass $case_num
@@ -272,7 +273,7 @@ step "TEST - Test with the two partitions"
 incr case_num
 set timeout 120
 send "mke2fs /dev/$mmc_dev1\r"
-while 1 { 
+while 1 {
     expect {
         -re "mke2fs.*Writing.*$kernel_prompt" {
             send_user "mke2fs done, test pass\n"
@@ -414,6 +415,7 @@ while 1 {
     }
 }
 
+sleep 2
 incr case_num
 set timeout 5
 send "rm /mnt/mmc1/$FILE_SIZE.bin\r"
@@ -570,7 +572,7 @@ send_user "Whole card is created as ext2 partition\n"
 incr case_num
 set timeout 5
 send "ls /dev/$mmc_dev*\r"
-while 1 { 
+while 1 {
     expect {
         -re "$mmc_dev.*$mmc_dev1.*$kernel_prompt" {
             case_pass $case_num
@@ -585,7 +587,7 @@ while 1 {
 incr case_num
 set timeout 120
 send "mke2fs /dev/$mmc_dev1\r"
-while 1 { 
+while 1 {
     expect {
         -re "mke2fs.*Writing.*$kernel_prompt" {
             send_user "mke2fs done, test pass\n"
@@ -719,7 +721,7 @@ while 1 {
 
 sleep 5
 
-set timeout 10
+set timeout 20
 send -s "setenv mmcargs setenv bootargs root=/dev/$mmc_dev1 rw\r"
 expect ">"
 send -s "setenv mmcboot \'tftpboot 0x1000000 $compressed_kernel_only_image; run mmcargs; run addip; bootm\'\r"
@@ -727,7 +729,7 @@ expect ">"
 send -s "save\r"
 while 1 {
     expect {
-        ">" {
+        -re "sectors.*>" {
             send_user "save!!!\n"
             break
         }
