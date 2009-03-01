@@ -5,3 +5,4 @@ busybox-1.13.2-init.patch
 busybox-1.13.2-modprobe.patch
 busybox-1.13.2-killall.patch
 busybox-1.13.2-awk.patch
+busybox-1.13.2-unzip.patch
