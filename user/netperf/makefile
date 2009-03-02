@@ -1,17 +1,9 @@
-CONFOPTS=
+VER = netperf-2.4.1
 
-all: build/build
-	$(MAKE) -C build
+export ac_cv_func_setpgrp_void = yes
 
-build/build: makefile
-	rm -rf build
-	mkdir build
-	(cd build; ac_cv_func_setpgrp_void=yes sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
-	touch build/build
-
-clean:
-	rm -rf build
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
-	$(ROMFSINST) -e CONFIG_USER_NETPERF_NETPERF build/src/netperf /bin/netperf
-	$(ROMFSINST) -e CONFIG_USER_NETPERF_NETSERVER build/src/netserver /bin/netserver
+	$(ROMFSINST) -e CONFIG_USER_NETPERF_NETPERF build-$(VER)/src/netperf /bin/netperf
+	$(ROMFSINST) -e CONFIG_USER_NETPERF_NETSERVER build-$(VER)/src/netserver /bin/netserver
