@@ -1,11 +1,8 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
 
 step "Spawn kermit"
@@ -13,63 +10,53 @@ source ../spawn_kermit.exp
 
 step "Reboot the kernel."
 # To add following line here to indicate that if the bootargs is different,
-# it could be set here. If the bootargs value is 0, it needn't be stated, 
+# it could be set here. If the bootargs value is 0, it needn't be stated,
 # for it is the default value.
-# set bootargs 	$bootargs_param0   
-source ../reboot_kernel.exp 
+# set bootargs 	$bootargs_param0
+source ../reboot_kernel.exp
 
 step "Start testing."
-
+set case_num 0
 set timeout 5
 
-send "cd bin\r" 
+send "cd bin\r"
 while 1 {
-   expect {
-      "bin*>" {         
-         break
-      }
-
-      timeout { 
-                case_fail $case_num
-	exit
-      }
-   }
+    expect {
+        "bin*>" {
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
-set case_num 0
-
 set timeout 1500
-
 incr case_num
-send -s  "date;./nbench;date\r" 
+send -s  "date;./nbench;date\r"
 while 1 {
-   expect {
-     -re "NUMERIC SORT +: +(\[0-9]+\.\[0-9e+]+) " {
-            set numeric_sort $expect_out(1,string)    
-      }
-
-     -re "BITFIELD +: +(\[0-9]+\.\[0-9e+]+) " {
-            set bitfield  $expect_out(1,string)    
-      }
-
-      "bin*>" {         
+    expect {
+        -re "NUMERIC SORT +: +(\[0-9]+\.\[0-9e+]+) " {
+            set numeric_sort $expect_out(1,string)
+        }
+        -re "BITFIELD +: +(\[0-9]+\.\[0-9e+]+) " {
+            set bitfield  $expect_out(1,string)
+        }
+        "bin*>" {
             case_pass $case_num
             puts "NUMERIC SORT is $numeric_sort ."
             puts "BITFIELD is $bitfield ."
             break
-      }
-
-      timeout {
+        }
+        timeout {
             case_fail $case_num
-	    exit
-         }
-     }
+        }
+    }
 }
 
 send_log "\n"
-send_log "\n$TITLE ............\[PASS\]\n" 
+send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 
 log_file
-

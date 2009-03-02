@@ -106,13 +106,18 @@ proc case_fail { casenum } {
   global log_loc
 
   if {[ catch { eval exec grep -nrl {"$TITLE"} [glob $log_loc/\*/test_summary/pass_summary] } errmsg ]} {
-      send_user "\nLast passed test results not found!!\n"
+      send_user "\nLast passed test result is not found!!\n"
   } else {
       set pass_files [ eval exec grep -nrl {"$TITLE"} [glob $log_loc/\*/test_summary/pass_summary] ]
       set last_pass_dir [exec echo $pass_files | awk -F/ {{print $9}} | sort -t_ +0n +1M | tail -n 1 ]
-      set last_pass_ucdist [exec grep Revision $log_loc/$last_pass_dir/kernel_test_log | awk {NR==1 {print $2}} ]
-      set last_pass_kernel [exec grep Revision $log_loc/$last_pass_dir/kernel_test_log | awk {NR==2 {print $2}} ]
-      send_user "\nLast passed time: $last_pass_dir, ucdist ver: $last_pass_ucdist, kernel ver: $last_pass_kernel\n"
+
+      if {[ catch { exec grep Revision $log_loc/$last_pass_dir/kernel_test_log } errmsg ]} {
+          send_user "\nLast passed time: $last_pass_dir. Revision is not found!\n"
+      } else {
+          set last_pass_ucdist [exec grep Revision $log_loc/$last_pass_dir/kernel_test_log | awk {NR==1 {print $2}} ]
+          set last_pass_kernel [exec grep Revision $log_loc/$last_pass_dir/kernel_test_log | awk {NR==2 {print $2}} ]
+          send_user "\nLast passed time: $last_pass_dir, ucdist ver: $last_pass_ucdist, kernel ver: $last_pass_kernel\n"
+      }
   }
 
   send_user "\nCase $casenum ...FAIL\n"

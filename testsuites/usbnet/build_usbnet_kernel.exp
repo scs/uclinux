@@ -34,19 +34,19 @@ while 1 {
 
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             #GPIO_6 conflict
-            send "m\r"
+            send "M\r"
         }
 
         -re "USB support.*USB_SUPPORT.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Support for Host-side USB.*USB.*\\\[.*]" {
-            send "n\r"
+            send "N\r"
         }
 
         -re "USB Gadget Support.*USB_GADGET.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "USB Peripheral Controller.*(\[0-9]+)\. PLX NET2272.*choice\\\[.*]:" {
@@ -54,7 +54,7 @@ while 1 {
         }
 
         -re "USB Gadget Drivers \\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "USB Gadget Drivers.*(\[0-9]+)\. Ethernet Gadget.*choice\\\[.*]:" {
@@ -62,7 +62,7 @@ while 1 {
         }
 
         -re "RNDIS support.*USB_ETH_RNDIS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {
