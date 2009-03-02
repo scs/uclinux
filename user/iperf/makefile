@@ -1,18 +1,6 @@
--include ../user.mak
+VER = iperf-2.0.4
 
-CONFOPTS=
-
-all: build/build
-	$(MAKE) -C build
-
-build/build: makefile
-	rm -rf build
-	mkdir build
-	(cd build; ac_cv_func_malloc_0_nonnull=yes LIBS="$(CXXLIBS)" sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
-	touch build/build
-
-clean:
-	rm -rf build
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
-	$(ROMFSINST) build/src/iperf /bin/iperf
+	$(ROMFSINST) -e CONFIG_USER_IPERF_IPERF build-$(VER)/src/iperf /bin/iperf
