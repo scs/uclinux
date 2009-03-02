@@ -562,7 +562,7 @@ set_up_server(char hostname[], char port[], int af)
     setpgrp();
     */
 
-#if !defined(WIN32) && !defined(MPE) && !defined(__VMS)
+#if !defined(WIN32) && !defined(MPE) && !defined(__VMS) && !defined(__uClinux__)
   /* Flush the standard I/O file descriptors before forking. */
   fflush (stdin);
   fflush (stdout);
@@ -635,7 +635,7 @@ set_up_server(char hostname[], char port[], int af)
 
       signal(SIGCLD, SIG_IGN);
       
-#endif /* !WIN32 !MPE !__VMS */
+#endif /* !WIN32 !MPE !__VMS !__uClinux__ */
 
       for (;;)
 	{
@@ -711,8 +711,12 @@ set_up_server(char hostname[], char port[], int af)
 		}
 #else
       signal(SIGCLD, SIG_IGN);
-	  
+
+#ifdef __uClinux__	  
+	  switch (vfork())
+#else
 	  switch (fork())
+#endif
 	    {
 	    case -1:
 	      /* something went wrong */
@@ -721,7 +725,11 @@ set_up_server(char hostname[], char port[], int af)
 	      /* we are the child process */
 	      close(server_control);
 	      process_requests();
+#ifdef __uClinux__
+		  _exit(0);
+#else
 	      exit(0);
+#endif
 	      break;
 	    default:
 	      /* we are the parent process */
@@ -742,14 +750,14 @@ set_up_server(char hostname[], char port[], int af)
 	    }
 #endif /* !WIN32 !MPE !__VMS */  
 	} /*for*/
-#if !defined(WIN32) && !defined(MPE) && !defined(__VMS)
+#if !defined(WIN32) && !defined(MPE) && !defined(__VMS) && !defined(__uClinux__)
       break; /*case 0*/
       
     default: 
       exit (0);
       
     }
-#endif /* !WIN32 !MPE !__VMS */  
+#endif /* !WIN32 !MPE !__VMS !__uClinux__ */  
 }
 
 #ifdef WIN32
