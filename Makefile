@@ -18,7 +18,7 @@ VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 ifeq (.config,$(wildcard .config))
 include .config
 
-all: tools staging subdirs romfs image
+all: tools subdirs romfs image
 else
 all: config_error
 endif
@@ -36,6 +36,7 @@ HOSTCC   = cc
 IMAGEDIR = $(ROOTDIR)/images
 RELDIR   = $(ROOTDIR)/release
 ROMFSDIR = $(ROOTDIR)/romfs
+PRODUCTDIR = $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/$(CONFIG_PRODUCT)
 ROMFSINST= romfs-inst.sh
 SCRIPTSDIR = $(ROOTDIR)/config/kconfig
 STAGEDIR = $(ROOTDIR)/staging
@@ -77,7 +78,10 @@ MAKEARCH = $(MAKE) ARCH=$(ARCH)
 MAKEARCH_KERNEL = $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE)
 endif
 
-DIRS    = $(VENDOR_TOPDIRS) lib user
+DIRS    = $(VENDOR_TOPDIRS) include lib include user
+
+# With the staging dir, we don't need to process the "include" dir
+DIRS   := $(filter-out include,$(DIRS))
 
 # some older configure's do not check for proper pkg-config named binaries
 PKG_CONFIG = $(ROOTDIR)/tools/$(CROSS_COMPILE)pkg-config
@@ -86,11 +90,11 @@ export PKG_CONFIG
 export VENDOR PRODUCT ROOTDIR LINUXDIR HOSTCC CONFIG_SHELL
 export CONFIG_CONFIG LINUX_CONFIG MODULES_CONFIG ROMFSDIR SCRIPTSDIR
 export VERSIONPKG VERSIONSTR ROMFSINST PATH IMAGEDIR RELDIR RELFILES TFTPDIR
-export BUILD_START_STRING
+export BUILD_START_STRING PRODUCTDIR
 export HOST_NCPU
 
 .PHONY: tools
-tools: ucfront cksum sstrip staging
+tools: ucfront cksum
 	chmod +x tools/romfs-inst.sh tools/modules-alias.sh
 
 .PHONY: ucfront
@@ -108,12 +112,15 @@ tools/cksum: tools/sg-cksum/*.c
 	ln -sf $(ROOTDIR)/tools/sg-cksum/cksum tools/cksum
 
 .PHONY: sstrip
+tools: sstrip
 sstrip: tools/sstrip
 tools/sstrip: tools/sstrip.c
 	$(HOSTCC) -Wall -O2 -g -o $@ $<
 
 .PHONY: staging
 ifneq ($(CROSS_COMPILE),)
+all: staging
+tools: staging
 staging: \
 	tools/$(CROSS_COMPILE)gcc \
 	tools/$(CROSS_COMPILE)g++ \
@@ -158,7 +165,7 @@ qconfig: qconf
 gconfig: gconf
 xconfig: $(SCRIPTS_BINARY_xconfig)
 config menuconfig qconfig gconfig xconfig: Kconfig conf
-	$(SCRIPTSDIR)/$(SCRIPTS_BINARY_$@) Kconfig
+	KCONFIG_NOTIMESTAMP=1 $(SCRIPTSDIR)/$(SCRIPTS_BINARY_$@) Kconfig
 	@if [ ! -f .config ]; then \
 		echo; \
 		echo "You have not saved your config, please re-run 'make $@'"; \
@@ -200,7 +207,7 @@ endif
 
 .PHONY: oldconfig
 oldconfig: Kconfig conf
-	$(SCRIPTSDIR)/conf -o Kconfig
+	KCONFIG_NOTIMESTAMP=1 $(SCRIPTSDIR)/conf -o Kconfig
 	@$(MAKE) oldconfig_linux
 	@$(MAKE) oldconfig_modules
 	@$(MAKE) oldconfig_config
@@ -232,14 +239,14 @@ modules_install:
 linux_%:
 	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) $(patsubst linux_%,%,$@)
 modules_%:
-	[ ! -d modules ] || $(MAKEARCH) -C modules $(patsubst modules_%,%,$@)
+	[ ! -d modules ] || KCONFIG_NOTIMESTAMP=1 $(MAKEARCH) -C modules $(patsubst modules_%,%,$@)
 config_%: vendors/Kconfig
-	$(MAKEARCH) -C config $(patsubst config_%,%,$@)
+	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH) -C config $(patsubst config_%,%,$@)
 oldconfig_config: config_oldconfig
 oldconfig_modules: modules_oldconfig
 oldconfig_linux: linux_oldconfig
 oldconfig_uClibc:
-	[ -z "$(findstring uClibc,$(LIBCDIR))" ] || $(MAKEARCH) -C $(LIBCDIR) oldconfig
+	[ -z "$(findstring uClibc,$(LIBCDIR))" ] || KCONFIG_NOTIMESTAMP=1 $(MAKEARCH) -C $(LIBCDIR) oldconfig
 
 ############################################################################
 #
@@ -336,7 +343,7 @@ clean: modules_clean
 	for dir in $(LINUXDIR) $(DIRS); do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir clean ; done
 	rm -rf $(ROMFSDIR)/*
 	rm -rf $(STAGEDIR)/*
-	rm -f $(IMAGEDIR)/*
+	rm -rf $(IMAGEDIR)/*
 	rm -f $(LINUXDIR)/linux
 	rm -f $(LINUXDIR)/include/asm
 	rm -rf $(LINUXDIR)/net/ipsec/alg/libaes $(LINUXDIR)/net/ipsec/alg/perlasm
@@ -361,19 +368,25 @@ distclean: mrproper
 	-$(MAKE) -C tools/sg-cksum clean
 	-rm -f tools/cksum
 
+.PHONY: bugreport
 bugreport:
-	rm -rf ./bugreport.tgz ./bugreport
+	rm -rf ./bugreport.tar.gz ./bugreport
 	mkdir bugreport
 	$(HOSTCC) -v 2> ./bugreport/host_vers
 	$(CROSS_COMPILE)gcc -v 2> ./bugreport/toolchain_vers
 	cp .config bugreport/
-	mkdir bugreport/linux-2.6.x
-	cp linux-2.6.x/.config bugreport/linux-2.6.x/
+	mkdir bugreport/$(LINUXDIR)
+	cp $(LINUXDIR)/.config bugreport/$(LINUXDIR)/
+	if [ -f $(LIBCDIR)/.config ] ; then \
+		set -e ; \
+		mkdir bugreport/$(LIBCDIR) ; \
+		cp $(LIBCDIR)/.config bugreport/$(LIBCDIR)/ ; \
+	fi
 	mkdir bugreport/config
-	cp config/.config bugreport/config
-	tar czf bugreport.tgz bugreport
+	cp config/.config bugreport/config/
+	tar czf bugreport.tar.gz bugreport
 	rm -rf ./bugreport
-	@printf "\nPlease attach the file 'bugreport.tgz' to a bug report at\n http://blackfin.uclinux.org/gf/project/uclinux-dist/tracker/?action=TrackerItemAdd&tracker_id=141\n\n"
+	@printf "\nPlease attach the file 'bugreport.tar.gz' to a bug report at\n http://blackfin.uclinux.org/gf/project/uclinux-dist/tracker/?action=TrackerItemAdd&tracker_id=141\n\n"
 
 %_only:
 	@case "$(@)" in \
@@ -403,7 +416,7 @@ bugreport:
 	if [ "`grep -s CONFIG_VENDOR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_VENDOR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
 	   [ "`grep -s CONFIG_LINUXDIR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_LINUXDIR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
 	   [ "`grep -s -e 'TARGET_.*=y' ./uClibc/.config`" = "`grep -s -e 'TARGET_.*=y' vendors/$(@:_config=)/config.uClibc`" ] ; then \
-		$(MAKEARCH_KERNEL) -s -C linux-2.6.x distclean ; \
+		$(MAKEARCH_KERNEL) -s -C $(LINUXDIR) distclean ; \
 	else \
 		$(MAKE) -s distclean ; \
 	fi
