@@ -25,6 +25,36 @@ MA 02110-1301, USA. */
 
 #include "mpfr-test.h"
 
+static void
+bug20090227 (void)
+{
+  mpfr_t x, y, r1, r2;
+  int inex1, inex2;
+
+  mpfr_init2 (x, 118);
+  mpfr_init2 (y, 181);
+  mpfr_init2 (r1, 140);
+  mpfr_init2 (r2, 140);
+  mpfr_set_si (x, -1, GMP_RNDN);
+  mpfr_set_str_binary (y, "1.100100100001111110110101010001000100001011010001100001000110100110001001100011001100010100010111000000011011100000111001101000100101001000000100100111000001000100010100110011111010");
+  inex1 = mpfr_remainder (r1, x, y, GMP_RNDU);
+  /* since the quotient is -1, r1 is the rounding of x+y */
+  inex2 = mpfr_add (r2, x, y, GMP_RNDU);
+  if (mpfr_cmp (r1, r2))
+    {
+      printf ("Error in mpfr_remainder (bug20090227)\n");
+      printf ("Expected ");
+      mpfr_dump (r2);
+      printf ("Got      ");
+      mpfr_dump (r1);
+      exit (1);
+    }
+  mpfr_clear (x);
+  mpfr_clear (y);
+  mpfr_clear (r1);
+  mpfr_clear (r2);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -49,6 +79,8 @@ main (int argc, char *argv[])
     }
 
   tests_start_mpfr ();
+
+  bug20090227 ();
 
   mpfr_init (x);
   mpfr_init (y);

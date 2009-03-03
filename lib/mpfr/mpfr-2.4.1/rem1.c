@@ -170,7 +170,12 @@ mpfr_rem1 (mpfr_ptr rem, long *quo, mp_rnd_t rnd_q,
     }
 
   if (mpz_cmp_ui (r, 0) == 0)
-    inex = mpfr_set_ui (rem, 0, GMP_RNDN);
+    {
+      inex = mpfr_set_ui (rem, 0, GMP_RNDN);
+      /* take into account sign of x */
+      if (signx < 0)
+        mpfr_neg (rem, rem, GMP_RNDN);
+    }
   else
     {
       if (rnd_q == GMP_RNDN)
@@ -190,6 +195,9 @@ mpfr_rem1 (mpfr_ptr rem, long *quo, mp_rnd_t rnd_q,
                 *quo += 1;
             }
         }
+      /* take into account sign of x */
+      if (signx < 0)
+        mpz_neg (r, r);
       inex = mpfr_set_z (rem, r, rnd);
       /* if ex > ey, rem should be multiplied by 2^ey, else by 2^ex */
       MPFR_EXP (rem) += (ex > ey) ? ey : ex;
@@ -197,13 +205,6 @@ mpfr_rem1 (mpfr_ptr rem, long *quo, mp_rnd_t rnd_q,
 
   if (quo)
     *quo *= sign;
-
-  /* take into account sign of x */
-  if (signx < 0)
-    {
-      mpfr_neg (rem, rem, GMP_RNDN);
-      inex = -inex;
-    }
 
   mpz_clear (mx);
   mpz_clear (my);
