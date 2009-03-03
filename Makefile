@@ -391,7 +391,7 @@ bugreport:
 	*)   $(MAKEARCH) -C $(@:_clean=) clean;; \
 	esac
 
-%_config:
+%_defconfig:
 	@if [ ! -d "vendors/$(@:_config=)" ]; then \
 		echo "Can't find $(@:_config=) in the vendors directory" ; \
 		exit 1; \
