@@ -181,7 +181,7 @@ double timespec_subtract (struct timespec x, struct timespec y)
 	return expired;
 }
 
-#define time_func(funct) 				\
+#define time_func(funct, verify) 				\
 {							\
 	__label__ start_funct, end_funct, cal_start_funct, cal_end_funct, skip_cal, skip_func;	\
 	struct rusage start, stop;			\
@@ -203,11 +203,11 @@ double timespec_subtract (struct timespec x, struct timespec y)
 	buf1[15]='\000';							\
 	printf("%s", buf1);							\
 										\
-	if(inlined && max_count && (&&start_funct == &&end_funct)) {						\
+	if(inlined && max_count && (&&start_funct == &&end_funct)) {		\
 		printf("skipping, since it optimized out\n");			\
 		goto skip_func;							\
 	}									\
-	if (inlined && max_count && (&&cal_start_funct == && cal_end_funct)) {				\
+	if (inlined && max_count && (&&cal_start_funct == && cal_end_funct)) {	\
 		count = max_count/10;						\
 		goto skip_cal;							\
 	}									\
@@ -223,7 +223,7 @@ double timespec_subtract (struct timespec x, struct timespec y)
 			for (i = 0; i <= 10000 ; i++) {					\
 cal_start_funct:;									\
 asm __volatile__ ("1: /* start " #funct " */\n");					\
-				funct;							\
+				{ funct; }						\
 asm __volatile__ ("2: /* end " #funct " */\n");						\
 cal_end_funct:;										\
 			}								\
@@ -231,6 +231,9 @@ cal_end_funct:;										\
 			expired_time = timeval_subtract(stop.ru_utime, start.ru_utime);	\
 			if (expired_time >= time)					\
 				break;							\
+		}									\
+		if (verbose) {								\
+			verify;								\
 		}									\
 		clock_gettime(CLOCK_REALTIME, &real_stop);				\
 		expired_real = timespec_subtract(real_start, real_stop);		\
@@ -242,19 +245,22 @@ skip_cal:;										\
 	if (max_count < count)								\
 		count = max_count;							\
 											\
-	count = count * LOOPS * 10000;						\
-	while(expired_real < (double)LOOPS) {					\
+	count = count * LOOPS * 10000;							\
+	while(expired_real < (double)LOOPS) {						\
 		clock_gettime(CLOCK_REALTIME, &real_start);                             \
 		getrusage(RUSAGE_SELF, &start);						\
 		for (i = 0; i <= count; i++) {						\
-start_funct:;		\
-asm __volatile__ ("3: /* start " #funct " */\n");    	\
-			funct;								\
-asm __volatile__ ("4: /* end " #funct " */\n");    	\
-end_funct:;		\
+start_funct:;										\
+asm __volatile__ ("3: /* start " #funct " */\n");    					\
+			funct; 								\
+asm __volatile__ ("4: /* end " #funct " */\n");    					\
+end_funct:;										\
 		}									\
 		getrusage(RUSAGE_SELF, &stop);						\
 		clock_gettime(CLOCK_REALTIME, &real_stop);                              \
+		if (verbose) {								\
+			verify;								\
+		}									\
 		expired_time = timeval_subtract(stop.ru_utime, start.ru_utime);		\
 		expired_real = timespec_subtract(real_start, real_stop);		\
 		if (expired_real < (double)LOOPS || expired_time < (double)LOOPS || expired_time >= expired_real) \
@@ -272,6 +278,46 @@ end_funct:;		\
 	printf("%.1f\n", (expired_time*1000000) / count * MHz); 		\
 										\
 skip_func:;									\
+}
+
+void dump(const short *expected, int n)
+{
+	int i;
+	for (i=0; i<n; i++) {
+		if ( i % 8 == 0)
+			printf("\noutput[%02i] = ", i);
+		printf(" %04hx", expected[i]);
+	}
+	printf("\n");
+}
+
+int check_vector(const short *expected, short *actual, int n)
+{
+	int i, result = 0;
+
+	for (i=0; i<n; i++) {
+		if (expected[i] != actual[i]) {
+			printf("expected[%d] = %u, actual[%d] = %u\n",
+				i, expected[i], i, actual[i]);
+			result = 1;
+		}
+	}
+
+	return result;
+}
+
+int check_int_vector(const int *expected, int *actual, int n)
+{
+	int i, result = 0;
+
+	for (i=0; i<n; i++) {
+		if (expected[i] != actual[i]) {
+			printf("expected(int)[%d] = %d, actual[%d] = %d\n",
+				i, expected[i], i, actual[i]);
+			result = 1;
+		}
+	}
+	return result;
 }
 
 float calibrate(void)
@@ -296,17 +342,21 @@ void overhead(void)
 	__asm__ __volatile__ ("nop;\n" : : : "memory");
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	short c = 0x3;
 	short output[200];
-	int int_output[2];
+	int int_output[2], g=0xFFFFAAAA;
 	long int d = 0xAAAA;
 	int e[1] = {0xEEEE};
 	char *model;
 	char *cache;
 	float tick, MHz;
 	unsigned long long max_count;
+	int verbose=0;
+
+	if (argc > 1)
+		verbose = 1;
 
 	printf("\n**\n");
 #include "./sysinfo.c"
@@ -327,31 +377,69 @@ int main(void)
 	/* Lets check for correctness before we test anything else */
 	int_output[0] = int_output[1] = 0;
 
+	memcpy(output, a, sizeof(a));
+	vec_mpy1(output, b, c);
+	if (check_vector(vec_mpy1_out, output, 150))
+		printf("Found a problem in vec_mpy1\n");
+
+	int_output[0] = mac(a, b, c, &int_output[1]);
+	if (check_int_vector(mac_out, int_output, 2))
+		printf("Found a problem in mac\n");
+
+	fir(a, b, output);
+	if (check_vector(fir_out, output, 50))
+		printf("Found a problem in fir\n");
+
+	fir_no_red_ld(a, b, output);
+	if (check_vector(fir_no_red_ld_out, output, 100))
+		printf("Found a problem in fir_no_red_ld\n");
+
+	memcpy(output, a, sizeof(a));
+	int_output[0] = latsynth(output, b, N, d);
+	if (check_vector(latsynth_out, output, 100) || 
+		check_int_vector(latsynth_int_out, int_output, 1))
+		printf("Found a problem in latsynth\n");
+
+	bzero(output, sizeof(output));
+	iir1(a, b, &output[100], output);
+	if (check_vector(iir1_out, output, 101))
+		printf("Found a problem in iir1\n");
+
+	output[0] = codebook(d, 1, 17, e[0], g, a, 1||c, 1);
+	if (check_vector(codebook_out, output, 1))
+		printf("Found a problem in codebook\n");
+
+	memcpy(output, a, sizeof(a));
+	jpegdct(output,b);
+	if (check_vector(jpegdct_out, output, 64))
+		printf("Found a problem in jpegdct\n");
+
 	/*
-         * Declared as memory variable so it doesn't get optimized out
+         * Lets count things now.
          */
 
 	printf("Test\tcycles per loop\n");
 
 	max_count = 0;
 
-	time_func(overhead());
+	time_func(overhead(), dump(output,0));
 
-	time_func(vec_mpy1(a, b, c));
+	time_func(vec_mpy1(output, b, c), dump(output, 150));
 
-	time_func(int_output[0] = mac(a, b, c, &int_output[1]));
+	time_func(int_output[0] = mac(a, b, c, &int_output[1]), dump((short *)int_output,4));
 
-	time_func(fir(a, b, output));
+	time_func(fir(a, b, output), dump(output, 50));
 
-	time_func(fir_no_red_ld(a, b, output));
+	time_func(fir_no_red_ld(a, b, output), dump(output, 100));
 
-	time_func(d = latsynth(a, b, N, d));
+	time_func(d = latsynth(a, b, N, d), dump(output, 100));
 
-	time_func(iir1(a, b, &output[100], output));
+	time_func(iir1(a, b, &output[100], output), dump(output, 101));
 
-	time_func(e[0] = codebook(d, 1, 17, e[0], d, a, c, 1));
+	time_func(output[0] = codebook(d, 1, 17, e[0], g, a, 1||c, 1), dump(output,2));
 
-	time_func(jpegdct(a, b));
+	memcpy(output, a, sizeof(a));
+	time_func(jpegdct(output, b), dump(output, 64));
 
 	free(model);
 	free(cache);
