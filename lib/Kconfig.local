@@ -167,6 +167,7 @@ config LIB_QT_EXAMPLES
 
 config LIB_READLINE
 	bool "Build readline"
+	select LIB_NCURSES
 
 config LIB_SDL_GFX
 	bool "build SDL_gfx"

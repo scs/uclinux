@@ -31,7 +31,6 @@ dir_3_$(CONFIG_LIB_ORTP)             += ortp
 dir_3_$(CONFIG_LIB_NCURSES)          += ncurses
 dir_3_$(CONFIG_LIB_OPENOBEX)         += openobex
 dir_3_$(CONFIG_LIB_POPT)             += popt
-dir_3_$(CONFIG_LIB_READLINE)         += readline
 dir_3_$(CONFIG_LIB_SPEEX)            += speex
 dir_3_$(CONFIG_LIB_SPHINXBASE)       += sphinxbase
 dir_3_$(CONFIG_LIB_SQLITE)           += sqlite
@@ -44,6 +43,7 @@ dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip       # requires osip2(2)
 dir_4_$(CONFIG_LIB_LIBID3TAG)        += libid3tag       # requires ???
 dir_4_$(CONFIG_LIB_LIBXML2)          += libxml2         # requires readline(3) zlib(3)
 dir_4_$(CONFIG_LIB_MEDIASTREAMER)    += mediastreamer   # requires ortp(3)
+dir_4_$(CONFIG_LIB_READLINE)         += readline        # requires ncurses(3)
 dir_4_$(CONFIG_LIB_SDL_GFX)          += SDL_gfx         # requires libsdl(3)
 
 dir_5_$(CONFIG_LIB_AGG)              += agg             # requires freetype(4)

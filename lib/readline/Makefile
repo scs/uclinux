@@ -1,7 +1,16 @@
 VER = readline-6.0
 URL = ftp://ftp.gnu.org/gnu/readline/$(VER).tar.gz
 
-CONF_OPTS = $(CONFIGURE_SHARED_ENABLE)
+CONF_OPTS = \
+	$(CONFIGURE_SHARED_ENABLE) \
+	--with-curses
+
+# readline always needs a terminal library.  by default, it does not link with
+# any so that it can be swapped out depending on the application.  but in the
+# Linux world, the only relevant package is ncurses.  all the other termcap
+# libraries either suck or simply don't exist.  so force linking of ncurses to
+# avoid issues otherwise.
+LDFLAGS += -lncurses
 
 include $(ROOTDIR)/tools/autotools.mk
 
