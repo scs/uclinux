@@ -419,6 +419,7 @@ dir_$(CONFIG_USER_UNRAR_UNRAR)              += unrar
 dir_$(CONFIG_USER_UNZIP_UNZIP)              += unzip
 dir_$(CONFIG_USER_UNZOO_UNZOO)              += unzoo
 dir_$(CONFIG_USER_USBCBI_USBCBI)            += cbi_client
+dir_$(CONFIG_USER_USBHUBCTRL_USBHUBCTRL)	+= usbhubctrl
 dir_$(CONFIG_USER_USBISO_USBISO)            += iso_client
 dir_$(CONFIG_USER_VERSION_VERSION)          += version
 dir_$(CONFIG_USER_VCONFIG_VCONFIG)          += vconfig
