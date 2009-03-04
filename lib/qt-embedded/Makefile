@@ -40,6 +40,11 @@ CONF_OPTS = \
 	$(call USE_ECHO,LIB_QT_EXAMPLES,,-nomake demos -nomake docs -nomake examples) \
 	-nomake translations
 
+QCONFIG := $(wildcard $(PRODUCTDIR)/qconfig-uc.h)
+ifneq ($(QCONFIG),)
+CONF_OPTS += -qconfig uc
+endif
+
 # QT requires zlib
 CONF_OPTS += \
 	-system-zlib \
@@ -99,9 +104,11 @@ build-$(VER)/Makefile: $(VER)/.unpacked
 	cd build-$(VER) ; \
 	unset CC CXX CFLAGS CXXFLAGS LDFLAGS ; \
 	../$(VER)/configure $(CONF_OPTS)
+	[ -z "$(QCONFIG)" ] || cp $(QCONFIG) $(VER)/src/corelib/global/
 
 clean:
 	rm -rf build*
+	[ -z "$(QCONFIG)" ] || rm -f $(VER)/src/corelib/global/$(notdir $(QCONFIG))
 	rm -rf \
 		$(STAGEDIR)/usr/lib/libQt* \
 		$(STAGEDIR)/usr/qt \
