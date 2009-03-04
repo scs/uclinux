@@ -10,7 +10,6 @@ dir_$(CONFIG_USER_INETUTILS_RSH)                 += inetutils
 dir_$(CONFIG_USER_INETUTILS_RSHD)                += inetutils
 dir_$(CONFIG_USER_LMBENCH)                       += lmbench3
 dir_$(CONFIG_USER_BF561_COREBLD)                 += corebld
-dir_$(CONFIG_USER_OPROFILE)                      += oprofile
 dir_$(CONFIG_USER_POUND)                         += pound
 dir_$(CONFIG_USER_IRDA_TOOLS)                    += irda-tools
 dir_$(CONFIG_USER_IRCP)                          += ircp
