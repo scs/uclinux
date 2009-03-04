@@ -9,12 +9,15 @@
  * Note that this needs to be change to ensure that the values
  * read from the header are read as little-endian
  *
+ * Added 32 bit checksum: add together each 32 bit data.
+ *     Aug. 24, 2005 by David Wu
  */
 
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netinet/in.h>
 
 #include "md5.h"
 #include "uCheader.h"
@@ -51,7 +54,8 @@ int main (int argc, char *argv[])
 	unsigned int       size = 0;
 	struct MD5Context  md5c;
 	unsigned char      digest[16];
-
+	uint32_t bit32sum = 0;
+	uint32_t * pointer_to_buf = (uint32_t *)buf;
 
 	if (parse_args (argc, argv))
 		if (!opt_quiet)
@@ -101,6 +105,9 @@ int main (int argc, char *argv[])
 	/* image size: */
 	fprintf (stdout, "data_size reported as:   %10d\n", header.data_size);
 
+	/* image size: */
+	fprintf (stdout, "partition reported as:   %c\n", header.partition);
+
 	/* header date code */
 	fprintf (stdout, "date code reported as:    \"%s\"\n", header.datecode);
 
@@ -113,11 +120,21 @@ int main (int argc, char *argv[])
 		fprintf (stdout, "%02x", header.md5sum[i]);
 	fprintf (stdout, "\n");
 
+	/* 32Bit checksum: */
+	fprintf (stdout, "32 bit checksum reported as:0x%8x\n", header.bit32sum);
+
 	/* read image and do MD5: */
 	while (!feof(infile)) {
 		n = fread (buf, 1, BUFFERSIZE, infile);
 		size += n;
 		MD5Update (&md5c, buf, n);
+
+		/* 32 bit checksum */
+		pointer_to_buf = (uint32_t *)buf;
+		while ( (char *)pointer_to_buf - buf < n ) {
+			bit32sum += htonl(*pointer_to_buf);
+			pointer_to_buf++;
+		}
 	}
 	/* save MD5: */
 	MD5Final (digest, &md5c);
@@ -135,7 +152,12 @@ int main (int argc, char *argv[])
 			fprintf (stdout, "\n");
 		}
 	}
-	
+
+	/* verify bit32sum */
+	if (header.bit32sum != bit32sum){
+		fprintf (stdout, "ERROR: 32 bit checksum mismatch\n");
+		fprintf (stdout, "This program calculates bit32sum as: 0x%8x\n", bit32sum);
+	}	
 
 	/* Also verify that length matches */
 	if (header.data_size != size) {

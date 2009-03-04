@@ -24,6 +24,7 @@
 void byteReverse(unsigned char *buf, unsigned longs);
 
 #ifndef ASM_MD5
+#define SWAP(x) (((x) & 0x000000ff) << 24) | (((x) & 0x0000ff00) << 8) | (((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >> 8)
 /*
 * Note: this code is harmless on little-endian machines.
 */
@@ -32,9 +33,8 @@ byteReverse(unsigned char *buf, unsigned longs)
 {
         uint32 t;
         do {
-                t = (uint32) ((unsigned) buf[3] << 8 | buf[2]) << 16 |
-                ((unsigned) buf[1] << 8 | buf[0]);
-                *(uint32 *) buf = t;
+		t = *(uint32 *) buf;
+                *(uint32 *) buf = SWAP(t);
                 buf += 4;
         } while (--longs);
 }
