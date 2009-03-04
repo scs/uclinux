@@ -2,11 +2,11 @@ dir_y                                       += blkfin-apps
 dir_y                                       += blkfin-test
 dir_y                                       += blkfin-drvs
 
+dir_$(CONFIG_USER_BLUEZ)                    += bluez-utils
 dir_$(CONFIG_USER_CPUFREQUTILS)             += cpufrequtils
 dir_$(CONFIG_USER_DAGRAB_DAGRAB)            += dagrab
 dir_$(CONFIG_USER_DIRECTFBEXAMPLES)         += DirectFB-examples
 dir_$(CONFIG_USER_DIRECTVNC)                += directvnc
-dir_$(CONFIG_USER_BLUEZ)                    += bluez-utils
 dir_$(CONFIG_USER_I2C_TOOLS)                += i2c-tools
 dir_$(CONFIG_USER_LINPHONE)                 += linphone
 dir_$(CONFIG_USER_LSUIO)                    += lsuio
