@@ -410,28 +410,6 @@ bugreport:
 	*)   $(MAKEARCH) -C $(@:_clean=) clean;; \
 	esac
 
-%_defconfig:
-	@if [ ! -d "vendors/$(@:_config=)" ]; then \
-		echo "Can't find $(@:_config=) in the vendors directory" ; \
-		exit 1; \
-	fi
-	@if [ ! -f "vendors/$(@:_config=)/config.device" ]; then \
-		echo "vendors/$(@:_config=)/config.device must exist first"; \
-		exit 1; \
-	fi
-	if [ "`grep -s CONFIG_VENDOR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_VENDOR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
-	   [ "`grep -s CONFIG_LINUXDIR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_LINUXDIR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
-	   [ "`grep -s -e 'TARGET_.*=y' ./uClibc/.config`" = "`grep -s -e 'TARGET_.*=y' vendors/$(@:_config=)/config.uClibc`" ] ; then \
-		$(MAKEARCH_KERNEL) -s -C $(LINUXDIR) distclean ; \
-	else \
-		$(MAKE) -s distclean ; \
-	fi
-	cp vendors/$(@:_config=)/config.device .config
-	chmod u+x config/setconfig
-	yes "" | config/setconfig defaults
-	config/setconfig final
-	$(MAKE) dep
-
 %_romfs:
 	@case "$(@)" in \
 	*/*) d=`expr $(@) : '\([^/]*\)/.*'`; \
@@ -440,17 +418,19 @@ bugreport:
 	*)   $(MAKEARCH) -C $(@:_romfs=) romfs;; \
 	esac
 
-%_default: Kconfig conf
-	@if [ ! -f "vendors/$(@:_default=)/config.device" ]; then \
-		echo "vendors/$(@:_default=)/config.device must exist first"; \
+%_defconfig: Kconfig conf
+	@if [ ! -f "vendors/$(@:_defconfig=)/config.device" ]; then \
+		echo "vendors/$(@:_defconfig=)/config.device must exist first"; \
 		exit 1; \
 	 fi
 	-$(MAKE) clean > /dev/null 2>&1
-	cp vendors/$(@:_default=)/config.device .config
+	cp vendors/$(@:_defconfig=)/config.device .config
 	chmod u+x config/setconfig
 	yes "" | config/setconfig defaults
 	config/setconfig final
 	#$(MAKE) dep
+%_default: Kconfig conf
+	$(MAKE) $(@:_default=_defconfig)
 	$(MAKE)
 
 config_error:
