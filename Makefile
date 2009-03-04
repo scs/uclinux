@@ -234,6 +234,12 @@ modules_install:
 		rm -f $(ROMFSDIR)/lib/modules/*/source; \
 		find $(ROMFSDIR)/lib/modules -type f -name "*o" | xargs -r $(STRIP) -R .comment -R .note -g --strip-unneeded; \
 		env NM=$(CROSS_COMPILE)nm $(ROOTDIR)/user/busybox/depmod.pl -P _ -b $(ROMFSDIR)/lib/modules/ -k $(ROOTDIR)/$(LINUXDIR)/vmlinux; \
+		if [ "$$CONFIG_USER_BUSYBOX_FEATURE_MODPROBE_FANCY_ALIAS" = "y" ]; \
+		then \
+			find $(ROMFSDIR)/lib/modules -type f -name "*o" | \
+			/bin/sh $(ROOTDIR)/tools/modules-alias.sh \
+					$(ROMFSDIR)/etc/modprobe.conf;\
+		fi; \
 	fi
 
 linux_%:
