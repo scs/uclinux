@@ -1,14 +1,17 @@
-VER = dosfstools-2.11
+VER = dosfstools-3.0.2
 
-CFLAGS += -D_FILE_OFFSET_BITS=64
+CPPFLAGS += -D_FILE_OFFSET_BITS=64
 
-all clean:
-ifeq ($(CONFIG_USER_DOSFSTOOLS_MKDOSFS),y)
-	$(MAKE) -C $(VER)/mkdosfs $@
-endif
-ifeq ($(CONFIG_USER_DOSFSTOOLS_DOSFSCK),y)
-	$(MAKE) -C $(VER)/dosfsck $@
-endif
+TARGETS-y :=
+TARGETS-$(CONFIG_USER_DOSFSTOOLS_MKDOSFS) += dosfsck
+TARGETS-$(CONFIG_USER_DOSFSTOOLS_DOSFSCK) += mkdosfs
+
+all:
+	$(MAKE) -C $(VER) OPTFLAGS= $(TARGETS-y)
+
+clean:
+	$(MAKE) -C $(VER) distclean
+	rm -f $(VER)/*.gdb
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_DOSFSTOOLS_MKDOSFS $(VER)/mkdosfs/mkdosfs /sbin/mkdosfs
