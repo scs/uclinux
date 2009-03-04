@@ -378,6 +378,7 @@ dir_$(CONFIG_USER_SSLWRAP_SSLWRAP)          += sslwrap
 dir_$(CONFIG_USER_SQUID_SQUID)              += squid
 dir_$(CONFIG_USER_SQUASHFS_MKSQUASHFS)      += squashfs
 dir_$(CONFIG_USER_SQUASHFS_MKSQUASHFS7Z)    += squashfs
+dir_$(CONFIG_USER_SSCEP)					+= sscep
 dir_$(CONFIG_USER_SSH_SSHD)                 += ssh
 dir_$(CONFIG_USER_SSH_SSH)                  += ssh
 dir_$(CONFIG_USER_SSH_SSHKEYGEN)            += ssh
