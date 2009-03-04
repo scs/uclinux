@@ -11,25 +11,6 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
      return vfork();
  #else
      return fork();
---- a/src/gui/embedded/qscreenlinuxfb_qws.cpp
-+++ b/src/gui/embedded/qscreenlinuxfb_qws.cpp
-@@ -383,10 +383,15 @@ bool QLinuxFbScreen::connect(const QString &displaySpec)
- 
-     mapsize = finfo.smem_len;
- 
-+#if defined(QT_LINUX_NOMMU)
-+# define MMAP_FLAGS MAP_PRIVATE
-+#else
-+# define MMAP_FLAGS MAP_SHARED
-+#endif
-     data = (unsigned char *)-1;
-     if (d_ptr->fd != -1)
-         data = (unsigned char *)mmap(0, mapsize, PROT_READ | PROT_WRITE,
--                                     MAP_SHARED, d_ptr->fd, 0);
-+                                     MMAP_FLAGS, d_ptr->fd, 0);
- 
-     if ((long)data == -1) {
-         if (QApplication::type() == QApplication::GuiServer) {
 --- a/src/gui/painting/qpdf.cpp
 +++ b/src/gui/painting/qpdf.cpp
 @@ -1443,6 +1443,16 @@ static void closeAllOpenFds()

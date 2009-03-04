@@ -1,0 +1,81 @@
+--- a/src/gui/embedded/qscreenlinuxfb_qws.cpp
++++ b/src/gui/embedded/qscreenlinuxfb_qws.cpp
+@@ -391,10 +391,15 @@ bool QLinuxFbScreen::connect(const QString &displaySpec)
+ 
+     mapsize = finfo.smem_len;
+ 
++#if defined(QT_LINUX_NOMMU)
++# define MMAP_FLAGS MAP_PRIVATE
++#else
++# define MMAP_FLAGS MAP_SHARED
++#endif
+     data = (unsigned char *)-1;
+     if (d_ptr->fd != -1)
+         data = (unsigned char *)mmap(0, mapsize, PROT_READ | PROT_WRITE,
+-                                     MAP_SHARED, d_ptr->fd, 0);
++                                     MMAP_FLAGS, d_ptr->fd, 0);
+ 
+     if ((long)data == -1) {
+         if (QApplication::type() == QApplication::GuiServer) {
+--- a/src/3rdparty/webkit/JavaScriptCore/wtf/TCSystemAlloc.cpp
++++ b/src/3rdparty/webkit/JavaScriptCore/wtf/TCSystemAlloc.cpp
+@@ -303,7 +303,7 @@
+     return NULL;
+   }
+   void *result = mmap(0, size + extra, PROT_READ | PROT_WRITE,
+-                      MAP_SHARED, physmem_fd, physmem_base);
++                      MAP_PRIVATE, physmem_fd, physmem_base);
+   if (result == reinterpret_cast<void*>(MAP_FAILED)) {
+     devmem_failure = true;
+     return NULL;
+--- a/src/corelib/io/qfsfileengine_unix.cpp
++++ b/src/corelib/io/qfsfileengine_unix.cpp
+@@ -956,7 +956,7 @@
+     int extra = offset % pagesSize;
+ 
+     void *mapAddress = mmap((void*)0, (size_t)size + extra,
+-                   access, MAP_SHARED, nativeHandle(), realOffset * pagesSize);
++                   access, MAP_PRIVATE, nativeHandle(), realOffset * pagesSize);
+     if (MAP_FAILED != mapAddress) {
+         uchar *address = extra + static_cast<uchar*>(mapAddress);
+         maps[address] = QPair<int,int>(extra, size);
+--- a/src/gui/text/qfontdatabase_qws.cpp
++++ b/src/gui/text/qfontdatabase_qws.cpp
+@@ -130,7 +130,7 @@
+     int f = ::open(file, O_RDONLY);
+     if (f < 0)
+         return;
+-    const uchar *data = (const uchar *)mmap(0, st.st_size, PROT_READ, MAP_SHARED, f, 0);
++    const uchar *data = (const uchar *)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, f, 0);
+     const int dataSize = st.st_size;
+ #else
+     QResource res(QLatin1String(file.constData()));
+--- a/src/gui/text/qfontengine_qpf.cpp
++++ b/src/gui/text/qfontengine_qpf.cpp
+@@ -254,7 +254,7 @@
+ 
+         int fd = ::open(fileName.constData(), O_RDONLY);
+         if (fd >= 0) {
+-            void *header = ::mmap(0, sizeof(QFontEngineQPF::Header), PROT_READ, MAP_SHARED, fd, 0);
++            void *header = ::mmap(0, sizeof(QFontEngineQPF::Header), PROT_READ, MAP_PRIVATE, fd, 0);
+             if (header && header != MAP_FAILED) {
+                 quint32 lockValue = reinterpret_cast<QFontEngineQPF::Header *>(header)->lock;
+ 
+@@ -362,7 +362,7 @@
+     dataSize = st.st_size;
+ 
+ 
+-    fontData = (const uchar *)::mmap(0, st.st_size, PROT_READ | (renderingFontEngine ? PROT_WRITE : 0), MAP_SHARED, fd, 0);
++    fontData = (const uchar *)::mmap(0, st.st_size, PROT_READ | (renderingFontEngine ? PROT_WRITE : 0), MAP_PRIVATE, fd, 0);
+     if (!fontData || fontData == (const uchar *)MAP_FAILED) {
+ #if defined(DEBUG_FONTENGINE)
+         perror("mmap failed");
+@@ -986,7 +986,7 @@
+             qErrnoWarning(status, "QFontEngineQPF::remapFomrData: munmap failed!");
+ 
+         fontData = (const uchar *)::mmap(0, newFileSize, PROT_READ | (renderingFontEngine ? PROT_WRITE : 0),
+-                                         MAP_SHARED, fd, 0);
++                                         MAP_PRIVATE, fd, 0);
+         if (!fontData || fontData == (const uchar *)MAP_FAILED) {
+ #  if defined(DEBUG_FONTENGINE)
+             perror("mmap failed");

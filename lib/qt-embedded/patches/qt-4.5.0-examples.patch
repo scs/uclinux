@@ -1,0 +1,38 @@
+fix error building when some options are different from default
+
+ifdef checks match those found in QDecorationDefault
+
+--- qt-embedded-linux-opensource-src-4.5.0/examples/qws/simpledecoration/main.cpp
++++ qt-embedded-linux-opensource-src-4.5.0/examples/qws/simpledecoration/main.cpp
+@@ -41,6 +41,8 @@
+ 
+ #include <QApplication>
+ #include "analogclock.h"
++#include <QDecorationDefault>
++#if !defined(QT_NO_QWS_DECORATION_DEFAULT) || defined(QT_PLUGIN)
+ #include "mydecoration.h"
+ 
+ //! [create application]
+@@ -58,3 +60,6 @@
+     return app.exec();
+ }
+ //! [start application]
++#else
++int main(){return 0;}
++#endif
+--- qt-embedded-linux-opensource-src-4.5.0/examples/qws/simpledecoration/mydecoration.cpp
++++ qt-embedded-linux-opensource-src-4.5.0/examples/qws/simpledecoration/mydecoration.cpp
+@@ -40,6 +40,8 @@
+ ****************************************************************************/
+ 
+ #include <QtGui>
++#include <QDecorationDefault>
++#if !defined(QT_NO_QWS_DECORATION_DEFAULT) || defined(QT_PLUGIN)
+ #include "mydecoration.h"
+ 
+ /* XPM */
+@@ -373,3 +375,4 @@
+     return handled;
+ }
+ //! [paint end]
++#endif

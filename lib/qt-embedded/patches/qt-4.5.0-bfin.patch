@@ -1,0 +1,79 @@
+http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
+
+--- /dev/null
++++ b/mkspecs/qws/linux-bfin-fdpic-g++/qmake.conf
+@@ -0,0 +1,18 @@
++#
++# qmake configuration for linux-bfin-g++ (FDPIC)
++#
++
++include(../linux-generic-g++/qmake.conf)
++
++QMAKE_CC          = bfin-linux-uclibc-gcc
++QMAKE_CFLAGS     += -DQT_LINUX_NOMMU
++QMAKE_CXX         = bfin-linux-uclibc-g++
++QMAKE_CXXFLAGS   += -DQT_LINUX_NOMMU
++QMAKE_LINK        = bfin-linux-uclibc-g++
++QMAKE_LINK_SHLIB  = bfin-linux-uclibc-g++
++QMAKE_AR          = bfin-linux-uclibc-ar cqs
++QMAKE_RANLIB      = bfin-linux-uclibc-ranlib
++QMAKE_OBJCOPY     = bfin-linux-uclibc-objcopy
++QMAKE_STRIP       = bfin-linux-uclibc-strip
++
++load(qt_config)
+--- /dev/null
++++ b/mkspecs/qws/linux-bfin-fdpic-g++/qplatformdefs.h
+@@ -0,0 +7 @@
++#include "../../linux-g++/qplatformdefs.h"
++
++/* Linux no-mmu cannot do MAP_SHARED */
++#if defined(QT_LINUX_NOMMU)
++# undef MAP_SHARED
++# define MAP_SHARED MAP_PRIVATE
++#endif
+--- /dev/null
++++ b/mkspecs/qws/linux-bfin-flat-g++/qmake.conf
+@@ -0,0 +1,20 @@
++#
++# qmake configuration for linux-bfin-g++ (FLAT)
++#
++
++include(../linux-generic-g++/qmake.conf)
++
++DEFINES          += QT_NO_LIBRARY
++QMAKE_CC          = bfin-uclinux-gcc
++QMAKE_CFLAGS     += -DQT_LINUX_NOMMU -DQT_NO_LIBRARY
++QMAKE_CXX         = bfin-uclinux-g++
++QMAKE_CXXFLAGS   += -DQT_LINUX_NOMMU -DQT_NO_LIBRARY
++QMAKE_LINK        = bfin-uclinux-g++
++QMAKE_LINK_SHLIB  = bfin-uclinux-g++
++QMAKE_LFLAGS     += -elf2flt
++QMAKE_AR          = bfin-uclinux-ar cqs
++QMAKE_RANLIB      = bfin-uclinux-ranlib
++QMAKE_OBJCOPY     = bfin-uclinux-objcopy
++QMAKE_STRIP       = bfin-uclinux-strip
++
++load(qt_config)
+--- /dev/null
++++ b/mkspecs/qws/linux-bfin-flat-g++/qplatformdefs.h
+@@ -0,0 +7 @@
++#include "../../linux-g++/qplatformdefs.h"
++
++/* Linux no-mmu cannot do MAP_SHARED */
++#if defined(QT_LINUX_NOMMU)
++# undef MAP_SHARED
++# define MAP_SHARED MAP_PRIVATE
++#endif
+--- a/src/corelib/io/qfilesystemwatcher_inotify.cpp
++++ b/src/corelib/io/qfilesystemwatcher_inotify.cpp
+@@ -106,6 +106,10 @@
+ # define __NR_inotify_init	240
+ # define __NR_inotify_add_watch	241
+ # define __NR_inotify_rm_watch	242
++#elif defined (__bfin__)
++# define __NR_inotify_init	316
++# define __NR_inotify_add_watch	317
++# define __NR_inotify_rm_watch	318
+ #elif defined (__mc68000__)
+ # define __NR_inotify_init      284
+ # define __NR_inotify_add_watch 285

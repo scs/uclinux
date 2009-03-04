@@ -1,4 +1,4 @@
-VER = qt-embedded-linux-opensource-src-4.4.3
+VER = qt-embedded-linux-opensource-src-4.5.0
 URL = ftp://ftp.trolltech.no/qt/source/$(VER).tar.gz
 
 USE_ECHO = $(shell test "$(CONFIG_$(1))" = "y" && echo "$(2)" || echo "$(3)")
