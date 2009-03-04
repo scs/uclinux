@@ -74,6 +74,8 @@ CONF_OPTS += \
 	$(call USE_ECHO,LIB_QT_QVFB,-qt-kbd-qvfb,-no-kbd-qvfb) \
 	$(call USE_ECHO,VT,-qt-kbd-tty,-no-kbd-tty) \
 	$(call USE_ECHO,USB,-qt-kbd-usb,-no-kbd-usb)
+CONF_OPTS += \
+	$(call USE_ECHO,INPUT_EVDEV,-plugin-kbd-linuxis,)
 
 # vr41xx/yopy - non-Blackfin PDAs
 # linuxtp - old style touchpad (/dev/ts)
@@ -81,6 +83,8 @@ CONF_OPTS += \
 	-no-mouse-bus -no-mouse-linuxtp -no-mouse-vr41xx -no-mouse-yopy \
 	$(call USE_ECHO,LIB_QT_QVFB,-qt-mouse-qvfb,-no-mouse-qvfb) \
 	$(call USE_ECHO,LIB_TSLIB,-qt-mouse-tslib,-no-mouse-tslib)
+CONF_OPTS += \
+	$(call USE_ECHO,INPUT_EVDEV,-plugin-mouse-linuxis,)
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) INSTALL_ROOT=$(STAGEDIR) install
