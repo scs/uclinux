@@ -265,7 +265,7 @@ config USER_AWG
 config USER_BLACKFIN_PPIFCDCGI
 	bool "CGI based Test Application for the PPI Frame Capture Driver"
 
-config USER_BLACKFIN_LINPHONE
+config USER_LINPHONE
 	bool "Linphone, a SIP compatible VoIP phone"
 	select LIB_SPEEX
 	select LIB_OSIP2
@@ -273,9 +273,9 @@ config USER_BLACKFIN_LINPHONE
 	select LIB_READLINE
 	select LIB_NCURSES
 	select LIB_ALSA_LIB
-config USER_BFIN_LINPHONE_VIDEO
+config USER_LINPHONE_VIDEO
 	bool "Enable video"
-	depends on USER_BLACKFIN_LINPHONE
+	depends on USER_LINPHONE
 	select LIB_LIBSDL
 	select LIB_FFMPEG
 

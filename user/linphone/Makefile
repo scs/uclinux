@@ -12,7 +12,7 @@ CONF_OPTS = \
 	--disable-shared \
 	--enable-static \
 	--with-osip=$(STAGEDIR)/usr \
-	$(call USE_ENABLE,USER_BFIN_LINPHONE_VIDEO,video)
+	$(call USE_ENABLE,USER_LINPHONE_VIDEO,video)
 
 # Don't require the intltool utils since we aren't going to actually
 # run them -- they're required in maintainer mode (linphone dev)
