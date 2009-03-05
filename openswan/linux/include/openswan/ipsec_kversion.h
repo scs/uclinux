@@ -167,7 +167,7 @@
  */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 # ifndef module_param
-# define module_param(a,b,c)  MODULE_PARM(#a,"i")
+#  define module_param(a,b,c)  MODULE_PARM(#a,"i")
 # endif
 /* note below is only true for our current calls to module_param_array */
 # define module_param_array(a,b,c,d)  MODULE_PARM(#a,"1-2i")
@@ -265,19 +265,26 @@
 # define grab_socket_timeval(tv, sock)  { (tv) = ktime_to_timeval((sock).sk_stamp); }
 #else
 # define grab_socket_timeval(tv, sock)  { (tv) = (sock).sk_stamp; }
+
 /* internals of struct skbuff changed */
-# define        HAVE_DEV_NEXT
-# define ip_hdr(skb)  ((skb)->nh.iph)
-# define skb_tail_pointer(skb)  ((skb)->tail)
-# define skb_end_pointer(skb)  ((skb)->end)
-# define skb_network_header(skb)  ((skb)->nh.raw)
-# define skb_set_network_header(skb,off)  ((skb)->nh.raw = (skb)->data + (off))
-# define tcp_hdr(skb)  ((skb)->h.th)
-# define udp_hdr(skb)  ((skb)->h.uh)
-# define skb_transport_header(skb)  ((skb)->h.raw)
-# define skb_set_transport_header(skb,off)  ((skb)->h.raw = (skb)->data + (off))
-# define skb_mac_header(skb)  ((skb)->mac.raw)
-# define skb_set_mac_header(skb,off)  ((skb)->mac.raw = (skb)->data + (off))
+/* but RedHat ported some of this back to their RHEL kernel, so check for that */
+# if !defined(RHEL_MAJOR) || !defined(RHEL_MINOR) || !(RHEL_MAJOR == 5 && RHEL_MINOR == 2)
+#  define        HAVE_DEV_NEXT
+#  define ip_hdr(skb)  ((skb)->nh.iph)
+#  define skb_tail_pointer(skb)  ((skb)->tail)
+#  define skb_end_pointer(skb)  ((skb)->end)
+#  define skb_network_header(skb)  ((skb)->nh.raw)
+#  define skb_set_network_header(skb,off)  ((skb)->nh.raw = (skb)->data + (off))
+#  define tcp_hdr(skb)  ((skb)->h.th)
+#  define udp_hdr(skb)  ((skb)->h.uh)
+#  define skb_transport_header(skb)  ((skb)->h.raw)
+#  define skb_set_transport_header(skb,off)  ((skb)->h.raw = (skb)->data + (off))
+#  define skb_mac_header(skb)  ((skb)->mac.raw)
+#  define skb_set_mac_header(skb,off)  ((skb)->mac.raw = (skb)->data + (off))
+# endif
+# if defined(CONFIG_SLE_VERSION) && defined(CONFIG_SLE_SP) && (CONFIG_SLE_VERSION == 10 && CONFIG_SLE_SP >= 2)
+# define ip_hdr(skb) ((skb)->nh.iph)
+# endif
 #endif
 /* turn a pointer into an offset for above macros */
 #define ipsec_skb_offset(skb, ptr) (((unsigned char *)(ptr)) - (skb)->data)
@@ -322,7 +329,7 @@
 
 # define        PROC_NET        proc_net
 
-# define ipsec_dev_get(x) __dev_get_by_name(x)
+# define ipsec_dev_get(x) dev_get_by_name(x)
 # define __ipsec_dev_get(x) __dev_get_by_name(x)
 #endif
 

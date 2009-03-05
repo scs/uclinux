@@ -231,6 +231,14 @@ ikev2_parent_outI1_continue(struct pluto_crypto_req_cont *pcrc
     DBG(DBG_CONTROLMORE
 	, DBG_log("ikev2 parent outI1: calculated ke+nonce, sending I1"));
   
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (ke->md)
+	    release_md(ke->md);
+	return;
+    }
+
     /* XXX should check out ugh */
     passert(ugh == NULL);
     passert(cur_state == NULL);
@@ -328,7 +336,7 @@ ikev2_parent_outI1_common(struct msg_digest *md
     int numvidtosend = 1;  /* we always send Openswan VID */
 
     /* set up reply */
-    init_pbs(&md->reply, reply_buffer, sizeof(reply_buffer), "reply packet");
+    init_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer), "reply packet");
 
     /* HDR out */
     {
@@ -345,7 +353,7 @@ ikev2_parent_outI1_common(struct msg_digest *md
 	memcpy(hdr.isa_icookie, st->st_icookie, COOKIE_SIZE);
 	/* R-cookie, are left zero */
 
-	if (!out_struct(&hdr, &isakmp_hdr_desc, &md->reply, &md->rbody))
+	if (!out_struct(&hdr, &isakmp_hdr_desc, &reply_stream, &md->rbody))
 	{
 	    reset_cur_state();
 	    return STF_INTERNAL_ERROR;
@@ -423,19 +431,19 @@ ikev2_parent_outI1_common(struct msg_digest *md
     }
 
     close_message(&md->rbody);
-    close_output_pbs(&md->reply);
+    close_output_pbs(&reply_stream);
 
     /* let TCL hack it before we mark the length and copy it */
     TCLCALLOUT("v2_avoidEmitting", st, st->st_connection, md);
 
     freeanychunk(st->st_tpacket);
-    clonetochunk(st->st_tpacket, md->reply.start, pbs_offset(&md->reply)
+    clonetochunk(st->st_tpacket, reply_stream.start, pbs_offset(&reply_stream)
 		 , "reply packet for ikev2_parent_outI1_tail");
 
     /* save packet for later signing */
     freeanychunk(st->st_firstpacket_me);
-    clonetochunk(st->st_firstpacket_me, md->reply.start
-		 , pbs_offset(&md->reply), "saved first packet");
+    clonetochunk(st->st_firstpacket_me, reply_stream.start
+		 , pbs_offset(&reply_stream), "saved first packet");
 
     /* Transmit */
     send_packet(st, __FUNCTION__, TRUE);
@@ -642,6 +650,14 @@ ikev2_parent_inI1outR1_continue(struct pluto_crypto_req_cont *pcrc
     DBG(DBG_CONTROLMORE
 	, DBG_log("ikev2 parent inI1outR1: calculated ke+nonce, sending R1"));
   
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (ke->md)
+	    release_md(ke->md);
+	return;
+    }
+
     /* XXX should check out ugh */
     passert(ugh == NULL);
     passert(cur_state == NULL);
@@ -693,7 +709,7 @@ ikev2_parent_inI1outR1_tail(struct pluto_crypto_req_cont *pcrc
 	r_hdr.isa_np = ISAKMP_NEXT_v2SA;
 	r_hdr.isa_flags &= ~ISAKMP_FLAGS_I;
 	r_hdr.isa_flags |=  ISAKMP_FLAGS_R;
-	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &md->reply, &md->rbody))
+	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &reply_stream, &md->rbody))
 	    return STF_INTERNAL_ERROR;
     }
 
@@ -753,20 +769,20 @@ ikev2_parent_inI1outR1_tail(struct pluto_crypto_req_cont *pcrc
     }
 
     close_message(&md->rbody);
-    close_output_pbs(&md->reply);
+    close_output_pbs(&reply_stream);
 
     /* let TCL hack it before we mark the length. */
     TCLCALLOUT("v2_avoidEmitting", st, st->st_connection, md);
 
     /* keep it for a retransmit if necessary */
     freeanychunk(st->st_tpacket);
-    clonetochunk(st->st_tpacket, md->reply.start, pbs_offset(&md->reply)
+    clonetochunk(st->st_tpacket, reply_stream.start, pbs_offset(&reply_stream)
 		 , "reply packet for ikev2_parent_inI1outR1_tail")
 
     /* save packet for later signing */
     freeanychunk(st->st_firstpacket_me);
-    clonetochunk(st->st_firstpacket_me, md->reply.start
-		 , pbs_offset(&md->reply), "saved first packet");
+    clonetochunk(st->st_firstpacket_me, reply_stream.start
+		 , pbs_offset(&reply_stream), "saved first packet");
 
     /* note: retransimission is driven by initiator */
 
@@ -910,6 +926,14 @@ ikev2_parent_inR1outI2_continue(struct pluto_crypto_req_cont *pcrc
     DBG(DBG_CONTROLMORE
 	, DBG_log("ikev2 parent inR1outI1: calculating g^{xy}, sending I2"));
   
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (dh->md)
+	    release_md(dh->md);
+	return;
+    }
+
     /* XXX should check out ugh */
     passert(ugh == NULL);
     passert(cur_state == NULL);
@@ -1224,7 +1248,7 @@ ikev2_parent_inR1outI2_tail(struct pluto_crypto_req_cont *pcrc
 		 , pbs_offset(&md->message_pbs), "saved first received packet");
 
     /* beginning of data going out */
-    authstart = md->reply.cur;
+    authstart = reply_stream.cur;
 
     /* HDR out */
     {
@@ -1236,7 +1260,7 @@ ikev2_parent_inR1outI2_tail(struct pluto_crypto_req_cont *pcrc
 	r_hdr.isa_msgid = st->st_msgid;  
 	memcpy(r_hdr.isa_icookie, st->st_icookie, COOKIE_SIZE);
 	memcpy(r_hdr.isa_rcookie, st->st_rcookie, COOKIE_SIZE);
-	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &md->reply, &md->rbody))
+	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &reply_stream, &md->rbody))
 	    return STF_INTERNAL_ERROR;
     }
 
@@ -1360,7 +1384,7 @@ ikev2_parent_inR1outI2_tail(struct pluto_crypto_req_cont *pcrc
 
 	close_output_pbs(&e_pbs);
 	close_output_pbs(&md->rbody);
-	close_output_pbs(&md->reply);
+	close_output_pbs(&reply_stream);
 
 	ret = ikev2_encrypt_msg(md, INITIATOR,
 				authstart,
@@ -1377,7 +1401,7 @@ ikev2_parent_inR1outI2_tail(struct pluto_crypto_req_cont *pcrc
      * we never do that, but send_packet() uses it.
      */
     freeanychunk(pst->st_tpacket);
-    clonetochunk(pst->st_tpacket, md->reply.start, pbs_offset(&md->reply)
+    clonetochunk(pst->st_tpacket, reply_stream.start, pbs_offset(&reply_stream)
 		 , "reply packet for ikev2_parent_outI1");
 
     /*
@@ -1461,6 +1485,14 @@ ikev2_parent_inI2outR2_continue(struct pluto_crypto_req_cont *pcrc
     DBG(DBG_CONTROLMORE
 	, DBG_log("ikev2 parent inI2outR2: calculating g^{xy}, sending R2"));
   
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (dh->md)
+	    release_md(dh->md);
+	return;
+    }
+
     /* XXX should check out ugh */
     passert(ugh == NULL);
     passert(cur_state == NULL);
@@ -1606,7 +1638,7 @@ ikev2_parent_inI2outR2_tail(struct pluto_crypto_req_cont *pcrc
     change_state(st, STATE_PARENT_R2);
     c->newest_isakmp_sa = st->st_serialno;
     
-    authstart = md->reply.cur;
+    authstart = reply_stream.cur;
     /* send response */
     {
 	unsigned char *encstart;
@@ -1626,7 +1658,7 @@ ikev2_parent_inI2outR2_tail(struct pluto_crypto_req_cont *pcrc
 	    r_hdr.isa_flags = ISAKMP_FLAGS_R;
 	    memcpy(r_hdr.isa_icookie, st->st_icookie, COOKIE_SIZE);
 	    memcpy(r_hdr.isa_rcookie, st->st_rcookie, COOKIE_SIZE);
-	    if (!out_struct(&r_hdr, &isakmp_hdr_desc, &md->reply, &md->rbody))
+	    if (!out_struct(&r_hdr, &isakmp_hdr_desc, &reply_stream, &md->rbody))
 		return STF_INTERNAL_ERROR;
 	}
 	
@@ -1750,7 +1782,7 @@ ikev2_parent_inI2outR2_tail(struct pluto_crypto_req_cont *pcrc
 	    close_output_pbs(&e_pbs);
 
 	    close_output_pbs(&md->rbody);
-	    close_output_pbs(&md->reply);
+	    close_output_pbs(&reply_stream);
 
 	    ret = ikev2_encrypt_msg(md, RESPONDER,
 				    authstart, 
@@ -1766,7 +1798,7 @@ ikev2_parent_inI2outR2_tail(struct pluto_crypto_req_cont *pcrc
 
     /* keep it for a retransmit if necessary */
     freeanychunk(st->st_tpacket);
-    clonetochunk(st->st_tpacket, md->reply.start, pbs_offset(&md->reply)
+    clonetochunk(st->st_tpacket, reply_stream.start, pbs_offset(&reply_stream)
 		 , "reply packet for ikev2_parent_inI2outR2_tail");
 
     /* note: retransimission is driven by initiator */

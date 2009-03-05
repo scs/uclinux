@@ -265,6 +265,14 @@ struct state
     u_int16_t          st_peeruserport;
 
     /* end of symmetric stuff */
+
+    /* Support quirky feature of Phase 1 ID payload for peer
+     * We don't support this wart for ourselves.
+     * Currently used in Aggressive mode for interop.
+     */
+    u_int8_t           st_peeridentity_protocol;
+    u_int16_t          st_peeridentity_port;
+
     u_int8_t           st_sec_in_use;      /* bool: does st_sec hold a value */
     MP_INT             st_sec;             /* Our local secret value */
     chunk_t            st_sec_chunk;       /* copy of above */
@@ -412,10 +420,6 @@ extern void show_states_status(void);
 void for_each_state(void *(f)(struct state *, void *data), void *data);
 #endif
 
-#if 1
-void for_each_state(void *(f)(struct state *, void *data), void *data);
-#endif
-
 extern void find_my_cpi_gap(cpi_t *latest_cpi, cpi_t *first_busy_cpi);
 extern ipsec_spi_t uniquify_his_cpi(ipsec_spi_t cpi, struct state *st);
 extern void fmt_state(struct state *st, time_t n
@@ -436,6 +440,7 @@ extern void delete_states_dead_interfaces(void);
  */
 #ifdef HAVE_STATSD
 #define refresh_state(st) log_state(st, st->st_state)
+#define fake_state(st,new_state) log_state(st, new_state)
 #define change_state(st,new_state) \
 	do { \
 		if ((new_state) != (st)->st_state) { \
@@ -445,6 +450,7 @@ extern void delete_states_dead_interfaces(void);
 	   } while(0)
 #else
 #define refresh_state(st) /* do nothing */
+#define fake_state(st,new_state) /* do nothing */
 #define change_state(st, new_state) do { (st)->st_state=(new_state); } while(0)
 #endif
 

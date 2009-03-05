@@ -63,14 +63,6 @@
 #include "plutocerts.h"
 #include "x509more.h"
 
-#ifdef HAVE_OCF
-#include "ocf_pk.h"
-#endif
-
-#ifdef HAVE_OCF_AND_OPENSSL
-#include "ocf_cryptodev.h"
-#endif
-
 /* chained lists of X.509 host/user and ca certificates and crls */
 
 static x509cert_t *x509certs   = NULL;
@@ -412,7 +404,7 @@ insert_crl(chunk_t blob, chunk_t crl_uri)
     }
     else
     {
-	openswan_log("  error in X.509 crl");
+	openswan_log("  error in X.509 crl %s", (char *)crl_uri.ptr);
 	free_crl(crl);
 	return FALSE;
     }
@@ -432,7 +424,7 @@ load_crls(void)
 
     /* change directory to specified path */
     save_dir = getcwd(buf, PATH_MAX);
-    if (chdir(oco->crls_dir))
+    if (chdir(oco->crls_dir) == -1)
     {
 	openswan_log("Could not change to directory '%s'", oco->crls_dir);
     }
@@ -472,7 +464,7 @@ load_crls(void)
 	}
     }
     /* restore directory path */
-    if(!chdir(save_dir)) {
+    if(chdir(save_dir) == -1) {
         int e = errno;
         openswan_log("Changing back to directory '%s' failed - (%d %s)",
                 save_dir, e, strerror(e));

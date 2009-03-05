@@ -62,7 +62,11 @@ static void default_values (struct starter_config *cfg)
 	cfg->setup.options[KBF_HIDETOS]  = TRUE;
 	cfg->setup.options[KBF_PLUTORESTARTONCRASH]  = TRUE;
 	cfg->setup.options[KBF_UNIQUEIDS]= TRUE;
+#ifdef NAT_TRAVERSAL
 	cfg->setup.options[KBF_DISABLEPORTFLOATING]= FALSE;
+	cfg->setup.options[KBF_FORCE_KEEPALIVE]= FALSE;
+	cfg->setup.options[KBF_KEEPALIVE]= 0;
+#endif
 	cfg->conn_default.options[KBF_TYPE] = KS_TUNNEL;
 
 	cfg->conn_default.policy = POLICY_RSASIG|POLICY_TUNNEL|POLICY_ENCRYPT|POLICY_PFS;
@@ -132,6 +136,14 @@ int error_append(char **perr, const char *fmt, ...)
 
 #define KW_POLICY_FLAG(val,fl) if(conn->options_set[val]) \
         { if(conn->options[val]) \
+	  { \
+	    conn->policy |= fl; \
+	  } else { \
+	    conn->policy &= ~fl;\
+	  }}
+
+#define KW_POLICY_NEGATIVE_FLAG(val,fl) if(conn->options_set[val]) \
+        { if(!conn->options[val]) \
 	  { \
 	    conn->policy |= fl; \
 	  } else { \
@@ -968,7 +980,7 @@ static int load_conn (struct starter_config *cfg
 #endif
     }
     
-    KW_POLICY_FLAG(KBF_REKEY, POLICY_DONT_REKEY);
+    KW_POLICY_NEGATIVE_FLAG(KBF_REKEY, POLICY_DONT_REKEY);
 
     KW_POLICY_FLAG(KBF_AGGRMODE, POLICY_AGGRESSIVE);
 

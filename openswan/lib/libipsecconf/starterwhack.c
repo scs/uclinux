@@ -469,6 +469,8 @@ static int starter_whack_basic_add_conn(struct starter_config *cfg
 
 	msg.connalias = conn->connalias;
 
+	msg.metric = conn->options[KBF_METRIC];
+
 	if(conn->options_set[KBF_DPDDELAY] &&
 	   conn->options_set[KBF_DPDTIMEOUT]) {
 		msg.dpd_delay   = conn->options[KBF_DPDDELAY];
@@ -493,10 +495,11 @@ static int starter_whack_basic_add_conn(struct starter_config *cfg
 				    , conn->name);
 		}
 	}
-
+#ifdef NAT_TRAVERSAL
 	if(conn->options_set[KBF_FORCEENCAP]) {
 		msg.forceencaps=conn->options[KBF_FORCEENCAP];
 	}
+#endif
 
 	set_whack_end(cfg, "left",  &msg.left, &conn->left);
 	set_whack_end(cfg, "right", &msg.right, &conn->right);

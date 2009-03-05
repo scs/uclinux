@@ -50,7 +50,7 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 #ifdef NET_26
-#include <net/xfrm.h>
+# include <net/xfrm.h>
 #endif
 #include <linux/skbuff.h>
 #include <openswan.h>
@@ -223,7 +223,6 @@ static inline void ipsec_rcv_redodebug(struct ipsec_rcv_state *irs)
 }
 
 
-#ifdef CONFIG_KLIPS_DEBUG
 DEBUG_NO_STATIC char *
 ipsec_rcv_err(int err)
 {
@@ -254,7 +253,6 @@ ipsec_rcv_err(int err)
 	snprintf(tmp, sizeof(tmp), "%d", err);
 	return tmp;
 }
-#endif
 
 /*
  * here is a state machine to handle receiving ipsec packets.
@@ -459,12 +457,15 @@ void ip_cmsg_recv_ipsec(struct msghdr *msg, struct sk_buff *skb)
 	if(sa1) {
 		refs[1]= sa1->ips_refhim;
 	} else {
-		refs[1]= NULL;
+		refs[1]= 0;
 	}
 	refs[0]=sp->ref;
 
 	put_cmsg(msg, SOL_IP, IP_IPSEC_REFINFO,
 		 sizeof(xfrm_sec_unique_t)*2, &refs);
+	if(sa1) {
+		ipsec_sa_put(sa1);
+	}
 }
 #endif
 
@@ -501,7 +502,10 @@ ipsec_rcv_decap_ipip(struct ipsec_rcv_state *irs)
 	ipp  = irs->ipp;
 	ipsp = irs->ipsp;
 	skb  = irs->skb;
-	irs->sa_len = satot(&irs->said, 0, irs->sa, sizeof(irs->sa));
+	if (debug_rcv)
+		irs->sa_len = satot(&irs->said, 0, irs->sa, sizeof(irs->sa));
+	else
+		irs->sa_len = 0;
 	if((ipp->protocol != IPPROTO_IPIP) && 
 	   (ipp->protocol != IPPROTO_ATT_HEARTBEAT)) {  /* AT&T heartbeats to SIG/GIG */
 		KLIPS_PRINT(debug_rcv,
@@ -680,9 +684,7 @@ rcvleave:
 static enum ipsec_rcv_value
 ipsec_rcv_init(struct ipsec_rcv_state *irs)
 {
-#ifdef CONFIG_KLIPS_DEBUG
 	struct net_device *dev;
-#endif /* CONFIG_KLIPS_DEBUG */
 	unsigned char protoc;
 	struct iphdr *ipp;
 	struct net_device_stats *stats = NULL;		/* This device's statistics */
@@ -1113,7 +1115,7 @@ ipsec_rcv_auth_decap(struct ipsec_rcv_state *irs)
 			irs->ipsp=newipsp;
 
 			/* come back into here with the next transform */
-			irs->next_state = IPSEC_RSM_AUTH_DECAP;
+			irs->next_state = IPSEC_RSM_DECAP_INIT;
 			return IPSEC_RCV_OK;
 		}
 
@@ -1575,20 +1577,6 @@ ipsec_rcv_decap_cont(struct ipsec_rcv_state *irs)
 	}
 #endif /* CONFIG_NETFILTER */
 
-	/* okay, acted on this SA, so free any previous SA, and record a new one */
-	if(irs->ipsp) {
-		struct ipsec_sa *newipsp;
-		newipsp = irs->ipsp->ips_next;
-		if(newipsp) {
-			ipsec_sa_get(newipsp);
-		}
-		if(irs->lastipsp) {
-			ipsec_sa_put(irs->lastipsp);
-		}
-		irs->lastipsp = irs->ipsp;
-		irs->ipsp=newipsp;
-	}
-
 	/* do we need to do more decapsulation */
 	if ((irs->ipp->protocol == IPPROTO_ESP ||
 			irs->ipp->protocol == IPPROTO_AH ||
@@ -1596,7 +1584,7 @@ ipsec_rcv_decap_cont(struct ipsec_rcv_state *irs)
 			irs->ipp->protocol == IPPROTO_COMP ||
 #endif /* CONFIG_KLIPS_IPCOMP */
 			0) && irs->ipsp != NULL) {
-		irs->next_state = IPSEC_RSM_AUTH_DECAP;
+		irs->next_state = IPSEC_RSM_DECAP_INIT;
 	}
 	return IPSEC_RCV_OK;
 }
@@ -1612,15 +1600,29 @@ ipsec_rcv_cleanup(struct ipsec_rcv_state *irs)
 	KLIPS_PRINT(debug_rcv, "klips_debug: %s(st=%d,nxt=%d)\n", __FUNCTION__,
 			irs->state, irs->next_state);
 
+	/* okay, acted on all SA's, so free the last SA, and move to the next */
+	if(irs->ipsp) {
+		struct ipsec_sa *newipsp;
+		newipsp = irs->ipsp->ips_next;
+		if(newipsp) {
+			ipsec_sa_get(newipsp);
+		}
+		if(irs->lastipsp) {
+			ipsec_sa_put(irs->lastipsp);
+		}
+		irs->lastipsp = irs->ipsp;
+		irs->ipsp=newipsp;
+	}
+
 	/* set up for decap loop */
 	ipp  = irs->ipp;
 	ipsp = irs->ipsp;
 	skb = irs->skb;
 
+#ifdef CONFIG_KLIPS_IPCOMP
 	/* if there is an IPCOMP, but we don't have an IPPROTO_COMP,
 	 * then we can just skip it
 	 */
-#ifdef CONFIG_KLIPS_IPCOMP
 	if(irs->ipsp && irs->ipsp->ips_said.proto == IPPROTO_COMP) {
 		struct ipsec_sa *newipsp = NULL;
 		newipsp = irs->ipsp->ips_next;
@@ -1632,6 +1634,7 @@ ipsec_rcv_cleanup(struct ipsec_rcv_state *irs)
 		}
 		irs->lastipsp = irs->ipsp;
 		irs->ipsp=newipsp;
+		irs->sa_len = 0;
 	}
 #endif /* CONFIG_KLIPS_IPCOMP */
 
@@ -1946,6 +1949,10 @@ int klips26_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 int klips26_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 {
 	struct ipsec_rcv_state *irs = NULL;
+	char name[IFNAMSIZ];
+	struct net_device *ipsecdev = NULL, *prvdev = NULL;
+	struct ipsecpriv *prv = NULL;
+	int i;
 
 	/* Don't unlink in the middle of a turnaround */
 	KLIPS_INC_USE;
@@ -1972,13 +1979,36 @@ int klips26_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 		goto rcvleave;
 	}
 
-	/* XXX fudge it so that all nat-t stuff comes from ipsec0    */
-	/*     eventually, the SA itself will determine which device
-	 *     it comes from
-	 */ 
-	{
-	  skb->dev = ipsec_get_device(0);
-	}
+	if(skb->dev)
+	  {
+	   KLIPS_PRINT(debug_rcv, "klips_debug:klips26_rcv_encap: <<< Info -- ");
+	   KLIPS_PRINTMORE(debug_rcv, "skb->dev=%s ",
+		skb->dev->name ? skb->dev->name : "NULL");
+	   KLIPS_PRINTMORE(debug_rcv, "\n");
+
+	   if(skb->dev->name) 
+	     {
+		for(i = 0; i < IPSEC_NUM_IF; i++) 
+		   {
+		    snprintf(name, IFNAMSIZ, IPSEC_DEV_FORMAT, i);
+		    ipsecdev = __ipsec_dev_get(name);
+		    prv = ipsecdev ? (struct ipsecpriv *)(ipsecdev->priv) : NULL;
+		    prvdev = prv ? (struct net_device *)(prv->dev) : NULL;
+		    if(prvdev && !strncmp(prvdev->name, skb->dev->name, IFNAMSIZ))
+			{
+			 skb->dev = ipsecdev;
+			 KLIPS_PRINT(debug_rcv && prvdev, "klips_debug:klips26_rcv_encap: "
+			    "assigning packet ownership to virtual device %s from physical device %s.\n",
+			    name, prvdev->name);
+			  break;
+			}
+		   }
+	     }
+	  } else {
+		   KLIPS_PRINT(debug_rcv, "klips_debug:klips26_rcv_encap: "
+			"device supplied with skb is NULL\n");
+		 }
+
 	irs->hard_header_len = skb->dev->hard_header_len;
 
 #ifdef CONFIG_IPSEC_NAT_TRAVERSAL

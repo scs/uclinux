@@ -52,15 +52,11 @@
 #include "rnd.h"
 #include "pluto_crypt.h"
 
-#ifdef HAVE_OCF
-#include "id.h"
-#include "pgp.h"
-#include "x509.h"
-#include "certs.h"
-#include "keys.h"
-#include "ocf_pk.h"
+#ifdef HAVE_LIBNSS
+#include <nss.h>
 #endif
 
+#include "oswcrypto.h"
 #include "osw_select.h"
 
 TAILQ_HEAD(req_queue, pluto_crypto_req_cont);
@@ -174,7 +170,7 @@ helper_passert_fail(const char *pred_str
 	loglog(RC_LOG_SERIOUS,"pluto: chdir() to 'helper' failed (%d %s)\n",
                     e, strerror(e));
     }
-    abort();
+    osw_abort();
 }
 
 
@@ -378,6 +374,12 @@ err_t send_crypto_helper_request(struct pluto_crypto_req *r
 	/* copy the request */
 	r = clone_bytes(r, r->pcr_len, "saved cryptorequest");
 	cn->pcrc_pcr = r;
+
+	cn->pcrc_reply_stream = reply_stream;
+	if (pbs_offset(&reply_stream)) {
+	    cn->pcrc_reply_buffer = clone_bytes(reply_stream.start
+		    , pbs_offset(&reply_stream), "saved reply buffer");
+	}
 	
 	backlogqueue_len++;
 	DBG(DBG_CONTROL
@@ -414,10 +416,18 @@ err_t send_crypto_helper_request(struct pluto_crypto_req *r
     passert(w->pcw_pid != -1);
     passert(w->pcw_pipe != -1);
     passert(w->pcw_work < w->pcw_maxcritwork);
+
+    cn->pcrc_reply_stream = reply_stream;
+    if (pbs_offset(&reply_stream))
+	cn->pcrc_reply_buffer = clone_bytes(reply_stream.start
+		, pbs_offset(&reply_stream), "saved reply buffer");
     
     if(!crypto_write_request(w, r)) {
 	openswan_log("failed to write crypto request: %s\n",
 		     strerror(errno));
+	if (pbs_offset(&cn->pcrc_reply_stream))
+	    pfree(cn->pcrc_reply_buffer);
+	cn->pcrc_reply_buffer = NULL;
 	return "failed to write";
     }
 	
@@ -456,6 +466,9 @@ static void crypto_send_backlog(struct pluto_crypto_worker *w)
 		    , DBG_log("found only a dead helper, and failed to restart it"));
 		/* XXX invoke callback with failure */
 		passert(0);
+		if (pbs_offset(&cn->pcrc_reply_stream))
+		    pfree(cn->pcrc_reply_buffer);
+		cn->pcrc_reply_buffer = NULL;
 		return;
 	    }
 	}
@@ -471,11 +484,15 @@ static void crypto_send_backlog(struct pluto_crypto_worker *w)
 	if(!crypto_write_request(w, r)) {
 	    /* XXX invoke callback with failure */
 	    passert(0);
+	    if (pbs_offset(&cn->pcrc_reply_stream))
+		pfree(cn->pcrc_reply_buffer);
+	    cn->pcrc_reply_buffer = NULL;
 	    return;
 	} 
 
 	/* if it was on the backlog, it was saved, free it */
 	pfree(r);
+	cn->pcrc_pcr = NULL;
 	
 	w->pcw_work++;
     }
@@ -501,10 +518,37 @@ bool pluto_crypt_handle_dead_child(int pid, int status)
 
 /*
  * look for any states attaches to continuations
+ * also check the backlog
  */
 void delete_cryptographic_continuation(struct state *st)
 {
     int i;
+
+    if(backlogqueue_len > 0) {
+	struct pluto_crypto_req_cont *cn;
+	struct pluto_crypto_req *r;
+
+	passert(backlog.tqh_first != NULL);
+
+	for(cn = backlog.tqh_first;
+	    cn!=NULL && st->st_serialno != cn->pcrc_serialno;
+	    cn = cn->pcrc_list.tqe_next);
+		
+	if(cn != NULL) {
+	    TAILQ_REMOVE(&backlog, cn, pcrc_list);
+	    backlogqueue_len--;
+	    r = cn->pcrc_pcr;
+	    DBG(DBG_CONTROL
+		, DBG_log("removing deleted backlog item id: q#%u from queue: %d left"
+			  , r->pcr_id, backlogqueue_len));
+	    /* if it was on the backlog, it was saved, free it */
+	    pfree(r);
+	    cn->pcrc_pcr = NULL;
+	    if (pbs_offset(&cn->pcrc_reply_stream))
+		pfree(cn->pcrc_reply_buffer);
+	    cn->pcrc_reply_buffer = NULL;
+	}
+    }
 
     for(i=0; i<pc_workers_cnt; i++) {
 	struct pluto_crypto_worker *w = &pc_workers[i];
@@ -520,6 +564,9 @@ void delete_cryptographic_continuation(struct state *st)
 
 	/* unlink it, and free it */
 	TAILQ_REMOVE(&w->pcw_active, cn, pcrc_list);
+	if (pbs_offset(&cn->pcrc_reply_stream))
+	    pfree(cn->pcrc_reply_buffer);
+	cn->pcrc_reply_buffer = NULL;
  
 	if(cn->pcrc_free) {
 	    /*
@@ -560,6 +607,7 @@ void handle_helper_comm(struct pluto_crypto_worker *w)
 		  ,w->pcw_work));
 
     /* read from the pipe */
+    memset(reqbuf, 0, sizeof(reqbuf));
     actlen = read(w->pcw_pipe, (char *)reqbuf, sizeof(r->pcr_len));
 
     if(actlen != sizeof(r->pcr_len)) {
@@ -645,7 +693,17 @@ void handle_helper_comm(struct pluto_crypto_worker *w)
     DBG(DBG_CRYPT, DBG_log("calling callback function %p"
 			   ,cn->pcrc_func));
 
+    reply_stream = cn->pcrc_reply_stream;
+    if (pbs_offset(&reply_stream)) {
+	memcpy(reply_stream.start, cn->pcrc_reply_buffer
+		, pbs_offset(&reply_stream));
+	pfree(cn->pcrc_reply_buffer);
+    }
+    cn->pcrc_reply_buffer = NULL;
+
     /* call the continuation */
+    cn->pcrc_pcr = r;
+    reset_cur_state();
     (*cn->pcrc_func)(cn, r, NULL);
 
     /* now free up the continuation */
@@ -728,7 +786,7 @@ static void init_crypto_helper(struct pluto_crypto_worker *w, int n)
 			, pluto_ifn_inst, n);
 
 	if(getenv("PLUTO_CRYPTO_HELPER_DEBUG")) {
-	    sprintf(global_argv[0], arg_len,
+	    snprintf(global_argv[0], arg_len,
 	    	    "pluto helper %s #%3d (waiting for GDB) ",
 		    pluto_ifn_inst, n);
 	    sleep(60); /* for debugger to attach */
@@ -748,15 +806,28 @@ static void init_crypto_helper(struct pluto_crypto_worker *w, int n)
 	}
 	
 	pluto_init_log();
-	init_rnd_pool();
-#ifdef HAVE_OCF
-	load_cryptodev();
+
+
+#if defined(HAVE_LIBNSS)
+       NSS_Shutdown();
+       SECStatus nss_init_status= NSS_NoDB_Init(".");
+       if (nss_init_status != SECSuccess)
+       {
+       loglog(RC_LOG_SERIOUS, "NSS initialization failed in crypto helper(err %d)\n", PR_GetError());
+       }
 #endif
+
+	init_rnd_pool();
+	load_oswcrypto();
 	free_preshared_secrets();
 	openswan_passert_fail = helper_passert_fail;
 	debug_prefix='!';
 
 	pluto_crypto_helper(fds[1], n);
+
+#if defined(HAVE_LIBNSS)
+      NSS_Shutdown();
+#endif
 	exit(0);
 	/* NOTREACHED */
     }

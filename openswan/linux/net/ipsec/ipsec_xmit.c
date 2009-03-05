@@ -133,12 +133,7 @@ static __u32 zeroes[64];
 int ipsec_xmit_trap_count = 0;
 int ipsec_xmit_trap_sendcount = 0;
 
-#ifdef CONFIG_KLIPS_DEBUG
 #define dmp(_x,_y,_z) if(debug_xmit && sysctl_ipsec_debug_verbose) ipsec_dmp_block(_x,_y,_z)
-#else /* CONFIG_KLIPS_DEBUG */
-#define dmp(_x, _y, _z) 
-#endif /* CONFIG_KLIPS_DEBUG */
-
 
 #if !defined(SKB_COPY_EXPAND) || defined(KLIPS_UNIT_TESTS)
 /*
@@ -262,7 +257,6 @@ skb_copy_expand(const struct sk_buff *skb, int headroom,
 }
 #endif /* !SKB_COPY_EXPAND */
 
-#ifdef CONFIG_KLIPS_DEBUG
 void
 ipsec_print_ip(struct iphdr *ip)
 {
@@ -324,7 +318,6 @@ ipsec_print_ip(struct iphdr *ip)
 		ipsec_dmp_block("ip_print", c, len);
 	}
 }
-#endif /* CONFIG_KLIPS_DEBUG */
 
 #ifdef MSS_HACK
 /*
@@ -376,7 +369,6 @@ ipsec_adjust_mss(struct sk_buff *skb, struct tcphdr *tcph, u_int16_t mtu)
 }
 #endif	/* MSS_HACK */
 
-#ifdef CONFIG_KLIPS_DEBUG
 DEBUG_NO_STATIC char *
 ipsec_xmit_err(int err)
 {
@@ -418,7 +410,6 @@ ipsec_xmit_err(int err)
 	snprintf(tmp, sizeof(tmp), "%d", err);
 	return tmp;
 }
-#endif
                                                         
 /*
  * Sanity checks
@@ -600,6 +591,7 @@ ipsec_xmit_encap_init(struct ipsec_xmit_state *ixs)
 		} else
 #endif /* CONFIG_KLIPS_OCF */
 #ifdef CONFIG_KLIPS_ALG
+
 		if ((ixs->ixt_a=ixs->ipsp->ips_alg_auth)) {
 			ixs->tailroom += AHHMAC_HASHLEN;
 			ixs->authlen = AHHMAC_HASHLEN;
@@ -764,11 +756,9 @@ ipsec_xmit_esp(struct ipsec_xmit_state *ixs)
 		return IPSEC_XMIT_ESP_BADALG;
 	}
 	
-#ifdef CONFIG_KLIPS_DEBUG		
 	if(debug_tunnel & DB_TN_ENCAP) {
 		dmp("pre-encrypt", ixs->dat, ixs->len);
 	}
-#endif
 
 	/*
 	 * Do all operations here:
@@ -1027,14 +1017,10 @@ ipsec_xmit_ipip(struct ipsec_xmit_state *ixs)
 enum ipsec_xmit_value
 ipsec_xmit_ipcomp(struct ipsec_xmit_state *ixs)
 {
-#ifdef CONFIG_KLIPS_DEBUG
 	unsigned int old_tot_len;
-#endif
 	int flags = 0;
 
-#ifdef CONFIG_KLIPS_DEBUG
 	old_tot_len = ntohs(ixs->iph->tot_len);
-#endif /* CONFIG_KLIPS_DEBUG */
 
 	ixs->ipsp->ips_comp_ratio_dbytes += ntohs(ixs->iph->tot_len);
 	ixs->skb = skb_compress(ixs->skb, ixs->ipsp, &flags);
@@ -1047,7 +1033,6 @@ ipsec_xmit_ipcomp(struct ipsec_xmit_state *ixs)
 
 	ixs->ipsp->ips_comp_ratio_cbytes += ntohs(ixs->iph->tot_len);
 
-#ifdef CONFIG_KLIPS_DEBUG
 	if (debug_tunnel & DB_TN_CROUT)
 	{
 		if (old_tot_len > ntohs(ixs->iph->tot_len))
@@ -1064,7 +1049,6 @@ ipsec_xmit_ipcomp(struct ipsec_xmit_state *ixs)
 					"packet did not compress (flags = %d).\n",
 					flags);
 	}
-#endif /* CONFIG_KLIPS_DEBUG */
 	return IPSEC_XMIT_OK;
 }
 
@@ -1212,7 +1196,6 @@ static int create_hold_eroute(struct eroute *origtrap,
 	  }
 	}
 
-#ifdef CONFIG_KLIPS_DEBUG
 	if (debug_pfkey) {
 		char buf1[64], buf2[64];
 		subnettoa(hold_eroute.er_eaddr.sen_ip_src,
@@ -1226,7 +1209,6 @@ static int create_hold_eroute(struct eroute *origtrap,
 			    buf2, ntohs(hold_eroute.er_eaddr.sen_dport),
 			    hold_eroute.er_eaddr.sen_proto);
 	}
-#endif /* CONFIG_KLIPS_DEBUG */
 
 	if (ipsec_breakroute(&(hold_eroute.er_eaddr), &(hold_eroute.er_emask),
 			     &first, &last)) {
@@ -1323,9 +1305,7 @@ ipsec_xmit_init1(struct ipsec_xmit_state *ixs)
 		case SPI_TRAPSUBNET:
 		{
 			struct sockaddr_in src, dst;
-#ifdef CONFIG_KLIPS_DEBUG
 			char bufsrc[ADDRTOA_BUF], bufdst[ADDRTOA_BUF];
-#endif /* CONFIG_KLIPS_DEBUG */
 
 			/* Signal all listening KMds with a PF_KEY ACQUIRE */
 
@@ -1442,7 +1422,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 #endif /* CONFIG_KLIPS_ALG */
 
 	KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
-		    "klips_debug:ipsec_xmit_encap_bundle_2: "
+		    "klips_debug:ipsec_xmit_init2: "
 		    "found ipsec_sa -- SA:<%s%s%s> %s\n",
 		    IPS_XFORM_NAME(ixs->ipsp),
 		    ixs->sa_len ? ixs->sa_txt : " (error)");
@@ -1466,7 +1446,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 		/* If it is in larval state, drop the packet, we cannot process yet. */
 		if(ixs->ipsp->ips_state == K_SADB_SASTATE_LARVAL) {
 			KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
-				    "klips_debug:ipsec_xmit_encap_bundle_2: "
+				    "klips_debug:ipsec_xmit_init2: "
 				    "ipsec_sa in larval state for SA:<%s%s%s> %s, cannot be used yet, dropping packet.\n",
 				    IPS_XFORM_NAME(ixs->ipsp),
 				    ixs->sa_len ? ixs->sa_txt : " (error)");
@@ -1479,7 +1459,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 
 		if(ixs->ipsp->ips_state == K_SADB_SASTATE_DEAD) {
 			KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
-				    "klips_debug:ipsec_xmit_encap_bundle_2: "
+				    "klips_debug:ipsec_xmit_init2: "
 				    "ipsec_sa in dead state for SA:<%s%s%s> %s, can no longer be used, dropping packet.\n",
 				    IPS_XFORM_NAME(ixs->ipsp),
 				    ixs->sa_len ? ixs->sa_txt : " (error)");
@@ -1492,7 +1472,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 		if(ixs->ipsp->ips_replaywin && ixs->ipsp->ips_replaywin_lastseq == -1) {
 			pfkey_expire(ixs->ipsp, 1);
 			KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
-				    "klips_debug:ipsec_xmit_encap_bundle_2: "
+				    "klips_debug:ipsec_xmit_init2: "
 				    "replay window counter rolled for SA:<%s%s%s> %s, packet dropped, expiring SA.\n",
 				    IPS_XFORM_NAME(ixs->ipsp),
 				    ixs->sa_len ? ixs->sa_txt : " (error)");
@@ -1533,7 +1513,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 
 		ixs->headroom = ixs->tailroom = 0;
 		KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-			    "klips_debug:ipsec_xmit_encap_bundle_2: "
+			    "klips_debug:ipsec_xmit_init2: "
 			    "calling room for <%s%s%s>, SA:%s\n", 
 			    IPS_XFORM_NAME(ixs->ipsp),
 			    ixs->sa_len ? ixs->sa_txt : " (error)");
@@ -1674,7 +1654,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 		}
 		ixs->ipsp = ixs->ipsp->ips_next;
 		KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-			    "klips_debug:ipsec_xmit_encap_bundle_2: "
+			    "klips_debug:ipsec_xmit_init2: "
 			    "Required head,tailroom: %d,%d\n", 
 			    ixs->headroom, ixs->tailroom);
 		ixs->max_headroom += ixs->headroom;
@@ -1684,7 +1664,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 	ixs->ipsp = saved_ipsp;	/* restore the head of the ipsec_sa chain */
 		
 	KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-		    "klips_debug:ipsec_xmit_encap_bundle_2: "
+		    "klips_debug:ipsec_xmit_init2: "
 		    "existing head,tailroom: %d,%d before applying xforms with head,tailroom: %d,%d .\n",
 		    skb_headroom(ixs->skb), skb_tailroom(ixs->skb),
 		    ixs->max_headroom, ixs->max_tailroom);
@@ -1695,7 +1675,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 	ixs->mtudiff = ixs->cur_mtu + ixs->tot_headroom + ixs->tot_tailroom - ixs->physmtu;
 
 	KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-		    "klips_debug:ipsec_xmit_encap_bundle_2: "
+		    "klips_debug:ipsec_xmit_init2: "
 		    "mtu:%d physmtu:%d tothr:%d tottr:%d mtudiff:%d ippkttotlen:%d\n",
 		    ixs->cur_mtu, ixs->physmtu,
 		    ixs->tot_headroom, ixs->tot_tailroom, ixs->mtudiff, ntohs(ixs->iph->tot_len));
@@ -1703,7 +1683,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 		int newmtu = ixs->physmtu - (ixs->tot_headroom + ((ixs->tot_tailroom + 2) & ~7) + 5);
 
 		KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-			    "klips_info:ipsec_xmit_encap_bundle_2: "
+			    "klips_info:ipsec_xmit_init2: "
 			    "dev %s mtu of %d decreased by %d to %d\n",
 			    ixs->dev ? ixs->dev->name : "ifX",
 			    ixs->cur_mtu,
@@ -1734,7 +1714,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 			
 #ifdef IPSEC_obey_DF
 		KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-			    "klips_debug:ipsec_xmit_encap_bundle_2: "
+			    "klips_debug:ipsec_xmit_init2: "
 			    "fragmentation needed and DF set; %sdropping packet\n",
 			    notify ? "sending ICMP and " : "");
 		if (notify)
@@ -1748,7 +1728,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 		goto cleanup;
 #else /* IPSEC_obey_DF */
 		KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-			    "klips_debug:ipsec_xmit_encap_bundle_2: "
+			    "klips_debug:ipsec_xmit_init2: "
 			    "fragmentation needed and DF set; %spassing packet\n",
 			    notify ? "sending ICMP and " : "");
 		if (notify)
@@ -1772,7 +1752,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 		if (tcph->syn && !tcph->ack) {
 			if(!ipsec_adjust_mss(ixs->skb, tcph, ixs->cur_mtu)) {
 				printk(KERN_WARNING
-				       "klips_warning:ipsec_xmit_encap_bundle_2: "
+				       "klips_warning:ipsec_xmit_init2: "
 				       "ipsec_adjust_mss() failed\n");
 				ixs->stats->tx_errors++;
 				bundle_stat = IPSEC_XMIT_MSSERR;
@@ -1806,11 +1786,11 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 
 	if(!ixs->hard_header_stripped && ixs->hard_header_len>0) {
 		KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
-			    "klips_debug:ipsec_xmit_encap_bundle_2: "
+			    "klips_debug:ipsec_xmit_init2: "
 			    "allocating %d bytes for hardheader.\n",
 			    ixs->hard_header_len);
 		if((ixs->saved_header = kmalloc(ixs->hard_header_len, GFP_ATOMIC)) == NULL) {
-			printk(KERN_WARNING "klips_debug:ipsec_xmit_encap_bundle_2: "
+			printk(KERN_WARNING "klips_debug:ipsec_xmit_init2: "
 			       "Failed, tried to allocate %d bytes for temp hard_header.\n", 
 			       ixs->hard_header_len);
 			ixs->stats->tx_errors++;
@@ -1824,7 +1804,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 			}
 		}
 		if(ixs->skb->len < ixs->hard_header_len) {
-			printk(KERN_WARNING "klips_error:ipsec_xmit_encap_bundle_2: "
+			printk(KERN_WARNING "klips_error:ipsec_xmit_init2: "
 			       "tried to skb_pull hhlen=%d, %d available.  This should never happen, please report.\n",
 			       ixs->hard_header_len, (int)(ixs->skb->len));
 			ixs->stats->tx_errors++;
@@ -1836,13 +1816,13 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 			
 /*			ixs->iph = (struct iphdr *) (ixs->skb->data); */
 		KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-			    "klips_debug:ipsec_xmit_encap_bundle_2: "
+			    "klips_debug:ipsec_xmit_init2: "
 			    "head,tailroom: %d,%d after hard_header stripped.\n",
 			    skb_headroom(ixs->skb), skb_tailroom(ixs->skb));
 		KLIPS_IP_PRINT(debug_tunnel & DB_TN_CROUT, ixs->iph);
 	} else {
 		KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-			    "klips_debug:ipsec_xmit_encap_bundle_2: "
+			    "klips_debug:ipsec_xmit_init2: "
 			    "hard header already stripped.\n");
 	}
 		
@@ -1855,7 +1835,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 #endif /* !NET_21 */
 		) {
 		KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-			    "klips_debug:ipsec_xmit_encap_bundle_2: "
+			    "klips_debug:ipsec_xmit_init2: "
 			    "data fits in existing skb\n");
 	} else {
 		struct sk_buff* tskb;
@@ -1880,7 +1860,7 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 		ixs->skb = tskb;
 		if (!ixs->skb) {
 			printk(KERN_WARNING
-			       "klips_debug:ipsec_xmit_encap_bundle_2: "
+			       "klips_debug:ipsec_xmit_init2: "
 			       "Failed, tried to allocate %d head and %d tailroom\n", 
 			       ixs->max_headroom, ixs->max_tailroom);
 			ixs->stats->tx_errors++;
@@ -1888,16 +1868,14 @@ ipsec_xmit_init2(struct ipsec_xmit_state *ixs)
 			goto cleanup;
 		}
 		KLIPS_PRINT(debug_tunnel & DB_TN_CROUT,
-			    "klips_debug:ipsec_xmit_encap_bundle_2: "
+			    "klips_debug:ipsec_xmit_init2: "
 			    "head,tailroom: %d,%d after allocation\n",
 			    skb_headroom(ixs->skb), skb_tailroom(ixs->skb));
 	}
 		
-#ifdef CONFIG_KLIPS_DEBUG
 	if(debug_tunnel & DB_TN_ENCAP) {
 		ipsec_print_ip(ixs->iph);
 	}
-#endif
 
 cleanup:
 	return bundle_stat;
@@ -1933,6 +1911,10 @@ ipsec_xmit_cleanup(struct ipsec_xmit_state*ixs)
 	if (ixs->ips.ips_ident_d.data) {
 		kfree(ixs->ips.ips_ident_d.data);
 		ixs->ips.ips_ident_d.data=NULL;
+	}
+	if(ixs->ipsp) {
+			ipsec_sa_put(ixs->ipsp);
+			ixs->ipsp=NULL;
 	}
 }
 
@@ -2034,14 +2016,13 @@ ipsec_xmit_send(struct ipsec_xmit_state*ixs, struct flowi *fl)
 				    ixs->pass ? 0 : ip_hdr(ixs->skb)->saddr,
 				    RT_TOS(ip_hdr(ixs->skb)->tos),
                                     /* mcr->rgb: should this be 0 instead? */
-				    ixs->physdev->iflink))) {
+				    ixs->physdev->ifindex))) {
 #endif
 		ixs->stats->tx_errors++;
 		KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
 			    "klips_debug:ipsec_xmit_send: "
-			    "ip_route_output failed with error code %d, rt->u.dst.dev=%s, dropped\n",
-			    error,
-			    ixs->route->u.dst.dev->name);
+			    "ip_route_output failed with error code %d, dropped\n",
+			    error);
 		return IPSEC_XMIT_ROUTEERR;
 	}
 
@@ -2087,9 +2068,12 @@ ipsec_xmit_send(struct ipsec_xmit_state*ixs, struct flowi *fl)
 	{
 		int err;
 
-/* XXX huh, we include linux/netfilter_ipv4.h where NF_IP_LOCAL_OUT is defined as 3 */
+/*
+ * XXX: We include linux/netfilter_ipv4.h where NF_IP_LOCAL_OUT is defined as 3,
+ * but an ifndef __KERNEL__ prevents us from using it. There must be a reason? 
+ */
 #ifndef NF_IP_LOCAL_OUT
-#warning I dont understand why NF_IP_LOCAL_OUT is undefined when including linux/netfilter_ipv4.h
+#warning NF_IP_LOCAL_OUT hardcoded to 3 - from linux/netfilter_ipv4.h which does not allow including in kernel mode
 #define NF_IP_LOCAL_OUT 3
 #endif
 		err = NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, ixs->skb, NULL,
@@ -2130,7 +2114,7 @@ ipsec_tunnel_send(struct ipsec_xmit_state *ixs)
 
 	/* new route/dst cache code from James Morris */
 	ixs->skb->dev = ixs->physdev;
- 	fl.oif = ixs->physdev->iflink;
+ 	fl.oif = ixs->physdev->ifindex;
 
 	return ipsec_xmit_send(ixs, &fl);
 }

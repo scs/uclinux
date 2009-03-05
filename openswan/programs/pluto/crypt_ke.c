@@ -50,14 +50,7 @@
 #include "log.h"
 #include "timer.h"
 
-#ifdef HAVE_OCF
-#include "id.h"
-#include "pgp.h"
-#include "x509.h"
-#include "certs.h"
-#include "keys.h"
-#include "ocf_pk.h"
-#endif
+#include "oswcrypto.h"
 
 void calc_ke(struct pluto_crypto_req *r)
 {
@@ -78,7 +71,7 @@ void calc_ke(struct pluto_crypto_req *r)
     n_to_mpz(&secret, wire_chunk_ptr(kn, &(kn->secret)), LOCALSECRETSIZE);
     
     mpz_init(&mp_g);
-    cryptodev.mod_exp(&mp_g, &groupgenerator, &secret, group->modulus);
+    oswcrypto.mod_exp(&mp_g, &groupgenerator, &secret, group->modulus);
     
     gi = mpz_to_n(&mp_g, group->bytes);
     
@@ -98,6 +91,7 @@ void calc_ke(struct pluto_crypto_req *r)
 
     /* clean up after ourselves */
     mpz_clear(&mp_g);
+    mpz_clear(&secret);
     freeanychunk(gi);
 }
 
@@ -124,13 +118,7 @@ stf_status build_ke(struct pluto_crypto_req_cont *cn
     err_t e;
     bool toomuch = FALSE;
 
-    memset(&rd, 0, sizeof(rd));
-
-    r->pcr_len  = sizeof(struct pluto_crypto_req);
-    r->pcr_type = pcr_build_kenonce;
-    r->pcr_pcim = importance;
-
-    pcr_init(r);
+    pcr_init(r, pcr_build_kenonce, importance);
     r->pcr_d.kn.oakley_group   = group->group;
     
     cn->pcrc_serialno = st->st_serialno;
@@ -166,14 +154,7 @@ stf_status build_nonce(struct pluto_crypto_req_cont *cn
     err_t e;
     bool toomuch = FALSE;
 
-    memset(&rd, 0, sizeof(rd));
-  
-  r->pcr_len  = sizeof(struct pluto_crypto_req);
-  r->pcr_type = pcr_build_nonce;
-  r->pcr_pcim = importance;
-
-  r->pcr_d.kn.thespace.start = 0;
-  r->pcr_d.kn.thespace.len   = sizeof(r->pcr_d.kn.space);
+  pcr_init(r, pcr_build_nonce, importance);
 
   cn->pcrc_serialno = st->st_serialno;
   e = send_crypto_helper_request(r, cn, &toomuch);

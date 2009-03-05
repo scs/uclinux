@@ -124,8 +124,7 @@ DISTSRC = \
 	adns.c adns.h \
 	whack.c whackinit.c \
 	${XAUTH_DIST_SRCS} \
-	${AGGRESSIVE_DIST_SRCS} \
-	${HAVE_OCF_DIST_SRCS}
+	${AGGRESSIVE_DIST_SRCS}
 
 DIST = $(DISTMISC) $(DISTSRC)
 
@@ -156,7 +155,6 @@ OBJSPLUTO += ${XAUTH_OBJS}
 OBJSPLUTO += ${AGGRESSIVE_OBJS}
 OBJSPLUTO += ${SMARTCARD_OBJS} ${X509_OBJS} ${HAVE_THREADS_OBJS}
 OBJSPLUTO += ${OBJSLIBPLUTO}
-OBJSPLUTO += ${HAVE_OCF_OBJS}
 OBJSPLUTO += ${SYSDEP_OBJ} stubs.o
 
 OBJSADNS = adns.o
@@ -174,7 +172,6 @@ all: $(BINNAMEPLUTO) $(BINNAMEADNSIFNEEDED) $(BINNAMEWHACK) #$(BINNAMEWHACKINIT)
 programs: $(BINNAMEPLUTO) $(BINNAMEADNSIFNEEDED) $(BINNAMEWHACK) #$(BINNAMEWHACKINIT)
 clean:	cleanall
 install: doinstall
-
 endif
 
 doinstall: all
@@ -190,6 +187,7 @@ doinstall: all
 	$(INSTALL) $(INSTBINFLAGS) $(BINNAMEPLUTO) $(BINNAMEWHACK) $(LIBEXECDIR)
 	#$(INSTALL) $(INSTSUIDFLAGS) $(BINNAMEWHACKINIT) $(LIBEXECDIR)
 	if $(USE_ADNS) ; then $(INSTALL) $(INSTBINFLAGS) $(BINNAMEADNS)  $(LIBEXECDIR) ; fi
+	( cd ${OPENSWANSRCDIR}/programs/pluto ; xmlto man pluto.8.xml ; mv ipsec_pluto.8 pluto.8; xmlto man ipsec.secrets.5.xml)
 	$(INSTALL) $(INSTMANFLAGS) ${srcdir}pluto.8 $(PMANDIR)/ipsec_pluto.8
 	sh ${OPENSWANSRCDIR}/packaging/utils/manlink ${srcdir}pluto.8 | \
 		while read from to ; \
@@ -227,7 +225,7 @@ ${LIBTPM}: $(wildcard ${srcdir}tpm/*.c) $(wildcard ${srcdir}tpm/*.h) $(wildcard 
 	@(cd tpm && ${MAKE} srcdir=${srcdir}tpm/ libtpm.a )
 
 $(BINNAMEPLUTO): $(OBJSPLUTO) $(ALG_LIBS) $(OPENSWANLIB) ${LIBTPM} ${LIBSPLUTO}
-	$(CC) -o $(BINNAMEPLUTO) $(LDFLAGS) $(USERLINK) $(OBJSPLUTO) $(LIBSPLUTO) ${PLUTOMINUSL}
+	$(CC) -o $(BINNAMEPLUTO) $(LDFLAGS) $(USERLINK) $(OBJSPLUTO) $(LIBSPLUTO) ${PLUTOMINUSL} $(LIBDESLITE)
 
 $(BINNAMEADNS): $(OBJSADNS) ${LIBSPLUTO}
 	$(CC) -o $(BINNAMEADNS) $(LDFLAGS) $(OBJSADNS) $(USERLINK) $(LIBSADNS) ${ADNSMINUSL}
@@ -245,7 +243,8 @@ cleanall:
 	$(RM) $(RMFLAGS) *.core core *~ a.out ktrace.out \
 		$(OBJSPLUTO) $(BINNAMEPLUTO) \
 		$(OBJSWHACK) $(BINNAMEWHACK) \
-		$(OBJSADNS) $(BINNAMEADNS)
+		$(OBJSADNS) $(BINNAMEADNS) \
+		pluto.8 ipsec_pluto.8 ipsec.secrets.5
 
 distclean: clean
 

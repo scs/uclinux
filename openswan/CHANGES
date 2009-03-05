@@ -3,9 +3,111 @@ Note that listings are in chronological order of release times, not in order
 of version numbers, so you will find 2.5.x and 2.6.x releases intersperced.
 
 See also docs/KNOWN_BUGS and http://bugs.openswan.org/
+
+v2.6.20
+* Added support for USE_NSS (default false) [Avesh Agarwal]
+* USE_IPSEC_CONNECTION_LIMIT (default false) support for those who have to
+  deal with export restrictions [David]
+* Added "metric=" keyword to the conn section to allow host failover
+  from another interface to ipsec using route management. [David]
+* Split crypto calls off into liboswcrypto for easier FIPS handling [David]
+* Fix sprintf warning in init_crypto_helper [Owen Jacobson]
+* KLIPS could not be unloaded (requires updated nat-t patch) [David]
+* Fix crasher with disassociated pending (async) crypto requests [David]
+* Make pluto more verbose on aborting for embedded systems [David]
+* Fix for ipsec_kversion.h on kernels > 2.6.22 non-RHEL/SLE [David]
+* New parser was missing keep_alive= and force_keepalive= options [Paul]
+* Fix for ipsec whack --listevents [Shingo Yamawaki]
+* Fix compiling without OCF [David]
+* Fix for using kernel cryptoapi algs causing bad packets [David]
+* Fix ESP+IPCOMP processing [David]
+* Only calculate (expensive) irs->sa_len when debug is enabled [David]
+* Repaired missing code responsible for sending IPCOMP request to peer [David]
+* Make sure we only set NEXT_NONE on the last VID entry that we add [David]
+* Fix NETKEY with transport mode and NAT-T [Paul]
+  (does not yet fully fix bug #1004, as the wrong IP (inside vs outsid)
+   is used in the policy)
+* Fix for KLIPS with NAT-t so decrypted packets do not appear to come
+  from the hardcoded ipsec0 interface [Hiren Joshi]
+* Send the remote host address to PAM during XAUTH so that it may be used
+  for better logging/authentication purposes at the PAM end. [Ken Wilson]
+* Using Main and Aggressive mode could pick the wrong policy and fail [David]
+* Fix for main_inI2_outR2_tail() when compiled without DEBUG [Shingo Yamawaki]
+* Fix for bogus "discarding packet received during asynchronous work
+  (DNS or crypto)". We were queueing/dropping packets that were needed to
+  get the tunnel going [David]
+* The pluto event loop behaves more predictable under heavy load.
+* Fix for sending wrong state/cookies with async crypto  [David]
+* Do not sent duplicate status changes to the stats daemon [David]
+* Disable the warning if DH operations take more than 200ms [David]
+* Use K_SADB_EXT_MAX, not SADB_EXT_MAX in eroute.c [Carsten Schlote]
+* Fix for fmt_common_shell_out() using long PLUTO* vars [Carsten Schlote]
+* Bugtracker bugs fixed:
+   #1015: no building of ipsec.conf.5 manpage on 2.6.20dr2 
+   #1018: ipsec eroute --clear segfaults (KLIPS) [Carsten Schlote]
+   #1004: [partial fix] ipsec/l2tp server behind NAT/port forward broken [Paul]
+   #1014: compress=yes on initiator does not propose IPcomp [David]
+   #0982: kernel panic with compression=yes  [Florian Westphal]
+   #0949: not able to set nhelpers=0 [Shingo Yamawaki]
+
+v2.6.19
+* Fix for L2TP/IPsec with Windows machines having their packets
+  disgarded by accident [Hiren Joshi]
+* Workaround for bad "%v:" virtual_private= entries [paul]
+* Fixes to interop with SoftRemote/aggressive mode [David McCullough]
+* Fix for ERROR: Module xfrm6_tunnel is in use by ipcomp6 [paul]
+* Fix for using MODPROBE=insmod where insmod does not support -q [paul]
+* Enable all wins/dns options as specified in man pages [david]
+* build support for all WINS/DNS options as mentioned in the man pages [david]
+* Removed obsolete keywords: firewall (linux 2.0), spibase, spi,espenckey,
+  espauthkey and espreplay_window (manual keying) [paul]
+* Fix unneccesary and bogus connection switching with NAT [Shingo Yamawaki]
+  (this might relate to several reported bugs in the tracker)
+* Added cisco-decrypt utility for PCF obfuscation in contrib/ [paul]
+* Fix for crasher when the leftcert= filename was not found [paul]
+* Patch for "route already in use" when using two different IP's
+  to talk to the same remote IP using two tunnels [Avesh Agarwal]
+* Fixes to init scripts [Avesh/Tuomo]
+  See also: RedHat bugzilla #466861.
+* Bugtracker bugs fixed:
+   #992: keyingretries default changed from %forever to 3 [ken]
+         (bug was introduced in 2.6.x)
+   #981: plutodebug=all klipsdebug=all not operate. [paul]
+   #994: Not having leftid=%fromcert results in a pluto segmentation [paul]
+  #1003: virtual_private broken? [paul]
+
 v2.6.18
+* Fix for compiling KLIPS on RHEL/Centos 2.6.18-92.1.10.el5 [dhr/paul]
 * Fix in deleting connections that might have caused some of our Delete
   Notifies to have gotten lost. Introduced in openswan 2.5.01 [paul]
+* Rekey= inverted yes/no, causing rekey=no to be rekey=yes [Shingo Yamawaki]
+* Some memory leaks / refcount fixes [Shingo Yamawaki]
+* Removed most of #ifdef CONFIG_KLIPS_DEBUG conditionals. We now always
+  compile in DEBUG support. [paul]
+* No longer use the assembly version of des_encrypt (dx86unix.S). It
+  is i386-i686 specific, requires framepointers and does not work with
+  CONFIG_REGPARM=y, which is the unconditional default for 2.6.17+ [paul]
+* Fix memory leak when we run out of descriptors [David McCullough]
+* Various memory leak fixes for pluto (from #macosx) [Ilia Sotnikov]
+* LEAK_DETECTIVE should report better now [Ilia Sotnikov]
+* Add support for USE_DMALLOC [Ilia Sotnikov]
+* Update stats to show dropped packets [David McCullough]
+* Allow session migration of OCF devices [Brad Vrabete]
+* DNS/WINS ModeConfig fixes [David McCullough]
+* refineconnection bug fix. This might cover various problems where
+  the right conn was not picked (eg rightca="%any" workaround, but
+  perhaps also some rekey issues) [paul]
+* unregister_netdevice: waiting for ppp2 to become free. Usage
+  count = -1 on kernels < 2.6.24 [Martin Schiller]
+* Fix for parallel building, eg with rpmbuild [tuomo]
+* Bugtracker bugs fixed:
+  #989: Patch for fixing type-punned compiler warnings [Alin Nastac]
+  #979: Two errors in debian/ packaging files (fix included) [ruben]
+  #978: ipsec.conf man page has typo in virtual_private sample line [tuomo]
+  #975: ipsec_setup: Unknown socket write error 96. [paul]
+  #231: In Aggressive Mode with NAT-T,initiator should switch port [hiren joshi]
+  #228: Problems with %any matching in ipsec.secrets? [David McCullough]
+  #984: OpenSwan 2.4.13: Wrong ipsec_dev_get(x) function for Kernels < 2.6.24 
 
 v2.6.17 [will be skipped due to bad tag]
 
@@ -24,8 +126,14 @@ v2.6.16
 * Wrapper to handle more then 2048 NETKEY tunnels [david]
 * fixes for parser warnings [dhr]
 * Fix rmmod calls not to use -s since busybox rmmod does not support it [paul]
+* Fixes to KLIPS for newer 2.4 kernels [greg/davidm]
+* Road Warrior behind NAT - Aggressive Mode: wrong NAT-T decision [hiren joshi]
+* Added documentation for leftxauthusername= and XAUTH passwd support [paul]
 * Bugtracker bugs fixed:
-  #965: xmlto man fails to generate ipsec.conf.5 man page  [bleve]
+  #977: KLIPS doesn't work when wan interface is a tagged vlan interface
+        Regression from 2.4? [Tino Keitel / Krisztian KOVACS]
+  #972: Aggressive mode connection breaks after DPD timeout for NATed peer
+  #965: xmlto man fails to generate ipsec.conf.5 man page  [tuomo]
 
 v2.6.15
 * Patch to support NETKEY backport on Debian kernels [Rene Mayrhofer]

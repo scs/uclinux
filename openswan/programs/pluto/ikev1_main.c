@@ -79,6 +79,8 @@
 #include "ikev1.h"
 #include "ikev1_continuations.h"
 
+#include "oswcrypto.h"
+
 #ifdef XAUTH
 #include "xauth.h"
 #endif
@@ -93,10 +95,6 @@
 #include "x509more.h"
 
 #include "tpm/tpm.h"
-
-#ifdef HAVE_OCF
-#include "ocf_pk.h"
-#endif
 
 /* Initiate an Oakley Main Mode exchange.
  * --> HDR;SA
@@ -143,7 +141,7 @@ main_outI1(int whack_sock
 	openswan_log("initiating Main Mode to replace #%lu", predecessor->st_serialno);
 
     /* set up reply */
-    init_pbs(&md.reply, reply_buffer, sizeof(reply_buffer), "reply packet");
+    init_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer), "reply packet");
 
     /* HDR out */
     {
@@ -156,7 +154,7 @@ main_outI1(int whack_sock
 	memcpy(hdr.isa_icookie, st->st_icookie, COOKIE_SIZE);
 	/* R-cookie, flags and MessageID are left zero */
 
-	if (!out_struct(&hdr, &isakmp_hdr_desc, &md.reply, &md.rbody))
+	if (!out_struct(&hdr, &isakmp_hdr_desc, &reply_stream, &md.rbody))
 	{
 	    reset_cur_state();
 	    return STF_INTERNAL_ERROR;
@@ -239,11 +237,11 @@ main_outI1(int whack_sock
 #endif
 
     close_message(&md.rbody);
-    close_output_pbs(&md.reply);
+    close_output_pbs(&reply_stream);
 
     /* let TCL hack it before we mark the length and copy it */
     TCLCALLOUT("avoidEmitting", st, st->st_connection, &md);
-    clonetochunk(st->st_tpacket, md.reply.start, pbs_offset(&md.reply)
+    clonetochunk(st->st_tpacket, reply_stream.start, pbs_offset(&reply_stream)
 	, "reply packet for main_outI1");
 
     /* Transmit */
@@ -280,7 +278,6 @@ main_outI1(int whack_sock
  * This will *not* generate other hash payloads (eg. Phase II or Quick Mode,
  * New Group Mode, or ISAKMP Informational Exchanges).
  * If the hashi argument is TRUE, generate HASH_I; if FALSE generate HASH_R.
- * If hashus argument is TRUE, we're generating a hash for our end.
  * See RFC2409 IKE 5.
  *
  * Generating the SIG_I and SIG_R for DSS is an odd perversion of this:
@@ -480,7 +477,7 @@ try_RSA_signature_v1(const u_char hash_val[MAX_DIGEST_LEN], size_t hash_len
 	MP_INT c;
 
 	n_to_mpz(&c, sig_val, sig_len);
-	cryptodev.mod_exp(&c, &c, &k->e, &k->n);
+	oswcrypto.mod_exp(&c, &c, &k->e, &k->n);
 
 	temp_s = mpz_to_n(&c, sig_len);	/* back to octets */
 	memcpy(s, temp_s.ptr, sig_len);
@@ -664,9 +661,25 @@ encrypt_message(pb_stream *pbs, struct state *st)
 /* Handle a Main Mode Oakley first packet (responder side).
  * HDR;SA --> HDR;SA
  */
+
+#ifdef DMALLOC
+static unsigned long _dm_mark = 0;
+static unsigned long _dm_initialized = 0;
+#endif
+
 stf_status
 main_inI1_outR1(struct msg_digest *md)
 {
+#ifdef DMALLOC
+     if (_dm_initialized != 0) {
+	/* log unfreed pointers that have been added to the heap since mark */
+	dmalloc_log_changed(_dm_mark, 1, 0, 1);
+	dmalloc_log_stats ();
+     }
+     _dm_mark = dmalloc_mark() ;
+     _dm_initialized = 1;
+#endif
+
     struct payload_digest *const sa_pd = md->chain[ISAKMP_NEXT_SA];
     struct state *st;
     struct connection *c;
@@ -678,6 +691,11 @@ main_inI1_outR1(struct msg_digest *md)
     /* Determin how many Vendor ID payloads we will be sending */
     int next;
     int numvidtosend = 1;  /* we always send DPD VID */
+
+#ifdef LEAK_DETECTIVE
+	report_leaks();         /* report memory leaks now, after all free()s */
+#endif
+
 #ifdef NAT_TRAVERSAL
     if (md->quirks.nat_traversal_vid && nat_traversal_enabled) {
 	DBG(DBG_NATT, DBG_log("nat-t detected, sending nat-t VID"));
@@ -834,7 +852,7 @@ main_inI1_outR1(struct msg_digest *md)
     }
 
     /* parse_isakmp_sa also spits out a winning SA into our reply,
-     * so we have to build our md->reply and emit HDR before calling it.
+     * so we have to build our reply_stream and emit HDR before calling it.
      */
 
     /* HDR out.
@@ -847,7 +865,7 @@ main_inI1_outR1(struct msg_digest *md)
 	r_hdr.isa_flags &= ~ISAKMP_FLAG_COMMIT;	/* we won't ever turn on this bit */
 	memcpy(r_hdr.isa_rcookie, st->st_rcookie, COOKIE_SIZE);
 	r_hdr.isa_np = ISAKMP_NEXT_SA;
-	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &md->reply, &md->rbody))
+	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &reply_stream, &md->rbody))
 	    return STF_INTERNAL_ERROR;
     }
 
@@ -954,6 +972,14 @@ main_inR1_outI2_continue(struct pluto_crypto_req_cont *pcrc
     DBG(DBG_CONTROLMORE
 	, DBG_log("main inR1_outI2: calculated ke+nonce, sending I2"));
 
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (ke->md)
+	    release_md(ke->md);
+	return;
+    }
+
     /* XXX should check out ugh */
     passert(ugh == NULL);
     passert(cur_state == NULL);
@@ -1054,7 +1080,7 @@ main_inR1_outI2_tail(struct pluto_crypto_req_cont *pcrc
     struct state *const st = md->st;
 
     /**************** build output packet HDR;KE;Ni ****************/
-    init_pbs(&md->reply, reply_buffer, sizeof(reply_buffer), "reply packet");
+    init_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer), "reply packet");
 
     /* HDR out.
      * We can't leave this to comm_handle() because the isa_np
@@ -1136,6 +1162,14 @@ main_inI2_outR2_continue(struct pluto_crypto_req_cont *pcrc
 
     DBG(DBG_CONTROLMORE
 	, DBG_log("main inI2_outR2: calculated ke+nonce, sending R2"));
+
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (ke->md)
+	    release_md(ke->md);
+	return;
+    }
 
     /* XXX should check out ugh */
     passert(ugh == NULL);
@@ -1238,6 +1272,9 @@ main_inI2_outR2_calcdone(struct pluto_crypto_req_cont *pcrc
 
     st->hidden_variables.st_skeyid_calculated = TRUE;
     update_iv(st);
+    /* XXX: Do we need to free dh here? If so, how about the other exits?
+     * pfree(dh); dh = NULL;
+     */
 
     /*
      * if there was a packet received while we were calculating, then
@@ -1281,7 +1318,7 @@ main_inI2_outR2_tail(struct pluto_crypto_req_cont *pcrc
     if (!ship_KE(st, r, &st->st_gr
 		 , &md->rbody, ISAKMP_NEXT_NONCE))
 	{
-	    abort();
+	    osw_abort();
 	return STF_INTERNAL_ERROR;
 	}
 
@@ -1317,8 +1354,8 @@ main_inI2_outR2_tail(struct pluto_crypto_req_cont *pcrc
     }
 #else
     /* Nr out */
-    if (!ship_nonce(&st->st_nr
-		    , &md->rbody, r
+    if (!ship_nonce(&st->st_nr, r
+		    , &md->rbody
 		    , (send_cr)? ISAKMP_NEXT_CR : ISAKMP_NEXT_NONE
 		    , "Nr"))
 	return STF_INTERNAL_ERROR;
@@ -1384,6 +1421,11 @@ main_inI2_outR2_tail(struct pluto_crypto_req_cont *pcrc
      *
      */
     {
+    /* Looks like we missed perform_dh() declared at
+     * programs/pluto/pluto_crypt.h as external and implemented nowhere.
+     * Following code regarding dh_continuation allocation seems useless
+     * as it's never used. At least, we should free it.
+     */
 	struct dh_continuation *dh = alloc_thing(struct dh_continuation
 						 , "main_inI2_outR2_tail");
 	stf_status e;
@@ -1662,6 +1704,14 @@ main_inR2_outI3_cryptotail(struct pluto_crypto_req_cont *pcrc
   
   DBG(DBG_CONTROLMORE
       , DBG_log("main inR2_outI3: calculated DH, sending R1"));
+
+  if (st == NULL) {
+      loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+	      __FUNCTION__);
+      if (dh->md)
+          release_md(dh->md);
+      return;
+  }
   
   passert(cur_state == NULL);
   passert(st != NULL);
@@ -1752,7 +1802,7 @@ oakley_id_and_auth(struct msg_digest *md
     /* ID Payload in.
      * Note: this may switch the connection being used!
      */
-    if (!decode_peer_id(md, initiator, aggrmode))
+    if (!aggrmode && !decode_peer_id(md, initiator, FALSE))
 	return STF_FAIL + INVALID_ID_INFORMATION;
 
     /* Hash the ID Payload.
@@ -2236,7 +2286,6 @@ send_isakmp_notification(struct state *st
 			 , u_int16_t type, const void *data, size_t len)
 {
     msgid_t msgid;
-    pb_stream reply;
     pb_stream rbody;
     u_char old_new_iv[MAX_DIGEST_LEN];
     u_char old_iv[MAX_DIGEST_LEN];
@@ -2246,7 +2295,7 @@ send_isakmp_notification(struct state *st
         
     msgid = generate_msgid(st);
     
-    init_pbs(&reply, reply_buffer, sizeof(reply_buffer), "ISAKMP notify");
+    init_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer), "ISAKMP notify");
     
     /* HDR* */
     {
@@ -2258,7 +2307,7 @@ send_isakmp_notification(struct state *st
         hdr.isa_flags = ISAKMP_FLAG_ENCRYPTION;
         memcpy(hdr.isa_icookie, st->st_icookie, COOKIE_SIZE);
         memcpy(hdr.isa_rcookie, st->st_rcookie, COOKIE_SIZE);
-        if (!out_struct(&hdr, &isakmp_hdr_desc, &reply, &rbody))
+        if (!out_struct(&hdr, &isakmp_hdr_desc, &reply_stream, &rbody))
             impossible();
     }
     /* HASH -- create and note space to be filled later */
@@ -2323,7 +2372,7 @@ send_isakmp_notification(struct state *st
     {  
         chunk_t saved_tpacket = st->st_tpacket;
 
-        setchunk(st->st_tpacket, reply.start, pbs_offset(&reply));
+        setchunk(st->st_tpacket, reply_stream.start, pbs_offset(&reply_stream));
         send_packet(st, "ISAKMP notify", TRUE);
         st->st_tpacket = saved_tpacket;
     }       

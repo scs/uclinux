@@ -85,12 +85,14 @@
 #include "tpm/tpm.h"
 #endif
 
-#ifdef HAVE_OCF
-#include "ocf_pk.h"
-#endif
+#include "oswcrypto.h"
 
 #ifndef IPSECDIR
 #define IPSECDIR "/etc/ipsec.d"
+#endif
+
+#ifdef HAVE_LIBNSS
+#include <nss.h>
 #endif
 
 const char *ctlbase = "/var/run/pluto";
@@ -146,12 +148,14 @@ usage(const char *mess)
 	    " \\\n\t"
 	    "[--debug-raw]"
 	    " [--debug-crypt]"
+	    " [--debug-crypto]"
 	    " [--debug-parsing]"
 	    " [--debug-emitting]"
 	    " \\\n\t"
 	    "[--debug-control]"
 	    "[--debug-lifecycle]"
 	    " [--debug-klips]"
+	    " [--debug-netkey]"
 	    " [--debug-x509]"
 	    " [--debug-dns]"
 	    " [--debug-oppo]"
@@ -368,11 +372,13 @@ main(int argc, char **argv)
 
 	    { "debug-raw", no_argument, NULL, DBG_RAW + DBG_OFFSET },
 	    { "debug-crypt", no_argument, NULL, DBG_CRYPT + DBG_OFFSET },
+	    { "debug-crypto", no_argument, NULL, DBG_CRYPT + DBG_OFFSET },
 	    { "debug-parsing", no_argument, NULL, DBG_PARSING + DBG_OFFSET },
 	    { "debug-emitting", no_argument, NULL, DBG_EMITTING + DBG_OFFSET },
 	    { "debug-control", no_argument, NULL, DBG_CONTROL + DBG_OFFSET },
 	    { "debug-lifecycle", no_argument, NULL, DBG_LIFECYCLE + DBG_OFFSET },
 	    { "debug-klips", no_argument, NULL, DBG_KLIPS + DBG_OFFSET },
+	    { "debug-netkey", no_argument, NULL, DBG_NETKEY + DBG_OFFSET },
 	    { "debug-dns", no_argument, NULL, DBG_DNS + DBG_OFFSET },
 	    { "debug-oppo", no_argument, NULL, DBG_OPPO + DBG_OFFSET },
 	    { "debug-oppoinfo", no_argument, NULL, DBG_OPPOINFO + DBG_OFFSET },
@@ -736,11 +742,11 @@ main(int argc, char **argv)
 
 	/* make sure that stdin, stdout, stderr are reserved */
 	if (open("/dev/null", O_RDONLY) != 0)
-	    abort();
+	    osw_abort();
 	if (dup2(0, 1) != 1)
-	    abort();
+	    osw_abort();
 	if (!log_to_stderr && dup2(0, 2) != 2)
-	    abort();
+	    osw_abort();
     }
 
     init_constants();
@@ -791,6 +797,16 @@ main(int argc, char **argv)
     init_nat_traversal(nat_traversal, keep_alive, force_keepalive, nat_t_spf);
 #endif
 
+#if defined(HAVE_LIBNSS)
+	SECStatus nss_init_status= NSS_NoDB_Init(".");
+	if (nss_init_status != SECSuccess){
+    	loglog(RC_LOG_SERIOUS, "NSS initialization failed (err %d)\n", PR_GetError());
+  	}
+	else{
+	loglog(RC_LOG_SERIOUS, "NSS Initialized");
+	}
+#endif
+
     init_virtual_ip(virtual_private);
     init_rnd_pool();
     init_timer();
@@ -799,9 +815,7 @@ main(int argc, char **argv)
     init_connections();
     init_crypto();
     init_crypto_helpers(nhelpers);
-#ifdef HAVE_OCF
-    load_cryptodev();
-#endif
+    load_oswcrypto();
     init_demux();
     init_kernel();
     init_adns();
@@ -871,10 +885,10 @@ exit_pluto(int status)
     free_ifaces();          /* free interface list from memory */
     stop_adns();            /* Stop async DNS process (if running) */
     free_md_pool();         /* free the md pool */
+#ifdef HAVE_LIBNSS
+    NSS_Shutdown();
+#endif
     delete_lock();          /* delete any lock files */
-#ifdef LEAK_DETECTIVE
-    report_leaks();         /* report memory leaks now, after all free()s */
-#endif /* LEAK_DETECTIVE */
     close_log();            /* close the logfiles */
     exit(status);           /* exit, with our error code */
 }

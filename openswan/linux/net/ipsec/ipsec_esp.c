@@ -69,11 +69,7 @@
 #include "openswan/ipsec_alg.h"
 #include "ipsec_ocf.h"
 
-#ifdef CONFIG_KLIPS_DEBUG
 #define ESP_DMP(_x,_y,_z) if(debug_rcv && sysctl_ipsec_debug_verbose) ipsec_dmp_block(_x,_y,_z)
-#else
-#define ESP_DMP(_x,_y,_z)
-#endif
 
 #ifdef CONFIG_KLIPS_ESP
 enum ipsec_rcv_value
@@ -98,6 +94,23 @@ ipsec_rcv_esp_checks(struct ipsec_rcv_state *irs,
 		return IPSEC_RCV_BADLEN;
 	}
 
+#if 0
+/* The problem with this check manifests itself when using l2tp over esp in
+ * udp over pptp/ppp. This check seems to break for ESPinUDP packets, 
+ * probably because of how hard_header_len is used with decapsulation.
+ *
+ * When pinging using -s 0 with Windows, one sees:
+ * skb->len = Payload(0) + ICMP (8) + IP (20) + ESP (16) + UDP (16) = 60.
+ * hard_header_len is calculated as 14 (ethernet) instead of 22 (ppp)
+ *
+ * Manifests itself only with Windows, not with xl2tpd as client.
+ *
+ * Disabling this check should not be harmfull, as broken too-short
+ * packets should fail their integrity check anyway.
+ *
+ * Thanks to Hiren Joshi for his excellent debugging on this
+ *
+ */
 	if(skb->len < (irs->hard_header_len + sizeof(struct iphdr) + sizeof(struct esphdr))) {
 		KLIPS_PRINT(debug_rcv & DB_RX_INAU,
 			    "klips_debug:ipsec_rcv: "
@@ -109,6 +122,7 @@ ipsec_rcv_esp_checks(struct ipsec_rcv_state *irs,
 		}
 		return IPSEC_RCV_BADLEN;
 	}
+#endif
 
 	irs->protostuff.espstuff.espp = (struct esphdr *)skb_transport_header(skb);
 	irs->said.spi = irs->protostuff.espstuff.espp->esp_spi;
@@ -207,7 +221,9 @@ ipsec_rcv_esp_authcalc(struct ipsec_rcv_state *irs,
 enum ipsec_rcv_value
 ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 {
+#if defined(CONFIG_KLIPS_ALG) || defined(CONFIG_KLIPS_OCF)
 	struct ipsec_sa *ipsp = irs->ipsp;
+#endif
 #ifdef CONFIG_KLIPS_ALG
 	struct esphdr *espp = irs->protostuff.espstuff.espp;
 	__u8 *idat;	/* pointer to content to be decrypted/authenticated */
@@ -249,7 +265,6 @@ ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 	if (ipsec_alg_esp_encrypt(ipsp, 
 				  idat, irs->ilen, espp->esp_iv, 
 				  IPSEC_ALG_DECRYPT) <= 0) {
-#ifdef CONFIG_KLIPS_DEBUG
 		KLIPS_ERROR(debug_rcv, "klips_error:ipsec_rcv: "
 			    "got packet with esplen = %d "
 			    "from %s -- should be on "
@@ -258,7 +273,6 @@ ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 			    irs->ilen,
 			    irs->ipsaddr_txt,
 			    ipsp->ips_encalg);
-#endif
 		if(irs->stats) {
 			irs->stats->rx_errors++;
 		}

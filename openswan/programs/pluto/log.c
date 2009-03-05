@@ -55,6 +55,7 @@
 #include "kernel_alg.h"
 #include "ike_alg.h"
 #include "plutoalg.h"
+#include "virtual.h" /* for show_virtual_private */
 
 #ifndef NO_DB_OPS_STATS
 #define NO_DB_CONTEXT
@@ -525,6 +526,13 @@ openswan_exit_log_errno_routine(int e, const char *message, ...)
     exit_pluto(1);
 }
 
+void
+openswan_log_abort(const char *file_str, int line_no)
+{
+	loglog(RC_LOG_SERIOUS, "ABORT at %s:%d", file_str, line_no);
+	abort();
+}
+
 /* emit message to whack.
  * form is "ddd statename text" where
  * - ddd is a decimal status code (RC_*) as described in whack.h
@@ -621,7 +629,7 @@ passert_fail(const char *pred_str, const char *file_str, unsigned long line_no)
 	dying_breath = TRUE;
 	show_status();
     }
-    abort();	/* exiting correctly doesn't always work */
+    osw_abort();	/* exiting correctly doesn't always work */
 }
 
 void
@@ -787,6 +795,8 @@ show_status(void)
     show_myid_status();
     show_debug_status();
     whack_log(RC_COMMENT, BLANK_FORMAT);	/* spacer */
+    show_virtual_private();
+    whack_log(RC_COMMENT, BLANK_FORMAT);	/* spacer */
 #ifdef KERNEL_ALG
     kernel_alg_show_status();
     whack_log(RC_COMMENT, BLANK_FORMAT);	/* spacer */
@@ -874,14 +884,23 @@ struct log_conn_info {
 		p1_none=0,
 		p1_init,
 		p1_encrypt,
-		p1_auth
+		p1_auth,
+		p1_up,
 	} phase1;
 
 	enum {
 		p2_none=0,
-		p2_neg
+		p2_neg,
+		p2_up,
 	} phase2;
 };
+
+/*
+ * we need to make sure we do not saturate the stats daemon
+ * so we track what we have told it in a long (triple)
+ */
+#define	LOG_CONN_STATSVAL(lci) \
+	((lci)->tunnel | ((lci)->phase1 << 8) | ((lci)->phase2 << 16))
 
 static void
 connection_state(struct state *st, void *data)
@@ -901,6 +920,7 @@ connection_state(struct state *st, void *data)
 		if (IS_ISAKMP_SA_ESTABLISHED(st->st_state)) {
 			if (lc->tunnel < tun_phase1up)
 				lc->tunnel = tun_phase1up;
+			lc->phase1 = p1_up;
 		} else {
 			if (lc->phase1 < p1_init)
 				lc->phase1 = p1_init;
@@ -923,6 +943,7 @@ connection_state(struct state *st, void *data)
 		if (IS_IPSEC_SA_ESTABLISHED(st->st_state)) {
 		   	if (lc->tunnel < tun_up)
 				lc->tunnel = tun_up;
+			lc->phase2 = p2_up;
 		} else {
 		   	if (lc->phase2 < p2_neg)
 				lc->phase2 = p2_neg;
@@ -931,7 +952,7 @@ connection_state(struct state *st, void *data)
 }
 
 void
-log_state(struct state *st, enum state_kind state)
+log_state(struct state *st, enum state_kind new_state)
 {
 	char buf[1024];
 	struct log_conn_info lc;
@@ -943,13 +964,19 @@ log_state(struct state *st, enum state_kind state)
 		return;
 
 	conn = st->st_connection;
+	if (!conn)
+		return;
 
 	memset(&lc, 0, sizeof(lc));
 	lc.conn = conn;
 	save_state = st->st_state;
-	st->st_state = state;
+	st->st_state = new_state;
 	for_each_state((void *)connection_state, &lc);
 	st->st_state = save_state;
+
+	if (conn->statsval == LOG_CONN_STATSVAL(&lc))
+		return;
+	conn->statsval = LOG_CONN_STATSVAL(&lc);
 
 	switch (lc.tunnel) {
 	case tun_phase1:  tun = "phase1";  break;

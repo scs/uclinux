@@ -202,7 +202,9 @@ bool nat_traversal_insert_vid(u_int8_t np, pb_stream *outs)
 	    if (r) r = out_vid(ISAKMP_NEXT_VID, outs, VID_NATT_IETF_05);
 	    if (r) r = out_vid(ISAKMP_NEXT_VID, outs, VID_NATT_IETF_03);
 	    if (r) r = out_vid(ISAKMP_NEXT_VID, outs, VID_NATT_IETF_02_N);
-	    if (r) r = out_vid(np, outs, VID_NATT_IETF_02);
+	    if (r)
+		r = out_vid(nat_traversal_support_non_ike ? ISAKMP_NEXT_VID : np,
+			outs, VID_NATT_IETF_02);
 	}
 	if (nat_traversal_support_non_ike) {
 	    if (r) r = out_vid(np, outs, VID_NATT_IETF_00);
@@ -814,8 +816,10 @@ static void nat_traversal_find_new_mapp_state (struct state *st, void *data)
 {
 	struct _new_mapp_nfo *nfo = (struct _new_mapp_nfo *)data;
 
-	if(st->st_serialno == nfo->st->st_clonedfrom ||
-	   st->st_clonedfrom == nfo->st->st_clonedfrom) {
+	if((!nfo->st->st_clonedfrom &&
+	    (st->st_serialno == nfo->st->st_clonedfrom &&
+	     st->st_clonedfrom == nfo->st->st_clonedfrom)) ||
+	   st->st_serialno == nfo->st->st_serialno) {
 		char b1[ADDRTOT_BUF];
 		char b2[ADDRTOT_BUF];
 		struct connection *c = st->st_connection;

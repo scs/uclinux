@@ -29,7 +29,7 @@ ERRCHECK=${MAKEUTILS}/errcheck
 KVUTIL=${MAKEUTILS}/kernelversion
 KVSHORTUTIL=${MAKEUTILS}/kernelversion-short
 
-SUBDIRS=doc lib programs testing
+SUBDIRS?=doc lib programs testing
 
 clean::
 	-(cd ${OPENSWANSRCDIR} && $(MAKE) modclean && $(MAKE) mod26clean)
@@ -109,3 +109,5 @@ export USE_LIBCURL USE_SMARTCARD USE_OE
 export USE_WEAKSTUFF USE_NOCRYPTO USE_EXTRACRYPTO USE_BASH
 export USE_TAPROOM USE_OBJDIR
 export HAVE_STATSD USE_DYNAMICDNS
+export USE_IPSEC_CONNECTION_LIMIT IPSEC_CONNECTION_LIMIT
+export USE_LIBNSS

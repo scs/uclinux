@@ -415,7 +415,16 @@ handle_timer_event(void)
 	return;
     }
 
-    handle_next_timer_event();
+    /*
+     * we can get behind, try and catch up all expired events
+     */
+    while (ev && tm >= ev->ev_time) {
+
+	handle_next_timer_event();
+
+	tm = now();
+    	ev = evlist;
+    }
 }
 
 void
@@ -602,10 +611,12 @@ handle_next_timer_event(void)
 	    /* FALLTHROUGH */
 	case EVENT_SO_DISCARD:
 	    /* Delete this state object.  It must be in the hash table. */
+#if 0 /* delete_state will take care of this better ? */
 	    if(st->st_suspended_md) {
 		release_md(st->st_suspended_md);
-		st->st_suspended_md=NULL;
+		set_suspended(st, NULL);
 	    }
+#endif
 	    delete_state(st);
 	    break;
 
@@ -643,7 +654,7 @@ handle_next_timer_event(void)
 
 /*
  * Return the time until the next event in the queue
- * expires (never negative), or -1 if no jobs in queue.
+ * expires (never negative = 0 if one has expired), or -1 if no jobs in queue.
  */
 long
 next_event(void)

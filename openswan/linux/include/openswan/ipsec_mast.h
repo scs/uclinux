@@ -1,7 +1,6 @@
 #ifndef _IPSEC_MAST_H
 #define _IPSEC_MAST_H
 
-#ifdef CONFIG_KLIPS_DEBUG
 #define DB_MAST_INIT	0x0001
 #define DB_MAST_PROCFS	0x0002
 #define DB_MAST_XMIT	0x0010
@@ -10,7 +9,6 @@
 #define DB_MAST_OXFS	0x0080
 #define DB_MAST_REVEC	0x0100
 #define DB_MAST_ENCAP   0x0200
-#endif /* CONFIG_KLIPS_DEBUG */
 
 struct ipsecmastconf {
 	__u32	cf_cmd;
@@ -49,6 +47,7 @@ struct mastpriv
 };
 
 extern int ipsec_mast_init_devices(void);
+extern int ipsec_mast_cleanup_devices(void);
 extern int ipsec_mast_deletenum(int vifnum);
 extern int ipsec_mast_createnum(int vifnum);
 extern struct net_device *ipsec_mast_get_device(int vifnum);

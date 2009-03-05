@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/utsname.h>
+#include <sys/ioctl.h>
 
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -97,6 +98,9 @@ const struct pfkey_proto_info null_proto_info[2] = {
 };
 
 static struct bare_shunt *bare_shunts = NULL;
+#ifdef IPSEC_CONNECTION_LIMIT
+static int num_ipsec_eroute = 0;
+#endif
 
 #ifdef DEBUG
 void
@@ -285,6 +289,7 @@ int
 fmt_common_shell_out(char *buf, int blen, struct connection *c
 		     , struct spd_route *sr, struct state *st)
 {
+    int result;
     char
 	me_str[ADDRTOT_BUF],
 	myid_str2[IDTOA_BUF],
@@ -294,6 +299,7 @@ fmt_common_shell_out(char *buf, int blen, struct connection *c
 	myclientmask_str[ADDRTOT_BUF],
 	peer_str[ADDRTOT_BUF],
 	peerid_str[IDTOA_BUF],
+	metric_str[sizeof("PLUTO_METRIC")+5],
 	peerclient_str[SUBNETTOT_BUF],
 	peerclientnet_str[ADDRTOT_BUF],
 	peerclientmask_str[ADDRTOT_BUF],
@@ -334,7 +340,11 @@ fmt_common_shell_out(char *buf, int blen, struct connection *c
     addrtot(&ta, 0, peerclientnet_str, sizeof(peerclientnet_str));
     maskof(&sr->that.client, &ta);
     addrtot(&ta, 0, peerclientmask_str, sizeof(peerclientmask_str));
-    
+
+    metric_str[0]='\0';
+    if (c->metric)
+    	snprintf(metric_str, sizeof(metric_str), "PLUTO_METRIC=%d", c->metric);
+
     secure_xauth_username_str[0]='\0';
     if (st != NULL && st->st_xauth_username) {
 	size_t len;
@@ -381,7 +391,7 @@ fmt_common_shell_out(char *buf, int blen, struct connection *c
 	}
     }
     
-    return snprintf(buf, blen,
+    result = snprintf(buf, blen,
 		    "PLUTO_VERSION='2.0' "  /* change VERSION when interface spec changes */
 		    "PLUTO_CONNECTION='%s' "
 		    "PLUTO_INTERFACE='%s' "
@@ -402,6 +412,7 @@ fmt_common_shell_out(char *buf, int blen, struct connection *c
 		    "PLUTO_PEER_PROTOCOL='%u' "
 		    "PLUTO_PEER_CA='%s' "
 		    "PLUTO_STACK='%s' "
+		    "%s "           /* possible metric */
 		    "PLUTO_CONN_POLICY='%s' "
 		    "%s "           /* XAUTH username */
 		    "%s "           /* PLUTO_MY_SRCIP */
@@ -424,9 +435,15 @@ fmt_common_shell_out(char *buf, int blen, struct connection *c
 		    , sr->that.protocol
 		    , secure_peerca_str
 		    , kernel_ops->kern_name
+		    , metric_str
 		    , prettypolicy(c->policy)
 		    , secure_xauth_username_str
 		    , srcip_str);
+	/* 
+	 * works for both old and new way of snprintf() returning
+	 * eiter -1 or the output length  -- by Carsten Schlote
+	 */
+	return ((result>=blen) || (result<0))? -1 : result;
 }
 
 static bool
@@ -719,6 +736,9 @@ unroute_connection(struct connection *c)
 	    }
 	    else loglog(RC_COMMENT, "no shunt_eroute implemented for %s interface"
 				, kernel_ops->kern_name);
+#ifdef IPSEC_CONNECTION_LIMIT
+	    num_ipsec_eroute--;
+#endif
         }
 
         sr->routing = RT_UNROUTED;  /* do now so route_owner won't find us */
@@ -2175,8 +2195,10 @@ install_inbound_ipsec_sa(struct state *st)
 		&& o->interface == c->interface)
                 break;  /* existing route is compatible */
 
+#if 0	    /* this stops us removing certain RW routes, and later we fail */
             if (o->kind == CK_TEMPLATE && streq(o->name, c->name))
                 break;  /* ??? is this good enough?? */
+#endif
 
 	    if(kernel_ops->overlap_supported
 	       && !LIN(POLICY_TUNNEL, c->policy)
@@ -2248,6 +2270,9 @@ route_and_eroute(struct connection *c USED_BY_KLIPS
     bool eroute_installed = FALSE
         , firewall_notified = FALSE
         , route_installed = FALSE;
+#ifdef IPSEC_CONNECTION_LIMIT
+    bool new_eroute = FALSE;
+#endif
 
     struct connection *ero_top;
     struct bare_shunt **bspp;
@@ -2313,6 +2338,15 @@ route_and_eroute(struct connection *c USED_BY_KLIPS
     else
     {
         /* we're adding an eroute */
+#ifdef IPSEC_CONNECTION_LIMIT
+	if (num_ipsec_eroute == IPSEC_CONNECTION_LIMIT) {
+	    loglog(RC_LOG_SERIOUS
+	    	, "Maximum number of IPSec connections reached (%d)"
+		, IPSEC_CONNECTION_LIMIT);
+	    return FALSE;
+	}
+	new_eroute = TRUE;
+#endif
 
         /* if no state provided, then install a shunt for later */
         if (st == NULL)
@@ -2440,6 +2474,15 @@ route_and_eroute(struct connection *c USED_BY_KLIPS
                         , st->st_connection->newest_ipsec_sa));
             sr->eroute_owner = st->st_serialno;
         }
+
+#ifdef IPSEC_CONNECTION_LIMIT
+	if (new_eroute) {
+	    num_ipsec_eroute++;
+	    loglog(RC_COMMENT
+		, "%d IPSec connections are currently being managed"
+		, num_ipsec_eroute);
+	}
+#endif
 
         return TRUE;
     }

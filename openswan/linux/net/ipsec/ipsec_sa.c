@@ -590,7 +590,6 @@ __ipsec_sa_put(struct ipsec_sa *ips, const char *func, int line)
 		return;
 	}
 
-#ifdef CONFIG_KLIPS_DEBUG
 	if(debug_xform) {
 		char sa[SATOT_BUF];
 		size_t sa_len;
@@ -605,7 +604,6 @@ __ipsec_sa_put(struct ipsec_sa *ips, const char *func, int line)
 			    atomic_read(&ips->ips_refcount),
 			    func, line);
 	}
-#endif
 
 	if(atomic_dec_and_test(&ips->ips_refcount)) {
 		KLIPS_PRINT(debug_xform,
@@ -624,7 +622,6 @@ __ipsec_sa_get(struct ipsec_sa *ips, const char *func, int line)
         if (ips == NULL)
                 return NULL;
 
-#ifdef CONFIG_KLIPS_DEBUG
 	if(debug_xform) {
 		char sa[SATOT_BUF];
 		size_t sa_len;
@@ -639,7 +636,6 @@ __ipsec_sa_get(struct ipsec_sa *ips, const char *func, int line)
 		      atomic_read(&ips->ips_refcount),
 		      func, line);
 	}
-#endif
 
 	atomic_inc(&ips->ips_refcount);
 
@@ -1077,7 +1073,16 @@ ipsec_sa_wipe(struct ipsec_sa *ips)
 		ipsec_alg_sa_wipe(ips);
 	}
 #endif
-	
+	if (ips->ips_next) {
+		ipsec_sa_put(ips->ips_next);
+	}
+	ips->ips_next = NULL;
+
+	if (ips->ips_hnext) {
+		ipsec_sa_put(ips->ips_hnext);
+	}
+	ips->ips_hnext = NULL;
+
 	BUG_ON(atomic_read(&ips->ips_refcount) != 0);
 
 	memset((caddr_t)ips, 0, sizeof(*ips));
@@ -1098,11 +1103,11 @@ int ipsec_sa_init(struct ipsec_sa *ipsp)
 	char ipaddr2_txt[ADDRTOA_BUF];
 #if defined (CONFIG_KLIPS_AUTH_HMAC_MD5) || defined (CONFIG_KLIPS_AUTH_HMAC_SHA1)
 	unsigned char kb[AHMD596_BLKLEN];
+	int i;
 #endif
 #ifdef CONFIG_KLIPS_ALG
 	struct ipsec_alg_enc *ixt_e = NULL;
 	struct ipsec_alg_auth *ixt_a = NULL;
-        int i;
 #endif
 
 	if(ipsp == NULL) {

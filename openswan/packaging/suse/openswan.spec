@@ -4,7 +4,7 @@
 
 Summary: Openswan IPSEC implementation
 Name: openswan
-Version:2.6.16dr5
+Version: 2.6.20
 # Build KLIPS kernel module?
 %{!?buildklips: %{expand: %%define buildklips 0}}
 %{!?buildxen: %{expand: %%define buildxen 0}}
@@ -29,7 +29,7 @@ Summary: Openswan - An IPsec and IKE implementation
 Provides: pluto klips ipsec VPN freeswan
 Obsoletes: freeswan
 PreReq: gmp %insserv_prereq %fillup_prereq perl
-BuildRequires: gmp-devel bison flex bind-devel 
+BuildRequires: gmp-devel bison flex bind-devel xmlto
 Requires: iproute2 >= 2.6.8
 AutoReqProv:    on
 

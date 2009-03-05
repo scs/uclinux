@@ -117,6 +117,14 @@ aggr_inI1_outR1_continue2(struct pluto_crypto_req_cont *pcrc
   DBG(DBG_CONTROLMORE
       , DBG_log("aggr inI1_outR1: calculated ke+nonce+DH, sending R1"));
   
+  if (st == NULL) {
+	  loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		      __FUNCTION__);
+      if (dh->md)
+          release_md(dh->md);
+      return;
+  }
+
   /* XXX should check out ugh */
   passert(ugh == NULL);
   passert(cur_state == NULL);
@@ -156,6 +164,14 @@ aggr_inI1_outR1_continue1(struct pluto_crypto_req_cont *pcrc
   DBG(DBG_CONTROLMORE
       , DBG_log("aggr inI1_outR1: calculated ke+nonce, calculating DH"));
   
+  if (st == NULL) {
+	  loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		      __FUNCTION__);
+      if (ke->md)
+          release_md(ke->md);
+      return;
+  }
+
   /* XXX should check out ugh */
   passert(ugh == NULL);
   passert(cur_state == NULL);
@@ -230,20 +246,10 @@ aggr_inI1_outR1_common(struct msg_digest *md
     {
 	/* see if a wildcarded connection can be found */
  	pb_stream pre_sa_pbs = sa_pd->pbs;
- 	lset_t policy = preparse_isakmp_sa_body(&pre_sa_pbs);
+ 	lset_t policy = preparse_isakmp_sa_body(&pre_sa_pbs) | POLICY_AGGRESSIVE;
 	c = find_host_connection(&md->iface->ip_addr, pluto_port
 				 , (ip_address*)NULL, md->sender_port, policy);
-	if (c != NULL && c->policy & POLICY_AGGRESSIVE)
-	{
-	    /* Create a temporary connection that is a copy of this one.
-	     * His ID isn't declared yet.
-	     */
-	    c = rw_instantiate(c, &md->sender,
-			       NULL,
-			       NULL);
-	}
-	else
-	{
+	if (c == NULL || (c->policy & POLICY_AGGRESSIVE) == 0) {
 	    loglog(RC_LOG_SERIOUS, "initial Aggressive Mode message from %s"
 		   " but no (wildcard) connection has been configured%s%s"
 		   , ip_str(&md->sender)
@@ -252,6 +258,10 @@ aggr_inI1_outR1_common(struct msg_digest *md
 	    /* XXX notification is in order! */
 	    return STF_IGNORE;
 	}
+	/* Create a temporary connection that is a copy of this one.
+	 * His ID isn't declared yet.
+	 */
+	c = rw_instantiate(c, &md->sender, NULL, NULL);
     }
 
     /* Set up state */
@@ -383,12 +393,12 @@ aggr_inI1_outR1_tail(struct pluto_crypto_req_cont *pcrc
     pb_stream r_id_pbs;	/* ID Payload; also used for hash calculation */
 
     /* parse_isakmp_sa also spits out a winning SA into our reply,
-     * so we have to build our md->reply and emit HDR before calling it.
+     * so we have to build our reply_stream and emit HDR before calling it.
      */
 
     finish_dh_secretiv(st, r);
 
-    init_pbs(&md->reply, reply_buffer, sizeof(reply_buffer), "reply packet");
+    init_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer), "reply packet");
 
     /* HDR out */
     {
@@ -396,7 +406,7 @@ aggr_inI1_outR1_tail(struct pluto_crypto_req_cont *pcrc
 
 	memcpy(r_hdr.isa_rcookie, st->st_rcookie, COOKIE_SIZE);
 	r_hdr.isa_np = ISAKMP_NEXT_SA;
-	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &md->reply, &md->rbody))
+	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &reply_stream, &md->rbody))
 	    return STF_INTERNAL_ERROR;
     }
 
@@ -629,6 +639,14 @@ aggr_inR1_outI2_crypto_continue(struct pluto_crypto_req_cont *pcrc
   DBG(DBG_CONTROLMORE
       , DBG_log("aggr inR1_outI2: calculated DH, sending I2"));
   
+  if (st == NULL) {
+	  loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		      __FUNCTION__);
+      if (dh->md)
+          release_md(dh->md);
+      return;
+  }
+
   /* XXX should check out ugh */
   passert(ugh == NULL);
   passert(cur_state == NULL);
@@ -687,7 +705,7 @@ aggr_inR1_outI2_tail(struct msg_digest *md
 	/* outputting should back-patch previous struct/hdr with payload type */
 	r_hdr.isa_np = auth_payload;
 	r_hdr.isa_flags |= ISAKMP_FLAG_ENCRYPTION;  /* KLUDGE */
-	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &md->reply, &md->rbody))
+	if (!out_struct(&r_hdr, &isakmp_hdr_desc, &reply_stream, &md->rbody))
 	    return STF_INTERNAL_ERROR;
     }
 
@@ -816,6 +834,11 @@ aggr_inI2_tail(struct msg_digest *md
 	build_id_payload(&id_hd, &id_b, &st->st_connection->spd.that);
 	init_pbs(&pbs, buffer, sizeof(buffer), "identity payload");
 	id_hd.isaiid_np = ISAKMP_NEXT_NONE;
+
+	/* interop ID for SoftRemote & maybe others ? */
+	id_hd.isaiid_protoid = st->st_peeridentity_protocol;
+	id_hd.isaiid_port = htons(st->st_peeridentity_port);
+
 	if (!out_struct(&id_hd, &isakmp_ipsec_identification_desc, &pbs, &id_pbs)
 		|| !out_chunk(id_b, &id_pbs, "my identity"))
 	    return STF_INTERNAL_ERROR;
@@ -877,6 +900,14 @@ aggr_outI1_continue(struct pluto_crypto_req_cont *pcrc
   DBG(DBG_CONTROLMORE
       , DBG_log("aggr outI1: calculated ke+nonce, sending I1"));
   
+  if (st == NULL) {
+	  loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		      __FUNCTION__);
+      if (ke->md)
+          release_md(ke->md);
+      return;
+  }
+
   /* XXX should check out ugh */
   passert(ugh == NULL);
   passert(cur_state == NULL);
@@ -1008,7 +1039,7 @@ aggr_outI1_tail(struct pluto_crypto_req_cont *pcrc
 	memcpy(hdr.isa_icookie, st->st_icookie, COOKIE_SIZE);
 	/* R-cookie, flags and MessageID are left zero */
 
-	if (!out_struct(&hdr, &isakmp_hdr_desc, &md->reply, &md->rbody))
+	if (!out_struct(&hdr, &isakmp_hdr_desc, &reply_stream, &md->rbody))
 	{
 	    cur_state = NULL;
 	    return STF_INTERNAL_ERROR;
@@ -1108,12 +1139,12 @@ aggr_outI1_tail(struct pluto_crypto_req_cont *pcrc
     /* finish message */
 
     close_message(&md->rbody);
-    close_output_pbs(&md->reply);
+    close_output_pbs(&reply_stream);
 
     /* let TCL hack it before we mark the length and copy it */
     TCLCALLOUT("avoidEmitting", st, st->st_connection, md);
 
-    clonetochunk(st->st_tpacket, md->reply.start, pbs_offset(&md->reply),
+    clonetochunk(st->st_tpacket, reply_stream.start, pbs_offset(&reply_stream),
 		 "reply packet from aggr_outI1");
 
     /* Transmit */

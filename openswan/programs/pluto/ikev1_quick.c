@@ -306,8 +306,12 @@ compute_proto_keymat(struct state *st
 	size_t i;
 
 	hmac_init_chunk(&ctx_me, st->st_oakley.prf_hasher, st->st_skeyid_d);
+#ifdef HAVE_LIBNSS
+	 /*PK11Context * DigestContext makes hmac not allowable for copy*/
+	hmac_init_chunk(&ctx_peer, st->st_oakley.prf_hasher, st->st_skeyid_d);
+#else
 	ctx_peer = ctx_me;	/* duplicate initial conditions */
-
+#endif
 	needed_space = needed_len + pad_up(needed_len, ctx_me.hmac_digest_len);
 	replace(pi->our_keymat, alloc_bytes(needed_space, "keymat in compute_keymat()"));
 	replace(pi->peer_keymat, alloc_bytes(needed_space, "peer_keymat in quick_inI1_outR1()"));
@@ -696,6 +700,14 @@ quick_outI1_continue(struct pluto_crypto_req_cont *pcrc
     DBG(DBG_CONTROLMORE
 	, DBG_log("quick outI1: calculated ke+nonce, sending I1"));
 
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (qke->md)
+	    release_md(qke->md);
+	return;
+    }
+
     st->st_calculating = FALSE;
 
     /* XXX should check out ugh */
@@ -838,7 +850,7 @@ quick_outI1_tail(struct pluto_crypto_req_cont *pcrc
 #endif
 
     /* set up reply */
-    init_pbs(&reply, reply_buffer, sizeof(reply_buffer), "reply packet");
+    init_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer), "reply packet");
 
     /* HDR* out */
     {
@@ -851,7 +863,7 @@ quick_outI1_tail(struct pluto_crypto_req_cont *pcrc
 	hdr.isa_flags = ISAKMP_FLAG_ENCRYPTION;
 	memcpy(hdr.isa_icookie, st->st_icookie, COOKIE_SIZE);
 	memcpy(hdr.isa_rcookie, st->st_rcookie, COOKIE_SIZE);
-	if (!out_struct(&hdr, &isakmp_hdr_desc, &reply, &rbody))
+	if (!out_struct(&hdr, &isakmp_hdr_desc, &reply_stream, &rbody))
 	{
 	    reset_cur_state();
 	    return STF_INTERNAL_ERROR;
@@ -973,7 +985,7 @@ quick_outI1_tail(struct pluto_crypto_req_cont *pcrc
     }
 
     /* save packet, now that we know its size */
-    clonetochunk(st->st_tpacket, reply.start, pbs_offset(&reply)
+    clonetochunk(st->st_tpacket, reply_stream.start, pbs_offset(&reply_stream)
 	, "reply packet from quick_outI1");
 
     /* send the packet */
@@ -1636,6 +1648,19 @@ quick_inI1_outR1_authtail(struct verify_oppo_bundle *b
 	struct connection *p = find_client_connection(c
 	    , our_net, his_net, b->my.proto, b->my.port, b->his.proto, b->his.port);
 
+#ifdef NAT_TRAVERSAL
+#ifdef I_KNOW_TRANSPORT_MODE_HAS_SECURITY_CONCERN_BUT_I_WANT_IT
+    if( (p1st->hidden_variables.st_nat_traversal & NAT_T_DETECTED)
+       && !(p1st->st_policy & POLICY_TUNNEL)
+       && (p1st->hidden_variables.st_nat_traversal & LELEM(NAT_TRAVERSAL_NAT_BHND_ME))
+       && (p == NULL) )
+        {
+          p = c;
+          DBG(DBG_CONTROL, DBG_log("using (something - hopefully the IP we are NAT'ed too) for transport mode connection \"%s\"", p->name));
+        }
+#endif
+#endif
+
 	if (p == NULL)
 	{
 	    /* This message occurs in very puzzling circumstances
@@ -1810,10 +1835,9 @@ quick_inI1_outR1_authtail(struct verify_oppo_bundle *b
      * make it all work.
      */
 
+    hv = p1st->hidden_variables;
     if ((p1st->hidden_variables.st_nat_traversal & NAT_T_DETECTED) &&
 	(p1st->hidden_variables.st_nat_traversal & NAT_T_WITH_NATOA)) {
-
-	hv = p1st->hidden_variables;
 	nat_traversal_natoa_lookup(md, &hv);
     }
 
@@ -1948,6 +1972,14 @@ quick_inI1_outR1_cryptocontinue1(struct pluto_crypto_req_cont *pcrc
     DBG(DBG_CONTROLMORE
 	, DBG_log("quick inI1_outR1: calculated ke+nonce, calculating DH"));
 
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (qke->md)
+	    release_md(qke->md);
+	return;
+    }
+
     /* XXX should check out ugh */
     passert(ugh == NULL);
     passert(cur_state == NULL);
@@ -2018,6 +2050,14 @@ quick_inI1_outR1_cryptocontinue2(struct pluto_crypto_req_cont *pcrc
 
     DBG(DBG_CONTROLMORE
 	, DBG_log("quick inI1_outR1: calculated DH, sending R1"));
+
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (dh->md)
+	    release_md(dh->md);
+	return;
+    }
 
     /* XXX should check out ugh */
     passert(ugh == NULL);
@@ -2283,6 +2323,7 @@ quick_inR1_outI2(struct msg_digest *md)
 
 	/* set up DH calculation */
 	dh->md = md;
+    passert(st != NULL);
 	set_suspended(st, md);
 	dh->dh_pcrc.pcrc_func = quick_inR1_outI2_continue;
 	return start_dh_secret(&dh->dh_pcrc, st
@@ -2310,6 +2351,14 @@ quick_inR1_outI2_continue(struct pluto_crypto_req_cont *pcrc
 
     DBG(DBG_CONTROLMORE
 	, DBG_log("quick inI1_outR1: calculated ke+nonce, calculating DH"));
+
+    if (st == NULL) {
+	loglog(RC_LOG_SERIOUS, "%s: Request was disconnected from state",
+		__FUNCTION__);
+	if (dh->md)
+	    release_md(dh->md);
+	return;
+    }
 
     /* XXX should check out ugh */
     passert(ugh == NULL);

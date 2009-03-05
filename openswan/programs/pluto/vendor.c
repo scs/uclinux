@@ -62,7 +62,8 @@
  * Netscreen:
  *  d6b45f82f24bacb288af59a978830ab7
  *  cf49908791073fb46439790fdeb6aeed981101ab0000000500000300
- *
+ *  64405f46f03b7660a23be116a1975058e69e83870000000400000403 - Netscreen-05
+ *  
  * Cisco:
  *  1f07f70eaa6514d3b0fa96542a500300 (VPN 3000 version 3.0.0)
  *  1f07f70eaa6514d3b0fa96542a500301 (VPN 3000 version 3.0.1)
@@ -76,6 +77,10 @@
  *  ebbc5b00141d0c895e11bd395902d690 (From a Cisco VPN 3k)
  *  3e984048101e66cc659fd002b0ed3655 (From a Cisco 1800 IOS device)
  *  ade1e70e9953c1328373ebf0257b85ed (From a Cisco PIX)
+ *
+ * Lucent VPN Gateway:
+ *  4c5647392e322e3234353a425249434b3a392e322e323435 = "LVG9.1.255:BRICK:9.1.255" (no exact md5sum match)
+ *  4C5643372E312E323A5850 = "LVC7.1.2:XP" (no exact md5sum match)
  *
  * Microsoft L2TP (???):
  * (This could be the MSL2TP client, which is a stripped version of SafeNet)

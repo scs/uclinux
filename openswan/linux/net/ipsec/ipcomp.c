@@ -59,6 +59,7 @@
 #include "openswan/ipsec_xform.h"
 #include "openswan/ipsec_tunnel.h"
 #include "openswan/ipsec_rcv.h" /* sysctl_ipsec_inbound_policy_check */
+extern int sysctl_ipsec_inbound_policy_check;
 #include "openswan/ipsec_proto.h"
 #include "openswan/ipcomp.h"
 #include "zlib/zlib.h"
@@ -234,14 +235,12 @@ struct sk_buff *skb_compress(struct sk_buff *skb, struct ipsec_sa *ips, unsigned
 		return skb;
 	}
 	
-#ifdef CONFIG_KLIPS_DEBUG
 	if(sysctl_ipsec_debug_ipcomp && sysctl_ipsec_debug_verbose) {
 		__u8 *c;
 
 		c = (__u8*)iph + iphlen;
 		ipsec_dmp_block("compress before", c, pyldsz);
 	}
-#endif /* CONFIG_KLIPS_DEBUG */
 
 	zs.next_in = (char *) iph + iphlen; /* start of payload */
 	zs.avail_in = pyldsz;
@@ -316,14 +315,12 @@ struct sk_buff *skb_compress(struct sk_buff *skb, struct ipsec_sa *ips, unsigned
 	/* Update skb length/tail by "unputting" the shrinkage */
         safe_skb_put (skb, cpyldsz + sizeof(struct ipcomphdr) - pyldsz);
 
-#ifdef CONFIG_KLIPS_DEBUG
 	if(sysctl_ipsec_debug_ipcomp && sysctl_ipsec_debug_verbose) {
 		__u8 *c;
 		
 		c = (__u8*)iph + iphlen + sizeof(struct ipcomphdr);
 		ipsec_dmp_block("compress result", c, cpyldsz);
 	}
-#endif /* CONFIG_KLIPS_DEBUG */
 	
 	ips->ips_comp_adapt_skip = 0;
 	ips->ips_comp_adapt_tries = 0;
@@ -478,14 +475,12 @@ struct sk_buff *skb_decompress(struct sk_buff *skb, struct ipsec_sa *ips, unsign
 		return skb;
 	}
 	
-#ifdef CONFIG_KLIPS_DEBUG
 	if(sysctl_ipsec_debug_ipcomp && sysctl_ipsec_debug_verbose) {
 		__u8 *c;
 		
 		c = (__u8*)oiph + iphlen + sizeof(struct ipcomphdr);
 		ipsec_dmp_block("decompress before", c, cpyldsz);
 	}
-#endif /* CONFIG_KLIPS_DEBUG */
 
 #ifdef NET_21
 	iph = ip_hdr(nskb);
@@ -549,25 +544,21 @@ struct sk_buff *skb_decompress(struct sk_buff *skb, struct ipsec_sa *ips, unsign
 	
 	if (iph->protocol == IPPROTO_COMP)
 	{
-#ifdef CONFIG_KLIPS_DEBUG
 		if(sysctl_ipsec_debug_ipcomp)
 		KLIPS_PRINT(sysctl_ipsec_debug_ipcomp,
 			    "klips_debug:skb_decompress: "
 			    "Eh? inner packet is also compressed, dropping.\n");
-#endif /* CONFIG_KLIPS_DEBUG */
 		
 		ipsec_kfree_skb(nskb);
 		return NULL;
 	}
 	
-#ifdef CONFIG_KLIPS_DEBUG
 	if(sysctl_ipsec_debug_ipcomp && sysctl_ipsec_debug_verbose) {
 		__u8 *c;
 		
 		c = (__u8*)iph + iphlen;
 		ipsec_dmp_block("decompress result", c, pyldsz);
 	}
-#endif /* CONFIG_KLIPS_DEBUG */
 	
 	return nskb;
 }
@@ -580,9 +571,9 @@ struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_ma
 {
         struct sk_buff *n;
 	struct iphdr *iph;
-        unsigned long offset;
         unsigned int iphlen;
-	
+	int headlen;
+
 	if(!skb) {
 		KLIPS_PRINT(sysctl_ipsec_debug_ipcomp,
 			    "klips_debug:skb_copy_ipcomp: "
@@ -605,15 +596,10 @@ struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_ma
         n=alloc_skb(skb_end_pointer(skb) - skb->head + data_growth, gfp_mask);
         if(n==NULL)
                 return NULL;
-	
-        /*
-         *      Shift between the two data areas in bytes
-         */
-	
-        offset=n->head-skb->head;
 
         /* Set the data pointer */
-        skb_reserve(n,skb->data-skb->head);
+	headlen = skb_headroom(skb);
+	skb_reserve(n, headlen);
         /* Set the tail pointer and length */
         safe_skb_put(n,skb->len+data_growth);
         /* Copy the bytes up to and including the ip header */
@@ -627,14 +613,18 @@ struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_ma
 	n->prev=NULL;
         n->sk=NULL;
         n->dev=skb->dev;
-	if (skb_transport_header(skb))
-		skb_set_transport_header(n, offset);
+
+	if (skb_transport_header(skb)) {
+		headlen = skb_transport_header(skb) - skb->data;
+		skb_set_transport_header(n, headlen);
+	}
         n->protocol=skb->protocol;
 #ifdef NET_21
         n->csum = 0;
         n->priority=skb->priority;
         n->dst=dst_clone(skb->dst);
-        skb_set_network_header(n, offset);
+        headlen = skb_network_header(skb) - skb->data;
+        skb_set_network_header(n, headlen);
 #ifndef NETDEV_23
         n->is_clone=0;
 #endif /* NETDEV_23 */
@@ -650,7 +640,8 @@ struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_ma
 #else /* NET_21 */
 	n->link3=NULL;
 	n->when=skb->when;
-	n->ip_hdr=(struct iphdr *)(((char *)skb->ip_hdr)+offset);
+	headlen = skb->ip_hdr - skb->data;
+	n->ip_hdr=(struct iphdr *) (((char *) n->data) + headlen);
 	n->saddr=skb->saddr;
 	n->daddr=skb->daddr;
 	n->raddr=skb->raddr;
@@ -665,8 +656,10 @@ struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_ma
 	n->users=0;
 	memcpy(n->proto_priv, skb->proto_priv, sizeof(skb->proto_priv));
 #endif /* NET_21 */
-	if (skb_mac_header(skb))
-		skb_set_mac_header(n, offset);
+	if (skb_mac_header(skb)) {
+		headlen = skb_mac_header(skb) - skb->data;
+		skb_set_mac_header(n, headlen);
+	}
 #ifndef NETDEV_23
 	n->used=skb->used;
 #endif /* !NETDEV_23 */

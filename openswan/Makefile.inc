@@ -151,7 +151,7 @@ VERFILE=$(KERNELSRC)/include/linux/version.h
 OSMOD_DESTDIR?=net/ipsec
 
 # What command to use to load the modules. openwrt does not have modprobe
-MODPROBE?=modprobe
+MODPROBE?=modprobe -q
 
 ### misc installation stuff
 
@@ -256,6 +256,9 @@ RH_KERNELSRC?=/lib/modules/2.6.9-1.681_FC3/build
 # HAVE_ variables let you tell Openswan what system related libraries
 #       you may or maynot have
 
+#Support for NSS crypto library
+USE_LIBNSS?=false
+
 # LWRES is the lightweight resolver, part of BIND9
 # We test with LWRES, but ship with it off, as it requires
 # additional headers not present on most systems.
@@ -268,13 +271,6 @@ USE_LWRES?=true
 # on hosts with some dyndns service, since DPD will cause a new dns lookup,
 # but it could be a potential security issue if receiving spoofed dns.
 USE_DYNAMICDNS?=false
-
-# what kind of firewalling to use:
-#  2.0 	- ipfwadm
-#  2.2  - ipchains
-#  2.4  - iptables or ipchains
-#  2.6  - iptables
-IPSEC_FIREWALLTYPE=iptables
 
 # Do we want all the configuration files like ipsec.conf and ipsec.secrets
 # and any certificates to be in a single directory defined by 
@@ -375,20 +371,25 @@ USE_NOCRYPTO?=false
 # of switching away from AES/3DES quickly. 
 USE_EXTRACRYPTO?=true
 
+# Do we want to limit the number of ipsec connections artificially
+USE_IPSEC_CONNECTION_LIMIT?=false
+IPSEC_CONNECTION_LIMIT?=250
+
 # Do we have pthreads available?  Only yes if you need it for XAUTH+PAM,
 # or if you need it for CRL fetching.
 # 
 HAVE_THREADS?=false
-
-# Do we have OCF available?
-HAVE_OCF?=true
 
 # Do we have an external stats daemon we can push state changes to?
 # Currently hardcoded to /bin/statsd
 HAVE_STATSD?=false
 
 # Do we have Openssl libraries available for BIGNUM support?
-HAVE_OPENSSL?=true
+# Required of HAVE_OCF support
+HAVE_OPENSSL?=false
+
+# Do we have OCF available?
+HAVE_OCF?=false
 
 # Do we assume that the /bin/sh is BASH?
 # if so, then internationalization code is retained in the shell scripts
@@ -398,7 +399,9 @@ USE_BASH?=true
 # you need at least swig 1.3.24, as well as tcl libraries and includes
 USE_TAPROOM?=false
 
-X509_VERSION=X.509-1.5.4
+# Use dmalloc. Requires -DLEAK_DETECTIVE to be set in programs/pluto/Makefile
+USE_DMALLOC?=false
+
 NONINTCONFIG=oldconfig
 
 # Should we build with object directories?
@@ -473,6 +476,7 @@ ISCHOSTARCH?=unix
 
 LIBDESSRCDIR=${OPENSWANSRCDIR}/linux/crypto/ciphers/des
 LIBDESLITE:=${OBJDIRTOP}/lib/libcrypto/libdes/libdes.a
+LIBOSWCRYPTO=${OBJDIRTOP}/lib/libcrypto/liboswcrypto/liboswcrypto.a
 LIBAES=${OBJDIRTOP}/lib/libcrypto/libaes/libaes.a
 LIBMD5=${OBJDIRTOP}/lib/libcrypto/libmd5/libmd5.a
 LIBMD2=${OBJDIRTOP}/lib/libcrypto/libmd2/libmd2.a
@@ -481,10 +485,15 @@ LIBBLOWFISH=${OBJDIRTOP}/lib/libcrypto/libblowfish/libblowfish.a
 LIBTWOFISH=${OBJDIRTOP}/lib/libcrypto/libtwofish/libtwofish.a
 LIBSERPENT=${OBJDIRTOP}/lib/libcrypto/libserpent/libserpent.a
 LIBSHA2=${OBJDIRTOP}/lib/libcrypto/libsha2/libsha2.a
-CRYPTOLIBS=${LIBAES} ${LIBSHA1} ${LIBMD5} ${LIBMD2} ${LIBDESLITE} 
+CRYPTOLIBS=${LIBAES} ${LIBSHA1} ${LIBMD5} ${LIBMD2} ${LIBDESLITE}
 
 ifeq ($(USE_EXTRACRYPTO),true)
 CRYPTOLIBS+=${LIBSHA2} ${LIBSERPENT} ${LIBTWOFISH} ${LIBBLOWFISH}
+endif
+
+CRYPTOLIBS += ${LIBOSWCRYPTO}
+ifeq ($(HAVE_OCF),true)
+CRYPTOLIBS += -lcrypto
 endif
 
 LIBPOLICYDIR=${OPENSWANSRCDIR}/linux/lib/libipsecpolicy
@@ -499,6 +508,7 @@ export LIBOPENSWANDIR OPENSWANLIB OSWLOGLIB PLUTOLIB LWRESDIR LIBLWRES LIBDNS
 export LIBISC ISCARCH ISCHOSTARCH LIBDESSRCDIR LIBDESLITE LIBAES
 export LIBMD5 LIBMD2 LIBSHA1 LIBBLOWFISH LIBTWOFISH LIBSERPENT
 export LIBSHA2 CRYPTOLIBS LIBPOLICYDIR POLICYLIB WHACKLIB IPSECCONFLIB
+export LIBOSWCRYPTO
 
 #KERNELBUILDMFLAGS=--debug=biv V=1 
 

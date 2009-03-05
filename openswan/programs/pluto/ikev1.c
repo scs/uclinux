@@ -812,7 +812,13 @@ process_v1_packet(struct msg_digest **mdp)
 	{
 	    if (st == NULL)
 	    {
-		openswan_log("Informational Exchange is for an unknown (expired?) SA");
+		openswan_log("Informational Exchange is for an unknown (expired?) SA with MSGID:0x%08lx",
+			     (unsigned long)md->hdr.isa_msgid);
+		/* Let's try and log some info about these to track them down */
+		DBG(DBG_PARSING ,
+		DBG_dump("- unknown SA's md->hdr.isa_icookie:", md->hdr.isa_icookie, COOKIE_SIZE);
+		DBG_dump("- unknown SA's md->hdr.isa_rcookie:", md->hdr.isa_rcookie, COOKIE_SIZE) );
+
 		/* XXX Could send notification back */
 		return;
 	    }
@@ -1258,7 +1264,12 @@ process_v1_packet(struct msg_digest **mdp)
 	/* if there was a previous packet, let it go, and go with most
 	 * recent one.
 	 */
-	if(st->st_suspended_md) { release_md(st->st_suspended_md); }
+	if(st->st_suspended_md) {
+	    DBG(DBG_CONTROL
+	    	, DBG_log("releasing suspended operation before completion: %p"
+			, st->st_suspended_md));
+	    release_md(st->st_suspended_md);
+	}
 
 	set_suspended(st, md);
 	*mdp = NULL;
@@ -1291,7 +1302,7 @@ void process_packet_tail(struct msg_digest **mdp)
 	if (st->st_skey_ei.ptr == (u_char *) NULL)
 	{
 	    loglog(RC_LOG_SERIOUS, "discarding encrypted message"
-		" because we haven't yet negotiated keying materiel");
+		" because we haven't yet negotiated keying material");
 	    SEND_NOTIFICATION(INVALID_FLAGS);
 	    return;
 	}
@@ -1653,10 +1664,19 @@ void process_packet_tail(struct msg_digest **mdp)
 		switch(p->payload.notification.isan_type) {
 		case INVALID_MESSAGE_ID:
 		default:
-		    loglog(RC_LOG_SERIOUS
+		    if (st!= NULL) {
+		    	loglog(RC_LOG_SERIOUS
 			   , "ignoring informational payload, type %s msgid=%08x"
 			   , enum_show(&ipsec_notification_names
 				       , p->payload.notification.isan_type), st->st_msgid);
+		    } 
+		    else {
+		    	loglog(RC_LOG_SERIOUS
+			   , "ignoring informational payload, type %s on st==NULL (deleted?)"
+			   , enum_show(&ipsec_notification_names
+				       , p->payload.notification.isan_type));
+
+		    }
 		}
 #ifdef DEBUG
 		if(st!=NULL
@@ -1843,15 +1863,17 @@ complete_v1_state_transition(struct msg_digest **mdp, stf_status result)
 	    /* free previous transmit packet */
 	    freeanychunk(st->st_tpacket);
 
+	/* in aggressive mode, there will be no reply packet in transition
+	 * from STATE_AGGR_R1 to STATE_AGGR_R2 */
+	if(nat_traversal_enabled) {
+	    /* adjust our destination port if necessary */
+	    nat_traversal_change_port_lookup(md, st);
+	}
+
 	    /* if requested, send the new reply packet */
 	    if (smc->flags & SMF_REPLY)
 	    {
 		char buf[ADDRTOT_BUF];
-
-		if(nat_traversal_enabled) {
-		    /* adjust our destination port if necessary */
-		    nat_traversal_change_port_lookup(md, st);
-		}
 
 		DBG(DBG_CONTROL
 		    , DBG_log("sending reply packet to %s:%u (from port %u)"
@@ -1860,10 +1882,10 @@ complete_v1_state_transition(struct msg_digest **mdp, stf_status result)
 			      , st->st_remoteport
 			      , st->st_interface->port));
 
-		close_output_pbs(&md->reply);   /* good form, but actually a no-op */
+		close_output_pbs(&reply_stream);   /* good form, but actually a no-op */
 
-		clonetochunk(st->st_tpacket, md->reply.start
-		    , pbs_offset(&md->reply), "reply packet");
+		clonetochunk(st->st_tpacket, reply_stream.start
+		    , pbs_offset(&reply_stream), "reply packet");
 
 		/* actually send the packet
 		 * Note: this is a great place to implement "impairments"

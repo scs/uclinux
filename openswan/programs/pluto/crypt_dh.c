@@ -79,6 +79,14 @@ calc_dh_shared(chunk_t *shared, const chunk_t g
 		, enum_show(&oakley_group_names, group->group)
 		, tv_diff);
        );
+#if 0
+    /*
+     * note,  a 533 MHz Xscale will exceed this test,  and that is a fast
+     * processor by embedded standards.  Disabling for now so we don't
+     * pollute the logs with nasty warnings that are actually perfectly
+     * normal operation.
+     */
+
     /* if took more than 200 msec ... */
     if (tv_diff > 200000) {
 	loglog(RC_LOG_SERIOUS, "WARNING: calc_dh_shared(): for %s took "
@@ -86,6 +94,7 @@ calc_dh_shared(chunk_t *shared, const chunk_t g
 		, enum_show(&oakley_group_names, group->group)
 		, tv_diff);
     }
+#endif
 
     DBG_cond_dump_chunk(DBG_CRYPT, "DH shared-secret:\n", *shared);
 }
@@ -344,6 +353,7 @@ void calc_dh_iv(struct pluto_crypto_req *r)
 	DBG_dump_chunk("long term secret: ", ltsecret));
 
     calc_dh_shared(&shared, g, &sec, group);
+    mpz_clear (&sec);
     
     memset(&skeyid, 0, sizeof(skeyid));
     memset(&skeyid_d, 0, sizeof(skeyid_d));
@@ -419,6 +429,7 @@ void calc_dh(struct pluto_crypto_req *r)
       setchunk_fromwire(g, &dhq.gr, &dhq);
     }
     calc_dh_shared(&shared, g, &sec, group);
+    mpz_clear (&sec);
 
     /* now translate it back to wire chunks, freeing the chunks */
     setwirechunk_fromchunk(skr->shared,   shared,   skr);

@@ -1,6 +1,6 @@
 Summary: Openswan IPSEC implementation
 Name: openswan
-Version: 2.4.0
+Version: 2.6.20
 # build kLIPS kerneo module or not
 %{!?buildklips: %{expand: %%define buildklips 0}}
 

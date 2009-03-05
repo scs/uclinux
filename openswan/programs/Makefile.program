@@ -59,6 +59,15 @@ ifneq ($(LD_LIBRARY_PATH),)
 LDFLAGS=-L$(LD_LIBRARY_PATH)
 endif
 
+ifeq ($(USE_DMALLOC),true)
+CFLAGS+=-DDMALLOC
+LIBS+= -ldmalloc
+endif
+
+ifeq ($(USE_LIBNSS),true)
+LIBS+= -lnspr4 -lnss3
+endif
+
 MANDIR8=$(MANTREE)/man8
 MANDIR5=$(MANTREE)/man5
 
@@ -205,7 +214,6 @@ include ${OPENSWANSRCDIR}/programs/Makefile.manpages
 			-e "s:@IPSEC_CONFS@:$(FINALCONFDIR):" \
 			-e "s:@IPSEC_CONFDDIR@:$(FINALCONFDDIR):" \
 			-e "s:@USE_IPROUTE2@:$(USE_IPROUTE2):" \
-			-e "s:@IPSEC_FIREWALLTYPE@:$(IPSEC_FIREWALLTYPE):" \
 			-e "s:@OE_FLAG@:$(OE_FLAG):" \
 			-e "s:@USE_DEFAULT_CONNS@:$(USE_DEFAULT_CONNS):" \
                         -e "s:@MODPROBE@:$(MODPROBE):" \

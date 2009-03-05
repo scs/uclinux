@@ -137,11 +137,15 @@ help(void)
 	    " [--modecfgserver]"
 	    " [--modecfgclient]"
 	    " [--modecfgpull]"
+#ifdef MODECFG_DNSWINS
 	    " [--modecfgdns1]"
 	    " [--modecfgdns2]"
 	    " [--modecfgwins1]"
 	    " [--modecfgwins2]"
 #endif
+#endif
+	    " \\\n   "
+	    " [--metric <metric>]"
 	    " \\\n   "
 	    " [--initiateontraffic|--pass|--drop|--reject]"
 	    " \\\n   "
@@ -463,6 +467,7 @@ enum option_enums {
     CD_MODECFGDNS2,
     CD_MODECFGWINS1,
     CD_MODECFGWINS2,
+    CD_METRIC,
     CD_TUNNELIPV4,
     CD_TUNNELIPV6,
     CD_CONNIPV4,
@@ -677,6 +682,7 @@ static const struct option long_opts[] = {
     { "modeconfigclient", no_argument, NULL, END_MODECFGCLIENT + OO },
 #endif
 #endif
+    { "metric", required_argument, NULL, CD_METRIC + OO + NUMERIC_ARG },
     { "sendcert", required_argument, NULL, END_SENDCERT + OO },
     { "certtype", required_argument, NULL, END_CERTTYPE + OO + NUMERIC_ARG },
     { "ipv4", no_argument, NULL, CD_CONNIPV4 + OO },
@@ -1195,7 +1201,7 @@ main(int argc, char **argv)
         case LST_OCSP:          /* --listocsp */
         case LST_CARDS:         /* --listcards */
         case LST_PSKS:          /* --listpsks */
-        case LST_EVENTS:         /* --listcards */
+        case LST_EVENTS:         /* --listevents */
             msg.whack_list |= LELEM(c - LST_PUBKEYS);
             continue;
 
@@ -1617,6 +1623,10 @@ main(int argc, char **argv)
 	  diag("pluto is not built with XAUTH support");
 	  continue;
 #endif /* XAUTH */
+
+	case CD_METRIC:
+	    msg.metric = opt_whole;
+	    continue;
 
 	case OPT_TPMEVAL:
 #ifdef TPM

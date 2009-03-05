@@ -93,10 +93,6 @@
 
 #include "tpm/tpm.h"
 
-#ifdef HAVE_OCF
-#include "ocf_pk.h"
-#endif
-
 /* Pluto's Vendor ID
  *
  * Note: it is a NUL-terminated ASCII string, but NUL won't go on the wire.
@@ -171,7 +167,7 @@ echo_hdr(struct msg_digest *md, bool enc, u_int8_t np)
 	r_hdr.isa_flags |= ISAKMP_FLAG_ENCRYPTION;
     /* some day, we may have to set r_hdr.isa_version */
     r_hdr.isa_np = np;
-    if (!out_struct(&r_hdr, &isakmp_hdr_desc, &md->reply, &md->rbody)) {
+    if (!out_struct(&r_hdr, &isakmp_hdr_desc, &reply_stream, &md->rbody)) {
 	impossible();	/* surely must have room and be well-formed */
     }
 }
@@ -589,6 +585,13 @@ decode_peer_id(struct msg_digest *md, bool initiator, bool aggrmode)
     if(!extract_peer_id(&peer, id_pbs)) {
 	return FALSE;
     }
+
+    /*
+     * For interop with SoftRemote/aggressive mode we need to remember some
+     * things for checking the hash
+     */
+    st->st_peeridentity_protocol = id->isaid_doi_specific_a;
+    st->st_peeridentity_port = id->isaid_doi_specific_b;
 
     {
 	char buf[IDTOA_BUF];

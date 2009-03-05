@@ -259,6 +259,10 @@ struct connection {
     ip_address modecfg_wins1;
     ip_address modecfg_wins2;
 #endif
+    u_int8_t metric;              /* metric for tunnel routes */
+#ifdef HAVE_STATSD
+    u_int32_t statsval;			/* track what we have told statsd */
+#endif
 };
 
 #define oriented(c) ((c).interface != NULL)
@@ -398,6 +402,7 @@ extern struct connection *eclipsed(struct connection *c, struct spd_route **);
 
 /* print connection status */
 
+extern void show_one_connection(struct connection *c);
 extern void show_connections_status(void);
 extern int  connection_compare(const struct connection *ca
 			       , const struct connection *cb);

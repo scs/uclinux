@@ -361,6 +361,8 @@ delete_state(struct state *st)
     if (st->st_suspended_md != NULL)
     {
 	passert(st->st_suspended_md->st == st);
+	DBG(DBG_CONTROL, DBG_log("disconnecting state #%lu from md",
+	    st->st_serialno));
 	st->st_suspended_md->st = NULL;
     }
 
@@ -401,6 +403,13 @@ delete_state(struct state *st)
     if (c->newest_isakmp_sa == st->st_serialno)
 	c->newest_isakmp_sa = SOS_NOBODY;
 
+    /*
+     * fake a state change here while we are still associated with a
+     * connection.  Without this the state logging (when enabled) cannot
+     * work out what happened.
+     */
+    fake_state(st, STATE_UNDEFINED);
+
     st->st_connection = NULL;	/* we might be about to free it */
     cur_state = old_cur_state;	/* without st_connection, st isn't complete */
     connection_discard(c);
@@ -427,8 +436,10 @@ delete_state(struct state *st)
     free_sa(st->st_sadb);
     st->st_sadb=NULL;
 
-    if (st->st_sec_in_use)
+    if (st->st_sec_in_use) {
 	mpz_clear(&(st->st_sec));
+	pfreeany(st->st_sec_chunk.ptr);
+    }
 
     freeanychunk(st->st_firstpacket_me);
     freeanychunk(st->st_firstpacket_him);
@@ -1284,17 +1295,22 @@ void fmt_state(struct state *st, time_t n
 	    time_t ago;
 
 	    add_said(&c->spd.that.host_addr, st->st_esp.attrs.spi, SA_ESP);
+/* needs proper fix, via kernel_ops? */
+#if defined(linux) && defined(NETKEY_SUPPORT)
 	    if (get_sa_info(st, FALSE, &ago))
 	    {
 		snprintf(state_buf2, state_buf2_len,
 		  " (%'u bytes)" , st->st_esp.peer_bytes);
 	    }
+#endif
 	    add_said(&c->spd.this.host_addr, st->st_esp.our_spi, SA_ESP);
+#if defined(linux) && defined(NETKEY_SUPPORT)
 	    if (get_sa_info(st, TRUE, &ago))
 	    {
 		snprintf(state_buf2, state_buf2_len,
 		  " (%'u bytes)" , st->st_esp.our_bytes);
 	    }
+#endif
 
 	}
 	if (st->st_ipcomp.present)

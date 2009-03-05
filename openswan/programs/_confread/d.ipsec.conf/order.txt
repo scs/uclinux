@@ -30,6 +30,7 @@ d.ipsec.conf/leftca.xml
 d.ipsec.conf/leftsendcert.xml
 d.ipsec.conf/leftxauthserver.xml
 d.ipsec.conf/leftxauthclient.xml
+d.ipsec.conf/leftxauthusername.xml
 d.ipsec.conf/leftmodecfgserver.xml
 d.ipsec.conf/leftmodecfgclient.xml
 d.ipsec.conf/modecfgpull.xml
@@ -49,6 +50,7 @@ d.ipsec.conf/rekeyfuzz.xml
 d.ipsec.conf/keyingtries.xml
 d.ipsec.conf/ikelifetime.xml
 d.ipsec.conf/compress.xml
+d.ipsec.conf/metric.xml
 d.ipsec.conf/disablearrivalcheck.xml
 d.ipsec.conf/failureshunt.xml
 d.ipsec.conf/connautoend.xml
@@ -58,6 +60,9 @@ d.ipsec.conf/myid.xml
 d.ipsec.conf/protostack.xml
 d.ipsec.conf/interfaces.xml
 d.ipsec.conf/nat_traversal.xml
+d.ipsec.conf/disable_port_floating.xml
+d.ipsec.conf/force_keepalive.xml
+d.ipsec.conf/keep_alive.xml
 d.ipsec.conf/virtual_private.xml
 d.ipsec.conf/oe.xml
 d.ipsec.conf/nhelpers.xml

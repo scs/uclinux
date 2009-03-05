@@ -55,8 +55,9 @@ esac
 echo Setting up for kernel KERNVER=$KERNVER and KERNVERSION=$KERNVERSION
 
 
-# set the default for this
+# set the default for these
 NATTPATCH=${NATTPATCH-true}
+NGPATCH=${NGPATCH-false}
 
 # make absolute so that we can reference it from POOLSPACE
 OPENSWANSRCDIR=`cd $OPENSWANSRCDIR && pwd`;export OPENSWANSRCDIR
@@ -150,13 +151,10 @@ then
     lndirkerndirnogit $KERNPOOL .
 
     applypatches
- 
-    echo Copying kernel config ${TESTINGROOT}/kernelconfigs/umlplain${KERNVER}.config 
-    rm -f .config
-    cp ${TESTINGROOT}/kernelconfigs/umlplain${KERNVER}.config .config
-    
-    (make CC=${CC} ARCH=um $NONINTCONFIG && make ARCH=um CC=${CC} linux ) || exit 1 </dev/null 
-fi 
+    PLAINKCONF=${TESTINGROOT}/kernelconfigs/umlnetkey${KERNVER}.config
+    echo "using $PLAINKCONF to build  plain kernel"
+     (make CC=${CC} ARCH=um allnoconfig KCONFIG_ALLCONFIG=$PLAINKCONF && make CC=${CC} ARCH=um linux) || exit 1 </dev/null
+fi
 
 UMLNETKEY=$POOLSPACE/netkey${KERNVER}
 mkdir -p $UMLNETKEY
