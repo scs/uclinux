@@ -55,18 +55,18 @@ dv "Initializing target using ddr2_sg590.cmd\n"
 // Final settings: Captured from board
 //
 ed      $final_lmc0_comp_ctl = 0x00000000f000f000
-ed           $final_lmc0_ctl = 0x00000000637c0644
+ed           $final_lmc0_ctl = 0x00000000617c0658
 ed          $final_lmc0_ctl1 = 0x0000000000000200
-ed      $final_lmc0_ddr2_ctl = 0x0000000000800101
-ed     $final_lmc0_delay_cfg = 0x0000000000000c03
+ed      $final_lmc0_ddr2_ctl = 0x0000000000820501
+ed     $final_lmc0_delay_cfg = 0x0000000000002C09
 ed   $final_lmc0_dual_memcfg = 0x0000000000030000
-ed      $final_lmc0_mem_cfg0 = 0x0000000000000621
-ed      $final_lmc0_mem_cfg1 = 0x00000000388e868b
-ed       $final_lmc0_pll_ctl = 0x00000000001fc104
-ed    $final_lmc0_pll_status = 0x0000000034c00000
+ed      $final_lmc0_mem_cfg0 = 0x0000000040000621
+ed      $final_lmc0_mem_cfg1 = 0x0000000026cc6448
+ed       $final_lmc0_pll_ctl = 0x00000000040bc010
+ed    $final_lmc0_pll_status = 0x0000000034400000
 ed $final_lmc0_rodt_comp_ctl = 0x0000000000010207
 ed      $final_lmc0_rodt_ctl = 0x0000000000000000
-ed     $final_lmc0_wodt_ctl0 = 0x0000000000000011
+ed     $final_lmc0_wodt_ctl0 = 0x0000000000010001
 // ===============================================================
 //
 //

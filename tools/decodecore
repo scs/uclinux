@@ -52,7 +52,8 @@ proc load_coredump {filename} {
 	set oops 0
 
 	while {[gets $f line] >= 0} {
-		if {[regexp -nocase {Internal error: Oops:} $line dummy]} {
+		if {[regexp -nocase {Internal error: Oops:} $line dummy]
+				|| [regexp -nocase {WARNING: at} $line dummy]} {
 			set stackdump 0
 			incr ::coredumps
 			if {[info exists ::segments(lsmod)]} {

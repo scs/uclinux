@@ -765,6 +765,10 @@ static void process_args(int argc, char **argv)
 					args_add_with_spaces(stripped_args, getenv("CXXSUP") ?: "-lsupc++");
 				}
 				args_add(stripped_args, "-Wl,--start-group");
+				if (cplusplus && getenv("CONFIG_LIB_STLPORT")) {
+					args_add(stripped_args, "-lpthread");
+					args_add(stripped_args, "-lm");
+				}
 				args_add(stripped_args, "-lc");
 				args_add(stripped_args, "-lgcc");
 				args_add(stripped_args, "-Wl,--end-group");
@@ -816,8 +820,11 @@ static void process_args(int argc, char **argv)
 #endif
 
 	if (cplusplus) {
-		if (getenv("STL_INCDIR"))
+		if (getenv("CONFIG_LIB_STLPORT"))
 			x_asprintf(&e, "-I%s", getenv("STL_INCDIR"));
+		else if (getenv("CONFIG_LIB_UCLIBCXX") ||
+				getenv("CONFIG_LIB_UCLIBCXX_FORCE"))
+			x_asprintf(&e, "-I%s/lib/uClibc++/include", rootdir);
 		else
 			x_asprintf(&e, "-I%s/include/c++", rootdir);
 		args_add_prefix(stripped_args, e);
