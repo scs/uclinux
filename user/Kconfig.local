@@ -112,9 +112,6 @@ config USER_INETUTILS_RCP
 	bool "rcp"
 config USER_INETUTILS_RSHD
 	bool "rshd"
-config USER_OPROFILE
-	bool "oprofile"
-	select LIB_POPT
 config USER_BF561_COREBLD
 	bool "BF561 Core B support tools"
 config USER_POUND
