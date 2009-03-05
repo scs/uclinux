@@ -175,6 +175,16 @@ while 1 {
             }
         }
 
+
+         -re "Distributed Switch Architecture support.*NET_DSA.*\\\[.*]" {
+
+              if { $board_type == "BF518F-EZBRD" } {
+                    send -s "N\r"
+              } else {
+                    send -s "\r"
+              }
+        }
+
         -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
             send "Y\r"		
         }
