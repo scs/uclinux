@@ -21,10 +21,17 @@ DECOMP = $(shell \
 	esac \
 )
 
-PATCH = patch -p1 -E --no-backup-if-mismatch
+PATCH = patch -f -p1 -E --no-backup-if-mismatch
 $(VER)/.unpacked: $(A)
 	$(DECOMP) $< | tar xf -
 ifneq (,$(wildcard $(CURDIR)/patches/*.patch))
-	for p in $(CURDIR)/patches/*.patch ; do ( cd $(VER) && $(PATCH) < $$p ) || exit $$? ; done
+	for p in $(CURDIR)/patches/*.patch ; do \
+		( \
+		echo " * Applying $$p ..." ; \
+		cd $(VER) ; \
+		$(PATCH) --dry-run < $$p >/dev/null || exit $$? ; \
+		$(PATCH) < $$p ; \
+		) || exit $$? ; \
+	done
 endif
 	touch $(VER)/.unpacked
