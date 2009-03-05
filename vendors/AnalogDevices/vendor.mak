@@ -104,7 +104,7 @@ endif
 MKFS_ROMFS_FLAGS ?=
 image.rootfs.romfs.force:
 	set -e ; \
-	$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
+	$(ROOTDIR)/tools/genromfs-mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
 	$(MKFS_ROMFS) $(MKFS_ROMFS_FLAGS) -f $(IMAGE_ROMFS_BASE).romfs -d $(ROMFSDIR); \
 	rm -rf $(ROMFSDIR)/dev/*
 ifeq ($(CONFIG_ROMFS_FS),y)
