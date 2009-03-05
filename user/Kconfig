@@ -199,6 +199,12 @@ config USER_RTC_DS1302
 	bool "rtc ds1302"
 endif #DISABLED_FOR_BLACKFIN_SYSTEMS
 
+comment "USB Root Hub Controller"
+config USER_USBHUBCTRL_USBHUBCTRL
+	bool "usb hub ctrl"
+	help
+		Command line utility to control enabled ports on the SG560U
+		and some other USB-booting devices
 
 comment "Vixie-cron"
 
@@ -432,8 +438,18 @@ config USER_BOOTTOOLS_RESET
 	bool "reset"
 	help
 	  The uCsimm/uCdimm tools.
-endif #DISABLED_FOR_BLACKFIN_SYSTEMS
 
+config USER_BOOTTOOLS_MD5SUM
+	bool "md5sum"
+	help
+	  Compute MD5 message digest.
+
+config LIB_LIBBSC
+	bool "libbsc"
+	help
+	  Bootloader trap library
+
+endif #DISABLED_FOR_BLACKFIN_SYSTEMS
 
 comment "MTD utils"
 
@@ -2105,6 +2121,13 @@ config USER_OPENVPN_OPENVPN
 	select LIB_LIBLZO
 	select LIB_LIBSSL
 
+config USER_SSCEP
+	bool "sscep"
+	select LIB_LIBSSL
+	help
+		SSCEP is a Simple SCEP client. SCEP is a protocol used
+		for certificate management
+
 config USER_PING_PING
 	bool "ping"
 	help
@@ -2585,6 +2608,12 @@ config USER_THTTPD_THTTPD
 	help
 	  Tiny HTTPD
 	  Approx. binary size: 52k
+
+config READ_TIMEOUT
+	bool "cgi timeout"
+	depends on USER_THTTPD_THTTPD
+	help
+	  enable read timeout for CGI child process on MMUless system
 
 config USER_TINYPROXY_TINYPROXY
 	bool "tinyproxy"
@@ -3097,6 +3126,14 @@ config USER_NULL_NULL
 	bool "null"
 	help
 	  The NULL program. Only useful for testing.
+
+config USER_OPROFILE
+	bool "oprofile"
+#	select LIB_BFD
+#	select LIB_LIBIBERTY
+	select LIB_POPT
+	help
+	  A system-wide profiler.
 
 config USER_PALMBOT_PALMBOT
 	bool "palmbot"
