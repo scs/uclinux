@@ -1,6 +1,5 @@
 #
 # Automatically generated make config: don't edit
-# Wed Sep  5 18:08:48 2007
 #
 # TARGET_alpha is not set
 TARGET_arm=y
@@ -136,7 +135,6 @@ UCLIBC_HAS_WCHAR=y
 # UCLIBC_HAS_LOCALE is not set
 # UCLIBC_HAS_HEXADECIMAL_FLOATS is not set
 UCLIBC_HAS_GLIBC_CUSTOM_PRINTF=y
-# USE_OLD_VFPRINTF is not set
 UCLIBC_PRINTF_SCANF_POSITIONAL_ARGS=9
 # UCLIBC_HAS_SCANF_GLIBC_A_FLAG is not set
 # UCLIBC_HAS_STDIO_BUFSIZ_NONE is not set

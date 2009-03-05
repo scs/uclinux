@@ -1,5 +1,4 @@
-.EXPORT_ALL_VARIABLES:
 #
 # Declare the SecureComputing version in one place.
 #
-VERSIONPKG=4.0.0b5
+export VERSIONPKG=4.1.0p0

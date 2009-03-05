@@ -21,6 +21,14 @@ ifndef CONSOLE_BAUD_RATE
 CONSOLE_BAUD_RATE = 9600
 endif
 
+ifndef HW_PRODUCT
+  HW_PRODUCT = $(CONFIG_PRODUCT)
+endif
+
+ifndef HW_VENDOR
+  HW_VENDOR = $(CONFIG_VENDOR)
+endif
+
 ifndef LINUXTARGET
 LINUXTARGET = bzImage
 endif

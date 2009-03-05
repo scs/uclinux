@@ -473,6 +473,7 @@ CONFIG_MTD_CFI_UTIL=y
 # CONFIG_MTD_M520x is not set
 # CONFIG_MTD_INTEL_VR_NOR is not set
 # CONFIG_MTD_PLATRAM is not set
+# CONFIG_MTD_PART_SINGLE is not set
 
 #
 # Self-contained MTD device drivers
@@ -547,7 +548,6 @@ CONFIG_IDE_PROC_FS=y
 # CONFIG_BLK_DEV_GENERIC is not set
 # CONFIG_BLK_DEV_OPTI621 is not set
 # CONFIG_BLK_DEV_P20575 is not set
-# CONFIG_BLK_DEV_SL82C105 is not set
 # CONFIG_BLK_DEV_AEC62XX is not set
 # CONFIG_BLK_DEV_ALI15X3 is not set
 # CONFIG_BLK_DEV_CMD64X is not set
@@ -567,6 +567,7 @@ CONFIG_IDE_PROC_FS=y
 # CONFIG_BLK_DEV_PDC202XX_NEW is not set
 # CONFIG_BLK_DEV_SVWKS is not set
 # CONFIG_BLK_DEV_SIIMAGE is not set
+# CONFIG_BLK_DEV_SL82C105 is not set
 # CONFIG_BLK_DEV_SLC90E66 is not set
 # CONFIG_BLK_DEV_TRM290 is not set
 # CONFIG_BLK_DEV_VIA82CXXX is not set
@@ -756,6 +757,7 @@ CONFIG_HW_RANDOM_IXP4XX=y
 # CONFIG_RAW_DRIVER is not set
 # CONFIG_TCG_TPM is not set
 # CONFIG_M41T11M6 is not set
+# CONFIG_FIFO_HUB is not set
 CONFIG_DEVPORT=y
 # CONFIG_I2C is not set
 # CONFIG_SPI is not set

@@ -5,7 +5,7 @@
 ROMFSIMG  = $(IMAGEDIR)/ramdisk
 ZIMAGE    = $(IMAGEDIR)/zImage
 IMAGE     = $(IMAGEDIR)/image.bin
-IMAGESIZE = 7733248
+IMAGESIZE = 7602176
 FLASH     = $(IMAGEDIR)/flash.bin
 
 SQUASH_ENDIAN = -be
@@ -21,7 +21,8 @@ FLASH_DEVICES = \
 	tags,c,90,0 \
 	config,c,90,2 \
 	image,c,90,4 \
-	all,c,90,6
+	all,c,90,6 \
+	log,c,90,8
 
 all:
 

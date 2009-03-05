@@ -1,6 +1,5 @@
 #
 # Automatically generated make config: don't edit
-# Fri Jun  1 10:04:45 2007
 #
 # TARGET_alpha is not set
 TARGET_arm=y

@@ -68,6 +68,7 @@ CONFIG_SIGNALFD=y
 CONFIG_TIMERFD=y
 CONFIG_EVENTFD=y
 CONFIG_VM_EVENT_COUNTERS=y
+CONFIG_SLUB_DEBUG=y
 # CONFIG_SLAB is not set
 CONFIG_SLUB=y
 # CONFIG_SLOB is not set
@@ -168,13 +169,12 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
 # CONFIG_RESOURCES_64BIT is not set
 CONFIG_ZONE_DMA_FLAG=1
 CONFIG_VIRT_TO_BUS=y
-CONFIG_ISA_DMA_API=y
 
 #
-# Bus options (PCI, PCMCIA, EISA, MCA, ISA)
+# Boot configuration
 #
-# CONFIG_PCI is not set
-# CONFIG_ARCH_SUPPORTS_MSI is not set
+# CONFIG_UCBOOTLOADER is not set
+CONFIG_ISA_DMA_API=y
 
 #
 # Executable file formats
@@ -502,6 +502,8 @@ CONFIG_HW_RANDOM=y
 # CONFIG_TCG_TPM is not set
 # CONFIG_MCF_QSPI is not set
 # CONFIG_M41T11M6 is not set
+# CONFIG_FIFO_HUB is not set
+# CONFIG_FLEXCAN is not set
 # CONFIG_I2C is not set
 # CONFIG_SPI is not set
 # CONFIG_W1 is not set
@@ -714,6 +716,8 @@ CONFIG_FRAME_WARN=1024
 # CONFIG_DEBUG_FS is not set
 # CONFIG_HEADERS_CHECK is not set
 # CONFIG_DEBUG_KERNEL is not set
+# CONFIG_SLUB_DEBUG_ON is not set
+# CONFIG_SLUB_STATS is not set
 # CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_SAMPLES is not set
 # CONFIG_FULLDEBUG is not set

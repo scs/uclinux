@@ -1,7 +1,6 @@
 #
 # Automatically generated make config: don't edit
 # Dist builder
-# Thu Jul 24 17:12:10 2008
 #
 CONFIG_MODULES=y
 
@@ -44,6 +43,8 @@ CONFIG_OCF_IXP4XX=m
 # CONFIG_OCF_HIFN is not set
 # CONFIG_OCF_HIFNHIPP is not set
 # CONFIG_OCF_TALITOS is not set
+# CONFIG_OCF_EP80579 is not set
+# CONFIG_OCF_CRYPTOCTEON is not set
 # CONFIG_OCF_OCFNULL is not set
 # CONFIG_OCF_BENCH is not set
 
@@ -166,6 +167,11 @@ CONFIG_MODULES_RALINK_RT2560AP_8021X=y
 # CONFIG_MODULES_VMWARE_VMMEMCTL is not set
 # CONFIG_MODULES_VMWARE_VMHGFS is not set
 # CONFIG_MODULES_VMWARE_VMBLOCK is not set
+
+#
+# Lucent/Agere Modules
+#
+# CONFIG_MODULES_ET1310 is not set
 
 #
 # USB Modules

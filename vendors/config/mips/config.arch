@@ -72,6 +72,7 @@ CROSS_COMPILE  = mips-linux-
 endif
 endif
 
+CROSS = $(CROSS_COMPILE)
 CONFIGURE_HOST = mips-linux
 
 CC        = $(ucfront_cc) $(CROSS_COMPILE)gcc $(CPUFLAGS)

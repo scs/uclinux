@@ -131,7 +131,6 @@ CONFIG_CLOCK_DIV=2
 #
 # CONFIG_ARN5307 is not set
 # CONFIG_M5307C3 is not set
-# CONFIG_eLIA is not set
 # CONFIG_SECUREEDGEMP3 is not set
 CONFIG_CLEOPATRA=y
 # CONFIG_NETtel is not set
@@ -174,14 +173,12 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
 # CONFIG_RESOURCES_64BIT is not set
 CONFIG_ZONE_DMA_FLAG=1
 CONFIG_VIRT_TO_BUS=y
-CONFIG_ISA_DMA_API=y
 
 #
-# Bus options (PCI, PCMCIA, EISA, MCA, ISA)
+# Boot configuration
 #
-# CONFIG_PCI is not set
-# CONFIG_COMEMPCI is not set
-# CONFIG_ARCH_SUPPORTS_MSI is not set
+# CONFIG_UCBOOTLOADER is not set
+CONFIG_ISA_DMA_API=y
 
 #
 # Executable file formats
@@ -348,6 +345,7 @@ CONFIG_MTD_RAM=y
 # CONFIG_MTD_M520x is not set
 # CONFIG_MTD_PLATRAM is not set
 # CONFIG_MTD_AVNET5282 is not set
+# CONFIG_MTD_PART_SINGLE is not set
 
 #
 # Self-contained MTD device drivers
@@ -492,6 +490,8 @@ CONFIG_HW_RANDOM=y
 # CONFIG_TCG_TPM is not set
 # CONFIG_MCF_QSPI is not set
 # CONFIG_M41T11M6 is not set
+# CONFIG_FIFO_HUB is not set
+# CONFIG_FLEXCAN is not set
 # CONFIG_I2C is not set
 # CONFIG_SPI is not set
 # CONFIG_W1 is not set

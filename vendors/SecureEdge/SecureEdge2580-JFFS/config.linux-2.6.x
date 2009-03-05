@@ -481,6 +481,7 @@ CONFIG_MTD_NETtel=y
 # CONFIG_MTD_M520x is not set
 # CONFIG_MTD_INTEL_VR_NOR is not set
 # CONFIG_MTD_PLATRAM is not set
+# CONFIG_MTD_PART_SINGLE is not set
 
 #
 # Self-contained MTD device drivers
@@ -778,6 +779,7 @@ CONFIG_UNIX98_PTYS=y
 # CONFIG_HANGCHECK_TIMER is not set
 # CONFIG_TCG_TPM is not set
 # CONFIG_M41T11M6 is not set
+# CONFIG_FIFO_HUB is not set
 # CONFIG_TELCLOCK is not set
 CONFIG_DEVPORT=y
 # CONFIG_I2C is not set

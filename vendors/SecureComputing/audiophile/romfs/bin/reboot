@@ -3,9 +3,8 @@
 killall mp3play     2>&1 >/dev/null
 killall oggplay     2>&1 >/dev/null
 sleep 4
-mount -o remount,ro /usr/msp /usr/logs
-umount /usr/logs
-umount /usr/msp
+mount -o remount,ro /home
+umount /home
 
 echo -n "rebooting" > /dev/lcdtxt
 

@@ -462,6 +462,7 @@ CONFIG_HW_RANDOM=y
 # CONFIG_RAW_DRIVER is not set
 # CONFIG_TCG_TPM is not set
 # CONFIG_M41T11M6 is not set
+# CONFIG_FIFO_HUB is not set
 CONFIG_NOHAU_LPC28XX_LCD=y
 # CONFIG_I2C is not set
 # CONFIG_SPI is not set

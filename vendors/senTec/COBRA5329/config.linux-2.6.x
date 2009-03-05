@@ -136,6 +136,8 @@ CONFIG_CLOCK_DIV=3
 #
 # CONFIG_M5329EVB is not set
 CONFIG_COBRA5329=y
+# CONFIG_UC532X is not set
+# CONFIG_UC53281EVM is not set
 CONFIG_4KSTACKS=y
 CONFIG_HZ=100
 
@@ -174,13 +176,12 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
 # CONFIG_RESOURCES_64BIT is not set
 CONFIG_ZONE_DMA_FLAG=1
 CONFIG_VIRT_TO_BUS=y
-CONFIG_ISA_DMA_API=y
 
 #
-# Bus options (PCI, PCMCIA, EISA, MCA, ISA)
+# Boot configuration
 #
-# CONFIG_PCI is not set
-# CONFIG_ARCH_SUPPORTS_MSI is not set
+# CONFIG_UCBOOTLOADER is not set
+CONFIG_ISA_DMA_API=y
 
 #
 # Executable file formats
@@ -349,6 +350,7 @@ CONFIG_MTD_COBRA5329=y
 # CONFIG_MTD_M520x is not set
 # CONFIG_MTD_PLATRAM is not set
 # CONFIG_MTD_AVNET5282 is not set
+# CONFIG_MTD_PART_SINGLE is not set
 
 #
 # Self-contained MTD device drivers
@@ -539,6 +541,10 @@ CONFIG_HW_RANDOM=y
 # CONFIG_TCG_TPM is not set
 # CONFIG_MCF_QSPI is not set
 # CONFIG_M41T11M6 is not set
+# CONFIG_M532X_PCM is not set
+# CONFIG_M532X_PWM is not set
+# CONFIG_FIFO_HUB is not set
+# CONFIG_FLEXCAN is not set
 CONFIG_I2C=y
 CONFIG_I2C_BOARDINFO=y
 CONFIG_I2C_CHARDEV=y
@@ -553,6 +559,7 @@ CONFIG_I2C_MCF=y
 # CONFIG_I2C_TAOS_EVM is not set
 # CONFIG_I2C_STUB is not set
 # CONFIG_I2C_PCA_PLATFORM is not set
+# CONFIG_I2C_OCTEON_TWSI is not set
 
 #
 # Miscellaneous I2C Chip support
@@ -565,6 +572,8 @@ CONFIG_I2C_MCF=y
 # CONFIG_SENSORS_M41T11 is not set
 # CONFIG_SENSORS_MAX6875 is not set
 # CONFIG_SENSORS_TSL2550 is not set
+# CONFIG_SENSORS_LM4930 is not set
+# CONFIG_SENSORS_LM4931 is not set
 # CONFIG_I2C_DEBUG_CORE is not set
 # CONFIG_I2C_DEBUG_ALGO is not set
 # CONFIG_I2C_DEBUG_BUS is not set
@@ -648,10 +657,17 @@ CONFIG_FB_CFB_IMAGEBLIT=y
 #
 # CONFIG_FB_S1D13XXX is not set
 CONFIG_FB_M532x=y
+# CONFIG_LCD_320x200 is not set
+# CONFIG_LCD_320x200_HIGH is not set
+# CONFIG_LCD_320x240 is not set
+# CONFIG_LCD_320x240_HIGH is not set
 CONFIG_LCD_640x480=y
+# CONFIG_LCD_640x480_HIGH is not set
 # CONFIG_LCD_800x600 is not set
 # CONFIG_LCD_240x320 is not set
 # CONFIG_FB_VIRTUAL is not set
+# CONFIG_WG320240A is not set
+# CONFIG_FB_FS453_TVOUT is not set
 # CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
 #

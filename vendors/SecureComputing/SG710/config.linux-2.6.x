@@ -911,6 +911,7 @@ CONFIG_FIPS_RNG=y
 # CONFIG_RAW_DRIVER is not set
 # CONFIG_TCG_TPM is not set
 CONFIG_M41T11M6=y
+# CONFIG_FIFO_HUB is not set
 CONFIG_DEVPORT=y
 # CONFIG_I2C is not set
 # CONFIG_SPI is not set

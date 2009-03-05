@@ -468,6 +468,7 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_RAW_DRIVER is not set
 # CONFIG_TCG_TPM is not set
 # CONFIG_M41T11M6 is not set
+# CONFIG_FIFO_HUB is not set
 # CONFIG_I2C is not set
 # CONFIG_SPI is not set
 # CONFIG_W1 is not set

@@ -177,13 +177,12 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
 # CONFIG_RESOURCES_64BIT is not set
 CONFIG_ZONE_DMA_FLAG=1
 CONFIG_VIRT_TO_BUS=y
-CONFIG_ISA_DMA_API=y
 
 #
-# Bus options (PCI, PCMCIA, EISA, MCA, ISA)
+# Boot configuration
 #
-# CONFIG_PCI is not set
-# CONFIG_ARCH_SUPPORTS_MSI is not set
+# CONFIG_UCBOOTLOADER is not set
+CONFIG_ISA_DMA_API=y
 
 #
 # Executable file formats
@@ -520,6 +519,8 @@ CONFIG_HW_RANDOM=y
 # CONFIG_TCG_TPM is not set
 # CONFIG_MCF_QSPI is not set
 # CONFIG_M41T11M6 is not set
+# CONFIG_FIFO_HUB is not set
+# CONFIG_FLEXCAN is not set
 CONFIG_I2C=y
 CONFIG_I2C_BOARDINFO=y
 # CONFIG_I2C_CHARDEV is not set
@@ -533,6 +534,7 @@ CONFIG_I2C_MCF=y
 # CONFIG_I2C_SIMTEC is not set
 # CONFIG_I2C_TAOS_EVM is not set
 # CONFIG_I2C_PCA_PLATFORM is not set
+# CONFIG_I2C_OCTEON_TWSI is not set
 
 #
 # Miscellaneous I2C Chip support
@@ -545,6 +547,8 @@ CONFIG_I2C_MCF=y
 # CONFIG_SENSORS_M41T11 is not set
 # CONFIG_SENSORS_MAX6875 is not set
 # CONFIG_SENSORS_TSL2550 is not set
+# CONFIG_SENSORS_LM4930 is not set
+# CONFIG_SENSORS_LM4931 is not set
 # CONFIG_I2C_DEBUG_CORE is not set
 # CONFIG_I2C_DEBUG_ALGO is not set
 # CONFIG_I2C_DEBUG_BUS is not set

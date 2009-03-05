@@ -285,6 +285,7 @@ CONFIG_HOTPLUG_PCI_CPCI=y
 # CONFIG_HOTPLUG_PCI_CPCI_ZT5550 is not set
 CONFIG_HOTPLUG_PCI_CPCI_GENERIC=y
 # CONFIG_HOTPLUG_PCI_SHPC is not set
+# CONFIG_HOTPLUG_PCIE_PLX8112 is not set
 
 #
 # Executable file formats / Emulations
@@ -467,6 +468,7 @@ CONFIG_MTD_CFI_UTIL=y
 # CONFIG_MTD_M520x is not set
 # CONFIG_MTD_INTEL_VR_NOR is not set
 # CONFIG_MTD_PLATRAM is not set
+# CONFIG_MTD_PART_SINGLE is not set
 
 #
 # Self-contained MTD device drivers
@@ -717,6 +719,7 @@ CONFIG_UNIX98_PTYS=y
 # CONFIG_HANGCHECK_TIMER is not set
 # CONFIG_TCG_TPM is not set
 # CONFIG_M41T11M6 is not set
+# CONFIG_FIFO_HUB is not set
 # CONFIG_TELCLOCK is not set
 CONFIG_DEVPORT=y
 # CONFIG_I2C is not set

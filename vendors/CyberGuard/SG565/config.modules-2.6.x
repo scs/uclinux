@@ -1,7 +1,6 @@
 #
 # Automatically generated make config: don't edit
 # Dist builder
-# Thu Jun 12 18:27:21 2008
 #
 CONFIG_MODULES=y
 
@@ -152,6 +151,11 @@ CONFIG_MODULES_RALINK=y
 # CONFIG_MODULES_VMWARE_VMMEMCTL is not set
 # CONFIG_MODULES_VMWARE_VMHGFS is not set
 # CONFIG_MODULES_VMWARE_VMBLOCK is not set
+
+#
+# Lucent/Agere Modules
+#
+# CONFIG_MODULES_ET1310 is not set
 
 #
 # USB Modules

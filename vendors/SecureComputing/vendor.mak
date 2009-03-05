@@ -118,6 +118,9 @@ image.bsslinuz:
 image.arm.zimage:
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/arm/boot/zImage $(ZIMAGE)
 
+image.mips.zimage:
+	gzip -c -9 < $(ROOTDIR)/$(LINUXDIR)/arch/mips/boot/vmlinux.bin >$(ZIMAGE)
+
 image.i386.zimage:
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/i386/boot/bzImage $(ZIMAGE)
 
@@ -199,6 +202,9 @@ romfs.default:
 	$(ROMFSINST) $(VENDOR_ROMFS_DIR)/romfs /
 	chmod 755 $(ROMFSDIR)/etc/default/dhcpcd-change
 	chmod 755 $(ROMFSDIR)/etc/default/ip-*
+ifeq ($(CONFIG_LIBCDIR),glibc)
+	$(ROMFSINST) $(VENDOR_ROMFS_DIR)/nsswitch.conf /etc/nsswitch.conf
+endif
 
 romfs.recover:
 	$(ROMFSINST) $(VENDOR_ROMFS_DIR)/romfs.recover /
@@ -248,10 +254,15 @@ romfs.ixp425-boot:
 	-$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/boot.bin /boot/bootplus.bin
 
 romfs.boot:
-	-$(ROMFSINST) -d $(ROOTDIR)/boot/boot.bin /boot/boot.bin
+ifneq ($(strip $(BOOTLOADER)),)
+		$(ROMFSINST) -d $(BOOTLOADER) /boot/boot.bin
+else 
+		-$(ROMFSINST) -d $(ROOTDIR)/boot/boot.bin /boot/boot.bin
+endif
 
 romfs.version:
 	echo "$(VERSIONSTR) -- " $(BUILD_START_STRING) > $(ROMFSDIR)/etc/version
+	echo "$(HW_VENDOR)/$(HW_PRODUCT)" > $(ROMFSDIR)/etc/hwdetails
 
 romfs.cryptokey:
 ifdef CONFIG_USER_NETFLASH_CRYPTO

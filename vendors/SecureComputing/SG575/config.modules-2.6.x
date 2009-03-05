@@ -1,7 +1,6 @@
 #
 # Automatically generated make config: don't edit
 # Dist builder
-# Fri Jul 25 10:27:15 2008
 #
 CONFIG_MODULES=y
 
@@ -43,6 +42,8 @@ CONFIG_OCF_SAFE=m
 # CONFIG_OCF_HIFN is not set
 # CONFIG_OCF_HIFNHIPP is not set
 # CONFIG_OCF_TALITOS is not set
+# CONFIG_OCF_EP80579 is not set
+# CONFIG_OCF_CRYPTOCTEON is not set
 # CONFIG_OCF_OCFNULL is not set
 # CONFIG_OCF_BENCH is not set
 
@@ -110,6 +111,11 @@ CONFIG_OCF_SAFE=m
 # CONFIG_MODULES_VMWARE_VMMEMCTL is not set
 # CONFIG_MODULES_VMWARE_VMHGFS is not set
 # CONFIG_MODULES_VMWARE_VMBLOCK is not set
+
+#
+# Lucent/Agere Modules
+#
+# CONFIG_MODULES_ET1310 is not set
 
 #
 # USB Modules
