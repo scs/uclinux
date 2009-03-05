@@ -26,13 +26,13 @@ echo-cmd = printf
 endif
 
 if_changed = \
-	settings=".build-$(3)$(VER).settings" ; \
-	echo $(2) $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) > $$settings.new ; \
-	if ! cmp -s $$settings.new $$settings ; then \
+	settings="build-$(3)$(VER)/.dist.settings" ; \
+	echo $(2) $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) > .new.settings ; \
+	if ! cmp -s .new.settings $$settings ; then \
 		$(echo-cmd) "%s\n" "$(cmd_$(1))" ; \
 		( $(cmd_$(1)) ) || exit $$? ; \
 	fi ; \
-	mv $$settings.new $$settings
+	mv .new.settings $$settings
 
 cmd_configure = \
 	set -e ; \
