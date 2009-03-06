@@ -9,10 +9,6 @@ include $(CONFIG_CONFIG)
 ROMFSIMG = $(IMAGEDIR)/rootfs
 IMAGE    = $(IMAGEDIR)/linux
 
-MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
-MKFS_YAFFS  = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffsimage
-MKFS_YAFFS2 = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffs2image
-
 LINUXBOOTDIR = $(ROOTDIR)/$(LINUXDIR)/arch/$(ARCH)/boot
 
 # Blocks must be a multiple of 1024
@@ -83,27 +79,24 @@ ifneq ($(CONFIG_YAFFS_FS),)
 	fi
 endif
 ifneq ($(CONFIG_CRAMFS),)
-	$(CROSS_COMPILE)mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs
+	$(MKFS_CRAMFS) -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
 endif
 ifneq ($(CONFIG_EXT2_FS),)
-	$(CROSS_COMPILE)genext2fs -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
+	$(MKFS_EXT2) -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2
 endif
 ifneq ($(CONFIG_ROMFS_FS),)
-	set -e ; \
-	if which genromfs >/dev/null 2>&1; then \
-		$(ROOTDIR)/tools/mkdevdir-genromfs.sh $(ROMFSDIR) $(DEVICE_TABLE); \
-		genromfs -f $(ROMFSIMG).romfs -d $(ROMFSDIR); \
-		$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).romfs \
-			--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
-			--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).romfs ; \
-		rm -rf $(ROMFSDIR)/dev/*; \
-	fi
+	$(ROOTDIR)/tools/mkdevdir-genromfs.sh $(ROMFSDIR) $(DEVICE_TABLE)
+	$(MKFS_ROMFS) -f $(ROMFSIMG).romfs -d $(ROMFSDIR)
+	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).romfs \
+		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
+		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).romfs
+	rm -rf $(ROMFSDIR)/dev/*
 endif
 
 ifeq ($(CONFIG_MTD_UCLINUX),y)
