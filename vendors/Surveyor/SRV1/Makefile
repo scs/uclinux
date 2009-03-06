@@ -97,7 +97,7 @@ endif
 ifneq ($(CONFIG_ROMFS_FS),)
 	set -e ; \
 	if which genromfs >/dev/null 2>&1; then \
-		$(ROOTDIR)/tools/genromfs-mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
+		$(ROOTDIR)/tools/mkdevdir-genromfs.sh $(ROMFSDIR) $(DEVICE_TABLE); \
 		genromfs -f $(ROMFSIMG).romfs -d $(ROMFSDIR); \
 		$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).romfs \
 			--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
