@@ -38,6 +38,7 @@ mandir = @mandir@
 
 # VPATH
 srcdir = @srcdir@
+builddir = @builddir@
 VPATH = @srcdir@
 
 #
@@ -324,9 +325,10 @@ shared: libpcap.$(DYEXT)
 # XXX - this works with GNU ld, but won't necessarily work with native
 # ld on, for example, various SVR4-flavored platforms, or Digital UNIX.
 #
+SONAME = libpcap.so.1
 libpcap.so: $(OBJ)
 	@rm -f $@
-	$(CC) -shared -Wl,-soname,$@.1 -o $@.`cat $(srcdir)/VERSION` $(OBJ) $(DAGLIBS)
+	$(CC) -shared -Wl,-soname,$(SONAME) -o $@.`cat $(srcdir)/VERSION` $(OBJ) $(DAGLIBS)
 
 #
 # The following rule succeeds, but the result is untested.
@@ -346,7 +348,7 @@ libpcap.dylib: $(OBJ)
 
 scanner.c: $(srcdir)/scanner.l
 	@rm -f $@
-	./runlex.sh $(LEX) -o$@ $<
+	$(srcdir)/runlex.sh $(LEX) -o$@ $<
 
 scanner.o: scanner.c tokdefs.h
 	$(CC) $(CFLAGS) -c scanner.c
@@ -385,11 +387,11 @@ version.h: $(srcdir)/VERSION
 	@rm -f $@
 	sed -e 's/.*/static const char pcap_version_string[] = "libpcap version &";/' $(srcdir)/VERSION > $@
 
-bpf_filter.c: $(srcdir)/bpf/net/bpf_filter.c
+$(builddir)/bpf_filter.c: $(srcdir)/bpf/net/bpf_filter.c
 	rm -f bpf_filter.c
-	ln -s $(srcdir)/bpf/net/bpf_filter.c bpf_filter.c
+	ln -s $< $@
 
-bpf_filter.o: bpf_filter.c
+bpf_filter.o: $(builddir)/bpf_filter.c
 	$(CC) $(CFLAGS) -c bpf_filter.c
 
 #
@@ -400,7 +402,7 @@ pcap-config: pcap-config.in Makefile
 	sed -e 's|@includedir[@]|$(includedir)|g' \
 	    -e 's|@libdir[@]|$(libdir)|g' \
 	    -e 's|@DEPLIBS[@]|$(DEPLIBS)|g' \
-	    pcap-config.in >$@.tmp
+	    $(srcdir)/pcap-config.in >$@.tmp
 	mv $@.tmp $@
 	chmod a+x $@
 
@@ -449,40 +451,45 @@ install: libpcap.a pcap-config
 	for i in $(MAN1); do \
 		$(INSTALL_DATA) $(srcdir)/$$i \
 		    $(DESTDIR)$(mandir)/man1/$$i; done
-	for i in $(MAN3PCAP); do \
+	for i in $(MAN3PCAP_NOEXPAND); do \
 		$(INSTALL_DATA) $(srcdir)/$$i \
 		    $(DESTDIR)$(mandir)/man3/$$i; done
-	ln $(DESTDIR)$(mandir)/man3/pcap_datalink_val_to_name.3pcap \
+	for i in $(MAN3PCAP_EXPAND:.in=); do \
+		$(INSTALL_DATA) $$i \
+		    $(DESTDIR)$(mandir)/man3/$$i; done
+	ln -sf $(DESTDIR)$(mandir)/man3/pcap_datalink_val_to_name.3pcap \
 		 $(DESTDIR)$(mandir)/man3/pcap_datalink_val_to_description.3pcap
-	ln $(DESTDIR)$(mandir)/man3/pcap_dump_open.3pcap \
+	ln -sf $(DESTDIR)$(mandir)/man3/pcap_dump_open.3pcap \
 		 $(DESTDIR)$(mandir)/man3/pcap_dump_fopen.3pcap
-	ln $(DESTDIR)$(mandir)/man3/pcap_geterr.3pcap \
+	ln -sf $(DESTDIR)$(mandir)/man3/pcap_geterr.3pcap \
 		 $(DESTDIR)$(mandir)/man3/pcap_perror.3pcap
-	ln $(DESTDIR)$(mandir)/man3/pcap_inject.3pcap \
+	ln -sf $(DESTDIR)$(mandir)/man3/pcap_inject.3pcap \
 		 $(DESTDIR)$(mandir)/man3/pcap_sendpacket.3pcap
-	ln $(DESTDIR)$(mandir)/man3/pcap_loop.3pcap \
+	ln -sf $(DESTDIR)$(mandir)/man3/pcap_loop.3pcap \
 		 $(DESTDIR)$(mandir)/man3/pcap_dispatch.3pcap
-	ln $(DESTDIR)$(mandir)/man3/pcap_major_version.3pcap \
+	ln -sf $(DESTDIR)$(mandir)/man3/pcap_major_version.3pcap \
 		 $(DESTDIR)$(mandir)/man3/pcap_minor_version.3pcap
-	ln $(DESTDIR)$(mandir)/man3/pcap_next_ex.3pcap \
+	ln -sf $(DESTDIR)$(mandir)/man3/pcap_next_ex.3pcap \
 		 $(DESTDIR)$(mandir)/man3/pcap_next.3pcap
-	ln $(DESTDIR)$(mandir)/man3/pcap_open_offline.3pcap \
+	ln -sf $(DESTDIR)$(mandir)/man3/pcap_open_offline.3pcap \
 		 $(DESTDIR)$(mandir)/man3/pcap_fopen_offline.3pcap
-	ln $(DESTDIR)$(mandir)/man3/pcap_setnonblock.3pcap \
+	ln -sf $(DESTDIR)$(mandir)/man3/pcap_setnonblock.3pcap \
 		 $(DESTDIR)$(mandir)/man3/pcap_getnonblock.3pcap
 	for i in $(MANFILE); do \
-		$(INSTALL_DATA) $(srcdir)/`echo $$i | sed 's/.manfile.in/.manfile/'` \
+		$(INSTALL_DATA) `echo $$i | sed 's/.manfile.in/.manfile/'` \
 		    $(DESTDIR)$(mandir)/man@MAN_FILE_FORMATS@/`echo $$i | sed 's/.manfile.in/.@MAN_FILE_FORMATS@/'`; done
 	for i in $(MANMISC); do \
-		$(INSTALL_DATA) $(srcdir)/`echo $$i | sed 's/.manmisc.in/.manmisc/'` \
+		$(INSTALL_DATA) `echo $$i | sed 's/.manmisc.in/.manmisc/'` \
 		    $(DESTDIR)$(mandir)/man@MAN_MISC_INFO@/`echo $$i | sed 's/.manmisc.in/.@MAN_MISC_INFO@/'`; done
 
 install-shared: install-shared-$(DYEXT)
 install-shared-so: libpcap.so
-	$(INSTALL_PROGRAM) libpcap.so.`cat VERSION` $(DESTDIR)$(libdir)/libpcap.so.`cat VERSION`
+	$(INSTALL_PROGRAM) libpcap.so.`cat $(srcdir)/VERSION` $(DESTDIR)$(libdir)/libpcap.so.`cat $(srcdir)/VERSION`
+	ln -sf libpcap.so.`cat $(srcdir)/VERSION` $(DESTDIR)$(libdir)/$(SONAME)
+	ln -sf $(SONAME) $(DESTDIR)$(libdir)/libpcap.so
 install-shared-dylib: libpcap.dylib
-	$(INSTALL_PROGRAM) libpcap.`cat VERSION`.dylib $(DESTDIR)$(libdir)/libpcap.`cat VERSION`.dylib
-	VER=`cat VERSION`; cd $(DESTDIR)$(libdir) && ln -sf libpcap.$$VER.dylib libpcap.A.dylib;  ln -sf libpcap.A.dylib libpcap.dylib
+	$(INSTALL_PROGRAM) libpcap.`cat $(srcdir)/VERSION`.dylib $(DESTDIR)$(libdir)/libpcap.`cat $(srcdir)/VERSION`.dylib
+	VER=`cat $(srcdir)/VERSION`; cd $(DESTDIR)$(libdir) && ln -sf libpcap.$$VER.dylib libpcap.A.dylib;  ln -sf libpcap.A.dylib libpcap.dylib
 
 uninstall:
 	rm -f $(DESTDIR)$(libdir)/libpcap.a
@@ -527,11 +534,11 @@ tags: $(TAGFILES)
 	ctags -wtd $(TAGFILES)
 
 packaging/pcap.spec: packaging/pcap.spec.in VERSION
-	RPMVERSION=`cat VERSION | sed s/-.*//g`; \
-		sed -e s/@VERSION@/$$RPMVERSION/ -e s/@NAME@/libpcap-`cat VERSION`/ $<   > $@
+	RPMVERSION=`cat $(srcdir)/VERSION | sed s/-.*//g`; \
+		sed -e s/@VERSION@/$$RPMVERSION/ -e s/@NAME@/libpcap-`cat $(srcdir)/VERSION`/ $<   > $@
 
 releasetar:
-	@cwd=`pwd` ; dir=`basename $$cwd` ; name=$(PROG)-`cat VERSION` ; \
+	@cwd=`pwd` ; dir=`basename $$cwd` ; name=$(PROG)-`cat $(srcdir)/VERSION` ; \
 	   mkdir $$name; \
 	   tar cf - $(CSRC) $(HDR) $(MAN1) $(MAN3PCAP_EXPAND) \
 	      $(MAN3PCAP_NOEXPAND) $(MANFILE) $(MANMISC) $(EXTRA_DIST) | \
