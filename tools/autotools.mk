@@ -62,8 +62,16 @@ clean:
 # Helper functions
 #
 
+# $(call _USE_CONF,enable,disable,LIB_FFMPEG,video,blah) -> --enable-video=blah if LIB_FFMPEG
+# $(call _USE_CONF,with,without,LIB_FFMPEG,video)        -> --with-video if LIB_FFMPEG
+_USE_CONF = $(shell \
+	opt="$(5)"; test "$${opt:+set}" = "set" && opt="=$${opt}"; \
+	test "$(CONFIG_$(3))" = "y" \
+		&& echo "--$(1)-$(4)$${opt}" \
+		|| echo "--$(2)-$(4)")
+
 # $(call USE_ENABLE,LIB_FFMPEG,video) => --enable-video if LIB_FFMPEG is set
-USE_ENABLE = $(shell test "$(CONFIG_$(1))" = "y" && echo "--enable-$(2)" || echo "--disable-$(2)")
+USE_ENABLE = $(call _USE_CONF,enable,disable,$(1),$(2),$(3))
 
 # $(call USE_WITH,LIB_FFMPEG,video) => --with-video if LIB_FFMPEG is set
-USE_WITH = $(shell test "$(CONFIG_$(1))" = "y" && echo "--with-$(2)" || echo "--without-$(2)")
+USE_WITH = $(call _USE_CONF,with,without,$(1),$(2),$(3))
