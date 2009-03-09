@@ -16,4 +16,4 @@ post-build::
 endif
 
 romfs:
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libpcap.so.0 /usr/lib/libpcap.so.0
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libpcap.so.1 /usr/lib/libpcap.so.1
