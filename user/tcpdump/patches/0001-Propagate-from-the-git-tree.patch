@@ -1,0 +1,33 @@
+From 08293a774d3dc5e81a8bbd8265299f5ee6e27ede Mon Sep 17 00:00:00 2001
+From: guy <guy>
+Date: Tue, 18 Nov 2008 07:35:32 +0000
+Subject: [PATCH] Propagate from the git tree:
+
+Author: Peter Volkov <pva@gentoo.org>
+Date:   Fri Nov 7 13:23:26 2008 -0500
+
+    tcpdump-4.0.0 fails to build with --disable-ipv6. Patch to fix the issue
+    is in attachment.
+---
+ print-enc.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+diff --git a/print-enc.c b/print-enc.c
+index d96c6f2..0dc48fd 100644
+--- a/print-enc.c
++++ b/print-enc.c
+@@ -77,9 +77,11 @@ enc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
+ 	case AF_INET:
+ 		ip_print(gndo, p, length);
+ 		break;
++#ifdef INET6
+ 	case AF_INET6:
+ 		ip6_print(p, length);
+ 		break;
++#endif /*INET6*/
+ 	}
+ 
+ out:
+-- 
+1.6.2
+

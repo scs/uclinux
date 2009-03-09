@@ -1,9 +1,10 @@
-VER = tcpdump-3.9.8
+VER = tcpdump-4.0.0
+URL = http://www.tcpdump.org/release/$(VER).tar.gz
 
-CONF_OPTS = --with-crypto --disable-smb
-ifdef CONFIG_IPV6
-CONF_OPTS += --enable-ipv6
-endif
+CONF_OPTS = \
+	--disable-smb \
+	$(call USE_WITH,LIB_LIBSSL,crypto,$(STAGEDIR)/usr) \
+	$(call USE_ENABLE,IPV6,ipv6)
 
 export ac_cv_linux_vers=2
 export ac_cv_lbl_unaligned_fail=yes
