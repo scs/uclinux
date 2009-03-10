@@ -77,7 +77,6 @@ netflash: $(OBJS)
 CPPFLAGS += -Ilinux
 .PHONY: autoconf.h
 autoconf.h:
-	set -x ;\
 	for var in `grep -oh 'CONFIG_[[:alnum:]_]*' *.[ch] | sort -u` ; do \
 		eval test x\$${$${var}+set} = xset && eval echo \"#define $${var} 1\" ; \
 	done > $@.tmp ; :
