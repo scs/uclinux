@@ -9,8 +9,7 @@ endif
 CFLAGS += -Wall
 
 EXEC = netflash
-OBJS = tftpmain.o tftp.o tftpsubs.o http.o fileblock_ram.o
-COBJS = netflash.o
+OBJS = tftpmain.o tftp.o tftpsubs.o http.o fileblock_ram.o netflash.o
 
 ifdef CONFIG_USER_NETFLASH_WITH_FTP
 CPPLAGS += -DFTP
@@ -47,7 +46,7 @@ endif
 endif
 
 CPPFLAGS += -DVERSION=\"$(VERSIONPKG)\"
-COBJS += versioning.o
+OBJS += versioning.o
 
 ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 ADD_LIBZ  = -lz
@@ -72,15 +71,19 @@ CPPFLAGS += -Dnetflashmain=main
 
 all: $(EXEC)
 
-netflash: $(OBJS) build_netflash build_versioning
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(COBJS) $(ADD_LIBZ) $(LDLIBS$(LDLIBS_$@))
+netflash: $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(ADD_LIBZ) $(LDLIBS$(LDLIBS_$@))
 
+CPPFLAGS += -Ilinux
+.PHONY: autoconf.h
+autoconf.h:
+	set -x ;\
+	for var in `grep -oh 'CONFIG_[[:alnum:]_]*' *.[ch] | sort -u` ; do \
+		eval test x\$${$${var}+set} = xset && eval echo \"#define $${var} 1\" ; \
+	done > $@.tmp ; :
+	cmp -s $@ $@.tmp && rm -fv $@.tmp || mv -v $@.tmp $@
 
-build_netflash:
-	$(CC) -c -o netflash.o netflash.c $(CFLAGS) $(CPPFLAGS)
-
-build_versioning:
-	$(CC) -c -o versioning.o versioning.c $(CFLAGS) $(CPPFLAGS)
+version.o netflash.o: autoconf.h
 
 hmacmd5: hmacmd5main.c hmacmd5.c md5.c
 	gcc -o $@ $^
@@ -96,4 +99,4 @@ romfs:
 
 clean:
 	-rm -f netflash hmacmd5 sha256sum *.elf *.gdb *.o
-
+	rm -rf linux
