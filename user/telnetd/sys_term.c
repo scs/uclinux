@@ -1220,10 +1220,10 @@ void init_env(void) {
 void start_login(const char *host, int autologin, const char *name) {
 #ifdef EMBED
 	execlp("login", "login", "-h", host, NULL);
-	execlp("sh", "sh", NULL);
+	execlp("sh", "-sh", NULL);
 #else 
 	execlp("login", "login", "-t", NULL);
-	execlp("sh", "sh", "-t", NULL);
+	execlp("sh", "-sh", "-t", NULL);
 #endif
 }
 
