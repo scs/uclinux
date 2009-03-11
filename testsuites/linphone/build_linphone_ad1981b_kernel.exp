@@ -135,7 +135,7 @@ while 1 {
             send "Y\r"
         }
 
-        -re "Linphone, a SIP compatible VoIP phone.*USER_BLACKFIN_LINPHONE.*\\\[.*]" {
+        -re "Linphone, a SIP compatible VoIP phone.*USER_LINPHONE.*\\\[.*]" {
             send "Y\r"
         }
 
