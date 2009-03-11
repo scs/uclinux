@@ -25,7 +25,7 @@ set case_num 0
 incr case_num
 
 set timeout 8
-send "ifconfig eth0 $targetip\r" 
+send "ifconfig eth1 $targetip\r" 
 while 1 {
    sleep 3
    expect {
