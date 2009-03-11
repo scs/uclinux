@@ -1,6 +1,7 @@
 # version is based on current git snapshot from here (since releases are not
 # really made anymore by the mtd guys):
-# http://git.infradead.org/?p=mtd-utils.git;a=summary
+GITWEB = http://git.infradead.org/?p=$(GITREPO).git
+GITREPO = mtd-utils
 VER = a2d010f8fca904fffa3c6e5a5d148cc96a37a08a
 
 TARGETS-y :=
@@ -64,14 +65,14 @@ romfs:
 
 update:
 	set -e ; \
-	tar="http://git.infradead.org`wget -q -O - 'http://git.infradead.org/?p=mtd-utils.git;a=summary' | sed -n '/snapshot/{s:.*href="\([^"]*\).*:\1:;p;q}'`" ; \
+	tar="$(dir $(GITWEB))`wget -q -O - '$(GITWEB)' | sed -n '/snapshot/{s:.*href="\([^"]*\).*:\1:;p;q}'`" ; \
 	ver=`echo $$tar | sed 's:.*h=\([^;]*\).*:\1:'` ; \
 	test "$(VER)" = "$$ver" && exit 0 ; \
-	wget $$tar -O mtd-utils.tar.gz ; \
-	tar xf mtd-utils.tar.gz ; \
+	wget $$tar -O $(GITREPO).tar.gz ; \
+	tar xf $(GITREPO).tar.gz ; \
 	rm -rf $$ver ; \
-	mv mtd-utils $$ver ; \
-	rm mtd-utils.tar.gz ; \
+	mv $(GITREPO) $$ver ; \
+	rm $(GITREPO).tar.gz ; \
 	sed -i "/^VER/s:=.*:= $$ver:" Makefile
 
 .PHONY: all clean romfs update
