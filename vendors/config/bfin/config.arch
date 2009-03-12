@@ -161,6 +161,9 @@ endif
 CFLAGS-$(CONFIG_BLACKFIN_CHECK_STACKFLOW) += -mstack-check-l1
 CFLAGS-$(CONFIG_BLACKFIN_CHECK_POINTER) += -fmudflap -lmudflap
 
+# These three lines can be removed since now -elf2flt is added default by
+# bfin-uclinux-gcc. But busybox Makefile looks for -Wl,-elf2flt to decide
+# if it's OK to strip the binary.
 LDFLAGS-$(CONFIG_FMT_USE_FLAT) += -Wl,-elf2flt
 LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-elf2flt
 LDFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -Wl,-elf2flt
@@ -168,18 +171,9 @@ LDFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -Wl,-elf2flt
 CFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -msep-data
 LDFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -msep-data
 
-CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mid-shared-library
-CFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -msep-data
-LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-shared-lib-id,0 -mid-shared-library
-LDFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -Wl,-shared-lib-id,0 -msep-data
-
-#
-# This will prevent building up of code in lib/ as shared libs.
-# You will need to build/link those by hand anyways ...
-#
-CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mshared-library-id=0
-FLAT_LIBC := $(shell $(CC) $(CPUFLAGS) -mid-shared-library -print-file-name=libc.gdb)
-LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-R,$(FLAT_LIBC)
+# Since we don't build shared libs in lib/, add -mshared-library-id=0 to save link time.
+CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mid-shared-library -mshared-library-id=0
+LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mid-shared-library -mshared-library-id=0
 
 CFLAGS   := $(CFLAGS-y)   $(VENDOR_CFLAGS)   $(CPUFLAGS)
 CXXFLAGS := $(CXXFLAGS-y) $(VENDOR_CXXFLAGS) $(CPUFLAGS)
