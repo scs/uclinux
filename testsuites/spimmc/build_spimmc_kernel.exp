@@ -63,19 +63,19 @@ while 1 {
         }
 
         -re "Sound card support.*SOUND.*\\\[.*]" {
-            send "n\r"
+            send "N\r"
         }
 
         -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "VFAT \\\(Windows-95\\\) fs support.*VFAT_FS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[.*]" {
@@ -83,51 +83,55 @@ while 1 {
         }
 
         -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Codepage 850.*Europe.*NLS_CODEPAGE_850.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "MMC/SD/SDIO card support \\\(MMC\\\).*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "MMC/SD/SDIO over SPI.*MMC_SPI.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "fdisk.*USER_FDISK_FDISK.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "fdisk.*USER_BUSYBOX_FDISK.*\\\[.*]" {
-            send "n\r"
+            send "N\r"
         }
 
         -re "e2fsck.*USER_E2FSPROGS_E2FSCK_E2FSCK.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "mke2fs.*USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "badblocks.*USER_E2FSPROGS_MISC_BADBLOCKS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "mkdosfs.*USER_DOSFSTOOLS_MKDOSFS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
+        }
+
+        -re "dosfsck.*USER_DOSFSTOOLS_DOSFSCK.*\\\[.*]" {
+            send "Y\r"
         }
 
         -re "bonnie\\\+\\\+.*USER_BONNIE.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {
