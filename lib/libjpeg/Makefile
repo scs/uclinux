@@ -24,7 +24,7 @@ mandir = $(prefix)/man/man$(manext)
 #CC= gcc
 
 # You may need to adjust these cc options:
-CFLAGS += -I$(srcdir)
+CFLAGS += -I$(srcdir) -I.
 # Generally, we recommend defining any configuration symbols in jconfig.h,
 # NOT via -D switches here.
 # However, any special defines for ansi2knr.c may be included here:
