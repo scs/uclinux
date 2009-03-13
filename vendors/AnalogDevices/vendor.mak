@@ -7,12 +7,19 @@
 #
 
 SYSROOT_LIBDIR = $(shell $(CONFIGURE_HOST)-gcc $(CPUFLAGS) -print-file-name=libc.a | sed 's:/usr/lib/libc.a$$::')
+SYSROOT_BINDIR = $(dir $(shell which $(CONFIGURE_HOST)-gccbug))
+SYSROOT_PKGCFG = $(SYSROOT_BINDIR)/$(CONFIGURE_HOST)-pkg-config
 vendor_staging_install:
 ifeq ($(SYSROOT_LIBDIR),)
 	@echo "SYSROOT_LIBDIR is not set -- toolchain problem ?"
 	@false
 else
 	cp -a $(STAGEDIR)/* $(SYSROOT_LIBDIR)/
+
+	cp $(ROOTDIR)/tools/cross-pkg-config $(SYSROOT_PKGCFG)
+	$(SYSROOT_PKGCFG) --cross-pkg-config-install $(SYSROOT_LIBDIR)
+
+	$(ROOTDIR)/tools/cross-fix-root $(SYSROOT_LIBDIR) $(SYSROOT_BINDIR) $(CONFIGURE_HOST)-
 endif
 
 ############################################################################
