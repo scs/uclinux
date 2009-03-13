@@ -126,10 +126,6 @@ while 1 {
             send "Y\r"
         }
 
-        -re "dosfsck.*USER_DOSFSTOOLS_DOSFSCK.*\\\[.*]" {
-            send "Y\r"
-        }
-
         -re "bonnie\\\+\\\+.*USER_BONNIE.*\\\[.*]" {
             send "Y\r"
         }
