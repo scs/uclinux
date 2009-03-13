@@ -1,4 +1,4 @@
-VER = freetype-2.3.8
+VER = freetype-2.3.9
 URL = http://downloads.sourceforge.net/sourceforge/freetype/$(VER).tar.bz2
 
 include $(ROOTDIR)/tools/autotools.mk
