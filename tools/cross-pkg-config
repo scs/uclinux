@@ -32,8 +32,24 @@ else
 	error unable to find pkg-config in PATH
 fi
 
+if [ "$1" = "--cross-pkg-config-install" ] ; then
+	# --cross-pkg-config-install <sysroot dir> [pkg-config wrapper]
+	pkg_path="$2"
+	pkg_config="${3:-$0}"
+	sed -i.tmp \
+		-e "s:@CROSS_PKG_CONFIG_INSTALLED@:installed:" \
+		-e "s:@CROSS_PKG_CONFIG_PATH@:$pkg_path:" \
+		"$pkg_config"
+	rm -f "$pkg_config".tmp
+	chmod a+rx "$pkg_config"
+	exit 0
+fi
+
 unset EXTRA_PKG_CONFIG_LIBDIR
-if [ -n "${ROOT}" ] ; then
+if [ "@CROSS_PKG_CONFIG_INSTALLED@" = "installed" ] ; then
+	# Manual install
+	SYSROOT="@CROSS_PKG_CONFIG_PATH@"
+elif [ -n "${ROOT}" ] ; then
 	# Gentoo
 	SYSROOT=${ROOT}
 elif [ -n "${STAGEDIR}" ] ; then
@@ -41,7 +57,13 @@ elif [ -n "${STAGEDIR}" ] ; then
 	SYSROOT=${STAGEDIR}
 	EXTRA_PKG_CONFIG_LIBDIR=${UCLINUX_PKG_CONFIG_LIBDIR}
 else
-	error "Need \$ROOT or \$STAGEDIR set first"
+	# /usr/<target>
+	CHOST=${0##*/}
+	CHOST=${CHOST%-pkg-config}
+	SYSROOT="/usr/${CHOST}"
+	if [ -z "${CHOST}" ] || [ ! -d "${SYSROOT}" ] ; then
+		error "Need \$ROOT or \$STAGEDIR set first"
+	fi
 fi
 # abort infinite loop due to misconfiguration
 [ "${0##*/}" = "pkg-config" ] && error "aborting infinite loop! (make sure to delete uClinux-dist/tools/pkg-config)"

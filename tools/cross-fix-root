@@ -21,10 +21,18 @@ if [ -n "${ROOTDIR}" ] ; then
 	CROSS_BINDIR="${ROOTDIR}/tools"
 fi
 CROSS_PREFIX=${CROSS_COMPILE}
-if [ -n "$1" ] && [ -e "/usr/$1" ] ; then
-	SYSROOT="/usr/$1"
-	CROSS_BINDIR="/usr/bin"
-	CROSS_PREFIX="$1-"
+if [ -n "$3" ] ; then
+	SYSROOT="$1"
+	CROSS_BINDIR="$2"
+	CROSS_PREFIX="$3"
+elif [ -n "$1" ] ; then
+	if [ -e "/usr/$1" ] ; then
+		SYSROOT="/usr/$1"
+		CROSS_BINDIR="/usr/bin"
+		CROSS_PREFIX="$1-"
+	else
+		exit 1
+	fi
 fi
 
 cd "${SYSROOT}" || exit 0
