@@ -6,10 +6,11 @@
 # Read installation instructions before saying "make" !!
 
 # For compiling with source and object files in different directories.
-srcdir = .
+srcdir = jpeg-6b
+VPATH += $(srcdir)
 
 # Where to install the programs and man pages.
-prefix = /usr/local
+prefix = /usr
 exec_prefix = ${prefix}
 bindir = $(exec_prefix)/bin
 libdir = $(exec_prefix)/lib
@@ -135,35 +136,26 @@ TROBJECTS= jpegtran.$(O) rdswitch.$(O) cdjpeg.$(O) transupp.$(O)
 
 OBJSDLL = $(LIBOBJECTS:.o=.pic.o)
 
-#all:  libjpeg.$(A) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-all:  libjpeg.$(A) libjpeg.so cjpeg djpeg jpegtran rdjpgcom wrjpgcom
-	install -d $(STAGEDIR)/usr/lib
-	install -d $(STAGEDIR)/usr/include
-	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
-	install -m0644 libjpeg.la $(STAGEDIR)/usr/lib
-	install -m0755 libjpeg.so $(STAGEDIR)/usr/lib/libjpeg.so.62
-	ln -sf libjpeg.so.62 $(STAGEDIR)/usr/lib/libjpeg.so
-	install -m0644 jpeglib.h $(STAGEDIR)/usr/include
-	install -m0644 jconfig.h $(STAGEDIR)/usr/include
-	install -m0644 jmorecfg.h $(STAGEDIR)/usr/include
-	install -m0644 jerror.h $(STAGEDIR)/usr/include
-else
 all:  libjpeg.$(A) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 	install -d $(STAGEDIR)/usr/lib
 	install -d $(STAGEDIR)/usr/include
 	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
-	install -m0644 jpeglib.h $(STAGEDIR)/usr/include
+	install -m0644 $(srcdir)/jpeglib.h $(STAGEDIR)/usr/include
 	install -m0644 jconfig.h $(STAGEDIR)/usr/include
-	install -m0644 jmorecfg.h $(STAGEDIR)/usr/include
-	install -m0644 jerror.h $(STAGEDIR)/usr/include
+	install -m0644 $(srcdir)/jmorecfg.h $(STAGEDIR)/usr/include
+	install -m0644 $(srcdir)/jerror.h $(STAGEDIR)/usr/include
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	install -m0755 libjpeg.so $(STAGEDIR)/usr/lib/libjpeg.so.62
+	ln -sf libjpeg.so.62 $(STAGEDIR)/usr/lib/libjpeg.so
+	install -m0644 libjpeg.la $(STAGEDIR)/usr/lib
+all:  libjpeg.so
 endif
 
 # Special compilation rules to support ansi2knr and libtool.
 .SUFFIXES: .lo .la .c .o .pic.o
 
 .c.pic.o:
-	$(CC) -c $(CFLAGS) -o $@ $*.c
+	$(CC) -c $(CFLAGS) -o $@ $(srcdir)/$*.c
 
 # How to compile with libtool.
 # .c.lo:
