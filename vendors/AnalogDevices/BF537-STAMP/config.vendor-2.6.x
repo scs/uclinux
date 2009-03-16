@@ -63,7 +63,6 @@ CONFIG_LIB_NCURSES=y
 # *** Additional Blackfin dist libs ***
 #
 # CONFIG_LIB_AGG is not set
-CONFIG_LIB_ALSA_LIB=y
 
 #
 # ALSA lib requires FDPIC ELF
@@ -1460,7 +1459,7 @@ CONFIG_USER_INETUTILS_RSHD=y
 CONFIG_USER_PNGVIEW=y
 # CONFIG_USER_IRDA_TOOLS is not set
 # CONFIG_USER_IRCP is not set
-CONFIG_USER_ALSA_UTILS=y
+# CONFIG_USER_ALSA_UTILS is not set
 # CONFIG_USER_FFMPEG_APPS is not set
 # CONFIG_USER_MPC is not set
 # CONFIG_USER_MPD is not set
