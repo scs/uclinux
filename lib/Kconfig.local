@@ -123,9 +123,6 @@ config LIB_LIBTOOL
 config LIB_LIBUSB
 	bool "Build libusb"
 
-config LIB_LIBXML2
-	bool "Build libxml2"
-
 config LIB_LIVE
 	bool "Build live555"
 

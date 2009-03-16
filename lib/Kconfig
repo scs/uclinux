@@ -380,6 +380,13 @@ config LIB_LIBFFI
 	  Only enable this if you want to force the library to be built.
 	  The Config will make sure this library is built if it is needed.
 
+config LIB_LIBXML2
+	bool 'Build libxml2'
+	default n
+	help
+	  Library to access XML files.
+	  See  http://xmlsoft.org/
+
 comment "Library Configuration"
 
 config LIB_UC_LIBC_TIMEZONE

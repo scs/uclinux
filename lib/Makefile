@@ -78,6 +78,7 @@ dir_3_$(CONFIG_LIB_BITVECTOR)    += bitvector
 # See Kconfig for the dependencies
 dir_4_$(CONFIG_LIB_LIBPNG)       += libpng
 dir_4_$(CONFIG_LIB_LIBCURL)      += libcurl
+dir_5_$(CONFIG_LIB_LIBXML2)      += libxml2
 
 dir_3_$(CONFIG_LIB_NFNETLINK)    += libnfnetlink
 dir_4_$(CONFIG_LIB_NETFILTER_LOG)+= libnetfilter_log
@@ -145,6 +146,7 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_FLATFSD_FLATFSD -s config/group /etc/group
 	$(ROMFSINST) -e CONFIG_USER_FLATFSD_FLATFSD -s config/mtab /etc/mtab
 	$(ROMFSINST) -e CONFIG_USER_FLATFSD_FLATFSD -s config/fstab /etc/fstab
+	$(ROMFSINST) -e CONFIG_USER_FLATFSD_FLATFSD -s config/hosts /etc/hosts
 	$(ROMFSINST) -e CONFIG_USER_FLATFSD_FLATFSD -s config/resolv.conf /etc/resolv.conf
 	$(ROMFSINST) -e CONFIG_USER_FLATFSD_FLATFSD -e CONFIG_USER_BASH_BASH -s config/profile /etc/profile
 	$(ROMFSINST) -e CONFIG_USER_FLATFSD_FLATFSD -e CONFIG_USER_TINYLOGIN_SHADOWPASSWDS -s config/shadow /etc/shadow
@@ -168,6 +170,7 @@ clean:
 #
 #
 LINKLIBS=\
+	$(ROOTDIR)/lib/libxml2/build/.libs/libxml2.so \
 	$(ROOTDIR)/lib/libjpeg/*.a \
 	$(ROOTDIR)/lib/libpng/*.a \
 	$(ROOTDIR)/lib/libm/*.a \
