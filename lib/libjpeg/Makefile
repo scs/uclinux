@@ -238,9 +238,7 @@ install-headers: jconfig.h
 	$(INSTALL_DATA) $(srcdir)/jerror.h $(includedir)/jerror.h
 
 romfs:
-	if [ "$(CONFIG_FMT_USE_FDPIC_ELF)" = "y" ]; then \
-		$(ROMFSINST) libjpeg.so /lib/libjpeg.so.62 ; \
-	fi
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF libjpeg.so /usr/lib/libjpeg.so.62
 
 clean:
 	-$(RM) *.o *.lo libjpeg.a *.so
