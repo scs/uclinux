@@ -17,40 +17,7 @@ diff -Nurp --exclude=.svn xenomai-2.4.x-clean/configure xenomai-2.4.x/configure
 +#fi
  
  ac_config_headers="$ac_config_headers src/include/xeno_config.h"
- 
-@@ -22569,10 +22569,10 @@ case $XENO_TARGET_ARCH in
-         ;;
-  blackfin)
- 	# Produce libraries in FDPIC format.
--	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -mfdpic"
--	XENO_USER_LDFLAGS="$XENO_USER_CFLAGS -mfdpic"
--	XENO_USER_APP_CFLAGS="$XENO_USER_APP_CFLAGS -mfdpic"
--	XENO_USER_APP_LDFLAGS="$XENO_USER_APP_LDFLAGS -mfdpic"
-+	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe"
-+	XENO_USER_LDFLAGS="$XENO_USER_CFLAGS"
-+	XENO_USER_APP_CFLAGS="$XENO_USER_APP_CFLAGS"
-+	XENO_USER_APP_LDFLAGS="$XENO_USER_APP_LDFLAGS"
-         ;;
-  arm)
- 	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -march=armv$CONFIG_XENO_ARM_ARCH"
-diff -Nurp --exclude=.svn xenomai-2.4.x-clean/configure.in xenomai-2.4.x/configure.in
---- xenomai-2.4.x-clean/configure.in	2008-12-04 19:21:40.000000000 +0800
-+++ xenomai-2.4.x/configure.in	2009-02-23 17:12:14.000000000 +0800
-@@ -648,10 +648,10 @@ case $XENO_TARGET_ARCH in
-         ;;
-  blackfin)
- 	# Produce libraries in FDPIC format.
--	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -mfdpic"
--	XENO_USER_LDFLAGS="$XENO_USER_CFLAGS -mfdpic"
--	XENO_USER_APP_CFLAGS="$XENO_USER_APP_CFLAGS -mfdpic"
--	XENO_USER_APP_LDFLAGS="$XENO_USER_APP_LDFLAGS -mfdpic"
-+	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe"
-+	XENO_USER_LDFLAGS="$XENO_USER_CFLAGS"
-+	XENO_USER_APP_CFLAGS="$XENO_USER_APP_CFLAGS"
-+	XENO_USER_APP_LDFLAGS="$XENO_USER_APP_LDFLAGS"
-         ;;
-  arm)
- 	XENO_USER_CFLAGS="$XENO_USER_CFLAGS -Wall -pipe -march=armv$CONFIG_XENO_ARM_ARCH"
+
 diff -Nurp --exclude=.svn xenomai-2.4.x-clean/Makefile.in xenomai-2.4.x/Makefile.in
 --- xenomai-2.4.x-clean/Makefile.in	2008-06-02 05:32:28.000000000 +0800
 +++ xenomai-2.4.x/Makefile.in	2009-02-23 17:12:14.000000000 +0800

@@ -1,0 +1,88 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\" Man page for switchtest
+.\"
+.\" Copyright (C) 2008 Roland Stigge <stigge@antcom.de>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" Xenomai distribution.
+.\"
+.pc
+.TH SWITCHTEST 1 "2008-04-19" "@PACKAGE_VERSION@" "Xenomai"
+.SH NAME
+switchtest \- Xenomai context switch test
+.SH SYNOPSIS
+.\" The general command line
+.B switchtest
+.RI "[options] threadspec threadspec..."
+.SH DESCRIPTION
+\fBswitchtest\fP is part of Xenomai. It can be used to test thread context
+switches. \fBswitchtest\fP creates threads of various types and attempts to
+switch context between these threads, printing the count of context switches
+every second. A suitable Xenomai enabled kernel with the respective module
+(xeno_posix) must be installed.
+.SH OPTIONS
+Each threadspec specifies the characteristics of a thread to be created:
+
+threadspec = (rtk|rtup|rtus|rtuo)(_fp|_ufpp|_ufps)*[0-9]*
+
+.B rtk
+for a kernel-space real-time thread
+
+.B rtup
+for a user-space real-time thread running in primary mode
+
+.B rtus
+for a user-space real-time thread running in secondary mode
+
+.B rtuo
+for a user-space real-time thread oscillating between primary and secondary mode
+
+.B _fp
+means that the created thread will have the XNFPU bit armed (only valid for rtk)
+
+.B _ufpp
+means that the created thread will use the FPU when in primary mode\n(invalid for rtus)
+
+.B _ufps
+means that the created thread will use the FPU when in secondary mode (invalid for rtk and rtup)
+
+.B "[0-9]*" specifies the ID of the CPU where the created thread will run, 0 if unspecified
+
+Passing no
+.B threadspec
+is equivalent to running:
+
+switchtest rtkN rtkN rtk_fpN rtk_fpN rtk_fp_ufppN rtk_fp_ufppN rtupN rtupN rtup_ufppN
+rtup_ufppN rtusN rtusN rtus_ufpsN rtus_ufpsN rtuoN rtuoN rtuo_ufppN rtuo_ufppN rtuo_ufpsN
+rtuo_ufpsN rtuo_ufpp_ufpsN rtuo_ufpp_ufpsN
+
+with N=1,...,nr_cpus, i.e. occurrences of all the arguments for each CPU
+
+Passing only the \-\-nofpu or \-n argument is equivalent to running:
+
+switchtest rtkN rtkN rtupN rtupN rtusN rtusN rtuoN rtuoN
+
+similar to the above.
+
+\fBswitchtest\fP accepts the following options:
+.TP
+.B \-\-help, \-h
+print usage information and exit
+.TP
+.B \-\-lines <lines>, \-l <lines>
+print headers every <lines> lines
+.TP
+.B \-\-quiet or \-q
+prevent this program from printing every second the count of ncontext switches
+.TP
+.B \-\-timeout <duration>, \-T <duration>
+limit the test duration to <duration> seconds
+.TP
+.B \-\-nofpu, \-n
+disables any use of FPU instructions
+.SH AUTHOR
+\fBswitchtest\fP was written by Philippe Gerum <rpm@xenomai.org> and Gilles
+Chanteperdrix <gilles.chanteperdrix@xenomai.org>. This man page was written by
+Roland Stigge <stigge@antcom.de>.
