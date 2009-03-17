@@ -17,13 +17,13 @@ $(EXEC): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(XLIB) $(LDLIBS$(LDLIBS_$@))
 
 oggplay.o: oggplay.c
-	$(CC) $(CFLAGS) -c $< -o $@ -I$(DIRS) -Wall -Werror
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ -I$(DIRS) -Wall
 
 $(EXEC2): $(OBJS2)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS$(LDLIBS_$@))
 
 oggenc.o: oggenc.c
-	$(CC) $(CFLAGS) -c $< -o $@ -I$(DIRS) -Wall -Werror
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ -I$(DIRS) -Wall
 
 $(DIRS):
 	make -C $@
