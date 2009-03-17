@@ -904,7 +904,8 @@ nextfile:
 				if (errno != EINTR)
 					break;
 		}
-	}
+	} else
+		play_one(argv[argnr]);
 
 	if (slptime)
 		sleep(slptime);
