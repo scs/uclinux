@@ -3,30 +3,23 @@
 
 DIRS = Tremor
 EXEC = oggplay
-OBJS = oggplay.o
-XLIB = Tremor/libvorbisidec.a
+OBJS = oggplay.o Tremor/libvorbisidec.a
 
 EXEC2 = oggenc
 OBJS2 = oggenc.o
 
 .PHONY: clean romfs all $(DIRS)
 
+CFLAGS += -Wall
+CPPFLAGS += -I$(DIRS)
+
 all: $(DIRS) $(EXEC) $(EXEC2)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(XLIB) $(LDLIBS$(LDLIBS_$@))
-
-oggplay.o: oggplay.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ -I$(DIRS) -Wall
-
 $(EXEC2): $(OBJS2)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS$(LDLIBS_$@))
 
-oggenc.o: oggenc.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ -I$(DIRS) -Wall
-
-$(DIRS):
-	make -C $@
+Tremor/libvorbisidec.a:
+	$(MAKE) -C Tremor
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
