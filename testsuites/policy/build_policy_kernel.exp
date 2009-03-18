@@ -77,12 +77,16 @@ while 1 {
             send "y\r"
         }
 
-        -re "CPU.* (\[0-9]+). $cpu.*choice.*\\\[.*]" {
+        -re "CPU.* (\[0-9]+). $cpu .*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
         -re "Silicon Rev.* (\[0-9]+). $revision.*choice.*\\\[.*]" {
+            if { $revision == "0.0" } {
+                send  "\r"
+            } else {
             send "$expect_out(1,string)\r"
+            }
         }
 
         -re "Choose SLAB allocator.*SLAB.*SLUB.*SLOB.*choice.*\\\[.*]" {
