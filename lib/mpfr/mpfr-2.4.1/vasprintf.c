@@ -398,7 +398,7 @@ parse_arg_type (const char *format, struct printf_spec *specinfo)
         (void) va_arg ((ap), mpq_srcptr);       \
         break;                                  \
       case MP_LIMB_ARG:                         \
-        (void) va_arg ((ap), mp_ptr);           \
+        (void) va_arg ((ap), mp_limb_t);        \
         break;                                  \
       case MP_LIMB_ARRAY_ARG:                   \
         (void) va_arg ((ap), mp_ptr);           \
