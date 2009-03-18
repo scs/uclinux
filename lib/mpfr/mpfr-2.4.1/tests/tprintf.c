@@ -191,7 +191,8 @@ check_mixed (void)
   check_length (5, sz, 34, zu);
   check_vprintf ("a. %Pu, b. %c, c. %RUG, d. %Zi%Zn", prec, ch, mpfr, mpz, &mpz);
   check_length_with_cmp (6, mpz, 24, mpz_cmp_ui (mpz, 24), Zi);
-  check_vprintf ("%% a. %#.0RNg, b. %Qx%Rn c. %p", mpfr, mpq, &mpfr, &i);
+  check_vprintf ("%% a. %#.0RNg, b. %Qx%Rn c. %p",
+                 mpfr, mpq, &mpfr, (void *) &i);
   check_length_with_cmp (7, mpfr, 16, mpfr_cmp_ui (mpfr, 16), Rg);
 
 #ifndef NPRINTF_T

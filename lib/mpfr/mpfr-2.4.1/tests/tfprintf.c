@@ -195,7 +195,7 @@ check_mixed (FILE *fout)
   check_vfprintf (fout, "a. %Pu, b. %c, c. %Zi%Zn", prec, ch, mpz, &mpz);
   check_length_with_cmp (6, mpz, 17, mpz_cmp_ui (mpz, 17), Zi);
   check_vfprintf (fout, "%% a. %#.0RNg, b. %Qx%Rn, c. %p", mpfr, mpq, &mpfr,
-                  &i);
+                  (void *) &i);
   check_length_with_cmp (7, mpfr, 16, mpfr_cmp_ui (mpfr, 16), Rg);
 
 #ifndef NPRINTF_T
