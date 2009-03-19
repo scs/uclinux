@@ -159,7 +159,9 @@ else
 endif
 
 CFLAGS-$(CONFIG_BLACKFIN_CHECK_STACKFLOW) += -mstack-check-l1
+CXXFLAGS-$(CONFIG_BLACKFIN_CHECK_STACKFLOW) += -mstack-check-l1
 CFLAGS-$(CONFIG_BLACKFIN_CHECK_POINTER) += -fmudflap -lmudflap
+CXXFLAGS-$(CONFIG_BLACKFIN_CHECK_POINTER) += -fmudflap -lmudflap
 
 # These three lines can be removed since now -elf2flt is added default by
 # bfin-uclinux-gcc. But busybox Makefile looks for -Wl,-elf2flt to decide
@@ -169,10 +171,12 @@ LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-elf2flt
 LDFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -Wl,-elf2flt
 
 CFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -msep-data
+CXXFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -msep-data
 LDFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -msep-data
 
 # Since we don't build shared libs in lib/, add -mshared-library-id=0 to save link time.
 CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mid-shared-library -mshared-library-id=0
+CXXFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mid-shared-library -mshared-library-id=0
 LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mid-shared-library -mshared-library-id=0
 
 CFLAGS   := $(CFLAGS-y)   $(VENDOR_CFLAGS)   $(CPUFLAGS)
