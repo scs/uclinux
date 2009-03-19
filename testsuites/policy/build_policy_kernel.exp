@@ -41,7 +41,7 @@ sleep 3
 
 cd $uclinux_path/testsuites
 
-step "Make clean."
+#step "Make clean."
 
 source  make_clean.exp
 
@@ -82,7 +82,7 @@ while 1 {
         }
 
         -re "Silicon Rev.* (\[0-9]+). $revision.*choice.*\\\[.*]" {
-            if { $revision == "0.0" } {
+            if { $revision == "default" } {
                 send  "\r"
             } else {
             send "$expect_out(1,string)\r"
