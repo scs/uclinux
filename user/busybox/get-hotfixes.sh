@@ -44,3 +44,5 @@ for h in ${hotfixes} ; do
 		echo "!! FAIL !!"
 	fi
 done
+
+rm -rf hotfixes
