@@ -31,38 +31,6 @@ send "\r"
 expect -re $kernel_prompt
 
 incr case_num
-set timeout 3
-send "mknod /dev/ttygserial c 127 0\r"
-while 1 {
-    expect {
-        -re "mknod:|\[eE]rror|\[fF]ail" {
-            case_fail $case_num
-        }
-        -re $kernel_prompt {
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-send "ls -l /dev/ttygserial\r"
-while 1 {
-    expect {
-        -re "ls:|\[eE]rror|\[fF]ail" {
-            case_fail $case_num
-        }
-        -re "127.*/dev/ttygserial.*$kernel_prompt" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
 set timeout 10
 send "modprobe g_serial use_acm=1\r"
 while 1 {
@@ -206,9 +174,10 @@ incr case_num
 send "\n"
 set spawn_id $kermit_spawn_id
 set timeout 5
+send "ls /dev/ttyGS0\r"
 while 1 {
     expect {
-        -re "gs_recv_packet: port=0, port is closed" {
+        -re "ttyGS0" {
             send "\r"
             expect -re $kernel_prompt
             case_pass $case_num
@@ -222,7 +191,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "echo \"test string for gadget serial driver\" > /dev/ttygserial\r"
+send "echo \"test string for gadget serial driver\" > /dev/ttyGS0\r"
 while 1 {
     expect {
         -re $kernel_prompt {
@@ -296,7 +265,11 @@ set timeout 5
 send "modprobe -r g_serial\r"
 while 1 {
     expect {
-        -re "Gadget Serial disconnected.*unbound.*unloaded.*$kernel_prompt" {
+        -re "modprobe:*$kernel_prompt" {
+            case_fail $case_num
+            break
+        }
+        -re "$kernel_prompt" {
             case_pass $case_num
             break
         }
