@@ -1,7 +1,10 @@
-VER = cryptopp552
+VER = cryptopp-5.6.0
 
+#it takes an extra long time to link the test program, so don't do it, unless requested
 all:
-	$(MAKE) -C $(VER) all install PREFIX=$(STAGEDIR)
+	$(MAKE) -C $(VER) libcryptopp.a
+	$(MAKE) -C $(VER) all
+	$(MAKE) -C $(VER) install PREFIX=$(STAGEDIR)
 
 clean:
 	$(MAKE) -C $(VER) clean
