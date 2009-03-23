@@ -204,3 +204,7 @@ config LIB_TREMOR
 
 config LIB_TSLIB
 	bool "Build tslib"
+	depends on FMT_USE_FDPIC_ELF
+if !FMT_USE_FDPIC_ELF
+comment "tslib requires FDPIC ELF"
+endif
