@@ -37,7 +37,7 @@ dir_3_$(CONFIG_LIB_SPHINXBASE)       += sphinxbase
 dir_3_$(CONFIG_LIB_SQLITE)           += sqlite
 dir_3_$(CONFIG_LIB_TREMOR)           += tremor
 dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
-dir_3_$(CONFIG_LIB_LIBOGG)           += libvorbis
+dir_3_$(CONFIG_LIB_LIBVORBIS)        += libvorbis
 
 dir_4_$(CONFIG_LIB_BOOST)            += boost           # requires zlib(3) bzip2(3)
 dir_4_$(CONFIG_LIB_FREETYPE)         += freetype        # requires zlib(3)
