@@ -135,6 +135,11 @@ config LIB_MPFR
 	bool "Build mpfr"
 	select LIB_LIBGMP
 
+config LIB_LIBOGG
+	bool "Build libogg"
+	help
+	  build libogg from http://www.xiph.org/ogg/
+
 config LIB_OPENOBEX
     bool "Build openobex"
 
@@ -208,3 +213,9 @@ config LIB_TSLIB
 if !FMT_USE_FDPIC_ELF
 comment "tslib requires FDPIC ELF"
 endif
+
+config LIB_LIBVORBIS
+	bool "Build libvorbis"
+	help
+	  build libvoribis from http://www.xiph.org/vorbis/
+
