@@ -87,6 +87,12 @@ config LIB_LIBGSASL
 	  network servers (e.g., IMAP, SMTP) to request authentication from
 	  clients, and in clients to authenticate against servers.
 
+config CONFIG_LIB_LIBGPG_ERROR
+	bool "Build Libgpg-error"
+	help
+	  Libgpg-error is a small library with error codes and descriptions shared
+	  by most GnuPG related software.
+
 config LIB_LIBAIO
 	bool "Build libaio"
 
