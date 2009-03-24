@@ -1,0 +1,86 @@
+# Tag Image File Format (TIFF) Software
+#
+# Copyright (C) 2004, Andrey Kiselev <dron@ak4719.spb.edu>
+#
+# Permission to use, copy, modify, distribute, and sell this software and 
+# its documentation for any purpose is hereby granted without fee, provided
+# that (i) the above copyright notices and this permission notice appear in
+# all copies of the software and related documentation, and (ii) the names of
+# Sam Leffler and Silicon Graphics may not be used in any advertising or
+# publicity relating to the software without the specific, prior written
+# permission of Sam Leffler and Silicon Graphics.
+# 
+# THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND, 
+# EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY 
+# WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  
+# 
+# IN NO EVENT SHALL SAM LEFFLER OR SILICON GRAPHICS BE LIABLE FOR
+# ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL DAMAGES OF ANY KIND,
+# OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+# WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF 
+# LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE 
+# OF THIS SOFTWARE.
+
+# Process this file with automake to produce Makefile.in.
+
+LIBTIFF = $(top_builddir)/libtiff/libtiff.la
+
+EXTRA_DIST = \
+	$(TESTSCRIPTS) \
+	$(IMAGES) \
+	common.sh
+
+# All of the tests to execute via 'make check'
+TESTS = $(check_PROGRAMS) $(TESTSCRIPTS)
+
+CLEANFILES = test_packbits.tif deleteme*
+
+# Executable programs which need to be built in order to support tests
+check_PROGRAMS = ascii_tag long_tag short_tag strip_rw rewrite
+
+# Test scripts to execute
+TESTSCRIPTS = \
+	tiffcp-g3.sh \
+	tiffcp-g3-1d.sh \
+	tiffcp-g3-1d-fill.sh \
+	tiffcp-g3-2d.sh \
+	tiffcp-g3-2d-fill.sh \
+	tiffcp-g4.sh \
+	tiffcp-thumbnail.sh \
+	tiffdump.sh \
+	tiffinfo.sh \
+	tiffcp-split.sh \
+	tiffcp-split-join.sh \
+	tiff2ps-PS1.sh \
+	tiff2ps-PS2.sh \
+	tiff2ps-PS3.sh \
+	tiff2ps-EPS1.sh \
+	tiff2pdf.sh \
+	tiffcrop.sh
+
+IMAGES = \
+	images/minisblack-1c-16b.tiff \
+	images/minisblack-1c-8b.tiff \
+	images/miniswhite-1c-1b.tiff \
+	images/palette-1c-1b.tiff \
+	images/palette-1c-4b.tiff \
+	images/palette-1c-8b.tiff \
+	images/README.txt \
+	images/rgb-3c-16b.tiff \
+	images/rgb-3c-8b.tiff
+
+noinst_HEADERS = tifftest.h
+
+ascii_tag_SOURCES = ascii_tag.c
+ascii_tag_LDADD = $(LIBTIFF)
+long_tag_SOURCES = long_tag.c check_tag.c
+long_tag_LDADD = $(LIBTIFF)
+short_tag_SOURCES = short_tag.c check_tag.c
+short_tag_LDADD = $(LIBTIFF)
+strip_rw_SOURCES = strip_rw.c strip.c test_arrays.c test_arrays.h
+strip_rw_LDADD = $(LIBTIFF)
+rewrite_SOURCES = rewrite_tag.c
+rewrite_LDADD = $(LIBTIFF)
+
+INCLUDES = -I$(top_srcdir)/libtiff
+

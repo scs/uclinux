@@ -218,6 +218,20 @@ config LIB_SPHINXBASE
 config LIB_SQLITE
 	bool "Build sqlite"
 
+config LIB_TIFF
+	bool "Build libtiff"
+	help
+	  This software provides support for the Tag Image File Format (TIFF),
+	  a widely used format for storing image data. More info can be found
+	  at http://www.libtiff.org/
+
+config LIB_TIFF_EXAMPLES
+	bool "Install examples"
+	depends on LIB_TIFF
+	help
+	  Selecting this option will install a small collection of tools for
+	  doing simple manipulations of TIFF images
+
 config LIB_TREMOR
 	bool "Build tremor"
 

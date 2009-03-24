@@ -37,6 +37,7 @@ dir_3_$(CONFIG_LIB_POPT)             += popt
 dir_3_$(CONFIG_LIB_SPEEX)            += speex
 dir_3_$(CONFIG_LIB_SPHINXBASE)       += sphinxbase
 dir_3_$(CONFIG_LIB_SQLITE)           += sqlite
+dir_3_$(CONFIG_LIB_TIFF)             += libtiff
 dir_3_$(CONFIG_LIB_TREMOR)           += tremor
 dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
 dir_3_$(CONFIG_LIB_LIBVORBIS)        += libvorbis
