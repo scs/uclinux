@@ -1,0 +1,366 @@
+# Indonesian translations for libgsasl package.
+# Copyright (C) 2008 Free Software Foundation, Inc.
+# This file is distributed under the same license as the libgsasl package.
+# Andhika Padmawan <andhika.padmawan@gmail.com>, 2008.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: libgsasl 0.2.26\n"
+"Report-Msgid-Bugs-To: bug-gsasl@gnu.org\n"
+"POT-Creation-Date: 2009-01-23 16:54+0100\n"
+"PO-Revision-Date: 2008-09-11 23:15+0700\n"
+"Last-Translator: Andhika Padmawan <andhika.padmawan@gmail.com>\n"
+"Language-Team: Indonesian <translation-team-id@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/error.c:44
+msgid "Libgsasl success"
+msgstr "Libgsasl sukses"
+
+#: src/error.c:45
+msgid "SASL mechanism needs more data"
+msgstr "Mekanisme SASL memerlukan lebih banyak data"
+
+#: src/error.c:46
+msgid "Unknown SASL mechanism"
+msgstr "Mekanisme SASL tak diketahui"
+
+#: src/error.c:48
+msgid "SASL mechanism called too many times"
+msgstr "Mekanisme SASL dipanggil terlalu sering"
+
+#: src/error.c:50
+msgid "SASL function needs larger buffer (internal error)"
+msgstr "Fungsi SASL memerlukan penyangga lebih besar (galat internal)"
+
+#: src/error.c:51
+msgid "Could not open file in SASL library"
+msgstr "Tak dapat membuka berkas di pustaka SASL"
+
+#: src/error.c:52
+msgid "Could not close file in SASL library"
+msgstr "Tak dapat menutup berkas di pustaka SASL"
+
+#: src/error.c:53
+msgid "Memory allocation error in SASL library"
+msgstr "Galat alokasi memori di pustaka SASL"
+
+#: src/error.c:54
+msgid "Base 64 coding error in SASL library"
+msgstr "Galat penyandian base 64 di pustaka SASL"
+
+#: src/error.c:55
+msgid "Low-level crypto error in SASL library"
+msgstr "Galat kripto level rendah di pustaka SASL"
+
+#: src/error.c:58
+msgid ""
+"SASL mechanism needs gsasl_client_callback_anonymous() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_client_callback_anonymous() "
+"(galat aplikasi)"
+
+#: src/error.c:61
+msgid ""
+"SASL mechanism needs gsasl_client_callback_password() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_client_callback_password() "
+"(galat aplikasi)"
+
+#: src/error.c:64
+msgid ""
+"SASL mechanism needs gsasl_client_callback_passcode() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_client_callback_passcode() "
+"(galat aplikasi)"
+
+#: src/error.c:67
+msgid ""
+"SASL mechanism needs gsasl_client_callback_pin() callback (application error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_client_callback_pin() (galat "
+"aplikasi)"
+
+#: src/error.c:70
+msgid ""
+"SASL mechanism needs gsasl_client_callback_authorization_id() callback "
+"(application error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik "
+"gsasl_client_callback_authorization_id() (galat aplikasi)"
+
+#: src/error.c:73
+msgid ""
+"SASL mechanism needs gsasl_client_callback_authentication_id() callback "
+"(application error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik "
+"gsasl_client_callback_authentication_id() (galat aplikasi)"
+
+#: src/error.c:76
+msgid ""
+"SASL mechanism needs gsasl_client_callback_service() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_client_callback_service() "
+"(galat aplikasi)"
+
+#: src/error.c:79
+msgid ""
+"SASL mechanism needs gsasl_server_callback_validate() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_client_callback_validate() "
+"(galat aplikasi)"
+
+#: src/error.c:82
+msgid ""
+"SASL mechanism needs gsasl_server_callback_cram_md5() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_server_callback_cram_md5() "
+"(galat aplikasi)"
+
+#: src/error.c:85
+msgid ""
+"SASL mechanism needs gsasl_server_callback_digest_md5() callback "
+"(application error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_server_callback_digest_md5() "
+"(galat aplikasi)"
+
+#: src/error.c:88
+msgid ""
+"SASL mechanism needs gsasl_server_callback_external() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_server_callback_external() "
+"(galat aplikasi)"
+
+#: src/error.c:91
+msgid ""
+"SASL mechanism needs gsasl_server_callback_anonymous() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_server_callback_anonymous() "
+"(galat aplikasi)"
+
+#: src/error.c:94
+msgid ""
+"SASL mechanism needs gsasl_server_callback_realm() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_server_callback_realm() (galat "
+"aplikasi)"
+
+#: src/error.c:97
+msgid ""
+"SASL mechanism needs gsasl_server_callback_securid() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_server_callback_securid() "
+"(galat aplikasi)"
+
+#: src/error.c:100
+msgid ""
+"SASL mechanism needs gsasl_server_callback_service() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_server_callback_service() "
+"(galat aplikasi)"
+
+#: src/error.c:103
+msgid ""
+"SASL mechanism needs gsasl_server_callback_gssapi() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_server_callback_gssapi() "
+"(galat aplikasi)"
+
+#: src/error.c:106
+msgid ""
+"SASL mechanism needs gsasl_server_callback_retrieve() callback (application "
+"error)"
+msgstr ""
+"Mekanisme SASL memerlukan panggil balik gsasl_server_callback_retrieve() "
+"(galat aplikasi)"
+
+#: src/error.c:109
+msgid "Failed to perform Unicode Normalization on string."
+msgstr "Gagal melakukan Normalisasi Sandi Universal pada benang."
+
+#: src/error.c:111
+msgid "Could not prepare internationalized (non-ASCII) string."
+msgstr "Tak dapat menyiapkan benang (non-ASCII) terinternasionalisasi."
+
+#: src/error.c:113
+msgid "SASL mechanism could not parse input"
+msgstr "Mekanisme SASL tak dapat mengurai masukan"
+
+#: src/error.c:114
+msgid "Error authenticating user"
+msgstr "Galat mengotentikasi pengguna"
+
+#: src/error.c:116
+msgid "Cannot get internal library handle (library error)"
+msgstr "Tak bisa mendapatkan penanganan pustaka internal (galat pustaka)"
+
+#: src/error.c:117
+msgid "Integrity error in application payload"
+msgstr "Galat integritas di pemuat aplikasi"
+
+#: src/error.c:118
+msgid "No more realms available (non-fatal)"
+msgstr "Tak ada lagi kawasan tersedia (tak-fatal)"
+
+#: src/error.c:120
+msgid "Client-side functionality not available in library (application error)"
+msgstr "Fungsionalitas sisi-klien tidak tersedia di pustaka (galat aplikasi)"
+
+#: src/error.c:123
+msgid "Server-side functionality not available in library (application error)"
+msgstr "Fungsionalitas sisi-server tidak tersedia di pustaka (galat aplikasi)"
+
+#: src/error.c:126
+msgid ""
+"GSSAPI library could not deallocate memory in gss_release_buffer() in SASL "
+"library.  This is a serious internal error."
+msgstr ""
+"Pustaka GSSAPI tak dapat melepas alokasi memori di gss_release_buffer() di "
+"pustaka SASL.  Ini adalah galat internal serius."
+
+#: src/error.c:130
+msgid ""
+"GSSAPI library could not understand a peer name in gss_import_name() in SASL "
+"library.  This is most likely due to incorrect service and/or hostnames."
+msgstr ""
+"Pustaka GSSAPI tidak mengerti nama peer di gss_import_name() di pustaka "
+"SASL. Ini kelihatannya karena layanan dan/atau nama host yang tidak tepat."
+
+#: src/error.c:134
+msgid ""
+"GSSAPI error in client while negotiating security context in "
+"gss_init_sec_context() in SASL library.  This is most likely due "
+"insufficient credentials or malicious interactions."
+msgstr ""
+"Galat GSSAPI di klien ketika bernegosiasi konteks keamanan di "
+"gss_init_sec_context() di pustaka SASL. Ini kelihatannya karena kredensial "
+"yang tidak cukup atau interaksi yang mencurigakan."
+
+#: src/error.c:138
+msgid ""
+"GSSAPI error in server while negotiating security context in "
+"gss_init_sec_context() in SASL library.  This is most likely due "
+"insufficient credentials or malicious interactions."
+msgstr ""
+"Galat GSSAPI di server ketika bernegosiasi konteks keamanan di "
+"gss_init_sec_context() di pustaka SASL. Ini kelihatannya karena kredensial "
+"yang tidak cukup atau interaksi yang mencurigakan."
+
+#: src/error.c:142
+msgid ""
+"GSSAPI error while decrypting or decoding data in gss_unwrap() in SASL "
+"library.  This is most likely due to data corruption."
+msgstr ""
+"Galat GSSAPI ketika memecahkan atau mengawasandi data di gss_unwrap() di "
+"pustaka SASL. Ini kelihatannya karena data yang rusak."
+
+#: src/error.c:145
+msgid ""
+"GSSAPI error while encrypting or encoding data in gss_wrap() in SASL library."
+msgstr ""
+"Galat GSSAPI ketika enkripsi atau menyandi data di gss_wrap() di pustaka "
+"SASL."
+
+#: src/error.c:148
+msgid ""
+"GSSAPI error acquiring credentials in gss_acquire_cred() in SASL library.  "
+"This is most likely due to not having the proper Kerberos key available in /"
+"etc/krb5.keytab on the server."
+msgstr ""
+"Galat GSSAPI mengambil kredensial di gss_acquire_cred() di pustaka SASL.  "
+"Ini kelihatannya karena tidak memiliki kunci Kerberos asli yang tersedia di /"
+"etc/krb5.keytab di server."
+
+#: src/error.c:152
+msgid ""
+"GSSAPI error creating a display name denoting the client in gss_display_name"
+"() in SASL library.  This is probably because the client supplied bad data."
+msgstr ""
+"Galat GSSAPI membuat tampilan nama mendenotasi klien di gss_display_name() "
+"dipustaka SASL. Ini mungkin karena klien menyuplai data buruk."
+
+#: src/error.c:156
+msgid ""
+"Other entity requested integrity or confidentiality protection in GSSAPI "
+"mechanism but this is currently not implemented."
+msgstr ""
+"Entitas lain meminta proteksi integritas atau konfidensialitas di mekanisme "
+"GSSAPI tapi ini saat ini belum diimplementasikan."
+
+#: src/error.c:159
+msgid "Kerberos V5 initialization failure."
+msgstr ""
+
+#: src/error.c:161
+msgid "Kerberos V5 internal error."
+msgstr ""
+
+#: src/error.c:163
+msgid "SecurID needs additional passcode."
+msgstr ""
+
+#: src/error.c:165
+msgid "SecurID needs new pin."
+msgstr ""
+
+#: src/error.c:167
+msgid "The provided library handle was invalid (application error)"
+msgstr "Penanganan pustaka yang diberikan tidak sah (galat aplikasi)"
+
+#: src/error.c:169
+msgid "No callback specified by caller (application error)."
+msgstr "Tak ada panggil balik ditentukan oleh pemanggil (galat aplikasi)."
+
+#: src/error.c:171
+msgid "Authentication failed because the anonymous token was not provided."
+msgstr "Otentikasi gagal karena sembarang token tidak disediakan."
+
+#: src/error.c:174
+msgid ""
+"Authentication failed because the authentication identity was not provided."
+msgstr "Otentikasi gagal karena identitas otentikasi tidak disediakan."
+
+#: src/error.c:177
+msgid ""
+"Authentication failed because the authorization identity was not provided."
+msgstr "Otentikasi gagal karena identitas otorisasi tidak disediakan."
+
+#: src/error.c:180
+msgid "Authentication failed because the password was not provided."
+msgstr "Otentikasi gagal karena sandi lewat tidak disediakan."
+
+#: src/error.c:182
+msgid "Authentication failed because the passcode was not provided."
+msgstr "Otentikasi gagal karena kode lewat tidak disediakan."
+
+#: src/error.c:184
+msgid "Authentication failed because the pin code was not provided."
+msgstr "Otentikasi gagal karena kode pin tidak disediakan."
+
+#: src/error.c:186
+msgid "Authentication failed because the service name was not provided."
+msgstr "Otentikasi gagal karena nama layanan tidak disediakan."
+
+#: src/error.c:188
+msgid "Authentication failed because the host name was not provided."
+msgstr "Otentikasi gagal karena nama host tidak disediakan."
+
+#: src/error.c:206
+msgid "Libgsasl unknown error"
+msgstr "Galat tak diketahui libgsasl"

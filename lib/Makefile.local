@@ -20,6 +20,7 @@ dir_3_$(CONFIG_LIB_LIBAUDIO)         += libaudio
 dir_3_$(CONFIG_LIB_LIBBFGDOTS)       += libbfgdots
 dir_3_$(CONFIG_LIB_LIBICONV)         += libiconv
 dir_3_$(CONFIG_LIB_LIBIPOD)          += libipod
+dir_3_$(CONFIG_LIB_LIBGSASL)         += libgsasl
 dir_3_$(CONFIG_LIB_LIBMAD)           += libmad
 dir_3_$(CONFIG_LIB_LIBMPEG2)         += mpeg2dec
 dir_3_$(CONFIG_LIB_LIBSDL)           += libsdl

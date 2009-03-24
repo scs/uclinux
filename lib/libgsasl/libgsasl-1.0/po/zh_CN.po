@@ -1,0 +1,330 @@
+# Chinese Simplified translation about libgsasl.
+# Copyright (C) 2008 Free Software Foundation, Inc.
+# This file is distributed under the same license as the libgsasl package.
+# Ji ZhengYu <zhengyuji@gmail.com>, 2008.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: libgsasl 0.2.26\n"
+"Report-Msgid-Bugs-To: bug-gsasl@gnu.org\n"
+"POT-Creation-Date: 2009-01-23 16:54+0100\n"
+"PO-Revision-Date: 2008-05-18 15:51中国标准时间\n"
+"Last-Translator: Ji ZhengYu <zhengyuji@gmail.com>\n"
+"Language-Team: Chinese (simplified) <translation-team-zh-cn@lists."
+"sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/error.c:44
+msgid "Libgsasl success"
+msgstr "Libgsasl 成功"
+
+#: src/error.c:45
+msgid "SASL mechanism needs more data"
+msgstr "SASL 机制需要更多数据"
+
+#: src/error.c:46
+msgid "Unknown SASL mechanism"
+msgstr "未知的 SASL 机制"
+
+#: src/error.c:48
+msgid "SASL mechanism called too many times"
+msgstr "调用 SASL 机制次数太多"
+
+#: src/error.c:50
+msgid "SASL function needs larger buffer (internal error)"
+msgstr "SASL 功能需要更大的缓冲区(内部错误)"
+
+#: src/error.c:51
+msgid "Could not open file in SASL library"
+msgstr "SASL 库无法打开文件"
+
+#: src/error.c:52
+msgid "Could not close file in SASL library"
+msgstr "SASL 库无法关闭文件"
+
+#: src/error.c:53
+msgid "Memory allocation error in SASL library"
+msgstr "SASL 库中出现内存分配错误"
+
+#: src/error.c:54
+msgid "Base 64 coding error in SASL library"
+msgstr "SASL 库中出现 Base 64 编码错误"
+
+#: src/error.c:55
+msgid "Low-level crypto error in SASL library"
+msgstr "SASL 库中出现低级加密错误"
+
+#: src/error.c:58
+msgid ""
+"SASL mechanism needs gsasl_client_callback_anonymous() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_client_callback_anonymous() 函数回调(程序错误)"
+
+#: src/error.c:61
+msgid ""
+"SASL mechanism needs gsasl_client_callback_password() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_client_callback_password() 函数回调(程序错误)"
+
+#: src/error.c:64
+msgid ""
+"SASL mechanism needs gsasl_client_callback_passcode() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_client_callback_passcode() 函数回调(程序错误)"
+
+#: src/error.c:67
+msgid ""
+"SASL mechanism needs gsasl_client_callback_pin() callback (application error)"
+msgstr "SASL 机制需要 gsasl_client_callback_pin() 函数回调(程序错误)"
+
+#: src/error.c:70
+msgid ""
+"SASL mechanism needs gsasl_client_callback_authorization_id() callback "
+"(application error)"
+msgstr ""
+"SASL 机制需要 gsasl_client_callback_authorization_id() 函数回调(程序错误)"
+
+#: src/error.c:73
+msgid ""
+"SASL mechanism needs gsasl_client_callback_authentication_id() callback "
+"(application error)"
+msgstr ""
+"SASL 机制需要 gsasl_client_callback_authentication_id() 函数回调(程序错误)"
+
+#: src/error.c:76
+msgid ""
+"SASL mechanism needs gsasl_client_callback_service() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_client_callback_service() 函数回调(程序错误)"
+
+#: src/error.c:79
+msgid ""
+"SASL mechanism needs gsasl_server_callback_validate() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_server_callback_validate() 函数回调(程序错误)"
+
+#: src/error.c:82
+msgid ""
+"SASL mechanism needs gsasl_server_callback_cram_md5() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_server_callback_cram_md5() 函数回调(程序错误)"
+
+#: src/error.c:85
+msgid ""
+"SASL mechanism needs gsasl_server_callback_digest_md5() callback "
+"(application error)"
+msgstr "SASL 机制需要 gsasl_server_callback_digest_md5() 函数回调(程序错误)"
+
+#: src/error.c:88
+msgid ""
+"SASL mechanism needs gsasl_server_callback_external() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_server_callback_external() 函数回调(程序错误)"
+
+#: src/error.c:91
+msgid ""
+"SASL mechanism needs gsasl_server_callback_anonymous() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_server_callback_anonymous() 函数回调(程序错误)"
+
+#: src/error.c:94
+msgid ""
+"SASL mechanism needs gsasl_server_callback_realm() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_server_callback_realm() 函数回调(程序错误)"
+
+#: src/error.c:97
+msgid ""
+"SASL mechanism needs gsasl_server_callback_securid() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_server_callback_securid() 函数回调(程序错误)"
+
+#: src/error.c:100
+msgid ""
+"SASL mechanism needs gsasl_server_callback_service() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_server_callback_service() 函数回调(程序错误)"
+
+#: src/error.c:103
+msgid ""
+"SASL mechanism needs gsasl_server_callback_gssapi() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_server_callback_gssapi() 函数回调(程序错误)"
+
+#: src/error.c:106
+msgid ""
+"SASL mechanism needs gsasl_server_callback_retrieve() callback (application "
+"error)"
+msgstr "SASL 机制需要 gsasl_server_callback_retrieve() 函数回调(程序错误)"
+
+#: src/error.c:109
+msgid "Failed to perform Unicode Normalization on string."
+msgstr "无法对字符串进行 Unicode 标准化操作。"
+
+#: src/error.c:111
+msgid "Could not prepare internationalized (non-ASCII) string."
+msgstr "无法生成国际化的(非 ACSII 码的)字符串。"
+
+#: src/error.c:113
+msgid "SASL mechanism could not parse input"
+msgstr "SASL 机制无法解析输入"
+
+#: src/error.c:114
+msgid "Error authenticating user"
+msgstr "验证用户时发生错误"
+
+#: src/error.c:116
+msgid "Cannot get internal library handle (library error)"
+msgstr "无法获取内存库处理函数(库错误)"
+
+#: src/error.c:117
+#, fuzzy
+msgid "Integrity error in application payload"
+msgstr "程序中出现完整性错误"
+
+#: src/error.c:118
+msgid "No more realms available (non-fatal)"
+msgstr "不可获得更多的领域(非严重错误)"
+
+#: src/error.c:120
+msgid "Client-side functionality not available in library (application error)"
+msgstr "客户端功能在库中不可用(程序错误)"
+
+#: src/error.c:123
+msgid "Server-side functionality not available in library (application error)"
+msgstr "服务器端功能在库中不可用(程序错误)"
+
+#: src/error.c:126
+msgid ""
+"GSSAPI library could not deallocate memory in gss_release_buffer() in SASL "
+"library.  This is a serious internal error."
+msgstr ""
+"GSSAPI 库无法回收 SASL 库中 gss_release_buffer() 函数所占的内存。这是个严重的"
+"内部错误。"
+
+#: src/error.c:130
+msgid ""
+"GSSAPI library could not understand a peer name in gss_import_name() in SASL "
+"library.  This is most likely due to incorrect service and/or hostnames."
+msgstr ""
+"GSSAPI 库无法解析 SASL 库中 gss_import_name() 函数中的端点名称。这极有可能是"
+"由不正确的服务或主机名造成的。"
+
+#: src/error.c:134
+msgid ""
+"GSSAPI error in client while negotiating security context in "
+"gss_init_sec_context() in SASL library.  This is most likely due "
+"insufficient credentials or malicious interactions."
+msgstr ""
+"当与 SASL 库中 gss_init_sec_context() 函数中的文本进行安全协商时客户端发生了"
+"GSSAPI 错误。这极有可能是由不受信任的证书或恶意会话造成的。"
+
+#: src/error.c:138
+msgid ""
+"GSSAPI error in server while negotiating security context in "
+"gss_init_sec_context() in SASL library.  This is most likely due "
+"insufficient credentials or malicious interactions."
+msgstr ""
+"当与 SASL 库中 gss_init_sec_context() 函数中的文本进行安全协商时服务器端发生"
+"了GSSAPI 错误。这极有可能是由不受信任的证书或恶意会话造成的。"
+
+#: src/error.c:142
+msgid ""
+"GSSAPI error while decrypting or decoding data in gss_unwrap() in SASL "
+"library.  This is most likely due to data corruption."
+msgstr ""
+"当解密或解码 SASL 库中 gss_unwrap() 函数中的数据时发生了 GSSAPI 错误。这极有"
+"可能是由数据损坏造成的。"
+
+#: src/error.c:145
+msgid ""
+"GSSAPI error while encrypting or encoding data in gss_wrap() in SASL library."
+msgstr "当加密或编码 SASL 库中 gss_wrap() 函数中的数据时发生了 GSSAPI 错误。"
+
+#: src/error.c:148
+msgid ""
+"GSSAPI error acquiring credentials in gss_acquire_cred() in SASL library.  "
+"This is most likely due to not having the proper Kerberos key available in /"
+"etc/krb5.keytab on the server."
+msgstr ""
+"进行 SASL 库中 gss_acquire_cred() 函数中的请求证书操作时发生了 GSSAPI 错误。"
+"这极有可能是由于在服务器的 /etc/krb5.keytab 中没有合适的 Kerberos 密钥可用造"
+"成的。"
+
+#: src/error.c:152
+msgid ""
+"GSSAPI error creating a display name denoting the client in gss_display_name"
+"() in SASL library.  This is probably because the client supplied bad data."
+msgstr ""
+"进行 SASL 库中 gss_display_name() 函数中的创建表示客户端的显示名时发生了"
+"GSSAPI 错误。这可能是因为客户端提供了错误的数据。"
+
+#: src/error.c:156
+msgid ""
+"Other entity requested integrity or confidentiality protection in GSSAPI "
+"mechanism but this is currently not implemented."
+msgstr "其它信息要求在 GSSAP 中提供完整性或私密性保护机制，但目前未实现。"
+
+#: src/error.c:159
+msgid "Kerberos V5 initialization failure."
+msgstr ""
+
+#: src/error.c:161
+msgid "Kerberos V5 internal error."
+msgstr ""
+
+#: src/error.c:163
+msgid "SecurID needs additional passcode."
+msgstr ""
+
+#: src/error.c:165
+msgid "SecurID needs new pin."
+msgstr ""
+
+#: src/error.c:167
+msgid "The provided library handle was invalid (application error)"
+msgstr "提供的库操作函数无效(程序错误)"
+
+#: src/error.c:169
+msgid "No callback specified by caller (application error)."
+msgstr "调用函数未指定回调机制(程序错误)。"
+
+#: src/error.c:171
+msgid "Authentication failed because the anonymous token was not provided."
+msgstr "验证失败，因为未提供匿名标记。"
+
+#: src/error.c:174
+msgid ""
+"Authentication failed because the authentication identity was not provided."
+msgstr "验证失败，因为未提供身份验证。"
+
+#: src/error.c:177
+msgid ""
+"Authentication failed because the authorization identity was not provided."
+msgstr "验证失败，因为未提供身份授权。"
+
+#: src/error.c:180
+msgid "Authentication failed because the password was not provided."
+msgstr "验证失败，因为未提供密码。"
+
+#: src/error.c:182
+msgid "Authentication failed because the passcode was not provided."
+msgstr "验证失败，因为未提供 passcode。"
+
+#: src/error.c:184
+msgid "Authentication failed because the pin code was not provided."
+msgstr "验证失败，因为未提供 pin code。"
+
+#: src/error.c:186
+msgid "Authentication failed because the service name was not provided."
+msgstr "验证失败，因为未提供服务名称。"
+
+#: src/error.c:188
+msgid "Authentication failed because the host name was not provided."
+msgstr "验证失败，因为未提供主机名。"
+
+#: src/error.c:206
+msgid "Libgsasl unknown error"
+msgstr "Libgsasl 未知错误"

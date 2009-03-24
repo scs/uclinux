@@ -1,0 +1,376 @@
+# Dutch translations for libgsasl.
+# Copyright (C) 2008 Free Software Foundation, Inc.
+# This file is distributed under the same license as the libgsasl package.
+#
+# Taco Witte <tcwitte@cs.uu.nl>, 2004-2006.
+# Benno Schulenberg <benno@vertaalt.nl>, 2008.
+msgid ""
+msgstr ""
+"Project-Id-Version: libgsasl-0.2.26\n"
+"Report-Msgid-Bugs-To: bug-gsasl@gnu.org\n"
+"POT-Creation-Date: 2009-01-23 16:54+0100\n"
+"PO-Revision-Date: 2008-05-05 22:34+0200\n"
+"Last-Translator: Benno Schulenberg <benno@vertaalt.nl>\n"
+"Language-Team: Dutch <vertaling@vrijschrift.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/error.c:44
+msgid "Libgsasl success"
+msgstr "Libgsasl: gelukt"
+
+#: src/error.c:45
+msgid "SASL mechanism needs more data"
+msgstr "SASL-methode vereist meer gegevens"
+
+#: src/error.c:46
+msgid "Unknown SASL mechanism"
+msgstr "Onbekende SASL-methode"
+
+#: src/error.c:48
+msgid "SASL mechanism called too many times"
+msgstr "SASL-methode is te vaak aangeroepen"
+
+#: src/error.c:50
+msgid "SASL function needs larger buffer (internal error)"
+msgstr "SASL-functie vereist grotere buffer (**interne fout**)"
+
+#: src/error.c:51
+msgid "Could not open file in SASL library"
+msgstr "Kan bestand niet openen in SASL-bibliotheek "
+
+#: src/error.c:52
+msgid "Could not close file in SASL library"
+msgstr "Kan bestand niet sluiten in SASL-bibliotheek"
+
+#: src/error.c:53
+msgid "Memory allocation error in SASL library"
+msgstr "Geheugenreserveringsfout in SASL-bibliotheek"
+
+#: src/error.c:54
+msgid "Base 64 coding error in SASL library"
+msgstr "Base64-coderingsfout in SASL-bibliotheek"
+
+#: src/error.c:55
+msgid "Low-level crypto error in SASL library"
+msgstr "Cryptografiefout op laag niveau in SASL-bibliotheek"
+
+#: src/error.c:58
+msgid ""
+"SASL mechanism needs gsasl_client_callback_anonymous() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_client_callback_anonymous() "
+"(toepassingsfout)"
+
+#: src/error.c:61
+msgid ""
+"SASL mechanism needs gsasl_client_callback_password() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_client_callback_password() "
+"(toepassingsfout)"
+
+#: src/error.c:64
+msgid ""
+"SASL mechanism needs gsasl_client_callback_passcode() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_client_callback_passcode() "
+"(toepassingsfout)"
+
+#: src/error.c:67
+msgid ""
+"SASL mechanism needs gsasl_client_callback_pin() callback (application error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_client_callback_pin() "
+"(toepassingsfout)"
+
+#: src/error.c:70
+msgid ""
+"SASL mechanism needs gsasl_client_callback_authorization_id() callback "
+"(application error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_client_callback_authorization_id"
+"() (toepassingsfout)"
+
+#: src/error.c:73
+msgid ""
+"SASL mechanism needs gsasl_client_callback_authentication_id() callback "
+"(application error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_client_callback_authentication_id"
+"()(toepassingsfout)"
+
+#: src/error.c:76
+msgid ""
+"SASL mechanism needs gsasl_client_callback_service() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_client_callback_service() "
+"(toepassingsfout)"
+
+#: src/error.c:79
+msgid ""
+"SASL mechanism needs gsasl_server_callback_validate() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_validate() "
+"(toepassingsfout)"
+
+#: src/error.c:82
+msgid ""
+"SASL mechanism needs gsasl_server_callback_cram_md5() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_cram_md5() "
+"(toepassingsfout)"
+
+#: src/error.c:85
+msgid ""
+"SASL mechanism needs gsasl_server_callback_digest_md5() callback "
+"(application error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_digest_md5() "
+"(toepassingsfout)"
+
+#: src/error.c:88
+msgid ""
+"SASL mechanism needs gsasl_server_callback_external() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_external() "
+"(toepassingsfout)"
+
+#: src/error.c:91
+msgid ""
+"SASL mechanism needs gsasl_server_callback_anonymous() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_anonymous() "
+"(toepassingsfout)"
+
+#: src/error.c:94
+msgid ""
+"SASL mechanism needs gsasl_server_callback_realm() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_realm() "
+"(toepassingsfout)"
+
+#: src/error.c:97
+msgid ""
+"SASL mechanism needs gsasl_server_callback_securid() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_securid() "
+"(toepassingsfout)"
+
+#: src/error.c:100
+msgid ""
+"SASL mechanism needs gsasl_server_callback_service() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_service() "
+"(toepassingsfout)"
+
+#: src/error.c:103
+msgid ""
+"SASL mechanism needs gsasl_server_callback_gssapi() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_gssapi() "
+"(toepassingsfout)"
+
+#: src/error.c:106
+msgid ""
+"SASL mechanism needs gsasl_server_callback_retrieve() callback (application "
+"error)"
+msgstr ""
+"SASL-methode vereist terugaanroep van gsasl_server_callback_retrieve() "
+"(toepassingsfout)"
+
+#: src/error.c:109
+msgid "Failed to perform Unicode Normalization on string."
+msgstr "Unicode-normalisatie van tekenreeks is mislukt."
+
+#: src/error.c:111
+msgid "Could not prepare internationalized (non-ASCII) string."
+msgstr "Kan geïnternationaliseerde (niet-ASCII) tekenreeks niet voorbewerken."
+
+#: src/error.c:113
+msgid "SASL mechanism could not parse input"
+msgstr "SASL-methode kan invoer niet ontleden"
+
+#: src/error.c:114
+msgid "Error authenticating user"
+msgstr "Fout bij authenticatie van gebruiker"
+
+#: src/error.c:116
+msgid "Cannot get internal library handle (library error)"
+msgstr "Kan geen handvat voor interne bibliotheek verkrijgen (bibliotheekfout)"
+
+#: src/error.c:117
+msgid "Integrity error in application payload"
+msgstr "Integriteitsfout in pakketlading van toepassing"
+
+#: src/error.c:118
+msgid "No more realms available (non-fatal)"
+msgstr "Geen realms meer beschikbaar (niet fataal)"
+
+#: src/error.c:120
+msgid "Client-side functionality not available in library (application error)"
+msgstr ""
+"Functionaliteit voor cliënt is niet beschikbaar in bibliotheek "
+"(toepassingsfout)"
+
+#: src/error.c:123
+msgid "Server-side functionality not available in library (application error)"
+msgstr ""
+"Functionaliteit voor server is niet beschikbaar in bibliotheek "
+"(toepassingsfout)"
+
+#: src/error.c:126
+msgid ""
+"GSSAPI library could not deallocate memory in gss_release_buffer() in SASL "
+"library.  This is a serious internal error."
+msgstr ""
+"GSSAPI-bibliotheek kan geheugen niet vrijgeven in gss_release_buffer() in "
+"SASL-bibliotheek.  **Dit is een ernstige interne fout**."
+
+#: src/error.c:130
+msgid ""
+"GSSAPI library could not understand a peer name in gss_import_name() in SASL "
+"library.  This is most likely due to incorrect service and/or hostnames."
+msgstr ""
+"GSSAPI-bibliotheek begrijpt naam van andere computer niet in gss_import_name"
+"() in SASL-bibliotheek.  Dit komt waarschijnlijk door een onjuiste "
+"servicenaam of hostnaam."
+
+#: src/error.c:134
+msgid ""
+"GSSAPI error in client while negotiating security context in "
+"gss_init_sec_context() in SASL library.  This is most likely due "
+"insufficient credentials or malicious interactions."
+msgstr ""
+"GSSAPI-fout in cliënt bij onderhandelen over veiligheidscontext in "
+"gss_init_sec_context() in SASL-bibliotheek.  Dit komt waarschijnlijk door "
+"onvoldoende identificatiegegevens of door kwaadwillige interventies."
+
+#: src/error.c:138
+msgid ""
+"GSSAPI error in server while negotiating security context in "
+"gss_init_sec_context() in SASL library.  This is most likely due "
+"insufficient credentials or malicious interactions."
+msgstr ""
+"GSSAPI-fout in server bij onderhandelen over veiligheidscontext in "
+"gss_init_sec_context() in SASL-bibliotheek.  Dit komt waarschijnlijk door "
+"onvoldoende identificatiegegevens of door kwaadwillige interventies."
+
+#: src/error.c:142
+msgid ""
+"GSSAPI error while decrypting or decoding data in gss_unwrap() in SASL "
+"library.  This is most likely due to data corruption."
+msgstr ""
+"GSSAPI-fout bij decoderen van gegevens in gss_unwrap() in SASL-bibliotheek.  "
+"Dit komt waarschijnlijk door beschadigde gegevens."
+
+#: src/error.c:145
+msgid ""
+"GSSAPI error while encrypting or encoding data in gss_wrap() in SASL library."
+msgstr ""
+"GSSAPI-fout bij versleutelen van gegevens in gss_wrap() in SASL-bibliotheek."
+
+#: src/error.c:148
+msgid ""
+"GSSAPI error acquiring credentials in gss_acquire_cred() in SASL library.  "
+"This is most likely due to not having the proper Kerberos key available in /"
+"etc/krb5.keytab on the server."
+msgstr ""
+"GSSAPI-fout bij het verkrijgen van identificatiegegevens in gss_acquire_cred"
+"() in SASL-bibliotheek.  Dit komt waarschijnlijk door het ontbreken van een "
+"juiste Kerberos-sleutel in /etc/krb5.keytab op de server."
+
+#: src/error.c:152
+msgid ""
+"GSSAPI error creating a display name denoting the client in gss_display_name"
+"() in SASL library.  This is probably because the client supplied bad data."
+msgstr ""
+"GSSAPI-fout bij aanmaken van weergavenaam voor cliënt in gss_display_name() "
+"in SASL-bibliotheek.  Waarschijnlijk heeft de cliënt onjuiste gegevens "
+"opgegeven."
+
+#: src/error.c:156
+msgid ""
+"Other entity requested integrity or confidentiality protection in GSSAPI "
+"mechanism but this is currently not implemented."
+msgstr ""
+"Andere entiteit verzocht om bescherming van integriteit of vertrouwelijkheid "
+"in GSSAPI-methode, maar dat is nog niet geïmplementeerd."
+
+#: src/error.c:159
+msgid "Kerberos V5 initialization failure."
+msgstr ""
+
+#: src/error.c:161
+msgid "Kerberos V5 internal error."
+msgstr ""
+
+#: src/error.c:163
+msgid "SecurID needs additional passcode."
+msgstr ""
+
+#: src/error.c:165
+msgid "SecurID needs new pin."
+msgstr ""
+
+#: src/error.c:167
+msgid "The provided library handle was invalid (application error)"
+msgstr "Het gegeven bibliotheekhandvat is ongeldig (toepassingsfout)"
+
+#: src/error.c:169
+msgid "No callback specified by caller (application error)."
+msgstr "Aanroeper heeft geen terugaanroep opgegeven (toepassingsfout)."
+
+#: src/error.c:171
+msgid "Authentication failed because the anonymous token was not provided."
+msgstr "Authenticatie is mislukt omdat geen anoniem token opgegeven is."
+
+#: src/error.c:174
+msgid ""
+"Authentication failed because the authentication identity was not provided."
+msgstr ""
+"Authenticatie is mislukt omdat geen authenticatie-identiteit opgegeven is."
+
+#: src/error.c:177
+msgid ""
+"Authentication failed because the authorization identity was not provided."
+msgstr ""
+"Authenticatie is mislukt omdat geen authorisatie-identiteit opgegeven is."
+
+#: src/error.c:180
+msgid "Authentication failed because the password was not provided."
+msgstr "Authenticatie is mislukt omdat geen wachtwoord gegeven is."
+
+#: src/error.c:182
+msgid "Authentication failed because the passcode was not provided."
+msgstr "Authenticatie is mislukt omdat geen wachtwoord gegeven is."
+
+#: src/error.c:184
+msgid "Authentication failed because the pin code was not provided."
+msgstr "Authenticatie is mislukt omdat geen pincode gegeven is."
+
+#: src/error.c:186
+msgid "Authentication failed because the service name was not provided."
+msgstr "Authenticatie is mislukt omdat geen servicenaam opgegeven is."
+
+#: src/error.c:188
+msgid "Authentication failed because the host name was not provided."
+msgstr "Authenticatie is mislukt omdat geen hostnaam opgegeven is."
+
+#: src/error.c:206
+msgid "Libgsasl unknown error"
+msgstr "Libgsasl: onbekende fout"
