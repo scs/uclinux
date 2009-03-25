@@ -77,9 +77,8 @@ fi
 
 # Binds the root's home directory to a directory on the application flash
 if [ -d "/mnt/app" ]; then
-	echo "Rebinding /mnt/app as the root's home directory."
-	mount -o bind "/mnt/app" "/root"
-	mkdir -p "/mnt/app/.ssh" # graciously creating a .ssh directory for people intending to store their public key(s) on the camera.
+	echo "Replacing /root with a symlink pointing to /mnt/app."
+	rm -rf /root && ln -s /mnt/app /root && mkdir -p /root/.ssh
 fi
 
 # Prohibit password login if "no-root-login" is set in the u-boot environment
