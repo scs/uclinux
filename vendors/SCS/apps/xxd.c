@@ -101,7 +101,7 @@ inline void writer_putChar(struct writer * w, unsigned char c) {
 	
 	printf("%02hhx", c);
 	
-	w->conf.line_buffer[w->state.line_pos] = 31 < c && c < 128 ? c : '.';
+	w->conf.line_buffer[w->state.line_pos] = 31 < c && c < 127 ? c : '.';
 	
 	w->state.line_pos += 1;
 	w->state.bytes_written += 1;

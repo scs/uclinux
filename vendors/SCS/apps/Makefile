@@ -3,6 +3,11 @@ OBJECTS_xxd := xxd.o
 PRODUCTS := $(patsubst OBJECTS_%, %, $(filter OBJECTS_%, $(.VARIABLES)))
 SHELL := $(shell which bash)
 
+CLEAN_FILES := *.o *.gdb $(PRODUCTS) Makefile.deps* Makefile.cache
+CLEAN_FILES := $(wildcard $(CLEAN_FILES))
+
+SUBDIRS :=
+
 #CC := gcc -c -DOSC_TARGET -std=gnu99 -O3
 #LD := gcc
 
@@ -13,6 +18,7 @@ LD := bfin-uclinux-gcc -elf2flt="-s 10240"
 
 .PHONY: all host target
 all: $(PRODUCTS)
+	@ set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i; done
 
 .SUFFIXES:
 Makefile.deps: $(SOURCES) $(MAKEFILE_LIST)
@@ -30,16 +36,13 @@ $(PRODUCTS): $$(INPUTS) $(MAKEFILE_LIST)
 	@ echo "LD_BF    $(INPUTS) => $@"
 	@ $(LD) -lm -o $@ $(INPUTS)
 
-CLEAN_FILES := *.o $(PRODUCTS) Makefile.deps* Makefile.cache
-CLEAN_FILES := $(wildcard $(CLEAN_FILES))
-
 .PHONY: clean
 clean:
 ifneq '$(CLEAN_FILES)' ''
 	@ echo "CLEAN   " $(CLEAN_FILES)
 	@ rm -f $(CLEAN_FILES)
 endif
-	@ make -C CGI clean
+	@ set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i $@; done
 
 ifeq '$(filter-out clean, $(MAKECMDGOALS))' '$(MAKECMDGOALS)'
   -include Makefile.deps
