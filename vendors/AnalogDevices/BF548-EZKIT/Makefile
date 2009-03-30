@@ -8,7 +8,6 @@ include $(CONFIG_CONFIG)
 
 # Blocks must be a multiple of 1024
 EXT2_BLOCKS = 16384
-EXT2_INODES = 1024
 
 # mkfs.ubifs paramters
 UBIFS_MIN_IO_SIZE = 2048
