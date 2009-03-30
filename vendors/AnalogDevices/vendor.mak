@@ -155,9 +155,9 @@ image.rootfs.all: \
 	image.rootfs.jffs2 \
 	image.rootfs-summary.jffs2 \
 	image.rootfs.romfs \
+	image.rootfs.ubifs \
 	image.rootfs.yaffs \
-	image.rootfs.yaffs2 \
-	image.rootfs.ubifs
+	image.rootfs.yaffs2
 
 ############################################################################
 #
