@@ -119,7 +119,7 @@ image.rootfs.romfs: image.rootfs.romfs.force
 endif
 
 .PHONY: image.rootfs.ubifs image.rootfs.ubifs.force
-MKFS_UBIFS_FLAGS ?= -U -m $(UBIFS_MIN_IO_SIZE) -e $(UBIFS_ERASE_SIZE)
+MKFS_UBIFS_FLAGS ?= --squash-uids -m $(UBIFS_MIN_IO_SIZE) -e $(UBIFS_LEB_SIZE) -c $(UBIFS_MAX_LEB_CNT)
 image.rootfs.ubifs.force:
 	$(MKFS_UBIFS) $(MKFS_UBIFS_FLAGS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(IMAGE_ROMFS_BASE).ubifs
 ifeq ($(CONFIG_UBIFS_FS),y)
@@ -151,7 +151,8 @@ image.rootfs.all: \
 	image.rootfs-summary.jffs2 \
 	image.rootfs.romfs \
 	image.rootfs.yaffs \
-	image.rootfs.yaffs2
+	image.rootfs.yaffs2 \
+	image.rootfs.ubifs
 
 ############################################################################
 #

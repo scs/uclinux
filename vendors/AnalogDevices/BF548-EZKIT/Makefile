@@ -10,6 +10,11 @@ include $(CONFIG_CONFIG)
 EXT2_BLOCKS = 16384
 EXT2_INODES = 1024
 
+# mkfs.ubifs paramters
+UBIFS_MIN_IO_SIZE = 2048
+UBIFS_LEB_SIZE = 204800
+UBIFS_MAX_LEB_CNT = 1024
+
 ROMFS_DIRS-y = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp etc/config var/run var/lib/misc
 ETC_FILES-y = \
 	filesystems group issue mdev.conf mime.types modprobe.conf motd \

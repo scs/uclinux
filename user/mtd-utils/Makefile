@@ -38,17 +38,17 @@ UBI_MKFS_TARGETS-$(CONFIG_UBIFS_FS) += mkfs.ubifs
 UBI_MKFS_TARGETS = $(UBI_MKFS_TARGETS-m) $(UBI_MKFS_TARGETS-y)
 
 define MAKE_MTD
-	$(MAKE) -C $(VER)/$(2) WITHOUT_XATTR=1 SUBDIRS= BUILDDIR=$$PWD/build-$(VER)$(3)/$(2) TARGETS="$(1)" CFLAGS="$(CFLAGS) -I $(STAGEDIR)/include/ -L $(STAGEDIR)/lib/"
+	$(MAKE) -C $(VER)/$(2) WITHOUT_XATTR=1 SUBDIRS= BUILDDIR=$$PWD/build-$(VER)$(4)/$(2) TARGETS="$(1)" CFLAGS="$(3) -I $(STAGEDIR)/include/ -L $(STAGEDIR)/lib/"
 endef
 define MAKE_HOST_MTD
-	unset CC CFLAGS CPPFLAGS CROSS LDFLAGS; $(call MAKE_MTD,$(1),$(2),-host)
+	unset CC CFLAGS CPPFLAGS CROSS LDFLAGS; $(call MAKE_MTD,$(1),$(2),,-host)
 	for f in $(1) ; do ln -sf build-$(VER)-host/$(2)/$$f $$f ; done
 endef
 all:
 	$(call MAKE_HOST_MTD,$(BUILDTARGETS))
 	$(call MAKE_HOST_MTD,$(UBI_MKFS_TARGETS),mkfs.ubifs)
-	$(call MAKE_MTD,$(UBI_UTILS_TARGETS),ubi-utils)
-	$(call MAKE_MTD,$(TARGETS-y))
+	$(call MAKE_MTD,$(UBI_UTILS_TARGETS),ubi-utils,$(CFLAGS))
+	$(call MAKE_MTD,$(TARGETS-y),,$(CFLAGS))
 
 clean:
 	rm -rf build-$(VER)* mkfs.jffs mkfs.jffs2 mkfs.ubifs sumtool
