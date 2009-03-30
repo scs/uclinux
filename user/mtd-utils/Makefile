@@ -2,7 +2,7 @@
 # really made anymore by the mtd guys):
 GITWEB = http://git.infradead.org/?p=$(GITREPO).git
 GITREPO = mtd-utils
-VER = a2d010f8fca904fffa3c6e5a5d148cc96a37a08a
+VER = 606f38a2221648ca5c5fa292c9f71d2ddd59fa66
 
 TARGETS-y :=
 TARGETS-$(CONFIG_USER_MTDUTILS_ERASE)        += flash_erase
@@ -19,6 +19,11 @@ TARGETS-$(CONFIG_USER_MTDUTILS_DOC_LOADIPL)  += doc_loadipl
 TARGETS-$(CONFIG_USER_MTDUTILS_MKFSJFFS)     += mkfs.jffs
 TARGETS-$(CONFIG_USER_MTDUTILS_MKFSJFFS2)    += mkfs.jffs2
 
+UBI_UTILS_TARGETS-m :=
+UBI_UTILS_TARGETS-y :=
+UBI_UTILS_TARGETS-$(CONFIG_USER_MTDUTILS_UBIUTILS) += ubiupdatevol ubimkvol ubirmvol ubicrc32 ubinfo ubiattach ubidetach ubinize ubiformat ubirename
+UBI_UTILS_TARGETS = $(UBI_UTILS_TARGETS-m) $(UBI_UTILS_TARGETS-y)
+
 # Host based builds needed for constructing host images
 BUILDTARGETS-m :=
 BUILDTARGETS-y :=
@@ -27,13 +32,13 @@ BUILDTARGETS-$(CONFIG_JFFS2_FS) += mkfs.jffs2
 BUILDTARGETS-$(CONFIG_JFFS2_SUMMARY) += sumtool
 BUILDTARGETS = $(BUILDTARGETS-m) $(BUILDTARGETS-y)
 
-UBI_BUILDTARGETS-m :=
-UBI_BUILDTARGETS-y :=
-UBI_BUILDTARGETS-$(CONFIG_UBIFS_FS) += mkfs.ubifs
-UBI_BUILDTARGETS = $(UBI_BUILDTARGETS-m) $(UBI_BUILDTARGETS-y)
+UBI_MKFS_TARGETS-m :=
+UBI_MKFS_TARGETS-y :=
+UBI_MKFS_TARGETS-$(CONFIG_USER_MTDUTILS_MKFSUBIFS) += mkfs.ubifs
+UBI_MKFS_TARGETS = $(UBI_MKFS_TARGETS-m) $(UBI_MKFS_TARGETS-y)
 
 define MAKE_MTD
-	$(MAKE) -C $(VER)/$(2) WITHOUT_XATTR=1 SUBDIRS= BUILDDIR=$$PWD/build-$(VER)$(3)/$(2) TARGETS="$(1)"
+	$(MAKE) -C $(VER)/$(2) WITHOUT_XATTR=1 SUBDIRS= BUILDDIR=$$PWD/build-$(VER)$(3)/$(2) TARGETS="$(1)" CFLAGS="$(CFLAGS) -I $(STAGEDIR)/include/ -L $(STAGEDIR)/lib/"
 endef
 define MAKE_HOST_MTD
 	unset CC CFLAGS CPPFLAGS CROSS LDFLAGS; $(call MAKE_MTD,$(1),$(2),-host)
@@ -41,8 +46,8 @@ define MAKE_HOST_MTD
 endef
 all:
 	$(call MAKE_HOST_MTD,$(BUILDTARGETS))
-	$(call MAKE_HOST_MTD,$(UBI_BUILDTARGETS),mkfs.ubifs)
-
+	$(call MAKE_HOST_MTD,$(UBI_MKFS_TARGETS),mkfs.ubifs)
+	$(call MAKE_MTD,$(UBI_UTILS_TARGETS),ubi-utils)
 	$(call MAKE_MTD,$(TARGETS-y))
 
 clean:
@@ -55,6 +60,15 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_FTL_FORMAT   build-$(VER)/ftl_format /bin/ftl_format
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_MKFSJFFS     build-$(VER)/mkfs.jffs /bin/mkfs.jffs
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_MKFSJFFS2    build-$(VER)/mkfs.jffs2 /bin/mkfs.jffs2
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubiformat /bin/ubiformat
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubiattach /bin/ubiattach
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubidetach /bin/ubidetach
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubinfo /bin/ubinfo
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubimkvol /bin/ubimkvol
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubirmvol /bin/ubirmvol
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubiupdatevol /bin/ubiupdatevol
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubinize /bin/ubinize
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubirename /bin/ubirename
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NFTLDUMP     build-$(VER)/nftldump /bin/nftldump
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NFTL_FORMAT  build-$(VER)/nftl_format /bin/nftl_format
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NANDDUMP     build-$(VER)/nanddump /bin/nanddump

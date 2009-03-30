@@ -498,6 +498,16 @@ config USER_MTDUTILS_MKFSJFFS2
 	depends on USER_MTDUTILS
 	select LIB_LIBLZO
 
+config USER_MTDUTILS_MKFSUBIFS
+	bool "mkfs.ubifs"
+	depends on USER_MTDUTILS
+	select LIB_LIBLZO
+
+config USER_MTDUTILS_UBIUTILS
+	bool "ubifs utilities"
+	depends on USER_MTDUTILS
+	select LIB_LIBLZO
+
 config USER_MTDUTILS_NFTLDUMP
 	bool "nftldump"
 	depends on USER_MTDUTILS
