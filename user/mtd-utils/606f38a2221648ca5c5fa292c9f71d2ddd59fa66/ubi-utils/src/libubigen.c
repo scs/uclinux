@@ -302,10 +302,9 @@ int ubigen_write_layout_vol(const struct ubigen_info *ui, int peb1, int peb2,
 	vi.name_len = strlen(UBI_LAYOUT_VOLUME_NAME);
 	vi.compat = UBI_LAYOUT_VOLUME_COMPAT;
 
-	if ((outbuf = malloc(ui->peb_size)) == NULL) {
-		printf("fail to malloc outbuf\n");
-		return -1;
-	}
+	if ((outbuf = malloc(ui->peb_size)) == NULL)
+		return sys_errmsg("fail to malloc outbuf");
+
 	memset(outbuf, 0xFF, ui->data_offs);
 	vid_hdr = (struct ubi_vid_hdr *)(&outbuf[ui->vid_hdr_offs]);
 	memcpy(outbuf + ui->data_offs, vtbl, ui->vtbl_size);
