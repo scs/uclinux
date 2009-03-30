@@ -201,19 +201,9 @@ while 1 {
             send "Y\r"
         }
 
-        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+        -re "Set a SPORT for Sound chip.*SND_BF5XX_SPORT_NUM.*\\\[.*]" {
             if { $board_type == "BF527-EZKIT" } {
-                #ad1981b conflicts with bfin-t350mcqb on BF527-EZKIT
-                send "N\r"
-            } else {
-                send "\r"
-            }
-        }
-
-        -re "Blackfin on-chip MAC support.*BFIN_MAC.*\\\[.*]" {
-            if { $board_type == "BF527-EZKIT" } {
-                #ad1981b conflicts with BFIN_MAC on BF527-EZKIT
-                send "N\r"
+                send "1\r"
             } else {
                 send "\r"
             }
