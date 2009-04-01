@@ -72,14 +72,6 @@ while 1 {
             }
         }
 
-        -re "SHARP LQ035Q1DH02 TFT LCD.*FB_BFIN_LQ035Q1.*\\\[.*]" {
-            if { $board_type == "BF526-EZBRD" } {
-                send "M\r"
-            } else {
-                send "N\r"
-            }
-        }
-
 #LQ035 on BF537-STAMP
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {

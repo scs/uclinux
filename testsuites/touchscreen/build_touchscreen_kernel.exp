@@ -22,75 +22,161 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-	   -re "Generic input layer.*needed for keyboard\, mouse.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "Touchscreen interface.*INPUT_TSDEV.*\\\[.*]" {
-             send "y\r"
-      }
-        
-	   -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
-             send "y\r"             
-      }      
-      
-	   -re "Touchscreens.*INPUT_TOUCHSCREEN.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Enable UART0.*SERIAL_BFIN_UART0.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            }
+        }
 
-	   -re "AD7877 based touchscreens.*TOUCHSCREEN_AD7877.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Enable UART1.*SERIAL_BFIN_UART1.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "N\r"
+            }
+        }
 
-           -re "Blackfin BF54x keypad support.*KEYBOARD_BFIN.*\\\[.*]" {
-		    if { $board_type == "BF548-EZKIT" } {
-			       send "N\r"
-		    } else {
-			       send "\r"
-		    }
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            }
+        }
 
-      }
+        -re "Framebuffer Console support.*FRAMEBUFFER_CONSOLE.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            }
+        }
 
-           -re "Sound card support.*SOUND.*\\\[.*]" {
-             send "N\r"
-      }
+        -re "Map the console to the primary display device.*FRAMEBUFFER_CONSOLE_DETECT_PRIMARY.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            }
+        }
 
-	   -re "Input event device test.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Select compiled-in fonts.*FONTS.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            }
+        }
 
-	   "\\\(*) \\\[*]" {
-             sleep .01
-	     send "\r"
-      }
+        -re "Mini 4x6 font.*FONT_MINI_4x6.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            }
+        }
 
-	   -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Bootup logo.*LOGO.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            }
+        }
 
-	   eof {
-	     puts "End of configuration"
-	     break
-      }
+        -re "224-colour Blackfin Processor Linux logo.*LOGO_BLACKFIN_CLUT224.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            }
+        }
 
-	   timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-           
-      }
-   }
+        -re "Support most SPI Flash chips.*MTD_M25P80.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "N\r"
+            }
+        }
+
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            }
+        }
+
+        -re "SHARP LQ035Q1DH02 TFT LCD.*FB_BFIN_LQ035Q1.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "Generic input layer.*needed for keyboard\, mouse.*\\\[././.*]" {
+            send "Y\r"
+        }
+
+        -re "Touchscreen interface.*INPUT_TSDEV.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Touchscreens.*INPUT_TOUCHSCREEN.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "AD7877 based touchscreens.*TOUCHSCREEN_AD7877.*\\\[.*]" {
+            if { $board_type != "BF526-EZBRD" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "AD7879 based touchscreens: AD7879 SPI Interface.*TOUCHSCREEN_AD7879_SPI.*\\\[.*]" {
+            if { $board_type == "BF526-EZBRD" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "Blackfin BF54x keypad support.*KEYBOARD_BFIN.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "N\r"
+            } else {
+                send "\r"
+            }
+
+        }
+
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Input event device test.*EVENT_TEST.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
