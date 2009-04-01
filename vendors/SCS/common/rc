@@ -33,13 +33,14 @@ fw_printenv "ethaddr" > /dev/null 2>&1 || FIRST_TIME_BOOT=1
 
 # Default configuration. Used if everything else fails.
 ipaddr="192.168.1.10"
+netmask="255.255.255.0"
 gatewayip="192.168.1.1"
 serverip="192.168.1.2"
 ethaddr="00:20:e3:23:00:00"
 runscript=
 
 if [ ! "$FIRST_TIME_BOOT" ]; then
-	for i in ipaddr gatewayip serverip ethaddr runscript; do
+	for i in ipaddr netmask gatewayip serverip ethaddr runscript; do
 		eval `fw_printenv "$i" 2> /dev/null`
 	done
 fi
@@ -58,7 +59,7 @@ if [ "$ipaddr" == "dhcp" ]; then
 	dhcpcd &
 	echo "Using DHCP."
 else
-	ifconfig eth0 "$ipaddr"
+	ifconfig eth0 "$ipaddr" netmask "$netmask"
 	ifconfig eth0 up
 	
 	route add -net default gw "$gatewayip"
