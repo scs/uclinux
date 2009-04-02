@@ -13,6 +13,12 @@ if [ -e /bin/mdev ] ; then
 	mount -t tmpfs mdev /dev -o exec,nosuid,mode=0755,size=10M
 	[ -e /proc/sys/kernel/hotplug ] && echo /bin/mdev > /proc/sys/kernel/hotplug
 	/bin/mdev -s
+
+	# some people want this (like to be verbose in their scripts?)
+	ln -s /proc/self/fd /dev/fd
+	ln -s fd/0 /dev/stdin
+	ln -s fd/1 /dev/stdout
+	ln -s fd/2 /dev/stderr
 fi
 
 #
