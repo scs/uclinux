@@ -32,23 +32,23 @@ BUILDTARGETS-$(CONFIG_JFFS2_FS) += mkfs.jffs2
 BUILDTARGETS-$(CONFIG_JFFS2_SUMMARY) += sumtool
 BUILDTARGETS = $(BUILDTARGETS-m) $(BUILDTARGETS-y)
 
-UBI_MKFS_TARGETS-m :=
-UBI_MKFS_TARGETS-y :=
-UBI_MKFS_TARGETS-$(CONFIG_UBIFS_FS) += mkfs.ubifs
-UBI_MKFS_TARGETS = $(UBI_MKFS_TARGETS-m) $(UBI_MKFS_TARGETS-y)
+UBI_UTILS_BUILDTARGETS-m :=
+UBI_UTILS_BUILDTARGETS-y :=
+UBI_UTILS_BUILDTARGETS-$(CONFIG_UBIFS_FS) += mkfs.ubifs
+UBI_UTILS_BUILDTARGETS = $(UBI_UTILS_BUILDTARGETS-m) $(UBI_UTILS_BUILDTARGETS-y)
 
 define MAKE_MTD
-	$(MAKE) -C $(VER)/$(2) WITHOUT_XATTR=1 SUBDIRS= BUILDDIR=$$PWD/build-$(VER)$(4)/$(2) TARGETS="$(1)" CFLAGS="$(3) -I $(STAGEDIR)/include/ -L $(STAGEDIR)/lib/"
+	$(MAKE) -C $(VER)/$(2) WITHOUT_XATTR=1 SUBDIRS= BUILDDIR=$$PWD/build-$(VER)$(3)/$(2) TARGETS="$(1)"
 endef
 define MAKE_HOST_MTD
-	unset CC CFLAGS CPPFLAGS CROSS LDFLAGS; $(call MAKE_MTD,$(1),$(2),,-host)
+	unset CC CFLAGS CPPFLAGS CROSS LDFLAGS; $(call MAKE_MTD,$(1),$(2),-host)
 	for f in $(1) ; do ln -sf build-$(VER)-host/$(2)/$$f $$f ; done
 endef
 all:
 	$(call MAKE_HOST_MTD,$(BUILDTARGETS))
-	$(call MAKE_HOST_MTD,$(UBI_MKFS_TARGETS),mkfs.ubifs)
-	$(call MAKE_MTD,$(UBI_UTILS_TARGETS),ubi-utils,$(CFLAGS))
-	$(call MAKE_MTD,$(TARGETS-y),,$(CFLAGS))
+	$(call MAKE_HOST_MTD,$(UBI_UTILS_BUILDTARGETS),mkfs.ubifs)
+	$(call MAKE_MTD,$(UBI_UTILS_TARGETS),ubi-utils)
+	$(call MAKE_MTD,$(TARGETS-y))
 
 clean:
 	rm -rf build-$(VER)* mkfs.jffs mkfs.jffs2 mkfs.ubifs sumtool
@@ -60,15 +60,6 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_FTL_FORMAT   build-$(VER)/ftl_format /bin/ftl_format
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_MKFSJFFS     build-$(VER)/mkfs.jffs /bin/mkfs.jffs
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_MKFSJFFS2    build-$(VER)/mkfs.jffs2 /bin/mkfs.jffs2
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubiformat /bin/ubiformat
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubiattach /bin/ubiattach
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubidetach /bin/ubidetach
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubinfo /bin/ubinfo
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubimkvol /bin/ubimkvol
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubirmvol /bin/ubirmvol
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubiupdatevol /bin/ubiupdatevol
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubinize /bin/ubinize
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS   build-$(VER)/ubi-utils/ubirename /bin/ubirename
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NFTLDUMP     build-$(VER)/nftldump /bin/nftldump
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NFTL_FORMAT  build-$(VER)/nftl_format /bin/nftl_format
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NANDDUMP     build-$(VER)/nanddump /bin/nanddump
@@ -76,6 +67,15 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NANDWRITE    build-$(VER)/nandwrite /bin/nandwrite
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_DOC_LOADBIOS build-$(VER)/doc_loadbios /bin/doc_loadbios
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_DOC_LOADIPL  build-$(VER)/doc_loadipl /bin/doc_loadipl
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS     build-$(VER)/ubi-utils/ubiformat /bin/ubiformat
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS     build-$(VER)/ubi-utils/ubiattach /bin/ubiattach
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS     build-$(VER)/ubi-utils/ubidetach /bin/ubidetach
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS     build-$(VER)/ubi-utils/ubinfo /bin/ubinfo
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS     build-$(VER)/ubi-utils/ubimkvol /bin/ubimkvol
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS     build-$(VER)/ubi-utils/ubirmvol /bin/ubirmvol
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS     build-$(VER)/ubi-utils/ubiupdatevol /bin/ubiupdatevol
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS     build-$(VER)/ubi-utils/ubinize /bin/ubinize
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UBIUTILS     build-$(VER)/ubi-utils/ubirename /bin/ubirename
 
 update:
 	set -e ; \
