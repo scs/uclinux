@@ -3619,6 +3619,8 @@ config USER_MADPLAY_MADPLAY
 
 config USER_MP3PLAY_MP3PLAY
 	bool "mp3play"
+	select LIB_LIBMAD
+	select LIB_LIBID3TAG
 	help
 	  Play MP3 files
 
