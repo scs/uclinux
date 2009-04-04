@@ -71,8 +71,8 @@ image.rootfs.cramfs: image.rootfs.cramfs.force
 endif
 
 .PHONY: image.rootfs.ext2 image.rootfs.ext2.force
-EXT2_INODES ?= 8192 # Blocks must be a multiple of 1024
-EXT2_BLOCKS ?= 1024
+EXT2_BLOCKS ?= 8192 # Blocks must be a multiple of 1024
+EXT2_INODES ?= 1024
 MKFS_EXT2_FLAGS ?= -m 0 -i $(EXT2_INODES) -b $(EXT2_BLOCKS)
 image.rootfs.ext2.force:
 	$(MKFS_EXT2) $(MKFS_EXT2_FLAGS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(IMAGE_ROMFS_BASE).ext2
