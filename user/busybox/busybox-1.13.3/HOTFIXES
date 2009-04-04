@@ -2,3 +2,4 @@ busybox-1.13.3-ash.patch
 busybox-1.13.3-hush.patch
 busybox-1.13.3-tail.patch
 busybox-1.13.3-tar.patch
+busybox-1.13.3-volumeid.patch
