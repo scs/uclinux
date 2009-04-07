@@ -53,6 +53,7 @@ CONFIG_LIB_ZLIB=y
 # CONFIG_LIB_LIBJUDY is not set
 # CONFIG_LIB_CLASSPATH is not set
 # CONFIG_LIB_LIBFFI is not set
+# CONFIG_LIB_LIBXML2 is not set
 
 #
 # Library Configuration
@@ -87,6 +88,8 @@ CONFIG_LIB_ZLIB=y
 # CONFIG_LIB_FREETYPE is not set
 # CONFIG_LIB_FTPLIB is not set
 # CONFIG_LIB_GIFLIB is not set
+# CONFIG_LIB_LIBGSASL is not set
+# CONFIG_CONFIG_LIB_LIBGPG_ERROR is not set
 # CONFIG_LIB_LIBAIO is not set
 
 #
@@ -103,10 +106,10 @@ CONFIG_LIB_ZLIB=y
 # CONFIG_LIB_LIBSDL is not set
 # CONFIG_LIB_LIBTOOL is not set
 # CONFIG_LIB_LIBUSB is not set
-# CONFIG_LIB_LIBXML2 is not set
 # CONFIG_LIB_LIVE is not set
 # CONFIG_LIB_MEDIASTREAMER is not set
 # CONFIG_LIB_MPFR is not set
+# CONFIG_LIB_LIBOGG is not set
 # CONFIG_LIB_OPENOBEX is not set
 # CONFIG_LIB_ORTP is not set
 # CONFIG_LIB_QT is not set
@@ -119,8 +122,13 @@ CONFIG_LIB_ZLIB=y
 # CONFIG_LIB_SPEEX is not set
 # CONFIG_LIB_SPHINXBASE is not set
 # CONFIG_LIB_SQLITE is not set
+# CONFIG_LIB_TIFF is not set
 # CONFIG_LIB_TREMOR is not set
-# CONFIG_LIB_TSLIB is not set
+
+#
+# tslib requires FDPIC ELF
+#
+# CONFIG_LIB_LIBVORBIS is not set
 
 #
 # Core Applications
@@ -197,6 +205,7 @@ CONFIG_USER_MTDUTILS_ERASEALL=y
 # CONFIG_USER_MTDUTILS_FTL_CHECK is not set
 # CONFIG_USER_MTDUTILS_FTL_FORMAT is not set
 CONFIG_USER_MTDUTILS_MKFSJFFS2=y
+# CONFIG_USER_MTDUTILS_UBIUTILS is not set
 # CONFIG_USER_MTDUTILS_NFTLDUMP is not set
 # CONFIG_USER_MTDUTILS_NFTL_FORMAT is not set
 # CONFIG_USER_MTDUTILS_NANDDUMP is not set
