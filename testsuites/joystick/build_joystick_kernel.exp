@@ -10,7 +10,7 @@ step "Change config file in /vender folder."
 cd $uclinux_path
 sleep 3
 set timeout 2
-spawn ex vendors/AnalogDevices/$board_type/Makefile
+spawn ex vendors/AnalogDevices/vendor.mak
 expect {
     "Entering Ex mode*Normal mode." { }
 
@@ -26,7 +26,7 @@ send "d\r"
 expect ":"
 send "i\r"
 sleep .5
-send "EXT2_BLOCKS = 16384\r"
+send "EXT2_BLOCKS ?= 16384\r"
 sleep .5
 send ".\r"
 expect ":"

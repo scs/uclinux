@@ -11,7 +11,7 @@ step "Change config file in /vender folder."
 cd $uclinux_path
 sleep 3
  set timeout 2
-      spawn ex vendors/AnalogDevices/$board_type/Makefile
+      spawn ex vendors/AnalogDevices/vendor.mak
       expect {
          "Entering Ex mode*Normal mode." { }
 
@@ -28,9 +28,9 @@ sleep 3
       send "i\r"
       sleep .5
       if { $board_type == "BF548-EZKIT" } {
-          send "EXT2_BLOCKS = 12288\r"
+          send "EXT2_BLOCKS ?= 12288\r"
       } else {
-          send "EXT2_BLOCKS = 8192\r"
+          send "EXT2_BLOCKS ?= 8192\r"
       }
       sleep .5
       send ".\r"
@@ -238,7 +238,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1 
+            sleep .01 
             send "\r"
         }
 
