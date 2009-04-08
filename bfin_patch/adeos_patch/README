@@ -1,6 +1,19 @@
 File: adeos-bfin.patch
 
-Last update: 2009-02-09
+Last update: 2009-04-08
+
+History:
+
+2009-04-08
+--------------
+ipipe-2.6.28.9-noarch-git95aafe6.patch
+
+Here are updates to the I-pipe now rebased on 2.6.28.9/blackfin, commit
+#95aafe680eaf39c5ba9c8b3ccae69db40cd21d2e from the public GIT tree at
+git://sources.blackfin.uclinux.org/git/readonly-mirrors/linux-kernel.git.
+
+2009-02-09
+--------------
 
 This patch is for blackfin uclinux SVN trunk.
 The adeos Blackfin specific code has been merged to svn trunk linux kernel. This patch contains adeos -noarch code from Philippe:
