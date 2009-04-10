@@ -26,6 +26,8 @@
  * Quantization of the output coefficients is done by jcdctmgr.c.
  */
 
+#include "arch-opts.h"
+
 #if BITS_IN_JSAMPLE == 8
 typedef int DCTELEM;		/* 16 or 32 bits is fine */
 #else
@@ -95,6 +97,7 @@ typedef FAST_FLOAT FLOAT_MULT_TYPE; /* preferred floating type */
 /* Extern declarations for the forward and inverse DCT routines. */
 
 EXTERN(void) jpeg_fdct_islow JPP((DCTELEM * data));
+EXTERN(void) jpeg_fdct_ifast_bfin JPP((DCTELEM * data));
 EXTERN(void) jpeg_fdct_ifast JPP((DCTELEM * data));
 EXTERN(void) jpeg_fdct_float JPP((FAST_FLOAT * data));
 

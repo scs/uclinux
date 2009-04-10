@@ -5,6 +5,10 @@
 
 # Read installation instructions before saying "make" !!
 
+ifeq ($(CONFIG_LIB_LIBJPEG_BFIN),y)
+CPPFLAGS += -DLIBJPEG_BFIN
+endif
+
 # For compiling with source and object files in different directories.
 srcdir = jpeg-6b
 VPATH += $(srcdir)
@@ -64,6 +68,7 @@ MKDIR= mkdir
 MYAR= $(AR) rc
 # second step in .a creation (use "touch" if not needed)
 #AR2= ranlib
+RANLIB ?= ranlib
 MYAR2 = $(RANLIB)
 # installation program
 INSTALL= /usr/bin/install -c
@@ -118,7 +123,7 @@ CLIBOBJECTS= jcapimin.$(O) jcapistd.$(O) jctrans.$(O) jcparam.$(O) \
         jdatadst.$(O) jcinit.$(O) jcmaster.$(O) jcmarker.$(O) jcmainct.$(O) \
         jcprepct.$(O) jccoefct.$(O) jccolor.$(O) jcsample.$(O) jchuff.$(O) \
         jcphuff.$(O) jcdctmgr.$(O) jfdctfst.$(O) jfdctflt.$(O) \
-        jfdctint.$(O)
+        jfdctint.$(O) jfdctfst_bfin.$(O)
 # decompression library object files
 DLIBOBJECTS= jdapimin.$(O) jdapistd.$(O) jdtrans.$(O) jdatasrc.$(O) \
         jdmaster.$(O) jdinput.$(O) jdmarker.$(O) jdhuff.$(O) jdphuff.$(O) \
@@ -312,6 +317,8 @@ jdsample.$(O): jdsample.c jinclude.h jconfig.h jpeglib.h jmorecfg.h jpegint.h je
 jdtrans.$(O): jdtrans.c jinclude.h jconfig.h jpeglib.h jmorecfg.h jpegint.h jerror.h
 jerror.$(O): jerror.c jinclude.h jconfig.h jpeglib.h jmorecfg.h jversion.h jerror.h
 jfdctflt.$(O): jfdctflt.c jinclude.h jconfig.h jpeglib.h jmorecfg.h jpegint.h jerror.h jdct.h
+jfdctfst_bfin.$(O): $(srcdir)/jfdctfst_bfin.S arch-opts.h
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(srcdir)/jfdctfst_bfin.S -o $@
 jfdctfst.$(O): jfdctfst.c jinclude.h jconfig.h jpeglib.h jmorecfg.h jpegint.h jerror.h jdct.h
 jfdctint.$(O): jfdctint.c jinclude.h jconfig.h jpeglib.h jmorecfg.h jpegint.h jerror.h jdct.h
 jidctflt.$(O): jidctflt.c jinclude.h jconfig.h jpeglib.h jmorecfg.h jpegint.h jerror.h jdct.h

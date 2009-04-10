@@ -363,7 +363,11 @@ jinit_forward_dct (j_compress_ptr cinfo)
 #ifdef DCT_IFAST_SUPPORTED
   case JDCT_IFAST:
     fdct->pub.forward_DCT = forward_DCT;
+#ifdef LIBJPEG_BFIN
+    fdct->do_dct = jpeg_fdct_ifast_bfin;
+#else
     fdct->do_dct = jpeg_fdct_ifast;
+#endif
     break;
 #endif
 #ifdef DCT_FLOAT_SUPPORTED

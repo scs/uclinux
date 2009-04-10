@@ -35,8 +35,7 @@
 #include "jpeglib.h"
 #include "jdct.h"		/* Private declarations for DCT subsystem */
 
-#ifdef DCT_IFAST_SUPPORTED
-
+#if defined(DCT_IFAST_SUPPORTED) && ! defined(LIBJPEG_BFIN)
 
 /*
  * This module is specialized to the case DCTSIZE = 8.
@@ -221,4 +220,4 @@ jpeg_fdct_ifast (DCTELEM * data)
   }
 }
 
-#endif /* DCT_IFAST_SUPPORTED */
+#endif /* DCT_IFAST_SUPPORTED & LIBJPEG_BFIN */
