@@ -159,6 +159,11 @@ config LIB_LIBJPEG
 	bool "Build libjpeg"
 	default n
 
+config LIB_LIBJPEG_BFIN
+	bool "Enable Blackfin JPEG optimizations"
+	depends on LIB_LIBJPEG
+	default y
+
 config LIB_LIBUPNP
 	bool "Build libupnp"
 	default n
