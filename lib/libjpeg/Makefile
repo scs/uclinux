@@ -246,7 +246,7 @@ romfs:
 	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF libjpeg.so /usr/lib/libjpeg.so.62
 
 clean:
-	-$(RM) *.o *.lo libjpeg.a *.so
+	-$(RM) *.o *.lo libjpeg.a *.so *.gdb
 	-$(RM) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 	-$(RM) ansi2knr core testout* config.log config.status
 	-$(RM) -r knr .libs _libs
