@@ -162,6 +162,9 @@ endif
 .c.pic.o:
 	$(CC) -c $(CFLAGS) -o $@ $(srcdir)/$*.c
 
+.S.pic.o:
+	$(CC) -c $(CFLAGS) -o $@ $(srcdir)/$*.S
+
 # How to compile with libtool.
 # .c.lo:
 # 	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$*.c
