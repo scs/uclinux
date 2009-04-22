@@ -74,6 +74,25 @@ if [ "$FIRST_TIME_BOOT" ]; then
 	
 	tftp "$serverip" -g -r "runinit.sh" -l "/tmp/runinit.sh"
 	[ -e "/tmp/runinit.sh" ] && chmod +x "/tmp/runinit.sh" && /tmp/runinit.sh
+else
+	TIMEOUT=10
+	sleep 3 # the kernel needs a few seconds to detect wether there's a carrier signal, an until then /sys interface tells us there is one. Bummers.
+	echo -n "Waiting for carrier signal ..."
+	while true; do
+		if [ `cat "/sys/class/net/eth0/carrier"` == "1" ]; then
+			echo " done."
+			break
+		fi
+		
+		echo -n "."; sleep 1
+		
+		TIMEOUT=`expr $TIMEOUT - 1`
+		if [ "$TIMEOUT" -ng 0 ]; then
+			echo " failed."
+			fallback_mode=1
+			break
+		fi
+	done
 fi
 
 # Binds the root's home directory to a directory on the application flash
