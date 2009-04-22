@@ -2,7 +2,6 @@ VER = portmap_6.0
 
 export NO_TCP_WRAPPER = disabled
 export NO_PIE = disabled
-export NO_DAEMON = disable
 
 all:
 	$(MAKE) -C $(VER)
