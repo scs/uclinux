@@ -19,7 +19,7 @@ LINUXBOOTDIR = $(ROOTDIR)/$(LINUXDIR)/arch/$(ARCH)/boot
 BLOCKS   = 8192
 INODES   = 1024
 
-ROMFS_DIRS = bin etc etc/boa home lib mnt proc sys usr var root home tmp var/run var/lib/misc home/httpd home/httpd/cgi-bin var/log/boa
+ROMFS_DIRS = bin etc etc/boa etc/dhcpc home lib mnt proc sys usr var root home tmp var/run var/lib/misc home/httpd home/httpd/cgi-bin var/log/boa
 
 ETC_FILES = TZ boa.conf filesystems fstab fw_env.config group host.conf hosts inetd.conf inittab issue mdev.conf motd mime.types modprobe.conf passwd profile protocols rc services
 BIN_FILES = maintenance netviewd fw_printenv fw_setenv tftp-get xxd
@@ -41,7 +41,7 @@ romfs::
 	done
 	set -e;\
 	for i in $(BIN_FILES); do\
-		$(ROMFSINST) $$i /bin/$$i || $(ROMFSINST) ../common/$$i /bin/$$i || { make -C ../apps $$i && $(ROMFSINST) ../apps/$$i /bin/$$i; };\
+		$(ROMFSINST) -P $$i /bin/$$i || $(ROMFSINST) -P ../common/$$i /bin/$$i || { make -C ../apps $$i && $(ROMFSINST) -P ../apps/$$i /bin/$$i; };\
 	done
 
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
@@ -63,7 +63,6 @@ endif
 image::
 	mkdir -p $(IMAGEDIR)
 	rm -rf $(IMAGEDIR)/*
-	rm -rf $(ROMFSDIR)/dev
 #
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
@@ -89,7 +88,7 @@ ifeq ($(CONFIG_CRAMFS),y)
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
 endif
 ifeq ($(CONFIG_EXT2_FS),y)
-	$(CROSS_COMPILE)genext2fs -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
+	$(CROSS_COMPILE)genext2fs -U -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2
@@ -170,7 +169,5 @@ endif
 
 clean::
 	$(MAKE) -C ../apps clean
-
-.PHONY: all clean image romfs
 
 include ../vendor.mak

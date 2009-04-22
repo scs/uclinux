@@ -26,6 +26,7 @@ $0: [options] [src] dst
     -A pattern  : only append text if pattern doesn't exist in file
     -l link     : dst is a hard link to 'link'.
     -s sym-link : dst is a sym-link to 'sym-link'.
+    -P          : copy symlinks instead of their destination
     -M          : install kernel module into dst subdir of module dir
 
     if "src" is not provided,  basename is run on dst to determine the
@@ -82,7 +83,11 @@ file_copy()
 		fi
 		rm -f ${dstfile}
 		[ "$v" ] && echo "cp ${src} ${dstfile}"
-		cp ${src} ${dstfile} && setperm ${dstfile}
+		if [ "$preserve" ]; then
+			cp -P ${src} ${dstfile}
+		else
+			cp ${src} ${dstfile}
+		fi && setperm ${dstfile}
 		rc=$?
 		if [ $rc -eq 0 -a -n "$strip" ]; then
 			${STRIPTOOL} ${dstfile} 2>/dev/null
@@ -160,8 +165,9 @@ src=
 dst=
 strip=1
 kernmod=
+preserve=
 
-while getopts 'dSMve:E:o:O:A:p:a:l:s:' opt "$@"
+while getopts 'dSMvPe:E:o:O:A:p:a:l:s:' opt "$@"
 do
 	case "$opt" in
 	v) v="1";                           ;;
@@ -177,6 +183,7 @@ do
 	A) pattern="$OPTARG";               ;;
 	l) src="$OPTARG"; func=hard_link;   ;;
 	s) src="$OPTARG"; func=sym_link;    ;;
+	P) preserve="1";                    ;;
 
 	*)  break ;;
 	esac
