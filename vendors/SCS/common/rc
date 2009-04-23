@@ -29,71 +29,7 @@ mount -t jffs2 /dev/mtdblock6 /mnt/app
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
 
-fw_printenv "ethaddr" > /dev/null 2>&1 || FIRST_TIME_BOOT=1
-
-# Default configuration. Used if everything else fails.
-ipaddr="192.168.1.10"
-netmask="255.255.255.0"
-gatewayip="192.168.1.1"
-serverip="192.168.1.2"
-ethaddr="00:20:e3:23:00:00"
-runscript=
-
-if [ ! "$FIRST_TIME_BOOT" ]; then
-	for i in ipaddr netmask gatewayip serverip ethaddr runscript; do
-		eval `fw_printenv "$i" 2> /dev/null`
-	done
-fi
-
-[ -f "/mnt/app/.rc.local" ] && . "/mnt/app/.rc.local"
-
-# Configure the network
-ifconfig eth0 down
-ifconfig eth0 hw ether "$ethaddr"
-ifconfig lo 127.0.0.1
-
-if [ "$ipaddr" == "dhcp" ]; then
-	ifconfig eth0 up
-	
-	# configured to use DHCP => Launch dhcp daemon
-	dhcpcd &
-	echo "Using DHCP."
-else
-	ifconfig eth0 "$ipaddr" netmask "$netmask"
-	ifconfig eth0 up
-	
-	route add -net default gw "$gatewayip"
-	
-	# Send out two gratuitious arp request
-	arping -c 2 -w 1 "$ipaddr" > /dev/null 2>&1 &
-fi
-
-# Detect first-time-boot if not valid ethaddr u-boot environment available
-if [ "$FIRST_TIME_BOOT" ]; then
-	echo ">>> Fist-time-boot: ethaddr not yet defined in u-boot variables. <<<"
-	
-	tftp "$serverip" -g -r "runinit.sh" -l "/tmp/runinit.sh"
-	[ -e "/tmp/runinit.sh" ] && chmod +x "/tmp/runinit.sh" && /tmp/runinit.sh
-else
-	TIMEOUT=10
-	sleep 3 # the kernel needs a few seconds to detect wether there's a carrier signal, an until then /sys interface tells us there is one. Bummers.
-	echo -n "Waiting for carrier signal ..."
-	while true; do
-		if [ `cat "/sys/class/net/eth0/carrier"` == "1" ]; then
-			echo " done."
-			break
-		fi
-		
-		echo -n "."; sleep 1
-		
-		TIMEOUT=`expr $TIMEOUT - 1`
-		if [ "$TIMEOUT" -ng 0 ]; then
-			echo " failed."
-			fallback_mode=1
-			break
-		fi
-	done
-fi
+################################################################################
 
 # Binds the root's home directory to a directory on the application flash
 if [ -d "/mnt/app" ]; then
@@ -106,23 +42,114 @@ if fw_printenv "no-root-login" > /dev/null 2>&1; then
 	sed -ri "s/^root:[^:]:/root:x:/" /etc/passwd
 fi
 
-cat /etc/motd
+# Read network configurations from the U-Boot environment variables ...
+for i in ipaddr netmask gatewayip serverip ethaddr runscript fallback_disabled fallback_timeout; do
+	eval `fw_printenv "$i" 2> /dev/null`
+done
 
-# Launch user specific application script
-if [ "$runscript" ]; then
-	runfolder="/"
+# ... and do some sanity checking on them.
+echo "$ethaddr:" | grep -qE '^([0-9a-f]{2}:){6}$' || first_time_boot=1
+echo "$fallback_timeout" | grep -qE '^[0-9]+$' || fallback_timeout=15
+
+if echo "$ipaddr" | grep -qiE '^dhcp$'; then
+	ipaddr='dhcp'
+else
+	echo "$ipaddr." | grep -qE '^([0-9]{1,3}.){4}$' || fallback_boot=1
+	echo "$netmask." | grep -qE '^([0-9]{1,3}.){4}$' || fallback_boot=1
+fi
+
+# Bring up the interface if we're neither in first time nor fallback boot.
+if [ ! "$first_time_boot" ] && [ ! "$fallback_boot" ]; then
+	ifconfig eth0 hw ether "$ethaddr"
+	ifconfig eth0 up
 	
-	if echo "$runscript" | grep -qv "^/"; then
-		runscript="/mnt/app/$runscript"
-		runfolder="/mnt/app"
-	fi
-	
-	if [ -f "$runscript" ] && [ -x "$runscript" ]; then
-		echo "Executing $runscript ..."
-		(cd "$runfolder"; "$runscript" &)
-	else
-		echo "Cannot run runscript: $runscript"
+	if [ ! "$fallback_disabled" ]; then
+		sleep 2 # /sys/class/net/eth0/operstate says up for a second or two even if it isn't
+		
+		fallback_boot=1
+		timeout=$fallback_timeout
+		while [ "$timeout" -gt 0 ]; do
+			if [ "`cat /sys/class/net/eth0/operstate`" == 'up' ]; then
+				fallback_boot=
+				break
+			fi
+			
+			echo "Waiting for carrier on eth0: $timeout s"
+			timeout=`expr "$timeout" - 1`
+			sleep 1
+		done
 	fi
 fi
 
+# Set default network configurations if we're in first time or fallback boot.
+if [ "$fallback_boot" ] || [ "$first_time_boot" ]; then
+	# Default configuration. Used if everything else fails.
+	ipaddr='192.168.1.10'
+	netmask='255.255.255.0'
+	gatewayip='192.168.1.1'
+	serverip='192.168.1.2'
+	ethaddr='00:20:e3:23:00:00'
+	runscript=
+	
+	ifconfig eth0 hw ether "$ethaddr"
+	ifconfig eth0 up
+fi
+
+# Check wether we should do DHCP.
+if [ "$ipaddr" == 'dhcp' ]; then
+	dhcpcd eth0 &
+	
+	fallback_boot=1
+	timeout=$fallback_timeout
+	while [ "$timeout" -gt 0 ]; do
+		if [ -e '/etc/dhcpc/dhcpcd-eth0.info' ]; then
+			fallback_boot=
+			break
+		fi
+		
+		echo "Waiting a IP address over DHCP: $timeout s"
+		timeout=`expr "$timeout" - 1`
+		sleep 1
+	done
+else
+	ifconfig eth0 "$ipaddr" netmask "$netmask"
+	
+	if echo "$gatewayip." | grep -qE '^([0-9]{1,3}.){4}$'; then
+		route add -net default gw "$gatewayip"
+	fi
+fi
+
+# Check if we're dooing a first time, a fallback or a normal boot.
+if [ "$first_time_boot" ]; then
+	echo "ethaddr not defined in U-Boot environment: Going into first time boot mode."
+	
+	tftp "$serverip" -g -r "runinit.sh" -l "/tmp/runinit.sh"
+	[ -e "/tmp/runinit.sh" ] && chmod +x "/tmp/runinit.sh" && "/tmp/runinit.sh"
+elif [ "$fallback_boot" ]; then
+	echo "The device has been booted in fallback mode with default network configurations."
+	echo "The device will automatically reboot in 10 minutes."
+	
+	sh -c 'sleep 600; reboot' &
+else
+	cat /etc/motd
+	
+	# Launch user specific application script
+	if [ "$runscript" ]; then
+		runfolder="/"
+		
+		if echo "$runscript" | grep -qv "^/"; then
+			runscript="/mnt/app/$runscript"
+			runfolder="/mnt/app"
+		fi
+		
+		if [ -f "$runscript" ] && [ -x "$runscript" ]; then
+			echo "Executing $runscript ..."
+			(cd "$runfolder"; "$runscript" &)
+		else
+			echo "Cannot run runscript: $runscript"
+		fi
+	fi
+fi
+
+# For good measure.
 exit 0
