@@ -1,2 +1,0 @@
-This patch allows triple buffering on OSD0 using RGB16 format
-and adds support for choosing on+off sync flipping.
