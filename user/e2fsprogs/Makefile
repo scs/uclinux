@@ -8,6 +8,9 @@ CONF_OPTS = \
 
 include $(ROOTDIR)/tools/autotools.mk
 
+pre-build::
+	$(MAKE) -C build-$(VER) util/subst
+
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_E2FSPROGS_E2FSCK_E2FSCK $(STAGEDIR)/sbin/e2fsck /sbin/e2fsck
 	rm -f $(ROMFSDIR)/bin/fsck.ext2 $(ROMFSDIR)/bin/fsck.ext3
