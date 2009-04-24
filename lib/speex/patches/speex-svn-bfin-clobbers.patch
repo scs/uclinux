@@ -1,0 +1,389 @@
+Index: speex-svn-14525/libspeex/lsp_bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/lsp_bfin.h	(revision 8014)
++++ speex-svn-14525/libspeex/lsp_bfin.h	(working copy)
+@@ -79,7 +79,7 @@ static inline spx_word32_t cheb_poly_eva
+       "%0 = R3;\n\t"
+       : "=&d" (sum)
+       : "a" (x), "a" (&coef[m]), "a" (m-1)
+-      : "R0", "R1", "R3", "R2", "R4", "R5", "P0", "P1"
++      : "R0", "R1", "R3", "R2", "R4", "R5", "P0", "P1", "ASTAT" BFIN_HWLOOP0_REGS
+       );
+     return sum;
+ }
+Index: speex-svn-14525/libspeex/ltp_bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/ltp_bfin.h	(revision 8014)
++++ speex-svn-14525/libspeex/ltp_bfin.h	(working copy)
+@@ -33,6 +33,8 @@
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
++#include "bfin.h"
++
+ #define OVERRIDE_INNER_PROD
+ spx_word32_t inner_prod(const spx_word16_t *x, const spx_word16_t *y, int len)
+ {
+@@ -57,7 +59,7 @@ spx_word32_t inner_prod(const spx_word16
+       "%0 = R0;\n\t"
+    : "=m" (sum)
+    : "m" (x), "m" (y), "d" (len-1)
+-   : "P0", "P1", "P2", "R0", "R1", "A0", "I0", "I1", "L0", "L1", "R3"
++   : "P0", "P1", "P2", "R0", "R1", "A0", "I0", "I1", "L0", "L1", "R3", "ASTAT" BFIN_HWLOOP0_REGS
+    );
+    return sum;
+ }
+@@ -104,7 +106,8 @@ void pitch_xcorr(const spx_word16_t *_x,
+       "LOOP_END pitch%=;\n\t"
+       "L0 = 0;\n\t"
+    : : "m" (_x), "m" (_y), "m" (corr), "m" (len), "m" (nb_pitch)
+-   : "A0", "A1", "P0", "P1", "P2", "P3", "P4", "R0", "R1", "R2", "R3", "I0", "I1", "L0", "L1", "B0", "B1", "memory"
++   : "A0", "A1", "P0", "P1", "P2", "P3", "P4", "R0", "R1", "R2", "R3", "I0", "I1", "L0", "L1", "B0", "B1", "memory",
++     "ASTAT" BFIN_HWLOOP0_REGS BFIN_HWLOOP1_REGS
+    );
+ }
+ 
+@@ -147,7 +150,7 @@ static inline spx_word32_t compute_pitch
+          "%0 = A0;\n\t"
+    : "=&D" (sum), "=a" (C)
+    : "d" (g[0]), "d" (g[1]), "d" (g[2]), "d" (pitch_control), "1" (C)
+-   : "R0", "R1", "R2", "A0"
++   : "R0", "R1", "R2", "A0", "ASTAT"
+          );
+    return sum;
+ }
+@@ -201,10 +204,7 @@ void open_loop_nbest_pitch(spx_word16_t 
+ "eu2:      [P0++] = R2;\n\t"
+        : : "d" (energy), "d" (&sw[-start-1]), "d" (&sw[-start+len-1]),
+            "a" (end-start)  
+-       : "P0", "I1", "I2", "R0", "R1", "R2", "R3"
+-#if (__GNUC__ == 4)
+-         , "LC1"
+-#endif
++       : "P0", "I1", "I2", "R0", "R1", "R2", "R3", "ASTAT" BFIN_HWLOOP1_REGS
+        );
+ 
+    pitch_xcorr(sw, sw-end, corr, len, end-start+1, stack);
+@@ -245,10 +245,8 @@ void open_loop_nbest_pitch(spx_word16_t 
+ "        %0 = P0;\n\t"
+        : "=&d" (pitch[0])
+        : "a" (corr16), "a" (ener16), "a" (end+1-start), "d" (start) 
+-       : "P0", "P1", "I0", "I1", "R0", "R1", "R2", "R3", "R4", "R5"
+-#if (__GNUC__ == 4)
+-         , "LC1"
+-#endif
++       : "P0", "P1", "I0", "I1", "R0", "R1", "R2", "R3", "R4", "R5",
++         "ASTAT", "CC" BFIN_HWLOOP1_REGS
+        );
+ 
+       }
+@@ -407,10 +405,7 @@ static int pitch_gain_search_3tap_vq(
+        : "a" (gain_cdbk), "a" (C16), "a" (gain_cdbk_size), "a" (max_gain),
+          "b" (-VERY_LARGE32)
+        : "R0", "R1", "R2", "R3", "R4", "P0", 
+-         "P1", "I1", "L1", "A0", "B0"
+-#if (__GNUC__ == 4)
+-         , "LC1"
+-#endif
++         "P1", "I1", "L1", "A0", "B0", "CC", "ASTAT" BFIN_HWLOOP1_REGS
+        );
+ 
+   return best_cdbk;
+Index: speex-svn-14525/libspeex/quant_lsp_bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/quant_lsp_bfin.h	(revision 8014)
++++ speex-svn-14525/libspeex/quant_lsp_bfin.h	(working copy)
+@@ -36,6 +36,8 @@
+ #define OVERRIDE_LSP_QUANT
+ #ifdef OVERRIDE_LSP_QUANT
+ 
++#include "bfin.h"
++
+ /*
+   Note http://gcc.gnu.org/onlinedocs/gcc/Machine-Constraints.html
+   well tell you all the magic resgister constraints used below
+@@ -84,7 +86,8 @@ static int lsp_quant(
+ "         L0 = 0;\n\t"
+    : "=&d" (best_dist), "=&d" (best_id)
+    : "a" (x), "b" (cdbk), "a" (nbVec), "a" (nbDim)
+-   : "I0", "P2", "R0", "R1", "R2", "R3", "R5", "L0", "B0", "A0"
++   : "I0", "P2", "R0", "R1", "R2", "R3", "R5", "L0", "B0", "A0",
++     "CC", "ASTAT" BFIN_HWLOOP0_REGS BFIN_HWLOOP1_REGS
+    );
+ 
+    for (j=0;j<nbDim;j++) {
+@@ -154,7 +157,7 @@ static int lsp_weight_quant(
+    : "=&d" (best_dist), "=&d" (best_id)
+    : "a" (x), "a" (weight), "b" (cdbk), "a" (nbVec), "a" (nbDim)
+    : "I0", "I1", "P2", "R0", "R1", "R2", "R3", "R5", "A1",
+-     "L0", "L1", "B0", "B1"
++     "L0", "L1", "B0", "B1", "CC", "ASTAT" BFIN_HWLOOP0_REGS BFIN_HWLOOP1_REGS
+    );
+ 
+    for (j=0;j<nbDim;j++) {
+Index: speex-svn-14525/libspeex/lpc_bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/lpc_bfin.h	(revision 8014)
++++ speex-svn-14525/libspeex/lpc_bfin.h	(working copy)
+@@ -33,6 +33,8 @@
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
++#include "bfin.h"
++
+ #define OVERRIDE_SPEEX_AUTOCORR
+ void _spx_autocorr(
+ const spx_word16_t *x,   /*  in: [0...n-1] samples x   */
+@@ -107,7 +109,8 @@ int          n
+             "P0 += 4;\n\t"
+          "LOOP_END pitch%=;\n\t"
+    : : "m" (xs), "m" (x), "m" (ac32top), "m" (N_lag), "m" (lag_1), "m" (nshift)
+-   : "A0", "A1", "P0", "P1", "P2", "P3", "P4", "R0", "R1", "R2", "R3", "R4", "I0", "I1", "L0", "L1", "B0", "B1", "memory"
++   : "A0", "A1", "P0", "P1", "P2", "P3", "P4", "R0", "R1", "R2", "R3", "R4", "I0", "I1", "L0", "L1", "B0", "B1", "memory",
++     "ASTAT" BFIN_HWLOOP0_REGS BFIN_HWLOOP1_REGS
+    );
+    d=0;
+    for (j=0;j<n;j++)
+Index: speex-svn-14525/libspeex/bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/bfin.h	(revision 0)
++++ speex-svn-14525/libspeex/bfin.h	(revision 0)
+@@ -0,0 +1,15 @@
++/* Common Blackfin assembly defines
++ *
++ * Copyright (C) 2005-2009 Analog Devices
++ */
++
++#if __GNUC__ <= 3
++/* GCC-3.4 and older did not use hardware loops and thus did not have
++ * register constraints for declaring clobbers.
++ */
++# define BFIN_HWLOOP0_REGS
++# define BFIN_HWLOOP1_REGS
++#else
++# define BFIN_HWLOOP0_REGS , "LB0", "LT0", "LC0"
++# define BFIN_HWLOOP1_REGS , "LB1", "LT1", "LC1"
++#endif
+Index: speex-svn-14525/libspeex/filters_bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/filters_bfin.h	(revision 8014)
++++ speex-svn-14525/libspeex/filters_bfin.h	(working copy)
+@@ -32,6 +32,8 @@
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
++#include "bfin.h"
++
+ #define OVERRIDE_NORMALIZE16
+ int normalize16(const spx_sig_t *x, spx_word16_t *y, spx_sig_t max_scale, int len)
+ {
+@@ -50,7 +52,7 @@ int normalize16(const spx_sig_t *x, spx_
+    "LOOP_END norm_max%=;\n\t"
+    : "=&d" (max_val)
+    : "a" (x), "a" (len)
+-   : "R1", "R2"
++   : "R1", "R2", "ASTAT" BFIN_HWLOOP0_REGS
+    );
+ 
+    sig_shift=0;
+@@ -74,7 +76,7 @@ int normalize16(const spx_sig_t *x, spx_
+    "R1 = ASHIFT R0 by %2.L;\n\t"
+    "W[P1++] = R1;\n\t"
+    : : "a" (x), "a" (y), "d" (-sig_shift), "a" (len-1)
+-   : "I0", "L0", "P1", "R0", "R1", "memory"
++   : "I0", "L0", "P1", "R0", "R1", "memory", "ASTAT" BFIN_HWLOOP0_REGS
+    );
+    return sig_shift;
+ }
+@@ -219,7 +221,8 @@ void filter_mem16(const spx_word16_t *_x
+    "LOOP_END mem_update%=;\n\t"
+    "L0 = 0;\n\t"
+    : : "m" (xy), "m" (_x), "m" (_y), "m" (numden), "m" (N), "m" (ord), "m" (mem)
+-   : "A0", "A1", "R0", "R1", "R2", "R3", "R4", "R5", "P0", "P1", "P2", "P3", "P4", "B0", "I0", "I2", "L0", "L2", "M0", "memory"
++   : "A0", "A1", "R0", "R1", "R2", "R3", "R4", "R5", "P0", "P1", "P2", "P3", "P4", "B0", "I0", "I2", "L0", "L2", "M0", "memory",
++     "ASTAT" BFIN_HWLOOP0_REGS BFIN_HWLOOP1_REGS
+    );
+ 
+ }
+@@ -345,7 +348,8 @@ void iir_mem16(const spx_word16_t *_x, c
+    "LOOP_END mem_update%=;\n\t"
+    "L1 = 0;\n\t"
+    : : "m" (yy), "m" (_x), "m" (_y), "m" (den), "m" (N), "m" (ord), "m" (mem)
+-   : "A0", "A1", "R0", "R1", "R2", "R3", "R4", "R5", "P0", "P1", "P2", "P3", "P4", "B1", "I1", "I3", "L1", "L3", "memory"
++   : "A0", "A1", "R0", "R1", "R2", "R3", "R4", "R5", "P0", "P1", "P2", "P3", "P4", "B1", "I1", "I3", "L1", "L3", "memory",
++     "ASTAT" BFIN_HWLOOP0_REGS BFIN_HWLOOP1_REGS
+    );
+ 
+ }
+@@ -426,7 +430,8 @@ void compute_impulse_response(const spx_
+          "LOOP_END samples%=;\n\t"
+    : "=a" (ytmp2), "=a" (y)
+    : "a" (awk2), "a" (ak), "d" (ord), "m" (N), "0" (ytmp2), "1" (y)
+-   : "A0", "A1", "R0", "R1", "R2", "R3", "I0", "I1", "I2", "I3", "L0", "L1", "L2", "L3", "A0", "A1"
++   : "A0", "A1", "R0", "R1", "R2", "R3", "I0", "I1", "I2", "I3", "L0", "L1", "L2", "L3",
++     "ASTAT" BFIN_HWLOOP0_REGS BFIN_HWLOOP1_REGS
+    );
+ }
+ 
+Index: speex-svn-14525/libspeex/cb_search_bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/cb_search_bfin.h	(revision 8014)
++++ speex-svn-14525/libspeex/cb_search_bfin.h	(working copy)
+@@ -33,6 +33,8 @@
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
++#include "bfin.h"
++
+ #define OVERRIDE_COMPUTE_WEIGHTED_CODEBOOK 
+ void compute_weighted_codebook(const signed char *shape_cb, const spx_word16_t *r, spx_word16_t *resp, spx_word16_t *resp2, spx_word32_t *E, int shape_cb_size, int subvect_size, char *stack)
+ {
+@@ -73,10 +75,7 @@ void compute_weighted_codebook(const sig
+          :
+       : "m" (subvect_size), "m" (shape_cb), "m" (r), "m" (resp), "m" (E)
+       : "A0", "P0", "P1", "P2", "P3", "P4", "R0", "R1", "R2", "I0", "I1", "L0", 
+-        "L1", "A0", "A1", "memory"
+-#if !(__GNUC__ == 3)
+-         , "LC0", "LC1" /* gcc 3.4 doesn't know about LC registers */
+-#endif
++        "L1", "A0", "A1", "memory", "ASTAT" BFIN_HWLOOP0_REGS BFIN_HWLOOP1_REGS
+       );
+       shape_cb += subvect_size;
+       resp += subvect_size;
+@@ -107,6 +106,6 @@ static inline void target_update(spx_wor
+          "LOOP_END tupdate%=;\n\t"
+    :
+    : "a" (t), "a" (r), "d" (g), "a" (len)
+-   : "R0", "R1", "R2", "A1", "I0", "I1", "L0", "L1"
++   : "R0", "R1", "R2", "A1", "I0", "I1", "L0", "L1", "ASTAT" BFIN_HWLOOP0_REGS
+          );
+ }
+Index: speex-svn-14525/libspeex/fixed_bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/fixed_bfin.h	(revision 8014)
++++ speex-svn-14525/libspeex/fixed_bfin.h	(working copy)
+@@ -36,6 +36,8 @@
+ #ifndef FIXED_BFIN_H
+ #define FIXED_BFIN_H
+ 
++#include "bfin.h"
++
+ #undef PDIV32_16
+ static inline spx_word16_t PDIV32_16(spx_word32_t a, spx_word16_t b)
+ {
+@@ -57,7 +59,7 @@ static inline spx_word16_t PDIV32_16(spx
+          "%0 = R0;\n\t"
+    : "=m" (res)
+    : "m" (a), "m" (bb)
+-   : "P0", "R0", "R1", "cc");
++   : "P0", "R0", "R1", "ASTAT" BFIN_HWLOOP0_REGS);
+    return res;
+ }
+ 
+@@ -84,7 +86,7 @@ static inline spx_word16_t DIV32_16(spx_
+          "%0 = R0;\n\t"
+    : "=m" (res)
+    : "m" (a), "m" (bb)
+-   : "P0", "R0", "R1", "cc");
++   : "P0", "R0", "R1", "ASTAT" BFIN_HWLOOP0_REGS);
+    return res;
+ }
+ 
+@@ -98,6 +100,7 @@ static inline spx_word16_t MAX16(spx_wor
+          "%0 = MAX(%1,%2);"
+    : "=d" (res)
+    : "%d" (a), "d" (b)
++   : "ASTAT"
+    );
+    return res;
+ }
+@@ -113,7 +116,7 @@ static inline spx_word32_t MULT16_32_Q15
+          "%0 = (A1 += %2.L*%1.H) ;\n\t"
+    : "=&W" (res), "=&d" (b)
+    : "d" (a), "1" (b)
+-   : "A1"
++   : "A1", "ASTAT"
+    );
+    return res;
+ }
+@@ -130,7 +133,7 @@ static inline spx_word32_t MAC16_32_Q15(
+          "%0 = %0 + %4;\n\t"
+    : "=&W" (res), "=&d" (b)
+    : "d" (a), "1" (b), "d" (c)
+-   : "A1"
++   : "A1", "ASTAT"
+          );
+    return res;
+ }
+@@ -147,7 +150,7 @@ static inline spx_word32_t MULT16_32_Q14
+          "%0 = (A1 += %1.L*%2.H);\n\t"
+    : "=W" (res), "=d" (a), "=d" (b)
+    : "1" (a), "2" (b)
+-   : "A1"
++   : "A1", "ASTAT"
+          );
+    return res;
+ }
+@@ -165,7 +168,7 @@ static inline spx_word32_t MAC16_32_Q14(
+          "%0 = %0 + %4;\n\t"
+    : "=&W" (res), "=&d" (b)
+    : "d" (a), "1" (b), "d" (c)
+-   : "A1"
++   : "A1", "ASTAT"
+          );
+    return res;
+ }
+Index: speex-svn-14525/libspeex/misc_bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/misc_bfin.h	(revision 8014)
++++ speex-svn-14525/libspeex/misc_bfin.h	(working copy)
+@@ -33,6 +33,8 @@
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
++#include "bfin.h"
++
+ #define OVERRIDE_SPEEX_MOVE
+ void *speex_move (void *dest, void *src, int n)
+ {
+@@ -48,7 +50,7 @@ void *speex_move (void *dest, void *src,
+          "[%1++] = R0;\n\t"
+    : "=a" (src), "=a" (dest)
+    : "a" ((n>>2)-1), "0" (src), "1" (dest)
+-   : "R0", "I0", "L0", "memory"
++   : "R0", "I0", "L0", "memory" BFIN_HWLOOP0_REGS
+          );
+    return dest;
+ }
+Index: speex-svn-14525/libspeex/vq_bfin.h
+===================================================================
+--- speex-svn-14525/libspeex/vq_bfin.h	(revision 8014)
++++ speex-svn-14525/libspeex/vq_bfin.h	(working copy)
+@@ -33,6 +33,8 @@
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
++#include "bfin.h"
++
+ #define OVERRIDE_VQ_NBEST
+ void vq_nbest(spx_word16_t *in, const spx_word16_t *codebook, int len, int entries, spx_word32_t *E, int N, int *nbest, spx_word32_t *best_dist, char *stack)
+ {
+@@ -66,7 +68,8 @@ void vq_nbest(spx_word16_t *in, const sp
+             "LOOP_END entries_loop%=;\n\t"
+             : "=&D" (dist), "=&a" (codebook), "=&d" (best_dist[0]), "=&d" (nbest[0]), "=&a" (E)
+             : "a" (len-1), "a" (in), "a" (2), "d" (entries), "d" (len<<1), "1" (codebook), "4" (E), "2" (best_dist[0]), "3" (nbest[0])
+-            : "R0", "R1", "R2", "I0", "L0", "B0", "A0", "cc", "memory"
++            : "R0", "R1", "R2", "I0", "L0", "B0", "A0", "cc", "memory",
++              "ASTAT" BFIN_HWLOOP0_REGS BFIN_HWLOOP1_REGS
+                );
+       }
+    } else {
+@@ -89,7 +92,7 @@ void vq_nbest(spx_word16_t *in, const sp
+             "%0 = (A0 -= R0.L*R1.L) (IS);\n\t"
+          : "=D" (dist), "=a" (codebook)
+          : "a" (len-1), "a" (in), "a" (2), "1" (codebook), "0" (E[i])
+-         : "R0", "R1", "I0", "L0", "A0"
++         : "R0", "R1", "I0", "L0", "A0", "ASTAT" BFIN_HWLOOP0_REGS
+             );
+       if (i<N || dist<best_dist[N-1])
+       {
