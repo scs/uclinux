@@ -1,7 +1,0 @@
-#!/bin/sh
-make arrow generate_font &&
-./arrow &&
-./generate_font &&
-rm arrow generate_font &&
-mv font_include.c .. &&
-mv arrow.inc ..
