@@ -1,0 +1,2 @@
+# Common login shell init code
+PS1='\u:\w> '
