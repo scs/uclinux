@@ -57,15 +57,18 @@ if ($1 == "mainmenu") {
 	print "source ../user/busybox/" BDIR "/" $2
 	next
 } else if ($1 == "default" || $1 == "depends" || $1 == "select") {
+	str = 0
 	mod = 0
 	out = "\t" $1
 	for (i = 2; i <= NF; ++i) {
-		if ($i != "y" && \
+		if ($i ~ /^"/)
+			str = 1
+		if (str == 0 && \
+		    $i != "y" && \
 		    $i != "n" && \
 		    $i != "if" && \
 		    $i != "on" && \
 		    $i != int($i) && \
-		    $i !~ /^".*"$/ && \
 		    $i != "(" && \
 		    $i != ")" && \
 		    $i != "||" && \
@@ -82,6 +85,8 @@ if ($1 == "mainmenu") {
 			mod = 1
 		} else
 			out = out " " $i
+		if ($i ~ /"$/)
+			str = 0
 	}
 	if (mod == 1) {
 		print out
