@@ -54,8 +54,35 @@ expect {
 }
 }
 
+incr case_num
 set host_id $spawn_id 
 
+for {set i 0} {$i<5000} {incr i} {
+	send  "1"
+	expect {
+		"1" {
+		} 
+		timeout {
+		send_user "Fail to receive single byte in a long loop!\n" 
+               	case_fail $case_num
+		exit
+		}
+	}
+}
+send  "\n"
+expect {
+       -re  $sh_prompt {
+       send_user "Succeed to receive single byte in a long loop!\n" 
+       case_pass $case_num
+       } 
+       timeout {
+       send_user "No prompt after receive single byte in a long loop!\n" 
+       case_fail $case_num
+       exit
+       }
+}
+
+incr case_num
 for {set i 0} {$i<30} {incr i} {
 
 set spawn_id $host_id
