@@ -142,6 +142,12 @@
 #include "arch-opts.h"
 #ifdef LIBJPEG_BFIN
 
+#ifdef __FDPIC__
+#define LOAD(reg, sym) reg = [P3 + sym@GOT17M4];
+#else
+#define LOAD(reg, sym) reg.l = sym; reg.h = sym;
+#endif
+
 #define ENTRY(name) \
    .global name; \
    .align 4; \
@@ -180,9 +186,7 @@ ENTRY(_jpeg_fdct_ifast_bfin)
 	P0 = R0;
 	B1 = R0;
 	P1 = 16 (X);
-	R0.H = dct_coeff;
-	R0.L = dct_coeff;
-	//R0 = [P3];
+	LOAD(R0, dct_coeff)
 	I0 = R0;
 	B0 = R0;
 	L0 = 8;
