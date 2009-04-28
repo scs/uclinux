@@ -31,12 +31,76 @@ while 1 {
             send "y\r"
         }
 
+        -re "Locate interrupt entry code in L1 Memory.*I_ENTRY_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate entire ASM lowlevel exception.*EXCPT_IRQ_SYSC_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate frequently called do_irq dispatcher function in L1 Memory.*DO_IRQ_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate frequently called timer_interrupt.*CORE_TIMER_IRQ_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate frequently idle function in L1 Memory.*IDLE_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate kernel schedule function in L1 Memory.*SCHEDULE_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate kernel owned arithmetic functions in L1 Memory.*ARITHMETIC_OPS_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate access_ok function in L1 Memory.*ACCESS_OK_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate memset function in L1 Memory.*MEMSET_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate memcpy function in L1 Memory.*MEMCPY_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate sys_bfin_spinlock function in L1 Memory.*SYS_BFIN_SPINLOCK_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate IP Checksum function in L1 Memory.*IP_CHECKSUM_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate cacheline_aligned data to L1 Data Memory.*CACHELINE_ALIGNED_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate Syscall Table L1 Data Memory.*SYSCALL_TAB_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Locate CPLB Switch Tables L1 Data Memory.*CPLB_SWITCH_TAB_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Support locating application stack in L1 Scratch Memory.*APP_STACK_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "Build libbfgdots.*LIB_LIBBFGDOTS.*\\\[.*]" {
             send "Y\r"
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 
