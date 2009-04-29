@@ -38,6 +38,19 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_LIBZ
+#include <zlib.h>
+#define 	usb_file				gzFile
+#define 	usb_fopen(path, mode) 		gzopen(path, mode)
+#define 	usb_fgets(s, size, stream)	gzgets(stream, s, size)
+#define 	usb_close(f)			gzclose(f)
+#else
+#define 	usb_file				FILE*
+#define 	usb_fopen(path, mode)		fopen(path, mode)
+#define 	usb_fgets(s, size, stream)	fgets(s, size, stream)
+#define 	usb_close(f)			fclose(f)
+#endif
+
 #include "names.h"
 
 
@@ -79,6 +92,12 @@ struct audioterminal {
 	char name[1];
 };
 
+struct videoterminal {
+	struct videoterminal *next;
+	u_int16_t termt;
+	char name[1];
+};
+
 struct genericstrtable {
         struct genericstrtable *next;
         unsigned int num;
@@ -109,6 +128,7 @@ static struct class *classes[HASHSZ] = { NULL, };
 static struct subclass *subclasses[HASHSZ] = { NULL, };
 static struct protocol *protocols[HASHSZ] = { NULL, };
 static struct audioterminal *audioterminals[HASHSZ] = { NULL, };
+static struct videoterminal *videoterminals[HASHSZ] = { NULL, };
 static struct genericstrtable *hiddescriptors[HASHSZ] = { NULL, };
 static struct genericstrtable *reports[HASHSZ] = { NULL, };
 static struct genericstrtable *huts[HASHSZ] = { NULL, };
@@ -236,6 +256,17 @@ const char *names_audioterminal(u_int16_t termt)
 	return NULL;
 }
 
+const char *names_videoterminal(u_int16_t termt)
+{
+	struct videoterminal *vt;
+
+	vt = videoterminals[hashnum(termt)];
+	for (; vt; vt = vt->next)
+		if (vt->termt == termt)
+			return vt->name;
+	return NULL;
+}
+
 /* ---------------------------------------------------------------------- */
 
 static int new_vendor(const char *name, u_int16_t vendorid)
@@ -356,6 +387,25 @@ static int new_audioterminal(const char *name, u_int16_t termt)
 	return 0;
 }
 
+static int new_videoterminal(const char *name, u_int16_t termt)
+{
+	struct videoterminal *vt;
+	unsigned int h = hashnum(termt);
+
+	vt = videoterminals[h];
+	for (; vt; vt = vt->next)
+		if (vt->termt == termt)
+			return -1;
+	vt = malloc(sizeof(struct videoterminal) + strlen(name));
+	if (!vt)
+		return -1;
+	strcpy(vt->name, name);
+	vt->termt = termt;
+	vt->next = videoterminals[h];
+	videoterminals[h] = vt;
+	return 0;
+}
+
 static int new_genericstrtable(struct genericstrtable *t[HASHSZ], const char *name, unsigned int index)
 {
         struct genericstrtable *g;
@@ -417,14 +467,14 @@ static int new_countrycode(const char *name, unsigned int countrycode)
 
 #define DBG(x) 
 
-static void parse(FILE *f)
+static void parse(usb_file f)
 {
 	char buf[512], *cp;
 	unsigned int linectr = 0;
 	int lastvendor = -1, lastclass = -1, lastsubclass = -1, lasthut=-1, lastlang=-1;
 	unsigned int u;
 
-	while (fgets(buf, sizeof(buf), f)) {
+	while (usb_fgets(buf, sizeof(buf), f)) {
 		linectr++;
 		/* remove line ends */
 		if ((cp = strchr(buf, 13)))
@@ -562,6 +612,27 @@ static void parse(FILE *f)
 			if (new_audioterminal(cp, u))
 				fprintf(stderr, "Duplicate audio terminal type spec at line %u terminal type %04x %s\n", linectr, u, cp);
 			DBG(printf("line %5u audio terminal type %02x %s\n", linectr, u, cp));
+			continue;
+		}
+		if (buf[0] == 'V' && buf[1] == 'T' && isspace(buf[2])) {
+			/* video terminal type spec */
+			cp = buf+3;
+			while (isspace(*cp))
+				cp++;
+			if (!isxdigit(*cp)) {
+				fprintf(stderr, "Invalid video terminal type at line %u\n", linectr);
+				continue;
+			}
+			u = strtoul(cp, &cp, 16);
+			while (isspace(*cp))
+				cp++;
+			if (!*cp) {
+				fprintf(stderr, "Invalid video terminal type at line %u\n", linectr);
+				continue;
+			}
+			if (new_videoterminal(cp, u))
+				fprintf(stderr, "Duplicate video terminal type spec at line %u terminal type %04x %s\n", linectr, u, cp);
+			DBG(printf("line %5u video terminal type %02x %s\n", linectr, u, cp));
 			continue;
 		}
 		if (buf[0] == 'H' && buf[1] == 'C' && buf[2] == 'C' && isspace(buf[3])) {
@@ -727,12 +798,12 @@ static void parse(FILE *f)
 
 int names_init(char *n)
 {
-	FILE *f;
+	usb_file f;
 	
-	if (!(f = fopen(n, "r"))) {
+	if (!(f = usb_fopen(n, "r"))) {
 		return errno;
 	}
 	parse(f);
-	fclose(f);
+	usb_close(f);
 	return 0;
 }

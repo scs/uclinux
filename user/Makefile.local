@@ -19,6 +19,7 @@ dir_$(CONFIG_USER_PCMCIAUTILS)              += pcmciautils
 dir_$(CONFIG_USER_PICOCOM)                  += picocom
 dir_$(CONFIG_USER_PICTUREFLOW)              += pictureflow
 dir_$(CONFIG_USER_SERCD)                    += sercd
+dir_$(CONFIG_USER_USBUTILS)                 += usbutils
 
 dir_$(CONFIG_CRAMFS)                        += cramfs
 dir_$(CONFIG_EXT2_FS)                       += genext2fs

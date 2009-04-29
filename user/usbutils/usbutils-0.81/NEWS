@@ -1,3 +1,17 @@
+usbutils 0.81
+=============
+fixed '-t' option if usbfs is not mounted
+added DFU parsing
+updated the man page
+
+usbutils 0.80
+=============
+Updated usb.ids.
+Updated autotools logic.
+Removed obsolete usbmodules.
+
+usbutils 0.73 (and older)
+=============
 Thanks to a patch from Aurelien Jarno, usbutils now uses the system's
 libusb to access USB devices, not a private (old) copy of that library.
 

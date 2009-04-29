@@ -34,7 +34,7 @@
 
 /* ---------------------------------------------------------------------- */
 
-static const char *procbususb = "/proc/bus/usb";
+static const char *devbususb = "/dev/bus/usb";
 
 /* ---------------------------------------------------------------------- */
 
@@ -78,16 +78,15 @@ static char *get_absolute_path(const char *path, char *result, size_t result_siz
 	if (path == NULL)
 		return result;
 
-	if (*ppath != '/')
-	{
-		getcwd(result, result_size);		
+	if (*ppath != '/') {
+		result = getcwd(result, result_size);
 		presult += strlen(result);
 		result_size -= strlen(result);
 
 		*presult++ = '/';
 		result_size--;
-	}		
-	
+	}
+
 	while (*ppath != 0 && result_size > 1) {
 		if (*ppath == '/') {
 			do ppath++; while (*ppath == '/');
@@ -131,7 +130,7 @@ struct usb_device *get_usb_device(const char *path)
 	
 	for (bus = usb_busses; bus; bus = bus->next) {
         	for (dev = bus->devices; dev; dev = dev->next) {
-			snprintf(device_path, sizeof(device_path), "%s/%s/%s", procbususb, bus->dirname, dev->filename);
+			snprintf(device_path, sizeof(device_path), "%s/%s/%s", devbususb, bus->dirname, dev->filename);
 			if (!strcmp(device_path, absolute_path))
 				return dev;
 		}				

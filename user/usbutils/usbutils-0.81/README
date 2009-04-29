@@ -1,0 +1,3 @@
+initialize autobuild with:
+  autoreconf --install --symlink
+  ./configure

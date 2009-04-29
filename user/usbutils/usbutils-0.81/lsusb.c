@@ -3,8 +3,9 @@
 /*
  *      lsusb.c  --  lspci like utility for the USB bus
  *
- *      Copyright (C) 1999, 2000, 2001, 2003
+ *      Copyright (C) 1999-2001, 2003
  *        Thomas Sailer (t.sailer@alumni.ethz.ch)
+ *      Copyright (C) 2003-2005 David Brownell
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -19,16 +20,11 @@
  *      You should have received a copy of the GNU General Public License
  *      along with this program; if not, write to the Free Software
  *      Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
  */
 
 /*****************************************************************************/
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -36,15 +32,22 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <byteswap.h>
 #include <usb.h>
 
 #include "names.h"
 #include "devtree.h"
 #include "usbmisc.h"
 
-#define _GNU_SOURCE
 #include <getopt.h>
 
+#if (__BYTE_ORDER == __LITTLE_ENDIAN)
+  #define le16_to_cpu(x) (x)
+#elif (__BYTE_ORDER == __BIG_ENDIAN)
+  #define le16_to_cpu(x) bswap_16(x)
+#else
+  #error missing BYTE_ORDER
+#endif
 
 /* from USB 2.0 spec and updates */
 #define USB_DT_DEVICE_QUALIFIER		0x06
@@ -57,11 +60,22 @@
 #define USB_DT_CS_INTERFACE		0x24
 #define USB_DT_CS_ENDPOINT		0x25
 
+#ifndef USB_CLASS_VIDEO
+#define USB_CLASS_VIDEO			0x0e
+#endif
+
+#ifndef USB_CLASS_APPLICATION
+#define USB_CLASS_APPLICATION	       	0xfe
+#endif
+
 #define VERBLEVEL_DEFAULT 0	/* 0 gives lspci behaviour; 1, lsusb-0.9 */
 
 #define CTRL_RETRIES	 2
 #define CTRL_TIMEOUT	(5*1000)	/* milliseconds */
 
+#define	HUB_STATUS_BYTELEN	3	/* max 3 bytes status = hub + 23 ports */
+
+extern int lsusb_t(void);
 static const char *procbususb = "/proc/bus/usb";
 static unsigned int verblevel = VERBLEVEL_DEFAULT;
 static int do_report_desc = 1;
@@ -71,6 +85,9 @@ static void dump_endpoint(struct usb_dev_handle *dev, struct usb_interface_descr
 static void dump_audiocontrol_interface(struct usb_dev_handle *dev, unsigned char *buf);
 static void dump_audiostreaming_interface(unsigned char *buf);
 static void dump_midistreaming_interface(struct usb_dev_handle *dev, unsigned char *buf);
+static void dump_videocontrol_interface(struct usb_dev_handle *dev, unsigned char *buf);
+static void dump_videostreaming_interface(unsigned char *buf);
+static void dump_dfu_interface(unsigned char *buf);
 static char *dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *indent);
 static void dump_hid_device(struct usb_dev_handle *dev, struct usb_interface_descriptor *interface, unsigned char *buf);
 static void dump_audiostreaming_endpoint(unsigned char *buf);
@@ -82,7 +99,7 @@ static void dump_ccid_device(unsigned char *buf);
 
 static unsigned int convert_le_u32 (const unsigned char *buf)
 {
-        return buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24); 
+	return buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -106,17 +123,17 @@ static inline int typesafe_control_msg(usb_dev_handle *dev,
 
 int lprintf(unsigned int vl, const char *format, ...)
 {
-        va_list ap;
-        int r;
+	va_list ap;
+	int r;
 
-        if (vl > verblevel)
-                return 0;
-        va_start(ap, format);
+	if (vl > verblevel)
+		return 0;
+	va_start(ap, format);
 	r = vfprintf(stderr, format, ap);
-        va_end(ap);
-        if (!vl)
-                exit(1);
-        return r;
+	va_end(ap);
+	if (!vl)
+		exit(1);
+	return r;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -124,7 +141,12 @@ int lprintf(unsigned int vl, const char *format, ...)
 static int get_string(struct usb_dev_handle *dev, char* buf, size_t size, u_int8_t id)
 {
 	int ret;
-	
+
+	if (!dev) {
+		buf[0] = 0;
+		return 0;
+	}
+
 	if (id) {
 		ret = usb_get_string_simple(dev, id, buf, size);
 		if (ret <= 0) {
@@ -133,8 +155,8 @@ static int get_string(struct usb_dev_handle *dev, char* buf, size_t size, u_int8
 		}
 		else
 			return ret;
-		
-	} 
+
+	}
 	else {
 		buf[0] = 0;
 		return 0;
@@ -213,6 +235,39 @@ static int get_audioterminal_string(char *buf, size_t size, u_int16_t termt)
 	return snprintf(buf, size, "%s", cp);
 }
 
+static int get_videoterminal_string(char *buf, size_t size, u_int16_t termt)
+{
+	const char *cp;
+
+	if (size < 1)
+		return 0;
+	*buf = 0;
+	if (!(cp = names_videoterminal(termt)))
+		return 0;
+	return snprintf(buf, size, "%s", cp);
+}
+
+static const char *get_guid(unsigned char *buf)
+{
+	static char guid[39];
+
+	/* NOTE:  see RFC 4122 for more information about GUID/UUID
+	 * structure.  The first fields fields are historically big
+	 * endian numbers, dating from Apollo mc68000 workstations.
+	 */
+	sprintf(guid, "{%02x%02x%02x%02x"
+			"-%02x%02x"
+			"-%02x%02x"
+			"-%02x%02x"
+			"-%02x%02x%02x%02x%02x%02x}",
+	       buf[0], buf[1], buf[2], buf[3],
+	       buf[4], buf[5],
+	       buf[6], buf[7],
+	       buf[8], buf[9],
+	       buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
+	return guid;
+}
+
 /* ---------------------------------------------------------------------- */
 
 static void dump_bytes(unsigned char *buf, unsigned int len)
@@ -250,10 +305,13 @@ static void dump_device(
 	char mfg[128], prod[128], serial[128];
 
 	get_vendor_string(vendor, sizeof(vendor), descriptor->idVendor);
-	get_product_string(product, sizeof(product), descriptor->idVendor, descriptor->idProduct);
+	get_product_string(product, sizeof(product),
+			descriptor->idVendor, descriptor->idProduct);
 	get_class_string(cls, sizeof(cls), descriptor->bDeviceClass);
-	get_subclass_string(subcls, sizeof(subcls), descriptor->bDeviceClass, descriptor->bDeviceSubClass);
-	get_protocol_string(proto, sizeof(proto), descriptor->bDeviceClass, descriptor->bDeviceSubClass, descriptor->bDeviceProtocol);
+	get_subclass_string(subcls, sizeof(subcls),
+			descriptor->bDeviceClass, descriptor->bDeviceSubClass);
+	get_protocol_string(proto, sizeof(proto), descriptor->bDeviceClass,
+			descriptor->bDeviceSubClass, descriptor->bDeviceProtocol);
 	get_string(dev, mfg, sizeof(mfg), descriptor->iManufacturer);
 	get_string(dev, prod, sizeof(prod), descriptor->iProduct);
 	get_string(dev, serial, sizeof(serial), descriptor->iSerialNumber);
@@ -272,18 +330,51 @@ static void dump_device(
 	       "  iProduct            %5u %s\n"
 	       "  iSerial             %5u %s\n"
 	       "  bNumConfigurations  %5u\n",
-	       descriptor->bLength, descriptor->bDescriptorType, descriptor->bcdUSB >> 8, descriptor->bcdUSB & 0xff, 
-	       descriptor->bDeviceClass, cls, descriptor->bDeviceSubClass, subcls, descriptor->bDeviceProtocol, proto, 
-	       descriptor->bMaxPacketSize0, descriptor->idVendor, vendor, descriptor->idProduct, product, 
-	       descriptor->bcdDevice >> 8, descriptor->bcdDevice & 0xff, descriptor->iManufacturer, mfg,
-	       descriptor->iProduct, prod, descriptor->iSerialNumber, serial, descriptor->bNumConfigurations);
+	       descriptor->bLength, descriptor->bDescriptorType,
+	       descriptor->bcdUSB >> 8, descriptor->bcdUSB & 0xff,
+	       descriptor->bDeviceClass, cls,
+	       descriptor->bDeviceSubClass, subcls,
+	       descriptor->bDeviceProtocol, proto,
+	       descriptor->bMaxPacketSize0,
+	       descriptor->idVendor, vendor, descriptor->idProduct, product,
+	       descriptor->bcdDevice >> 8, descriptor->bcdDevice & 0xff,
+	       descriptor->iManufacturer, mfg,
+	       descriptor->iProduct, prod,
+	       descriptor->iSerialNumber, serial,
+	       descriptor->bNumConfigurations);
+}
+
+static void dump_association(struct usb_dev_handle *dev, unsigned char *buf)
+{
+	char cls[128], subcls[128], proto[128];
+	char func[128];
+
+	get_class_string(cls, sizeof(cls), buf[4]);
+	get_subclass_string(subcls, sizeof(subcls), buf[4], buf[5]);
+	get_protocol_string(proto, sizeof(proto), buf[4], buf[5], buf[6]);
+	get_string(dev, func, sizeof(func), buf[7]);
+	printf("    Interface Association:\n"
+	       "      bLength             %5u\n"
+	       "      bDescriptorType     %5u\n"
+	       "      bFirstInterface     %5u\n"
+	       "      bInterfaceCount     %5u\n"
+	       "      bFunctionClass      %5u %s\n"
+	       "      bFunctionSubClass   %5u %s\n"
+	       "      bFunctionProtocol   %5u %s\n"
+	       "      iFunction           %5u %s\n",
+	       buf[0], buf[1],
+	       buf[2], buf[3],
+	       buf[4], cls,
+	       buf[5], subcls,
+	       buf[6], proto,
+	       buf[7], func);
 }
 
 static void dump_config(struct usb_dev_handle *dev, struct usb_config_descriptor *config)
 {
 	char cfg[128];
 	int i;
-	
+
 	get_string(dev, cfg, sizeof(cfg), config->iConfiguration);
 	printf("  Configuration Descriptor:\n"
 	       "    bLength             %5u\n"
@@ -293,13 +384,21 @@ static void dump_config(struct usb_dev_handle *dev, struct usb_config_descriptor
 	       "    bConfigurationValue %5u\n"
 	       "    iConfiguration      %5u %s\n"
 	       "    bmAttributes         0x%02x\n",
-	       config->bLength, config->bDescriptorType, config->wTotalLength,
-	       config->bNumInterfaces, config->bConfigurationValue, config->iConfiguration,
+	       config->bLength, config->bDescriptorType,
+	       le16_to_cpu(config->wTotalLength),
+	       config->bNumInterfaces, config->bConfigurationValue,
+	       config->iConfiguration,
 	       cfg, config->bmAttributes);
+	if (!(config->bmAttributes & 0x80))
+		printf("      (Missing must-be-set bit!)\n");
 	if (config->bmAttributes & 0x40)
 		printf("      Self Powered\n");
+	else
+		printf("      (Bus Powered)\n");
 	if (config->bmAttributes & 0x20)
 		printf("      Remote Wakeup\n");
+	if (config->bmAttributes & 0x10)
+		printf("      Battery Powered\n");
 	printf("    MaxPower            %5umA\n", config->MaxPower * 2);
 
 	/* avoid re-ordering or hiding descriptors for display */
@@ -316,9 +415,12 @@ static void dump_config(struct usb_dev_handle *dev, struct usb_config_descriptor
 			case USB_DT_OTG:
 				/* handled separately */
 				break;
+			case USB_DT_INTERFACE_ASSOCIATION:
+				dump_association(dev, buf);
+				break;
 			default:
 				/* often a misplaced class descriptor */
-				printf("    UNRECOGNIZED: ");
+				printf("    ** UNRECOGNIZED: ");
 				dump_bytes(buf, buf[0]);
 				break;
 			}
@@ -334,7 +436,7 @@ static void dump_altsetting(struct usb_dev_handle *dev, struct usb_interface_des
 {
 	char cls[128], subcls[128], proto[128];
 	char ifstr[128];
-	
+
 	unsigned char *buf;
 	unsigned size, i;
 
@@ -367,7 +469,7 @@ static void dump_altsetting(struct usb_dev_handle *dev, struct usb_interface_des
 			if (buf[0] < 2) {
 				dump_junk(buf, "      ", size);
 				break;
-			} 
+			}
 			switch (buf[1]) {
 			case USB_DT_CS_INTERFACE:
 				switch(interface->bInterfaceClass) {
@@ -382,26 +484,61 @@ static void dump_altsetting(struct usb_dev_handle *dev, struct usb_interface_des
 							case 3:
 								dump_midistreaming_interface(dev, buf);
 								break;
+							default:
+								goto dump;
 						}
 						break;
 					case USB_CLASS_COMM:
 						dump_comm_descriptor(dev, buf,
 							"      ");
 						break;
+					case USB_CLASS_VIDEO:
+						switch(interface->bInterfaceSubClass) {
+							case 1:
+								dump_videocontrol_interface(dev, buf);
+								break;
+							case 2:
+								dump_videostreaming_interface(buf);
+								break;
+							default:
+								goto dump;
+						}
+						break;
+					default:
+						goto dump;
 				}
 				break;
 			case USB_DT_HID:
-				if (interface->bInterfaceClass == USB_CLASS_HID)
+				switch (interface->bInterfaceClass) {
+				case USB_CLASS_HID:
 					dump_hid_device(dev, interface, buf);
-				if (interface->bInterfaceClass == 0x0b)
+					break;
+				case 0x0b:
 					dump_ccid_device(buf);
+					break;
+				case USB_CLASS_APPLICATION:
+					switch(interface->bInterfaceSubClass) {
+					case 1:
+						dump_dfu_interface(buf);
+						break;
+					default:
+						goto dump;
+					}
+					break;
+				default:
+					goto dump;
+				}
 				break;
 			case USB_DT_OTG:
 				/* handled separately */
 				break;
+			case USB_DT_INTERFACE_ASSOCIATION:
+				dump_association(dev, buf);
+				break;
 			default:
+dump:
 				/* often a misplaced class descriptor */
-				printf("      UNRECOGNIZED: ");
+				printf("      ** UNRECOGNIZED: ");
 				dump_bytes(buf, buf[0]);
 				break;
 			}
@@ -416,7 +553,7 @@ static void dump_altsetting(struct usb_dev_handle *dev, struct usb_interface_des
 static void dump_interface(struct usb_dev_handle *dev, struct usb_interface *interface)
 {
 	int i;
-	
+
 	for (i = 0; i < interface->num_altsetting; i++)
 		dump_altsetting(dev, &interface->altsetting[i]);
 }
@@ -429,6 +566,7 @@ static void dump_endpoint(struct usb_dev_handle *dev, struct usb_interface_descr
 	static const char *hb[] = { "1x", "2x", "3x", "(?\?)" };
 	unsigned char *buf;
 	unsigned size;
+	unsigned wmax = le16_to_cpu(endpoint->wMaxPacketSize);
 
 	printf("      Endpoint Descriptor:\n"
 	       "        bLength             %5u\n"
@@ -440,19 +578,18 @@ static void dump_endpoint(struct usb_dev_handle *dev, struct usb_interface_descr
 	       "          Usage Type               %s\n"
 	       "        wMaxPacketSize     0x%04x  %s %d bytes\n"
 	       "        bInterval           %5u\n",
-	       endpoint->bLength, endpoint->bDescriptorType, endpoint->bEndpointAddress, endpoint->bEndpointAddress & 0x0f, 
-	       (endpoint->bEndpointAddress & 0x80) ? "IN" : "OUT", endpoint->bmAttributes, 
-	       typeattr[endpoint->bmAttributes & 3], syncattr[(endpoint->bmAttributes >> 2) & 3], 
-	       usage[(endpoint->bmAttributes >> 4) & 3], endpoint->wMaxPacketSize,
-	       hb[(endpoint->wMaxPacketSize >> 11) & 3],
-	       endpoint->wMaxPacketSize & 0x3ff,
+	       endpoint->bLength, endpoint->bDescriptorType, endpoint->bEndpointAddress, endpoint->bEndpointAddress & 0x0f,
+	       (endpoint->bEndpointAddress & 0x80) ? "IN" : "OUT", endpoint->bmAttributes,
+	       typeattr[endpoint->bmAttributes & 3], syncattr[(endpoint->bmAttributes >> 2) & 3],
+	       usage[(endpoint->bmAttributes >> 4) & 3],
+	       wmax, hb[(wmax >> 11) & 3], wmax & 0x7ff,
 	       endpoint->bInterval);
 	/* only for audio endpoints */
-	if (endpoint->bLength == 9) 
+	if (endpoint->bLength == 9)
 	printf("        bRefresh            %5u\n"
 	       "        bSynchAddress       %5u\n",
 	       endpoint->bRefresh, endpoint->bSynchAddress);
-	
+
 	/* avoid re-ordering or hiding descriptors for display */
 	if (endpoint->extralen)
 	{
@@ -487,9 +624,12 @@ static void dump_endpoint(struct usb_dev_handle *dev, struct usb_interface_descr
 			case USB_DT_OTG:
 				/* handled separately */
 				break;
+			case USB_DT_INTERFACE_ASSOCIATION:
+				dump_association(dev, buf);
+				break;
 			default:
 				/* often a misplaced class descriptor */
-				printf("        UNRECOGNIZED: ");
+				printf("        ** UNRECOGNIZED: ");
 				dump_bytes(buf, buf[0]);
 				break;
 			}
@@ -497,6 +637,63 @@ static void dump_endpoint(struct usb_dev_handle *dev, struct usb_interface_descr
 			buf += buf[0];
 		}
 	}
+}
+
+static void dump_unit(unsigned int data, unsigned int len)
+{
+	char *systems[5] = { "None", "SI Linear", "SI Rotation",
+			"English Linear", "English Rotation" };
+
+	char *units[5][8] = {
+		{ "None", "None", "None", "None", "None",
+				"None", "None", "None" },
+		{ "None", "Centimeter", "Gram", "Seconds", "Kelvin",
+				"Ampere", "Candela", "None" },
+		{ "None", "Radians",    "Gram", "Seconds", "Kelvin",
+				"Ampere", "Candela", "None" },
+		{ "None", "Inch",       "Slug", "Seconds", "Fahrenheit",
+				"Ampere", "Candela", "None" },
+		{ "None", "Degrees",    "Slug", "Seconds", "Fahrenheit",
+				"Ampere", "Candela", "None" },
+	};
+
+	unsigned int i;
+	unsigned int sys;
+	int earlier_unit = 0;
+
+	/* First nibble tells us which system we're in. */
+	sys = data & 0xf;
+	data >>= 4;
+
+	if(sys > 4) {
+		if(sys == 0xf)
+			printf("System: Vendor defined, Unit: (unknown)\n");
+		else
+			printf("System: Reserved, Unit: (unknown)\n");
+		return;
+	} else {
+		printf("System: %s, Unit: ", systems[sys]);
+	}
+	for (i=1 ; i<len*2 ; i++) {
+		char nibble = data & 0xf;
+		data >>= 4;
+		if (nibble != 0) {
+			if(earlier_unit++ > 0)
+				printf("*");
+			printf("%s", units[sys][i]);
+			if(nibble != 1) {
+				/* This is a _signed_ nibble(!) */
+
+				int val = nibble & 0x7;
+				if(nibble & 0x08)
+					val = -((0x7 & ~val) +1);
+				printf("^%d", val);
+			}
+		}
+	}
+	if(earlier_unit == 0)
+		printf("(None)");
+	printf("\n");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -561,7 +758,7 @@ static void dump_audiocontrol_interface(struct usb_dev_handle *dev, unsigned cha
 				printf("          %s\n", chconfig[i]);
 		printf("        iChannelNames       %5u %s\n"
 		       "        iTerminal           %5u %s\n",
-		       buf[10], chnames, buf[11], term);	
+		       buf[10], chnames, buf[11], term);
 		dump_junk(buf, "        ", 12);
 		break;
 
@@ -577,7 +774,7 @@ static void dump_audiocontrol_interface(struct usb_dev_handle *dev, unsigned cha
 		       "        bAssocTerminal      %5u\n"
 		       "        bSourceID           %5u\n"
 		       "        iTerminal           %5u %s\n",
-		       buf[3], termt, termts, buf[6], buf[7], buf[8], term);	
+		       buf[3], termt, termts, buf[6], buf[7], buf[8], term);
 		dump_junk(buf, "        ", 9);
 		break;
 
@@ -585,7 +782,7 @@ static void dump_audiocontrol_interface(struct usb_dev_handle *dev, unsigned cha
 		printf("(MIXER_UNIT)\n");
 		j = buf[4];
 		k = buf[j+5];
-		if (j == 0 || k == 0) { 
+		if (j == 0 || k == 0) {
 		  printf("      Warning: mixer with %5u input and %5u output channels.\n", j, k);
 		  N = 0;
 		} else {
@@ -611,7 +808,7 @@ static void dump_audiocontrol_interface(struct usb_dev_handle *dev, unsigned cha
 		       buf[8+j], chnames);
 		for (i = 0; i < N; i++)
 			printf("        bmControls         0x%02x\n", buf[9+j+i]);
-		printf("        iMixer              %5u %s\n", buf[9+j+N], term);	
+		printf("        iMixer              %5u %s\n", buf[9+j+N], term);
 		dump_junk(buf, "        ", 10+j+N);
 		break;
 
@@ -730,11 +927,13 @@ static void dump_audiocontrol_interface(struct usb_dev_handle *dev, unsigned cha
 
 static void dump_audiostreaming_interface(unsigned char *buf)
 {
-	static const char *fmtItag[] = { "TYPE_I_UNDEFINED", "PCM", "PCM8", "IEEE_FLOAT", "ALAW", "MULAW" };
+	static const char *fmtItag[] = {
+		"TYPE_I_UNDEFINED", "PCM", "PCM8", "IEEE_FLOAT", "ALAW", "MULAW" };
 	static const char *fmtIItag[] = { "TYPE_II_UNDEFINED", "MPEG", "AC-3" };
-	static const char *fmtIIItag[] = { "TYPE_III_UNDEFINED", "IEC1937_AC-3", "IEC1937_MPEG-1_Layer1", 
-					   "IEC1937_MPEG-Layer2/3/NOEXT", "IEC1937_MPEG-2_EXT",
-					   "IEC1937_MPEG-2_Layer1_LS", "IEC1937_MPEG-2_Layer2/3_LS" };
+	static const char *fmtIIItag[] = {
+		"TYPE_III_UNDEFINED", "IEC1937_AC-3", "IEC1937_MPEG-1_Layer1",
+		"IEC1937_MPEG-Layer2/3/NOEXT", "IEC1937_MPEG-2_EXT",
+		"IEC1937_MPEG-2_Layer1_LS", "IEC1937_MPEG-2_Layer2/3_LS" };
 	unsigned int i, j, fmttag;
 	const char *fmtptr = "undefined";
 
@@ -880,15 +1079,15 @@ static void dump_audiostreaming_interface(unsigned char *buf)
 			case 0:
 				printf("Not supported\n");
 				break;
-			
+
 			case 1:
 				printf("Supported at Fs\n");
 				break;
-			
+
 			case 2:
 				printf("Reserved\n");
 				break;
-			
+
 			default:
 				printf("Supported at Fs and 1/2Fs\n");
 				break;
@@ -899,15 +1098,15 @@ static void dump_audiostreaming_interface(unsigned char *buf)
 			case 0:
 				printf("not supported\n");
 				break;
-			
+
 			case 1:
 				printf("supported but not scalable\n");
 				break;
-			
+
 			case 2:
 				printf("scalable, common boost and cut scaling value\n");
 				break;
-			
+
 			default:
 				printf("scalable, separate boost and cut scaling value\n");
 				break;
@@ -934,15 +1133,15 @@ static void dump_audiostreaming_interface(unsigned char *buf)
 			case 0:
 				printf("not supported\n");
 				break;
-				
+
 			case 1:
 				printf("supported but not scalable\n");
 				break;
-				
+
 			case 2:
 				printf("scalable, common boost and cut scaling value\n");
 				break;
-				
+
 			default:
 				printf("scalable, separate boost and cut scaling value\n");
 				break;
@@ -1137,15 +1336,447 @@ static void dump_midistreaming_endpoint(unsigned char *buf)
 	dump_junk(buf, "          ", 4+buf[3]);
 }
 
+/*
+ * Video Class descriptor dump
+ */
+
+static void dump_videocontrol_interface(struct usb_dev_handle *dev, unsigned char *buf)
+{
+	static const char *ctrlnames[] = {
+		"Brightness", "Contrast", "Hue", "Saturation", "Sharpness", "Gamma",
+		"White Balance Temperature", "White Balance Component", "Backlight Compensation",
+		"Gain", "Power Line Frequency", "Hue, Auto", "White Balance Temperature, Auto",
+		"White Balance Component, Auto", "Digital Multiplier", "Digital Multiplier Limit",
+		"Analog Video Standard", "Analog Video Lock Status"
+	};
+	static const char *camctrlnames[] = {
+		"Scanning Mode", "Auto-Exposure Mode", "Auto-Exposure Priority",
+		"Exposure Time (Absolute)", "Exposure Time (Relative)", "Focus (Absolute)",
+		"Focus (Relative)", "Iris (Absolute)", "Iris (Relative)", "Zoom (Absolute)",
+		"Zoom (Relative)", "PanTilt (Absolute)", "PanTilt (Relative)",
+		"Roll (Absolute)", "Roll (Relative)", "Reserved", "Reserved", "Focus, Auto",
+		"Privacy"
+	};
+	static const char *stdnames[] = {
+		"None", "NTSC - 525/60", "PAL - 625/50", "SECAM - 625/50",
+		"NTSC - 625/50", "PAL - 525/60" };
+	unsigned int i, ctrls, stds, n, p, termt, freq;
+	char term[128], termts[128];
+
+	if (buf[1] != USB_DT_CS_INTERFACE)
+		printf("      Warning: Invalid descriptor\n");
+	else if (buf[0] < 3)
+		printf("      Warning: Descriptor too short\n");
+	printf("      VideoControl Interface Descriptor:\n"
+	       "        bLength             %5u\n"
+	       "        bDescriptorType     %5u\n"
+	       "        bDescriptorSubtype  %5u ",
+	       buf[0], buf[1], buf[2]);
+	switch (buf[2]) {
+	case 0x01:  /* HEADER */
+		printf("(HEADER)\n");
+		n = buf[11];
+		if (buf[0] < 12+n)
+			printf("      Warning: Descriptor too short\n");
+		freq = buf[7] | (buf[8] << 8) | (buf[9] << 16) | (buf[10] << 24);
+		printf("        bcdUVC              %2x.%02x\n"
+		       "        wTotalLength        %5u\n"
+		       "        dwClockFrequency    %5u.%06uMHz\n"
+		       "        bInCollection       %5u\n",
+		       buf[4], buf[3], buf[5] | (buf[6] << 8), freq / 1000000,
+		       freq % 1000000, n);
+		for(i = 0; i < n; i++)
+			printf("        baInterfaceNr(%2u)   %5u\n", i, buf[12+i]);
+		dump_junk(buf, "        ", 12+n);
+		break;
+
+	case 0x02:  /* INPUT_TERMINAL */
+		printf("(INPUT_TERMINAL)\n");
+		get_string(dev, term, sizeof(term), buf[7]);
+		termt = buf[4] | (buf[5] << 8);
+		n = termt == 0x0201 ? 7 : 0;
+		get_videoterminal_string(termts, sizeof(termts), termt);
+		if (buf[0] < 8 + n)
+			printf("      Warning: Descriptor too short\n");
+		printf("        bTerminalID         %5u\n"
+		       "        wTerminalType      0x%04x %s\n"
+		       "        bAssocTerminal      %5u\n",
+		       buf[3], termt, termts, buf[6]);
+		printf("        iTerminal           %5u %s\n",
+		       buf[7], term);
+		if (termt == 0x0201) {
+			n += buf[14];
+			printf("        wObjectiveFocalLengthMin  %5u\n"
+			       "        wObjectiveFocalLengthMax  %5u\n"
+			       "        wOcularFocalLength        %5u\n"
+			       "        bControlSize              %5u\n",
+			       buf[8] | (buf[9] << 8), buf[10] | (buf[11] << 8),
+			       buf[12] | (buf[13] << 8), buf[14]);
+			ctrls = 0;
+			for (i = 0; i < 3 && i < buf[14]; i++)
+				ctrls = (ctrls << 8) | buf[8+n-i-1];
+			printf("        bmControls           0x%08x\n", ctrls);
+			for (i = 0; i < 19; i++)
+				if ((ctrls >> i) & 1)
+					printf("          %s\n", camctrlnames[i]);
+		}
+		dump_junk(buf, "        ", 8+n);
+		break;
+
+	case 0x03:  /* OUTPUT_TERMINAL */
+		printf("(OUTPUT_TERMINAL)\n");
+		get_string(dev, term, sizeof(term), buf[8]);
+		termt = buf[4] | (buf[5] << 8);
+		get_audioterminal_string(termts, sizeof(termts), termt);
+		if (buf[0] < 9)
+			printf("      Warning: Descriptor too short\n");
+		printf("        bTerminalID         %5u\n"
+		       "        wTerminalType      0x%04x %s\n"
+		       "        bAssocTerminal      %5u\n"
+		       "        bSourceID           %5u\n"
+		       "        iTerminal           %5u %s\n",
+		       buf[3], termt, termts, buf[6], buf[7], buf[8], term);
+		dump_junk(buf, "        ", 9);
+		break;
+
+	case 0x04:  /* SELECTOR_UNIT */
+		printf("(SELECTOR_UNIT)\n");
+		p = buf[4];
+		if (buf[0] < 6+p)
+			printf("      Warning: Descriptor too short\n");
+		get_string(dev, term, sizeof(term), buf[5+p]);
+
+		printf("        bUnitID             %5u\n"
+		       "        bNrInPins           %5u\n",
+		       buf[3], p);
+		for (i = 0; i < p; i++)
+			printf("        baSource(%2u)        %5u\n", i, buf[5+i]);
+		printf("        iSelector           %5u %s\n",
+		       buf[5+p], term);
+		dump_junk(buf, "        ", 6+p);
+		break;
+
+	case 0x05:  /* PROCESSING_UNIT */
+		printf("(PROCESSING_UNIT)\n");
+		n = buf[7];
+		get_string(dev, term, sizeof(term), buf[8+n]);
+		if (buf[0] < 10+n)
+			printf("      Warning: Descriptor too short\n");
+		printf("        bUnitID             %5u\n"
+		       "        bSourceID           %5u\n"
+		       "        wMaxMultiplier      %5u\n"
+		       "        bControlSize        %5u\n",
+		       buf[3], buf[4], buf[5] | (buf[6] << 8), n);
+		ctrls = 0;
+		for (i = 0; i < 3 && i < n; i++)
+			ctrls = (ctrls << 8) | buf[8+n-i-1];
+		printf("        bmControls     0x%08x\n", ctrls);
+		for (i = 0; i < 18; i++)
+			if ((ctrls >> i) & 1)
+				printf("          %s\n", ctrlnames[i]);
+		stds = buf[9+n];
+		printf("        iProcessing         %5u %s\n"
+		       "        bmVideoStandards     0x%2x\n", buf[8+n], term, stds);
+		for (i = 0; i < 6; i++)
+			if ((stds >> i) & 1)
+				printf("          %s\n", stdnames[i]);
+		break;
+
+	case 0x06:  /* EXTENSION_UNIT */
+		printf("(EXTENSION_UNIT)\n");
+		p = buf[21];
+		n = buf[22+p];
+		get_string(dev, term, sizeof(term), buf[23+p+n]);
+		if (buf[0] < 24+p+n)
+			printf("      Warning: Descriptor too short\n");
+		printf("        bUnitID             %5u\n"
+		       "        guidExtensionCode         %s\n"
+		       "        bNumControl         %5u\n"
+		       "        bNrPins             %5u\n",
+		       buf[3], get_guid(&buf[4]), buf[20], buf[21]);
+		for (i = 0; i < p; i++)
+			printf("        baSourceID(%2u)      %5u\n", i, buf[22+i]);
+		printf("        bControlSize        %5u\n", buf[22+p]);
+		for (i = 0; i < n; i++)
+			printf("        bmControls(%2u)       0x%02x\n", i, buf[23+p+i]);
+		printf("        iExtension          %5u %s\n",
+		       buf[23+p+n], term);
+		dump_junk(buf, "        ", 24+p+n);
+		break;
+
+	default:
+		printf("(unknown)\n"
+		       "        Invalid desc subtype:");
+		dump_bytes(buf+3, buf[0]-3);
+		break;
+	}
+}
+
+static void dump_videostreaming_interface(unsigned char *buf)
+{
+	static const char *colorPrims[] = { "Unspecified", "BT.709,sRGB",
+		"BT.470-2 (M)", "BT.470-2 (B,G)", "SMPTE 170M", "SMPTE 240M" };
+	static const char *transferChars[] = { "Unspecified", "BT.709",
+		"BT.470-2 (M)", "BT.470-2 (B,G)", "SMPTE 170M", "SMPTE 240M",
+		"Linear", "sRGB"};
+	static const char *matrixCoeffs[] = { "Unspecified", "BT.709",
+		"FCC", "BT.470-2 (B,G)", "SMPTE 170M (BT.601)", "SMPTE 240M" };
+	unsigned int i, m, n, p, flags, len;
+
+	if (buf[1] != USB_DT_CS_INTERFACE)
+		printf("      Warning: Invalid descriptor\n");
+	else if (buf[0] < 3)
+		printf("      Warning: Descriptor too short\n");
+	printf("      VideoStreaming Interface Descriptor:\n"
+	       "        bLength                         %5u\n"
+	       "        bDescriptorType                 %5u\n"
+	       "        bDescriptorSubtype              %5u ",
+	       buf[0], buf[1], buf[2]);
+	switch (buf[2]) {
+	case 0x01: /* INPUT_HEADER */
+		printf("(INPUT_HEADER)\n");
+		p = buf[3];
+		n = buf[12];
+		if (buf[0] < 13+p*n)
+			printf("      Warning: Descriptor too short\n");
+		printf("        bNumFormats                     %5u\n"
+		       "        wTotalLength                    %5u\n"
+		       "        bEndPointAddress                %5u\n"
+		       "        bmInfo                          %5u\n"
+		       "        bTerminalLink                   %5u\n"
+		       "        bStillCaptureMethod             %5u\n"
+		       "        bTriggerSupport                 %5u\n"
+		       "        bTriggerUsage                   %5u\n"
+		       "        bControlSize                    %5u\n",
+		       p, buf[4] | (buf[5] << 8), buf[6], buf[7], buf[8],
+		       buf[9], buf[10], buf[11], n);
+		for(i = 0; i < p; i++)
+			printf(
+			"        bmaControls(%2u)                 %5u\n",
+				i, buf[13+p*n]);
+		dump_junk(buf, "        ", 13+p*n);
+		break;
+
+	case 0x02: /* OUTPUT_HEADER */
+		printf("(OUTPUT_HEADER)\n");
+		p = buf[3];
+		n = buf[8];
+		if (buf[0] < 9+p*n)
+			printf("      Warning: Descriptor too short\n");
+		printf("        bNumFormats                 %5u\n"
+		       "        wTotalLength                %5u\n"
+		       "        bEndpointAddress            %5u\n"
+		       "        bTerminalLink               %5u\n"
+		       "        bControlSize                %5u\n",
+		       p, buf[4] | (buf[5] << 8), buf[6], buf[7], n);
+		for(i = 0; i < p; i++)
+			printf(
+			"        bmaControls(%2u)             %5u\n",
+				i, buf[9+p*n]);
+		dump_junk(buf, "        ", 9+p*n);
+		break;
+
+	case 0x03: /* STILL_IMAGE_FRAME */
+		printf("(STILL_IMAGE_FRAME)\n");
+		n = buf[4];
+		m = buf[5+4*n];
+		if (buf[0] < 6+4*n+m)
+			printf("      Warning: Descriptor too short\n");
+		printf("        bEndpointAddress                %5u\n"
+		       "        bNumImageSizePatterns             %3u\n",
+		       buf[3], n);
+		for (i = 0; i < n; i++)
+			printf("        wWidth(%2u)                      %5u\n"
+			       "        wHeight(%2u)                     %5u\n",
+			       i, buf[5+4*i] | (buf[6+4*i] << 8),
+			       i, buf[7+4*i] | (buf[8+4*i] << 8));
+		printf("        bNumCompressionPatterns           %3u\n", n);
+		for (i = 0; i < m; i++)
+			printf("        bCompression(%2u)                %5u\n",
+			       i, buf[6+4*n+i]);
+		dump_junk(buf, "        ", 6+4*n+m);
+		break;
+
+	case 0x04: /* FORMAT_UNCOMPRESSED */
+		printf("(FORMAT_UNCOMPRESSED)\n");
+		if (buf[0] < 27)
+			printf("      Warning: Descriptor too short\n");
+		flags = buf[25];
+		printf("        bFormatIndex                    %5u\n"
+		       "        bNumFrameDescriptors            %5u\n"
+		       "        guidFormat                            %s\n"
+		       "        bBitsPerPixel                   %5u\n"
+		       "        bDefaultFrameIndex              %5u\n"
+		       "        bAspectRatioX                   %5u\n"
+		       "        bAspectRatioY                   %5u\n"
+		       "        bmInterlaceFlags                 0x%02x\n",
+		       buf[3], buf[4], get_guid(&buf[5]), buf[21], buf[22],
+		       buf[23], buf[24], flags);
+		printf("          Interlaced stream or variable: %s\n",
+		       (flags & (1 << 0)) ? "Yes" : "No");
+		printf("          Fields per frame: %u fields\n",
+		       (flags & (1 << 1)) ? 2 : 1);
+		printf("          Field 1 first: %s\n",
+		       (flags & (1 << 2)) ? "Yes" : "No");
+		printf("          Field pattern: ");
+		switch((flags >> 4) & 0x03)
+		{
+		case 0:
+			printf("Field 1 only\n");
+			break;
+		case 1:
+			printf("Field 2 only\n");
+			break;
+		case 2:
+			printf("Regular pattern of fields 1 and 2\n");
+			break;
+		case 3:
+			printf("Random pattern of fields 1 and 2\n");
+			break;
+		}
+ 		printf("          bCopyProtect                  %5u\n", buf[26]);
+		dump_junk(buf, "        ", 27);
+		break;
+
+	case 0x05: /* FRAME UNCOMPRESSED */
+	case 0x07: /* FRAME_MJPEG */
+		if (buf[2] == 0x05)
+			printf("(FRAME_UNCOMPRESSED)\n");
+		else
+			printf("(FRAME_MJPEG)\n");
+		len = (buf[25] != 0) ? (26+buf[25]*4) : 38;
+		if (buf[0] < len)
+			printf("      Warning: Descriptor too short\n");
+		flags = buf[4];
+		printf("        bFrameIndex                     %5u\n"
+		       "        bmCapabilities                   0x%02x\n",
+		       buf[3], flags);
+		printf("          Still image %ssupported\n",
+		       (flags & (1 << 0)) ? "" : "un");
+		if (flags & (1 << 1))
+		printf("          Fixed frame-rate\n");
+		printf("        wWidth                          %5u\n"
+		       "        wHeight                         %5u\n"
+		       "        dwMinBitRate                %9u\n"
+		       "        dwMaxBitRate                %9u\n"
+		       "        dwMaxVideoFrameBufferSize   %9u\n"
+		       "        dwDefaultFrameInterval      %9u\n"
+		       "        bFrameIntervalType              %5u\n",
+		       buf[5] | (buf[6] <<  8), buf[7] | (buf[8] << 8),
+		       buf[9] | (buf[10] << 8) | (buf[11] << 16) | (buf[12] << 24),
+		       buf[13] | (buf[14] << 8) | (buf[15] << 16) | (buf[16] << 24),
+		       buf[17] | (buf[18] << 8) | (buf[19] << 16) | (buf[20] << 24),
+		       buf[21] | (buf[22] << 8) | (buf[23] << 16) | (buf[24] << 24),
+		       buf[25]);
+		if (buf[25] == 0)
+			printf("        dwMinFrameInterval          %9u\n"
+			       "        dwMaxFrameInterval          %9u\n"
+			       "        dwFrameIntervalStep         %9u\n",
+			       buf[26] | (buf[27] << 8) | (buf[28] << 16) | (buf[29] << 24),
+			       buf[30] | (buf[31] << 8) | (buf[32] << 16) | (buf[33] << 24),
+			       buf[34] | (buf[35] << 8) | (buf[36] << 16) | (buf[37] << 24));
+		else
+			for (i = 0; i < buf[25]; i++)
+				printf("        dwFrameInterval(%2u)         %9u\n",
+				       i, buf[26+4*i] | (buf[27+4*i] << 8) |
+				       (buf[28+4*i] << 16) | (buf[29+4*i] << 24));
+		dump_junk(buf, "        ", len);
+		break;
+
+	case 0x06: /* FORMAT_MJPEG */
+		printf("(FORMAT_MJPEG)\n");
+		if (buf[0] < 11)
+			printf("      Warning: Descriptor too short\n");
+		flags = buf[5];
+		printf("        bFormatIndex                    %5u\n"
+		       "        bNumFrameDescriptors            %5u\n"
+		       "        bFlags                          %5u\n",
+		       buf[3], buf[4], flags);
+		printf("          Fixed-size samples: %s\n",
+		       (flags & (1 << 0)) ? "Yes" : "No");
+		flags = buf[9];
+		printf("        bDefaultFrameIndex              %5u\n"
+		       "        bAspectRatioX                   %5u\n"
+		       "        bAspectRatioY                   %5u\n"
+		       "        bmInterlaceFlags                 0x%02x\n",
+		       buf[6], buf[7], buf[8], flags);
+		printf("          Interlaced stream or variable: %s\n",
+		       (flags & (1 << 0)) ? "Yes" : "No");
+		printf("          Fields per frame: %u fields\n",
+		       (flags & (1 << 1)) ? 2 : 1);
+		printf("          Field 1 first: %s\n",
+		       (flags & (1 << 2)) ? "Yes" : "No");
+		printf("          Field pattern: ");
+		switch((flags >> 4) & 0x03)
+		{
+		case 0:
+			printf("Field 1 only\n");
+			break;
+		case 1:
+			printf("Field 2 only\n");
+			break;
+		case 2:
+			printf("Regular pattern of fields 1 and 2\n");
+			break;
+		case 3:
+			printf("Random pattern of fields 1 and 2\n");
+			break;
+		}
+ 		printf("          bCopyProtect                  %5u\n", buf[10]);
+		dump_junk(buf, "        ", 11);
+		break;
+
+	case 0x0d: /* COLORFORMAT */
+		printf("(COLORFORMAT)\n");
+		if (buf[0] < 6)
+			printf("      Warning: Descriptor too short\n");
+		printf("        bColorPrimaries                 %5u (%s)\n",
+		       buf[3], (buf[3] <= 5) ? colorPrims[buf[3]] : "Unknown");
+		printf("        bTransferCharacteristics        %5u (%s)\n",
+		       buf[4], (buf[4] <= 7) ? transferChars[buf[4]] : "Unknown");
+		printf("        bMatrixCoefficients             %5u (%s)\n",
+		       buf[5], (buf[5] <= 5) ? matrixCoeffs[buf[5]] : "Unknown");
+		dump_junk(buf, "        ", 6);
+		break;
+
+	default:
+		printf("        Invalid desc subtype:");
+		dump_bytes(buf+3, buf[0]-3);
+		break;
+	}
+}
+
+static void dump_dfu_interface(unsigned char *buf)
+{
+	if (buf[1] != USB_DT_HID)
+		printf("      Warning: Invalid descriptor\n");
+	else if (buf[0] < 7)
+		printf("      Warning: Descriptor too short\n");
+	printf("      Device Firmware Upgrade Interface Descriptor:\n"
+	       "        bLength                         %5u\n"
+	       "        bDescriptorType                 %5u\n"
+	       "        bmAttributes                    %5u\n",
+	       buf[0], buf[1], buf[2]);
+	if (buf[2] & 0xf0)
+		printf("          (unknown attributes!)\n");
+	printf("          Will %sDetach\n", (buf[2] & 0x08) ? "" : "Not ");
+	printf("          Manifestation %s\n", (buf[2] & 0x04) ? "Tolerant" : "Intolerant");
+	printf("          Upload %s\n", (buf[2] & 0x02) ? "Supported" : "Unsupported");
+	printf("          Download %s\n", (buf[2] & 0x01) ? "Supported" : "Unsupported");
+	printf("        wDetachTimeout                  %5u milliseconds\n"
+	       "        wTransferSize                   %5u bytes\n",
+	       buf[3] | (buf[4] << 8), buf[5] | (buf[6] << 8));
+}
+
 static void dump_hub(char *prefix, unsigned char *p, int has_tt)
 {
 	unsigned int l, i, j;
 	unsigned int wHubChar = (p[4] << 8) | p[3];
-	
+
 	printf("%sHub Descriptor:\n", prefix);
 	printf("%s  bLength             %3u\n", prefix, p[0]);
 	printf("%s  bDescriptorType     %3u\n", prefix, p[1]);
-	printf("%s  nNbrPorts           %3u\n", prefix, p[2]); 
+	printf("%s  nNbrPorts           %3u\n", prefix, p[2]);
 	printf("%s  wHubCharacteristic 0x%04x\n", prefix, wHubChar);
 	switch (wHubChar & 0x03) {
 	case 0:
@@ -1180,153 +1811,157 @@ static void dump_hub(char *prefix, unsigned char *p, int has_tt)
 	printf("%s  bPwrOn2PwrGood      %3u * 2 milli seconds\n", prefix, p[5]);
 	printf("%s  bHubContrCurrent    %3u milli Ampere\n", prefix, p[6]);
 	l= (p[2] >> 3) + 1; /* this determines the variable number of bytes following */
+	if (l > HUB_STATUS_BYTELEN)
+	 	l = HUB_STATUS_BYTELEN;
 	printf("%s  DeviceRemovable   ", prefix);
-	for(i = 0; i < l; i++) 
+	for(i = 0; i < l; i++)
 		printf(" 0x%02x", p[7+i]);
 	printf("\n%s  PortPwrCtrlMask   ", prefix);
  	for(j = 0; j < l; j++)
- 		printf(" 0x%02x ", p[7+i+j]);
+ 		printf(" 0x%02x", p[7+i+j]);
  	printf("\n");
 }
 
 static void dump_ccid_device(unsigned char *buf)
 {
-        unsigned int us;
+	unsigned int us;
 
 	if (buf[0] < 54) {
 		printf("      Warning: Descriptor too short\n");
-                return;
-        }
+		return;
+	}
 	printf("      ChipCard Interface Descriptor:\n"
 	       "        bLength             %5u\n"
 	       "        bDescriptorType     %5u\n"
 	       "        bcdCCID             %2x.%02x",
 	       buf[0], buf[1], buf[3], buf[2]);
-        if (buf[3] != 1 || buf[2] != 0) 
-                fputs("  (Warning: Only accurate for version 1.0)", stdout);
-        putchar('\n');
+	if (buf[3] != 1 || buf[2] != 0)
+		fputs("  (Warning: Only accurate for version 1.0)", stdout);
+	putchar('\n');
 
-        printf("        nMaxSlotIndex       %5u\n"
-                "        bVoltageSupport     %5u  %s\n",
-                buf[4],
-                buf[5], (buf[5] == 1? "5.0V" : buf[5] == 2? "3.0V"
-                         : buf[5] == 3? "1.8V":"?"));
+	printf("        nMaxSlotIndex       %5u\n"
+		"        bVoltageSupport     %5u  %s%s%s\n",
+		buf[4],
+		buf[5],
+	       (buf[5] & 1) ? "5.0V " : "",
+	       (buf[5] & 2) ? "3.0V " : "",
+	       (buf[5] & 4) ? "1.8V " : "");
 
-        us = convert_le_u32 (buf+6);
-        printf("        dwProtocols         %5u ", us);
-        if ((us & 1))
-                fputs(" T=0", stdout);
-        if ((us & 2))
-                fputs(" T=1", stdout);
-        if ((us & ~3))
-                fputs(" (Invalid values detected)", stdout);
-        putchar('\n');
+	us = convert_le_u32 (buf+6);
+	printf("        dwProtocols         %5u ", us);
+	if ((us & 1))
+		fputs(" T=0", stdout);
+	if ((us & 2))
+		fputs(" T=1", stdout);
+	if ((us & ~3))
+		fputs(" (Invalid values detected)", stdout);
+	putchar('\n');
 
-        us = convert_le_u32(buf+10);
-        printf("        dwDefaultClock      %5u\n", us);
-        us = convert_le_u32(buf+14);
-        printf("        dwMaxiumumClock     %5u\n", us);
-        printf("        bNumClockSupported  %5u\n", buf[18]);
-        us = convert_le_u32(buf+19);
-        printf("        dwDataRate        %7u bps\n", us);
-        us = convert_le_u32(buf+23);
-        printf("        dwMaxDataRate     %7u bps\n", us);
-        printf("        bNumDataRatesSupp.  %5u\n", buf[27]);
-        
-        us = convert_le_u32(buf+28);
-        printf("        dwMaxIFSD           %5u\n", us);
+	us = convert_le_u32(buf+10);
+	printf("        dwDefaultClock      %5u\n", us);
+	us = convert_le_u32(buf+14);
+	printf("        dwMaxiumumClock     %5u\n", us);
+	printf("        bNumClockSupported  %5u\n", buf[18]);
+	us = convert_le_u32(buf+19);
+	printf("        dwDataRate        %7u bps\n", us);
+	us = convert_le_u32(buf+23);
+	printf("        dwMaxDataRate     %7u bps\n", us);
+	printf("        bNumDataRatesSupp.  %5u\n", buf[27]);
 
-        us = convert_le_u32(buf+32);
-        printf("        dwSyncProtocols  %08X ", us);
-        if ((us&1))
-                fputs(" 2-wire", stdout);
-        if ((us&2))
-                fputs(" 3-wire", stdout);
-        if ((us&4))
-                fputs(" I2C", stdout);
-        putchar('\n');
+	us = convert_le_u32(buf+28);
+	printf("        dwMaxIFSD           %5u\n", us);
 
-        us = convert_le_u32(buf+36);
-        printf("        dwMechanical     %08X ", us);
-        if ((us & 1))
-                fputs(" accept", stdout);
-        if ((us & 2))
-                fputs(" eject", stdout);
-        if ((us & 4))
-                fputs(" capture", stdout);
-        if ((us & 8))
-                fputs(" lock", stdout);
-        putchar('\n');
+	us = convert_le_u32(buf+32);
+	printf("        dwSyncProtocols  %08X ", us);
+	if ((us&1))
+		fputs(" 2-wire", stdout);
+	if ((us&2))
+		fputs(" 3-wire", stdout);
+	if ((us&4))
+		fputs(" I2C", stdout);
+	putchar('\n');
 
-        us = convert_le_u32(buf+40);
-        printf("        dwFeatures       %08X\n", us);
-        if ((us & 0x0002))
+	us = convert_le_u32(buf+36);
+	printf("        dwMechanical     %08X ", us);
+	if ((us & 1))
+		fputs(" accept", stdout);
+	if ((us & 2))
+		fputs(" eject", stdout);
+	if ((us & 4))
+		fputs(" capture", stdout);
+	if ((us & 8))
+		fputs(" lock", stdout);
+	putchar('\n');
+
+	us = convert_le_u32(buf+40);
+	printf("        dwFeatures       %08X\n", us);
+	if ((us & 0x0002))
 		fputs("          Auto configuration based on ATR\n",stdout);
-        if ((us & 0x0004))
+	if ((us & 0x0004))
 		fputs("          Auto activation on insert\n",stdout);
-        if ((us & 0x0008))
+	if ((us & 0x0008))
 		fputs("          Auto voltage selection\n",stdout);
-        if ((us & 0x0010))
+	if ((us & 0x0010))
 		fputs("          Auto clock change\n",stdout);
-        if ((us & 0x0020))
+	if ((us & 0x0020))
 		fputs("          Auto baud rate change\n",stdout);
-        if ((us & 0x0040))
+	if ((us & 0x0040))
 		fputs("          Auto parameter negotation made by CCID\n",stdout);
-        else if ((us & 0x0080))
+	else if ((us & 0x0080))
 		fputs("          Auto PPS made by CCID\n",stdout);
-        else if ((us & (0x0040 | 0x0080)))
+	else if ((us & (0x0040 | 0x0080)))
 		fputs("        WARNING: conflicting negotation features\n",stdout);
 
-        if ((us & 0x0100))
+	if ((us & 0x0100))
 		fputs("          CCID can set ICC in clock stop mode\n",stdout);
-        if ((us & 0x0200))
+	if ((us & 0x0200))
 		fputs("          NAD value other than 0x00 accpeted\n",stdout);
-        if ((us & 0x0400))
+	if ((us & 0x0400))
 		fputs("          Auto IFSD exchange\n",stdout);
 
-        if ((us & 0x00010000))
+	if ((us & 0x00010000))
 		fputs("          TPDU level exchange\n",stdout);
-        else if ((us & 0x00020000))
+	else if ((us & 0x00020000))
 		fputs("          Short APDU level exchange\n",stdout);
-        else if ((us & 0x00040000))
+	else if ((us & 0x00040000))
 		fputs("          Short and extended APDU level exchange\n",stdout);
-        else if ((us & 0x00070000))
+	else if ((us & 0x00070000))
 		fputs("        WARNING: conflicting exchange levels\n",stdout);
 
-        us = convert_le_u32(buf+44);
-        printf("        dwMaxCCIDMsgLen     %5u\n", us);
+	us = convert_le_u32(buf+44);
+	printf("        dwMaxCCIDMsgLen     %5u\n", us);
 
-        printf("        bClassGetResponse    ");
-        if (buf[48] == 0xff)
-                fputs("echo\n", stdout);
-        else
-                printf("  %02X\n", buf[48]);
+	printf("        bClassGetResponse    ");
+	if (buf[48] == 0xff)
+		fputs("echo\n", stdout);
+	else
+		printf("  %02X\n", buf[48]);
 
-        printf("        bClassEnvelope       ");
-        if (buf[49] == 0xff)
-                fputs("echo\n", stdout);
-        else
-                printf("  %02X\n", buf[48]);
+	printf("        bClassEnvelope       ");
+	if (buf[49] == 0xff)
+		fputs("echo\n", stdout);
+	else
+		printf("  %02X\n", buf[48]);
 
-        printf("        wlcdLayout           ");
-        if (!buf[50] && !buf[51])
+	printf("        wlcdLayout           ");
+	if (!buf[50] && !buf[51])
 		fputs("none\n", stdout);
-        else
+	else
 		printf("%u cols %u lines\n", buf[50], buf[51]);
-        
-        printf("        bPINSupport         %5u ", buf[52]);
-        if ((buf[52] & 1))
-		fputs(" verification", stdout);
-        if ((buf[52] & 2))
-		fputs(" modification", stdout);
-        putchar('\n');
-        
-        printf("        bMaxCCIDBusySlots   %5u\n", buf[53]);
 
-        if (buf[0] > 54) {
+	printf("        bPINSupport         %5u ", buf[52]);
+	if ((buf[52] & 1))
+		fputs(" verification", stdout);
+	if ((buf[52] & 2))
+		fputs(" modification", stdout);
+	putchar('\n');
+
+	printf("        bMaxCCIDBusySlots   %5u\n", buf[53]);
+
+	if (buf[0] > 54) {
 		fputs("        junk             ", stdout);
 		dump_bytes(buf+54, buf[0]-54);
-        }
+	}
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1337,7 +1972,7 @@ static void dump_ccid_device(unsigned char *buf)
 
 static void dump_report_desc(unsigned char *b, int l)
 {
-        unsigned int t, j, bsize, btag, btype, data = 0xffff, hut = 0xffff;
+	unsigned int t, j, bsize, btag, btype, data = 0xffff, hut = 0xffff;
 	int i;
 	char *types[4] = { "Main", "Global", "Local", "reserved" };
 	char indent[] = "                            ";
@@ -1347,10 +1982,11 @@ static void dump_report_desc(unsigned char *b, int l)
 		t = b[i];
 		bsize = b[i] & 0x03;
 		if (bsize == 3)
-                        bsize = 4;
+			bsize = 4;
 		btype = b[i] & (0x03 << 2);
 		btag = b[i] & ~0x03; /* 2 LSB bits encode length */
-		printf("            Item(%-6s): %s, data=", types[btype>>2], names_reporttag(btag));
+		printf("            Item(%-6s): %s, data=", types[btype>>2],
+				names_reporttag(btag));
 		if (bsize > 0) {
 			printf(" [ ");
 			data = 0;
@@ -1360,35 +1996,62 @@ static void dump_report_desc(unsigned char *b, int l)
 			}
 			printf("] %d", data);
 		} else
-                        printf("none");
+			printf("none");
 		printf("\n");
 		switch(btag) {
 		case 0x04 : /* Usage Page */
-                        printf("%s%s\n", indent, names_huts(data));
+			printf("%s%s\n", indent, names_huts(data));
 			hut = data;
-                        break;
-                        
+			break;
+
 		case 0x08 : /* Usage */
 		case 0x18 : /* Usage Minimum */
 		case 0x28 : /* Usage Maximum */
-			printf("%s%s\n", indent, names_hutus((hut << 16) + data));
+			printf("%s%s\n", indent,
+					names_hutus((hut << 16) + data));
 			break;
-                        
+
+		case 0x54 : /* Unit Exponent */
+			printf("%sUnit Exponent: %i\n", indent,
+					(signed char)data);
+			break;
+
+		case 0x64 : /* Unit */
+			printf("%s", indent);
+			dump_unit(data, bsize);
+			break;
+
 		case 0xa0 : /* Collection */
 			printf("%s", indent);
 			switch (data) {
 			case 0x00:
-                                printf("Physical\n");
-                                break;
-                                
+				printf("Physical\n");
+				break;
+
 			case 0x01:
-                                printf("Application\n");
-                                break;
-                                
+				printf("Application\n");
+				break;
+
 			case 0x02:
-                                printf("Logical\n");
-                                break;
-                                
+				printf("Logical\n");
+				break;
+
+			case 0x03:
+				printf("Report\n");
+				break;
+
+			case 0x04:
+				printf("Named Array\n");
+				break;
+
+			case 0x05:
+				printf("Usage Switch\n");
+				break;
+
+			case 0x06:
+				printf("Usage Modifier\n");
+				break;
+
 			default:
 				if(data & 0x80)
 					printf("Vendor defined\n");
@@ -1411,7 +2074,8 @@ static void dump_report_desc(unsigned char *b, int l)
 			       data & 0x40 ? "Null_State": "No_Null_Position",
 			       data & 0x80 ? "Volatile": "Non_Volatile",
 			       data &0x100 ? "Buffered Bytes": "Bitfield"
-				);
+			);
+			break;
 		}
 		i += 1 + bsize;
 	}
@@ -1437,13 +2101,19 @@ static void dump_hid_device(struct usb_dev_handle *dev, struct usb_interface_des
 	       names_countrycode(buf[4]) ? : "Unknown", buf[5]);
 	for (i = 0; i < buf[5]; i++)
 		printf("          bDescriptorType     %5u %s\n"
-		       "          wDescriptorLength   %5u\n", 
+		       "          wDescriptorLength   %5u\n",
 		       buf[6+3*i], names_hid(buf[6+3*i]),
 		       buf[7+3*i] | (buf[8+3*i] << 8));
 	dump_junk(buf, "        ", 6+3*buf[5]);
 	if (!do_report_desc)
 		return;
-	
+
+	if (!dev) {
+		printf( "         Report Descriptors: \n"
+			"           ** UNAVAILABLE **\n");
+		return;
+	}
+
 	for (i = 0; i < buf[5]; i++) {
 		/* we are just interested in report descriptors*/
 		if (buf[6+3*i] != USB_DT_REPORT)
@@ -1454,14 +2124,13 @@ static void dump_hid_device(struct usb_dev_handle *dev, struct usb_interface_des
 			continue;
 		}
 		if (usb_claim_interface(dev, interface->bInterfaceNumber) == 0) {
-			if ((n = usb_control_msg(dev, 
+			if ((n = usb_control_msg(dev,
 					 USB_ENDPOINT_IN | USB_TYPE_STANDARD
-					 	| USB_RECIP_INTERFACE, 
-					 USB_REQ_GET_DESCRIPTOR, 
-					 (USB_DT_REPORT << 8), 
+					 	| USB_RECIP_INTERFACE,
+					 USB_REQ_GET_DESCRIPTOR,
+					 (USB_DT_REPORT << 8),
 					 interface->bInterfaceNumber,
-					 dbuf, 
-					 len, 
+					 dbuf, len,
 					 CTRL_TIMEOUT)) > 0)
 				dump_report_desc(dbuf, n);
 			usb_release_interface(dev, interface->bInterfaceNumber);
@@ -1480,9 +2149,11 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 {
 	int		tmp;
 	char		str [128];
+	char		*type;
 
 	switch (buf[2]) {
 	case 0:
+		type = "Header";
 		if (buf[0] != 5)
 			goto bad;
 		printf("%sCDC Header:\n"
@@ -1491,6 +2162,7 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 		       indent, buf[4], buf[3]);
 		break;
 	case 0x01:		/* call management functional desc */
+		type = "Call Management";
 		if (buf [0] != 5)
 			goto bad;
 		printf("%sCDC Call Management:\n"
@@ -1504,6 +2176,7 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 		printf("%s  bDataInterface          %d\n", indent, buf[4]);
 		break;
 	case 0x02:		/* acm functional desc */
+		type = "ACM";
 		if (buf [0] != 4)
 			goto bad;
 		printf("%sCDC ACM:\n"
@@ -1523,6 +2196,7 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 	// case 0x04:		/* telephone ringer */
 	// case 0x05:		/* telephone call and line state reporting */
 	case 0x06:		/* union desc */
+		type = "Union";
 		if (buf [0] < 5)
 			goto bad;
 		printf("%sCDC Union:\n"
@@ -1536,6 +2210,7 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 		printf("\n");
 		break;
 	case 0x07:		/* country selection functional desc */
+		type = "Country Selection";
 		if (buf [0] < 6 || (buf[0] & 1) != 0)
 			goto bad;
 		get_string(dev, str, sizeof str, buf[3]);
@@ -1549,6 +2224,7 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 		}
 		break;
 	case 0x08:		/* telephone operational modes */
+		type = "Telephone Operations";
 		if (buf [0] != 4)
 			goto bad;
 		printf("%sCDC Telephone operations:\n"
@@ -1563,12 +2239,28 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 			printf("%s    simple mode\n", indent);
 		break;
 	// case 0x09:		/* USB terminal */
-	// case 0x0a:		/* network channel terminal */
+	case 0x0a:		/* network channel terminal */
+		type = "Network Channel Terminal";
+		if (buf [0] != 7)
+			goto bad;
+		get_string(dev, str, sizeof str, buf[4]);
+		printf("%sNetwork Channel Terminal:\n"
+		       "%s  bEntityId               %3d\n"
+		       "%s  iName                   %3d %s\n"
+		       "%s  bChannelIndex           %3d\n"
+		       "%s  bPhysicalInterface      %3d\n",
+		       indent,
+		       indent, buf[3],
+		       indent, buf[4], str,
+		       indent, buf[5],
+		       indent, buf[6]);
+		break;
 	// case 0x0b:		/* protocol unit */
 	// case 0x0c:		/* extension unit */
 	// case 0x0d:		/* multi-channel management */
 	// case 0x0e:		/* CAPI control management*/
 	case 0x0f:		/* ethernet functional desc */
+		type = "Ethernet";
 		if (buf [0] != 13)
 			goto bad;
 		get_string(dev, str, sizeof str, buf[3]);
@@ -1592,6 +2284,7 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 		break;
 	// case 0x10:		/* ATM networking */
 	case 0x11:		/* WHCM functional desc */
+		type = "WHCM version";
 		if (buf[0] != 5)
 			goto bad;
 		printf("%sCDC WHCM:\n"
@@ -1600,21 +2293,18 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 		       indent, buf[4], buf[3]);
 		break;
 	case 0x12:		/* MDLM functional desc */
+		type = "MDLM";
 		if (buf [0] != 21)
 			goto bad;
 		printf("%sCDC MDLM:\n"
 		       "%s  bcdCDC               %x.%02x\n"
-		       "%s  bGUID               ",
+		       "%s  bGUID               %s\n",
 		       indent,
 		       indent, buf[4], buf[3],
-		       indent);
-		/* NOTE there are more traditional byteswap aware UUID-printing
-		 * schemes, something like X0X1X2X3-X4X5-X6X7-X8X9-XaXbXcXdXeXf
-		 * (or maybe it's X3X2X1X0-X5X4-...?) would be better
-		 */
-		dump_bytes(buf + 5, 16);
+		       indent, get_guid(buf + 5));
 		break;
 	case 0x13:		/* MDLM detail desc */
+		type = "MDLM detail";
 		if (buf [0] < 5)
 			goto bad;
 		printf("%sCDC MDLM detail:\n"
@@ -1626,6 +2316,7 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 		dump_bytes(buf + 4, buf[0] - 4);
 		break;
 	case 0x14:		/* device management functional desc */
+		type = "Device Management";
 		if (buf[0] != 7)
 			goto bad;
 		printf("%sCDC Device Management:\n"
@@ -1636,6 +2327,7 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 		       indent, (buf[6]<<8)| buf[5]);
 		break;
 	case 0x15:		/* OBEX functional desc */
+		type = "OBEX";
 		if (buf[0] != 5)
 			goto bad;
 		printf("%sCDC OBEX:\n"
@@ -1648,14 +2340,14 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 	// case 0x18:		/* telephone control model functional desc */
 	default:
 		/* FIXME there are about a dozen more descriptor types */
-		printf("%sUNRECOGNIZED: ", indent);
+		printf("%sUNRECOGNIZED CDC: ", indent);
 		dump_bytes(buf, buf[0]);
 		return "unrecognized comm descriptor";
 	}
 	return 0;
 
-  bad:
-	printf("%sinvalid: ", indent);
+bad:
+	printf("%sINVALID CDC (%s): ", indent, type);
 	dump_bytes(buf, buf[0]);
 	return "corrupt comm descriptor";
 }
@@ -1664,17 +2356,22 @@ dump_comm_descriptor(struct usb_dev_handle *dev, unsigned char *buf, char *inden
 
 static void do_hub(struct usb_dev_handle *fd, unsigned has_tt)
 {
-	unsigned char buf [7];
+	unsigned char buf [7 /* base descriptor */
+			+ 2 /* bitmasks */ * HUB_STATUS_BYTELEN ];
 	int i, ret;
-	
+
 	ret = usb_control_msg(fd,
 			USB_ENDPOINT_IN | USB_TYPE_CLASS | USB_RECIP_DEVICE,
 			USB_REQ_GET_DESCRIPTOR,
 			0x29 << 8, 0,
 			buf, sizeof buf, CTRL_TIMEOUT);
-	if (ret != sizeof buf) {
-		/* Linux returns this for suspended devices */
-		if (errno != EHOSTUNREACH)
+	if (ret < 9 /* at least one port's bitmasks */) {
+		if (ret >= 0)
+			fprintf(stderr,
+				"incomplete hub descriptor, %d bytes\n",
+				ret);
+		/* Linux returns EHOSTUNREACH for suspended devices */
+		else if (errno != EHOSTUNREACH)
 			perror ("can't get hub descriptor");
 		return;
 	}
@@ -1687,7 +2384,7 @@ static void do_hub(struct usb_dev_handle *fd, unsigned has_tt)
 		ret = usb_control_msg(fd,
 				USB_ENDPOINT_IN | USB_TYPE_CLASS
 					| USB_RECIP_OTHER,
-				USB_REQ_GET_STATUS, 
+				USB_REQ_GET_STATUS,
 				0, i + 1,
 				stat, sizeof stat,
 				CTRL_TIMEOUT);
@@ -1727,9 +2424,9 @@ static void do_dualspeed(struct usb_dev_handle *fd)
 	unsigned char buf [10];
 	char cls[128], subcls[128], proto[128];
 	int ret;
-	
+
 	ret = usb_control_msg(fd,
-			USB_ENDPOINT_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE, 
+			USB_ENDPOINT_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
 			USB_REQ_GET_DESCRIPTOR,
 			USB_DT_DEVICE_QUALIFIER << 8, 0,
 			buf, sizeof buf, CTRL_TIMEOUT);
@@ -1761,7 +2458,7 @@ static void do_dualspeed(struct usb_dev_handle *fd)
 	       buf[3], buf[2],
 	       buf[4], cls,
 	       buf[5], subcls,
-	       buf[6], proto, 
+	       buf[6], proto,
 	       buf[7], buf[8]);
 
 	/* FIXME also show the OTHER_SPEED_CONFIG descriptors */
@@ -1771,9 +2468,9 @@ static void do_debug(struct usb_dev_handle *fd)
 {
 	unsigned char buf [4];
 	int ret;
-	
+
 	ret = usb_control_msg(fd,
-			USB_ENDPOINT_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE, 
+			USB_ENDPOINT_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
 			USB_REQ_GET_DESCRIPTOR,
 			USB_DT_DEBUG << 8, 0,
 			buf, sizeof buf, CTRL_TIMEOUT);
@@ -1813,7 +2510,7 @@ static unsigned char *find_otg(unsigned char *buf, int buflen)
 	return 0;
 }
 
-static void do_otg(struct usb_config_descriptor *config)
+static int do_otg(struct usb_config_descriptor *config)
 {
 	unsigned	i, k;
 	int		j;
@@ -1839,7 +2536,7 @@ static void do_otg(struct usb_config_descriptor *config)
 		}
 	}
 	if (!desc)
-		return;
+		return 0;
 
 	printf("OTG Descriptor:\n"
 		"  bLength               %3u\n"
@@ -1851,33 +2548,178 @@ static void do_otg(struct usb_config_descriptor *config)
 			? "    SRP (Session Request Protocol)\n" : "",
 		(desc[2] & 0x02)
 			? "    HNP (Host Negotiation Protocol)\n" : "");
+	return 1;
+}
+
+static void
+dump_device_status(struct usb_dev_handle *fd, int otg, int wireless)
+{
+	unsigned char status[8];
+	int ret;
+
+	ret = usb_control_msg(fd, USB_ENDPOINT_IN | USB_TYPE_STANDARD
+				| USB_RECIP_DEVICE,
+			USB_REQ_GET_STATUS,
+			0, 0,
+			status, 2,
+			CTRL_TIMEOUT);
+	if (ret < 0) {
+		fprintf(stderr,
+			"cannot read device status, %s (%d)\n",
+			strerror(errno), errno);
+		return;
+	}
+
+	printf("Device Status:     0x%02x%02x\n",
+			status[1], status[0]);
+	if (status[0] & (1 << 0))
+		printf("  Self Powered\n");
+	else
+		printf("  (Bus Powered)\n");
+	if (status[0] & (1 << 1))
+		printf("  Remote Wakeup Enabled\n");
+	if (status[0] & (1 << 2)) {
+		/* for high speed devices */
+		if (!wireless)
+			printf("  Test Mode\n");
+		/* for devices with Wireless USB support */
+		else
+			printf("  Battery Powered\n");
+	}
+	/* if both HOST and DEVICE support OTG */
+	if (otg) {
+		if (status[0] & (1 << 3))
+			printf("  HNP Enabled\n");
+		if (status[0] & (1 << 4))
+			printf("  HNP Capable\n");
+		if (status[0] & (1 << 5))
+			printf("  ALT port is HNP Capable\n");
+	}
+	/* for high speed devices with debug descriptors */
+	if (status[0] & (1 << 6))
+		printf("  Debug Mode\n");
+
+	if (!wireless)
+		return;
+
+	/* Wireless USB exposes FIVE different types of device status,
+	 * accessed by distinct wIndex values.
+	 */
+	ret = usb_control_msg(fd, USB_ENDPOINT_IN | USB_TYPE_STANDARD
+				| USB_RECIP_DEVICE,
+			USB_REQ_GET_STATUS,
+			0, 1 /* wireless status */,
+			status, 1,
+			CTRL_TIMEOUT);
+	if (ret < 0) {
+		fprintf(stderr,
+			"cannot read wireless %s, %s (%d)\n",
+			"status",
+			strerror(errno), errno);
+		return;
+	}
+	printf("Wireless Status:     0x%02x\n", status[0]);
+	if (status[0] & (1 << 0))
+		printf("  TX Drp IE\n");
+	if (status[0] & (1 << 1))
+		printf("  Transmit Packet\n");
+	if (status[0] & (1 << 2))
+		printf("  Count Packets\n");
+	if (status[0] & (1 << 3))
+		printf("  Capture Packet\n");
+
+	ret = usb_control_msg(fd, USB_ENDPOINT_IN | USB_TYPE_STANDARD
+				| USB_RECIP_DEVICE,
+			USB_REQ_GET_STATUS,
+			0, 2 /* Channel Info */,
+			status, 1,
+			CTRL_TIMEOUT);
+	if (ret < 0) {
+		fprintf(stderr,
+			"cannot read wireless %s, %s (%d)\n",
+			"channel info",
+			strerror(errno), errno);
+		return;
+	}
+	printf("Channel Info:        0x%02x\n", status[0]);
+
+	/* 3=Received data: many bytes, for count packets or capture packet */
+
+	ret = usb_control_msg(fd, USB_ENDPOINT_IN | USB_TYPE_STANDARD
+				| USB_RECIP_DEVICE,
+			USB_REQ_GET_STATUS,
+			0, 3 /* MAS Availability */,
+			status, 8,
+			CTRL_TIMEOUT);
+	if (ret < 0) {
+		fprintf(stderr,
+			"cannot read wireless %s, %s (%d)\n",
+			"MAS info",
+			strerror(errno), errno);
+		return;
+	}
+	printf("MAS Availability:    ");
+	dump_bytes(status, 8);
+
+	ret = usb_control_msg(fd, USB_ENDPOINT_IN | USB_TYPE_STANDARD
+				| USB_RECIP_DEVICE,
+			USB_REQ_GET_STATUS,
+			0, 5 /* Current Transmit Power */,
+			status, 2,
+			CTRL_TIMEOUT);
+	if (ret < 0) {
+		fprintf(stderr,
+			"cannot read wireless %s, %s (%d)\n",
+			"transmit power",
+			strerror(errno), errno);
+		return;
+	}
+	printf("Transmit Power:\n");
+	printf(" TxNotification:     0x%02x\n", status[0]);
+	printf(" TxBeacon:     :     0x%02x\n", status[1]);
+}
+
+static int do_wireless(struct usb_dev_handle *fd)
+{
+	/* FIXME fetch and dump BOS etc */
+	if (fd)
+		return 0;
+	return 0;
 }
 
 static void dumpdev(struct usb_device *dev)
 {
 	struct usb_dev_handle *udev;
 	int i;
+	int otg, wireless;
 
+	otg = wireless = 0;
 	udev = usb_open(dev);
-	if (udev) {
-		dump_device(udev, &dev->descriptor);
-		if (dev->config) {
-			for (i = 0; i < dev->descriptor.bNumConfigurations;
-					i++) {
-				dump_config(udev, &dev->config[i]);
-			}
-			do_otg(&dev->config[0]);
+	if (!udev)
+		fprintf(stderr, "Couldn't open device, some information "
+			"will be missing\n");
+
+	dump_device(udev, &dev->descriptor);
+	if (dev->descriptor.bcdUSB >= 0x0250)
+		wireless = do_wireless(udev);
+	if (dev->config) {
+		otg = do_otg(&dev->config[0]) || otg;
+		for (i = 0; i < dev->descriptor.bNumConfigurations;
+				i++) {
+			dump_config(udev, &dev->config[i]);
 		}
-		if (dev->descriptor.bDeviceClass == USB_CLASS_HUB)
-			do_hub(udev, dev->descriptor.bDeviceProtocol);
-		if (dev->descriptor.bcdUSB >= 0x0200) {
-			do_dualspeed(udev);
-			do_debug(udev);
-		}
-		usb_close(udev);
 	}
-	else
-		fprintf(stderr, "Couldn't open device\n");
+	if (!udev)
+		return;
+
+	if (dev->descriptor.bDeviceClass == USB_CLASS_HUB)
+		do_hub(udev, dev->descriptor.bDeviceProtocol);
+	if (dev->descriptor.bcdUSB >= 0x0200) {
+		do_dualspeed(udev);
+		do_debug(udev);
+	}
+	dump_device_status(udev, otg, wireless);
+	usb_close(udev);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1894,9 +2736,9 @@ static int dump_one_device(const char *path)
 	}
 	get_vendor_string(vendor, sizeof(vendor), dev->descriptor.idVendor);
 	get_product_string(product, sizeof(product), dev->descriptor.idVendor, dev->descriptor.idProduct);
-	printf("Device: ID %04x:%04x %s %s\n", dev->descriptor.idVendor, 
-					       dev->descriptor.idProduct, 
-					       vendor, 
+	printf("Device: ID %04x:%04x %s %s\n", dev->descriptor.idVendor,
+					       dev->descriptor.idProduct,
+					       vendor,
 					       product);
 	dumpdev(dev);
 	return 0;
@@ -1910,7 +2752,7 @@ static int list_devices(int busnum, int devnum, int vendorid, int productid)
 	int status;
 
 	status=1; /* 1 device not found, 0 device found */
-	
+
 	for (bus = usb_busses; bus; bus = bus->next) {
 		if (busnum != -1 && strtol(bus->dirname, NULL, 10) != busnum)
 			continue;
@@ -1966,18 +2808,20 @@ void devtree_devdisconnect(struct usbdevnode *dev)
 }
 
 static int treedump(void)
-{ 
+{
 	int fd;
 	char buf[512];
 
 	snprintf(buf, sizeof(buf), "%s/devices", procbususb);
+	if (access(buf, R_OK) < 0)
+		return lsusb_t();
 	if ((fd = open(buf, O_RDONLY)) == -1) {
-                fprintf(stderr, "cannot open %s, %s (%d)\n", buf, strerror(errno), errno);
-                return(1);
+		fprintf(stderr, "cannot open %s, %s (%d)\n", buf, strerror(errno), errno);
+		return(1);
 	}
 	devtree_parsedevfile(fd);
 	close(fd);
-        devtree_dump();
+	devtree_dump();
 	return(0);
 }
 
@@ -1985,11 +2829,11 @@ static int treedump(void)
 
 int main(int argc, char *argv[])
 {
-        static const struct option long_options[] = {
-                { "version", 0, 0, 'V' },
+	static const struct option long_options[] = {
+		{ "version", 0, 0, 'V' },
 		{ "verbose", 0, 0, 'v' },
-                { 0, 0, 0, 0 }
-        };
+		{ 0, 0, 0, 0 }
+	};
 	int c, err = 0;
 	unsigned int allowctrlmsg = 0, treemode = 0;
 	int bus = -1, devnum = -1, vendor = -1, product = -1;
@@ -2000,10 +2844,10 @@ int main(int argc, char *argv[])
 	while ((c = getopt_long(argc, argv, "D:vxtP:p:s:d:V",
 			long_options, NULL)) != EOF) {
 		switch(c) {
-                case 'V':
-                        printf("lsusb (" PACKAGE ") " VERSION "\n");
-                        exit(0);
-                        
+		case 'V':
+			printf("lsusb (" PACKAGE ") " VERSION "\n");
+			exit(0);
+
 		case 'v':
 			verblevel++;
 			break;
@@ -2021,12 +2865,12 @@ int main(int argc, char *argv[])
 			if (cp) {
 				*cp++ = 0;
 				if (*optarg)
-					bus = strtoul(optarg, NULL, 0);
+					bus = strtoul(optarg, NULL, 10);
 				if (*cp)
-					devnum = strtoul(cp, NULL, 0);
+					devnum = strtoul(cp, NULL, 10);
 			} else {
 				if (*optarg)
-					devnum = strtoul(optarg, NULL, 0);
+					devnum = strtoul(optarg, NULL, 10);
 			}
 			break;
 
@@ -2054,7 +2898,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	if (err || argc > optind) {
-                fprintf(stderr, "Usage: lsusb [options]...\n"
+		fprintf(stderr, "Usage: lsusb [options]...\n"
 			"List USB devices\n"
 			"  -v, --verbose\n"
 			"      Increase verbosity (show descriptors)\n"
@@ -2075,22 +2919,23 @@ int main(int argc, char *argv[])
 	}
 
 	/* by default, print names as well as numbers */
-	if ((err = names_init("./usb.ids")) != 0) {
-		if ((err = names_init(USBIDS_FILE)) != 0) {
-			fprintf(stderr, "%s: cannot open \"%s\", %s\n",
-					argv[0],
-					USBIDS_FILE,
-					strerror(err));
-		}
-	}
+	err = names_init(DATADIR "/usb.ids");
+#ifdef HAVE_LIBZ
+	if (err != 0)
+		err = names_init(DATADIR "/usb.ids.gz");
+#endif
+	if (err != 0)
+		fprintf(stderr, "%s: cannot open \"%s\", %s\n",
+				argv[0],
+				DATADIR "/usb.ids",
+				strerror(err));
 	status = 0;
 
 	usb_init();
 
 	usb_find_busses();
 	usb_find_devices();
-	      
-	
+
 	if (treemode) {
 		/* treemode requires at least verblevel 1 */
  		verblevel += 1 - VERBLEVEL_DEFAULT;
