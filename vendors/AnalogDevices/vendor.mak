@@ -86,12 +86,15 @@ image.rootfs.initramfs.force:
 	awk -f $(ROOTDIR)/tools/dev-table-to-cpio.awk $(DEVICE_TABLE) >> $(IMAGE_ROMFS_BASE).initramfs.contents
 	echo "slink /init /sbin/init 0755 0 0" >> $(IMAGE_ROMFS_BASE).initramfs.contents
 	$(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio $(IMAGE_ROMFS_BASE).initramfs.contents > $(IMAGE_ROMFS_BASE).initramfs
-	gzip -c -9 $(IMAGE_ROMFS_BASE).initramfs > $(IMAGE_ROMFS_BASE).initramfs.gz
 ifneq ($(CONFIG_MTD_UCLINUX),y)
 ifeq ($(CONFIG_BLK_DEV_INITRD),y)
 image.rootfs.initramfs: image.rootfs.initramfs.force
 endif
 endif
+
+.PHONY: image.rootfs.initramfs.gz image.rootfs.initramfs.gz.force
+image.rootfs.initramfs.gz.force: image.rootfs.initramfs.force
+	gzip -c -9 $(IMAGE_ROMFS_BASE).initramfs > $(IMAGE_ROMFS_BASE).initramfs.gz
 
 .PHONY: image.rootfs.jffs2 image.rootfs.jffs2.force
 MKFS_JFFS2_FLAGS ?= -l -p
@@ -249,16 +252,6 @@ endif
 
 .PHONY: image.uimage.initramfs
 image.uimage.initramfs:
-# first one set with the rootfs compressed (to work with uncompressed kernel)
-	cp $(IMAGE_ROMFS_BASE).initramfs.gz $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
-	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
-	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(ROOTDIR)/$(LINUXDIR)
-	cp $(LINUXBOOTDIR)/vmImage $(IMAGE_UIMAGE_BASE).initramfs.gz
-	cp $(ROOTDIR)/$(LINUXDIR)/System.map $(IMAGEDIR)/System.map.initramfs.gz
-	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGE_KERNEL_BASE).initramfs.gz
-	$(STRIP) -g $(IMAGE_KERNEL_BASE).initramfs.gz
-	ln -sf linux.initramfs.gz $(IMAGE_KERNEL_BASE)
-
 # then one set with the rootfs uncompressed (since u-boot images do compression)
 # we want to do this step last since it will leave the kernel dir in a state
 # that properly reflects the default uImage
@@ -270,6 +263,18 @@ image.uimage.initramfs:
 	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGE_KERNEL_BASE).initramfs
 	$(STRIP) -g $(IMAGE_KERNEL_BASE).initramfs
 	ln -sf uImage.initramfs $(IMAGE_UIMAGE_BASE)
+
+.PHONY: image.uimage.initramfs.gz
+image.uimage.initramfs.gz:
+# first one set with the rootfs compressed (to work with uncompressed kernel)
+	cp $(IMAGE_ROMFS_BASE).initramfs.gz $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
+	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
+	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(ROOTDIR)/$(LINUXDIR)
+	cp $(LINUXBOOTDIR)/vmImage $(IMAGE_UIMAGE_BASE).initramfs.gz
+	cp $(ROOTDIR)/$(LINUXDIR)/System.map $(IMAGEDIR)/System.map.initramfs.gz
+	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGE_KERNEL_BASE).initramfs.gz
+	$(STRIP) -g $(IMAGE_KERNEL_BASE).initramfs.gz
+	ln -sf linux.initramfs.gz $(IMAGE_KERNEL_BASE)
 
 .PHONY: image.uimage.romfs image.uimage.romfs.force
 image.uimage.romfs.force:
