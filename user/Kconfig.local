@@ -244,6 +244,12 @@ config USER_PICTUREFLOW
 	help
 	  The pictureflow demo app
 	  http://code.google.com/p/pictureflow/
+config USER_SERCD
+	bool "sercd"
+	help
+	  sercd is an RFC 2217-compliant serial port redirector.
+	  see http://sourceforge.net/projects/sercd
+
 endmenu
 
 
