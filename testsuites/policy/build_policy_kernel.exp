@@ -205,10 +205,6 @@ while 1 {
             send "Y\r"
         }
 
-        -re "portmap.*USER_PORTMAP_PORTMAP.*\\\[.*]" {
-             send "N\r"
-        }
-
         -re "Virtual terminal.*VT.*\\\[.*]" {
             send "N\r"
         }
