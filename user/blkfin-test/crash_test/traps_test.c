@@ -271,6 +271,27 @@ void l1_scratchpad_jump(void)
 	(*foo)();
 }
 
+void l1_non_existant_jump(void)
+{
+	int (*foo)(void);
+	int i;
+	i = 0xFFAFFFFC;
+	foo = (void *)i;
+	(*foo)();
+}
+
+void l1_non_existant_read(void)
+{
+	int *i = (void *)0xFFAFFFFC;
+	printf("%i\n", *i);
+}
+
+void l1_non_existant_write(void)
+{
+	int *i = (void *)0xFFAFFFFC;
+	*i = 0;
+}
+
 void mmr_jump(void)
 {
 	int (*foo)(void);
@@ -328,6 +349,9 @@ struct {
 	{ 0x3f, l1_dataB_jump,  SIGBUS, "Jump to L1 Data B"},
 	{ 0x3f, l1_scratchpad_jump, SIGBUS, "Jump to L1 scratchpad"},
 	{ 0x3f, mmr_jump, SIGBUS, "Jump to MMR Space"},
+	{ 0x3f, l1_non_existant_jump, SIGBUS, "Jump to non-existant L1"},
+	{ 0x3f, l1_non_existant_read, SIGBUS, "Read non-existant L1"},
+	{ 0x3f, l1_non_existant_write, SIGBUS, "Write non-existant L1"},
 };
 
 void usage(const char *errmsg)
