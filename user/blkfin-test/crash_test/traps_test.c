@@ -241,7 +241,7 @@ struct {
 	{ 0x0B, expt_B, SIGILL, "EXCPT 0x0B" },
 	{ 0x0C, expt_C, SIGILL, "EXCPT 0x0C" },
 	{ 0x0D, expt_D, SIGILL, "EXCPT 0x0D" },
-	{ 0x0D, expt_E, SIGILL, "EXCPT 0x0E" },
+	{ 0x0E, expt_E, SIGILL, "EXCPT 0x0E" },
 	{ 0x0F, expt_F, SIGILL, "EXCPT 0x0F" },
 	{ 0x21, unknown_instruction, SIGILL, "Invalid Opcode" },
 	{ 0x23, supervisor_resource_mmr, SIGBUS, "Illegal use of supervisor resource - MMR" },
