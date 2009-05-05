@@ -39,64 +39,64 @@
 /* User Defined - Should fail                          EXCAUSE 0x02 */
 void expt_2(void)
 {
-	asm("excpt 0x2;\n");
+	asm("excpt 0x2;");
 }
 /* User Defined - userspace stack overflow             EXCAUSE 0x03 */
 /* User Defined - dump trace buffer                    EXCAUSE 0x04 */
 /* User Defined - Should fail                          EXCAUSE 0x05 */
 void expt_5(void)
 {
-	asm("excpt 0x5;\n");
+	asm("excpt 0x5;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x06 */
 void expt_6(void)
 {
-	asm("excpt 0x6;\n");
+	asm("excpt 0x6;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x07 */
 void expt_7(void)
 {
-	asm("excpt 0x7;\n");
+	asm("excpt 0x7;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x08 */
 void expt_8(void)
 {
-	asm("excpt 0x8;\n");
+	asm("excpt 0x8;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x09 */
 void expt_9(void)
 {
-	asm("excpt 0x9;\n");
+	asm("excpt 0x9;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0A */
 void expt_A(void)
 {
-	asm("excpt 0xA;\n");
+	asm("excpt 0xA;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0B */
 void expt_B(void)
 {
-	asm("excpt 0xB;\n");
+	asm("excpt 0xB;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0C */
 void expt_C(void)
 {
-	asm("excpt 0xC;\n");
+	asm("excpt 0xC;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0D */
 void expt_D(void)
 {
-	asm("excpt 0xD;\n");
+	asm("excpt 0xD;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0E */
 void expt_E(void)
 {
-	asm("excpt 0xE;\n");
+	asm("excpt 0xE;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0F */
 void expt_F(void)
 {
-	asm("excpt 0xF;\n");
+	asm("excpt 0xF;");
 }
 
 /* Single Step -                                       EXCAUSE 0x10 */
@@ -138,8 +138,8 @@ void data_fetch_miss(void)
 /* We use this to trap null pointers */
 void null_pointer(void)
 {
-	int *i=0;
-	*i=0;
+	int *i = 0;
+	*i = 0;
 }
 
 /* Exception caused by an emulation watchpoint match - EXCAUSE 0x28 */
@@ -151,7 +151,7 @@ void instruction_fetch_odd_address(void)
 	int (*foo)(void);
 	int i;
 	i = (int)&instruction_fetch_odd_address;
-	foo = (void *)(i+1);
+	foo = (void *)(i + 1);
 	(*foo)();
 }
 
@@ -162,17 +162,17 @@ void instruction_fetch_miss(void)
 {
 	int (*foo)(void);
 	int i;
-	i=0x87654320;
+	i = 0x87654320;
 	foo = (void *)i;
 	(*foo)();
 }
 
-/* Instruction fetch multiple CPLB hits -              EXCAUSE 0x2C */
+/* Instruction fetch multiple CPLB hits -              EXCAUSE 0x2D */
 void jump_to_zero(void)
 {
 	int (*foo)(void);
 	int i;
-	i=0x0;
+	i = 0x0;
 	foo = (void *)i;
 	(*foo)();
 }
@@ -185,7 +185,7 @@ void supervisor_instruction(void)
 
 void supervisor_resource_mmr(void)
 {
-	int *i=(void *)0xFFC00014;
+	int *i = (void *)0xFFC00014;
 	printf("chip id = %x", *i);
 
 }
@@ -198,7 +198,7 @@ void supervisor_resource_mmr(void)
 //__attribute__ ((l1_text))
 void l1_instruction_access(void)
 {
-	int *i=(void *)0xffa10000;
+	int *i = (void *)0xffa10000;
 	printf("%i\n", *i);
 }
 
@@ -216,18 +216,18 @@ struct {
 	int kill_sig;
 	char name[80];
 } bad_funcs[] = {
-	{ 0x02, expt_2, SIGILL, "EXCPT 0x02"},
-	{ 0x05, expt_5, SIGILL, "EXCPT 0x05"},
-	{ 0x06, expt_6, SIGILL, "EXCPT 0x06"},
-	{ 0x07, expt_7, SIGILL, "EXCPT 0x07"},
-	{ 0x08, expt_8, SIGILL, "EXCPT 0x08"},
-	{ 0x09, expt_9, SIGILL, "EXCPT 0x09"},
-	{ 0x0A, expt_A, SIGILL, "EXCPT 0x0A"},
-	{ 0x0B, expt_B, SIGILL, "EXCPT 0x0B"},
-	{ 0x0C, expt_C, SIGILL, "EXCPT 0x0C"},
-	{ 0x0D, expt_D, SIGILL, "EXCPT 0x0D"},
-	{ 0x0D, expt_E, SIGILL, "EXCPT 0x0E"},
-	{ 0x0F, expt_F, SIGILL, "EXCPT 0x0F"},
+	{ 0x02, expt_2, SIGILL, "EXCPT 0x02" },
+	{ 0x05, expt_5, SIGILL, "EXCPT 0x05" },
+	{ 0x06, expt_6, SIGILL, "EXCPT 0x06" },
+	{ 0x07, expt_7, SIGILL, "EXCPT 0x07" },
+	{ 0x08, expt_8, SIGILL, "EXCPT 0x08" },
+	{ 0x09, expt_9, SIGILL, "EXCPT 0x09" },
+	{ 0x0A, expt_A, SIGILL, "EXCPT 0x0A" },
+	{ 0x0B, expt_B, SIGILL, "EXCPT 0x0B" },
+	{ 0x0C, expt_C, SIGILL, "EXCPT 0x0C" },
+	{ 0x0D, expt_D, SIGILL, "EXCPT 0x0D" },
+	{ 0x0D, expt_E, SIGILL, "EXCPT 0x0E" },
+	{ 0x0F, expt_F, SIGILL, "EXCPT 0x0F" },
 	{ 0x21, unknown_instruction, SIGILL, "Invalid Opcode" },
 	{ 0x23, supervisor_resource_mmr, SIGBUS, "Illegal use of supervisor resource - MMR" },
 	{ 0x24, data_fetch_odd_address, SIGBUS, "Data access misaligned address violation" },
