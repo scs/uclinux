@@ -131,6 +131,16 @@ void unknown_instruction(void)
 }
 
 /* Illegal instruction combination -                   EXCAUSE 0x22 */
+void illegal_instruction(void)
+{
+	/* this relies on anomaly 05000074, but since that has applied to
+	 * every Blackfin core and there are no plans on fixing it, it
+	 * shouldn't be a problem.  these .long's expand into:
+	 * R0 = R0 << 0x1 || [ P0 ] = P3 || NOP;
+	 * thus avoiding the gas check on this combo
+	 */
+	asm(".long 0x8008ce82; .long 0x00009343;");
+}
 
 /* Data access CPLB protection violation -             EXCAUSE 0x23 */
 
@@ -326,6 +336,7 @@ struct {
 	{ 0x0E, expt_E, SIGILL, "EXCPT 0x0E" },
 	{ 0x0F, expt_F, SIGILL, "EXCPT 0x0F" },
 	{ 0x21, unknown_instruction, SIGILL, "Invalid Opcode" },
+	{ 0x22, illegal_instruction, SIGILL, "Illegal Instruction" },
 	{ 0x23, supervisor_resource_mmr_read, SIGBUS, "Illegal use of supervisor resource - MMR Read" },
 	{ 0x23, supervisor_resource_mmr_write, SIGBUS, "Illegal use of supervisor resource - MMR Write" },
 	{ 0x24, data_read_odd_address, SIGBUS, "Data read misaligned address violation" },
