@@ -26,6 +26,13 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#ifdef __FDPIC__
+# define _get_func_ptr(addr) ({ unsigned long __addr[2] = { addr, 0 }; __addr; })
+#else
+# define _get_func_ptr(addr) (addr)
+#endif
+#define get_func_ptr(addr) (void *)(_get_func_ptr(addr))
+
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))
 
 /*
@@ -201,9 +208,7 @@ void instruction_fetch_miss(void)
 void jump_to_zero(void)
 {
 	int (*foo)(void);
-	int i;
-	i = 0x0;
-	foo = (void *)i;
+	foo = get_func_ptr(0);
 	(*foo)();
 }
 
@@ -247,36 +252,28 @@ void l1_instruction_write(void)
 void l1_dataA_jump(void)
 {
 	int (*foo)(void);
-	int i;
-	i = 0xFF800000;
-	foo = (void *)i;
+	foo = get_func_ptr(0xFF800000);
 	(*foo)();
 }
 
 void l1_dataB_jump(void)
 {
 	int (*foo)(void);
-	int i;
-	i = 0xFF900000;
-	foo = (void *)i;
+	foo = get_func_ptr(0xFF900000);
 	(*foo)();
 }
 
 void l1_scratchpad_jump(void)
 {
 	int (*foo)(void);
-	int i;
-	i = 0xFFB00000;
-	foo = (void *)i;
+	foo = get_func_ptr(0xFFB00000);
 	(*foo)();
 }
 
 void l1_non_existant_jump(void)
 {
 	int (*foo)(void);
-	int i;
-	i = 0xFFAFFFFC;
-	foo = (void *)i;
+	foo = get_func_ptr(0xFFAFFFFC);
 	(*foo)();
 }
 
@@ -295,9 +292,7 @@ void l1_non_existant_write(void)
 void mmr_jump(void)
 {
 	int (*foo)(void);
-	int i;
-	i = 0xFFC00014;
-	foo = (void *)i;
+	foo = get_func_ptr(0xFFC00014);
 	(*foo)();
 }
 
