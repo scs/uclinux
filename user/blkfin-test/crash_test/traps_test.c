@@ -351,13 +351,13 @@ struct {
 	{ 0x2e, supervisor_instruction, SIGILL, "Illegal use of supervisor resource - Instruction" },
 	{ 0x3f, l1_instruction_read, SIGBUS, "Read of L1 instruction" },
 	{ 0x3f, l1_instruction_write, SIGBUS, "Write of L1 instruction" },
-	{ 0x3f, l1_dataA_jump,  SIGBUS, "Jump to L1 Data A"},
-	{ 0x3f, l1_dataB_jump,  SIGBUS, "Jump to L1 Data B"},
-	{ 0x3f, l1_scratchpad_jump, SIGBUS, "Jump to L1 scratchpad"},
-	{ 0x3f, mmr_jump, SIGBUS, "Jump to MMR Space"},
-	{ 0x3f, l1_non_existant_jump, SIGBUS, "Jump to non-existant L1"},
-	{ 0x3f, l1_non_existant_read, SIGBUS, "Read non-existant L1"},
-	{ 0x3f, l1_non_existant_write, SIGBUS, "Write non-existant L1"},
+	{ 0x3f, l1_dataA_jump,  SIGBUS, "Jump to L1 Data A" },
+	{ 0x3f, l1_dataB_jump,  SIGBUS, "Jump to L1 Data B" },
+	{ 0x3f, l1_scratchpad_jump, SIGBUS, "Jump to L1 scratchpad" },
+	{ 0x3f, mmr_jump, SIGBUS, "Jump to MMR Space" },
+	{ 0x3f, l1_non_existant_jump, SIGBUS, "Jump to non-existant L1" },
+	{ 0x3f, l1_non_existant_read, SIGBUS, "Read non-existant L1" },
+	{ 0x3f, l1_non_existant_write, SIGBUS, "Write non-existant L1" },
 };
 
 void usage(const char *errmsg)
