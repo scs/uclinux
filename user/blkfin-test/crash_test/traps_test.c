@@ -421,8 +421,7 @@ int main(int argc, char *argv[])
 
 			pid = vfork();
 			if (pid == 0) {
-				int _ret;
-				_ret = execv(argv[0], argv);
+				int _ret = execvp(argv[0], argv);
 				fprintf(stderr, "Execution of '%s' failed (%i): %s\n",
 					argv[0], _ret, strerror(errno));
 				_exit(_ret);
