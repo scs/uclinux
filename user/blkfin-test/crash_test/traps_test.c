@@ -128,30 +128,48 @@ void unknown_instruction(void)
 /* Data access CPLB protection violation -             EXCAUSE 0x23 */
 
 /* Data access misaligned address violation -          EXCAUSE 0x24 */
-void data_fetch_odd_address(void)
+void data_read_odd_address(void)
 {
 	int *i = (void *)0x87654321;
 	printf("%i\n", *i);
 }
+
+void data_write_odd_address(void)
+{
+	int *i = (void *)0x87654321;
+	*i = 0;
+}
+
 
 
 /* Unrecoverable event -                               EXCAUSE 0x25 */
 /* Can't do this in userspace (hopefully) */
 
 /* Data access CPLB miss -                             EXCAUSE 0x26 */
-void data_fetch_miss(void)
+void data_read_miss(void)
 {
 	int *i = (void *)0x87654320;
 	printf("%i\n", *i);
 }
 
+void data_write_miss(void)
+{
+	int *i = (void *)0x87654320;
+	*i = 0;
+}
 
 /* Data access multiple CPLB hits -                    EXCAUSE 0x27 */
 /* We use this to trap null pointers */
-void null_pointer(void)
+void null_pointer_write(void)
 {
 	int *i = 0;
 	*i = 0;
+}
+
+void null_pointer_read(void)
+{
+	int *i = 0;
+	printf("%i", *i);
 }
 
 /* Exception caused by an emulation watchpoint match - EXCAUSE 0x28 */
@@ -195,11 +213,17 @@ void supervisor_instruction(void)
 	asm("cli R0;");
 }
 
-void supervisor_resource_mmr(void)
+void supervisor_resource_mmr_read(void)
 {
 	int *i = (void *)0xFFC00014;
 	printf("chip id = %x", *i);
 
+}
+
+void supervisor_resource_mmr_write(void)
+{
+	int *i = (void *)0xFFC00014;
+	*i = 0;
 }
 
 /* Things that cause Hardware errors (IRQ5), not exceptions (IRQ3) */
@@ -208,10 +232,52 @@ void supervisor_resource_mmr(void)
 
 /* External Memory Addressing Error -                  HWERRCAUSE 0x03 */
 //__attribute__ ((l1_text))
-void l1_instruction_access(void)
+void l1_instruction_read(void)
 {
 	int *i = (void *)0xffa10000;
 	printf("%i\n", *i);
+}
+
+void l1_instruction_write(void)
+{
+	int *i = (void *)0xffa10000;
+	*i = 0;
+}
+
+void l1_dataA_jump(void)
+{
+	int (*foo)(void);
+	int i;
+	i = 0xFF800000;
+	foo = (void *)i;
+	(*foo)();
+}
+
+void l1_dataB_jump(void)
+{
+	int (*foo)(void);
+	int i;
+	i = 0xFF900000;
+	foo = (void *)i;
+	(*foo)();
+}
+
+void l1_scratchpad_jump(void)
+{
+	int (*foo)(void);
+	int i;
+	i = 0xFFB00000;
+	foo = (void *)i;
+	(*foo)();
+}
+
+void mmr_jump(void)
+{
+	int (*foo)(void);
+	int i;
+	i = 0xFFC00014;
+	foo = (void *)i;
+	(*foo)();
 }
 
 /* Performance Monitor Overflow                        HWERRCAUSE 0x012*/
@@ -244,15 +310,24 @@ struct {
 	{ 0x0E, expt_E, SIGILL, "EXCPT 0x0E" },
 	{ 0x0F, expt_F, SIGILL, "EXCPT 0x0F" },
 	{ 0x21, unknown_instruction, SIGILL, "Invalid Opcode" },
-	{ 0x23, supervisor_resource_mmr, SIGBUS, "Illegal use of supervisor resource - MMR" },
-	{ 0x24, data_fetch_odd_address, SIGBUS, "Data access misaligned address violation" },
-	{ 0x26, data_fetch_miss, SIGBUS, "Data access CPLB miss" },
-	{ 0x27, null_pointer, SIGSEGV, "Data access multiple CPLB hits/Null Pointer" },
+	{ 0x23, supervisor_resource_mmr_read, SIGBUS, "Illegal use of supervisor resource - MMR Read" },
+	{ 0x23, supervisor_resource_mmr_write, SIGBUS, "Illegal use of supervisor resource - MMR Write" },
+	{ 0x24, data_read_odd_address, SIGBUS, "Data read misaligned address violation" },
+	{ 0x24, data_write_odd_address, SIGBUS, "Data write misaligned address violation" },
+	{ 0x26, data_read_miss, SIGBUS, "Data Read CPLB miss" },
+	{ 0x26, data_write_miss, SIGBUS, "Data Write CPLB miss" },
+	{ 0x27, null_pointer_read, SIGSEGV, "Data access multiple CPLB hits/Null Pointer Read" },
+	{ 0x27, null_pointer_write, SIGSEGV, "Data access multiple CPLB hits/Null Pointer Write" },
 	{ 0x2a, instruction_fetch_odd_address, SIGBUS, "Instruction fetch misaligned address violation"  },
 	{ 0x2c, instruction_fetch_miss, SIGBUS, "Instruction fetch CPLB miss"  },
 	{ 0x2d, jump_to_zero, SIGSEGV, "Instruction fetch multiple CPLB hits - Jump to zero" },
 	{ 0x2e, supervisor_instruction, SIGILL, "Illegal use of supervisor resource - Instruction" },
-	{ 0x3f, l1_instruction_access, SIGBUS, "l1_instruction_access" },
+	{ 0x3f, l1_instruction_read, SIGBUS, "Read of L1 instruction" },
+	{ 0x3f, l1_instruction_write, SIGBUS, "Write of L1 instruction" },
+	{ 0x3f, l1_dataA_jump,  SIGBUS, "Jump to L1 Data A"},
+	{ 0x3f, l1_dataB_jump,  SIGBUS, "Jump to L1 Data B"},
+	{ 0x3f, l1_scratchpad_jump, SIGBUS, "Jump to L1 scratchpad"},
+	{ 0x3f, mmr_jump, SIGBUS, "Jump to MMR Space"},
 };
 
 void usage(const char *errmsg)
@@ -313,10 +388,6 @@ int main(int argc, char *argv[])
 			int status;
 
 			sprintf(number, "%li", test_num);
-
-			printf("\nRunning test %li for exception 0x%02x: %s\n... ", test_num, bad_funcs[test_num].excause, bad_funcs[test_num].name);
-			fflush(stdout);
-                        sleep (1);
 
 			pid = vfork();
 			if (pid == 0) {
