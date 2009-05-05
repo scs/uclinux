@@ -36,13 +36,25 @@
 
 /* User Defined - Linux Syscall                        EXCAUSE 0x00 */
 /* User Defined - Software breakpoint                  EXCAUSE 0x01 */
+void expt_1(void)
+{
+	asm("excpt 0x1;");
+}
 /* User Defined - Should fail                          EXCAUSE 0x02 */
 void expt_2(void)
 {
 	asm("excpt 0x2;");
 }
 /* User Defined - userspace stack overflow             EXCAUSE 0x03 */
+void expt_3(void)
+{
+	asm("excpt 0x3;");
+}
 /* User Defined - dump trace buffer                    EXCAUSE 0x04 */
+void expt_4(void)
+{
+	asm("excpt 0x4;");
+}
 /* User Defined - Should fail                          EXCAUSE 0x05 */
 void expt_5(void)
 {
@@ -214,9 +226,12 @@ struct {
 	int excause;
 	void (*func)(void);
 	int kill_sig;
-	char name[80];
+	const char *name;
 } bad_funcs[] = {
+	{ 0x01, expt_1, SIGTRAP, "EXCPT 0x01" },
 	{ 0x02, expt_2, SIGILL, "EXCPT 0x02" },
+	{ 0x03, expt_3, SIGSEGV, "EXCPT 0x03" },
+	{ 0x04, expt_4, SIGILL, "EXCPT 0x04" },
 	{ 0x05, expt_5, SIGILL, "EXCPT 0x05" },
 	{ 0x06, expt_6, SIGILL, "EXCPT 0x06" },
 	{ 0x07, expt_7, SIGILL, "EXCPT 0x07" },
