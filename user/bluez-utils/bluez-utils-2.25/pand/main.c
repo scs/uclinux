@@ -95,7 +95,7 @@ static void run_devup(char *dev, char *dst, int sk, int nsk)
 	if (access(prog, R_OK | X_OK))
 		return;
 
-	if (fork())
+	if (vfork())
 		return;
 
 	if (sk >= 0)
@@ -114,7 +114,7 @@ static void run_devup(char *dev, char *dst, int sk, int nsk)
 	argv[2] = dst;
 	argv[3] = NULL;
 	execv(prog, argv);
-	exit(1);
+	_exit(1);
 }
 
 static int do_listen(void)
@@ -680,19 +680,8 @@ int main(int argc, char **argv)
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGINT,  &sa, NULL);
 
-	if (detach) {
-		if (fork()) exit(0);
-
-		/* Direct stdin,stdout,stderr to '/dev/null' */
-		{
-			int fd = open("/dev/null", O_RDWR);
-			dup2(fd, 0); dup2(fd, 1); dup2(fd, 2);
-			close(fd);
-		}
-
-		setsid();
-		chdir("/");
-	}
+	if (detach)
+		daemon(0, 0);
 
 	openlog("pand", LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 	syslog(LOG_INFO, "Bluetooth PAN daemon version %s", VERSION);
