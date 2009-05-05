@@ -45,77 +45,77 @@
 /* User Defined - Software breakpoint                  EXCAUSE 0x01 */
 void expt_1(void)
 {
-	asm("excpt 0x1;");
+	asm volatile("excpt 0x1;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x02 */
 void expt_2(void)
 {
-	asm("excpt 0x2;");
+	asm volatile("excpt 0x2;");
 }
 /* User Defined - userspace stack overflow             EXCAUSE 0x03 */
 void expt_3(void)
 {
-	asm("excpt 0x3;");
+	asm volatile("excpt 0x3;");
 }
 /* User Defined - dump trace buffer                    EXCAUSE 0x04 */
 void expt_4(void)
 {
-	asm("excpt 0x4;");
+	asm volatile("excpt 0x4;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x05 */
 void expt_5(void)
 {
-	asm("excpt 0x5;");
+	asm volatile("excpt 0x5;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x06 */
 void expt_6(void)
 {
-	asm("excpt 0x6;");
+	asm volatile("excpt 0x6;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x07 */
 void expt_7(void)
 {
-	asm("excpt 0x7;");
+	asm volatile("excpt 0x7;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x08 */
 void expt_8(void)
 {
-	asm("excpt 0x8;");
+	asm volatile("excpt 0x8;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x09 */
 void expt_9(void)
 {
-	asm("excpt 0x9;");
+	asm volatile("excpt 0x9;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0A */
 void expt_A(void)
 {
-	asm("excpt 0xA;");
+	asm volatile("excpt 0xA;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0B */
 void expt_B(void)
 {
-	asm("excpt 0xB;");
+	asm volatile("excpt 0xB;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0C */
 void expt_C(void)
 {
-	asm("excpt 0xC;");
+	asm volatile("excpt 0xC;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0D */
 void expt_D(void)
 {
-	asm("excpt 0xD;");
+	asm volatile("excpt 0xD;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0E */
 void expt_E(void)
 {
-	asm("excpt 0xE;");
+	asm volatile("excpt 0xE;");
 }
 /* User Defined - Should fail                          EXCAUSE 0x0F */
 void expt_F(void)
 {
-	asm("excpt 0xF;");
+	asm volatile("excpt 0xF;");
 }
 
 /* Single Step -                                       EXCAUSE 0x10 */
@@ -127,7 +127,7 @@ void expt_F(void)
 /* Undefined instruction -                             EXCAUSE 0x21 */
 void unknown_instruction(void)
 {
-	asm(".word 0x0001;");
+	asm volatile(".word 0x0001;");
 }
 
 /* Illegal instruction combination -                   EXCAUSE 0x22 */
@@ -139,7 +139,7 @@ void illegal_instruction(void)
 	 * R0 = R0 << 0x1 || [ P0 ] = P3 || NOP;
 	 * thus avoiding the gas check on this combo
 	 */
-	asm(".long 0x8008ce82; .long 0x00009343;");
+	asm volatile(".long 0x8008ce82; .long 0x00009343;");
 }
 
 /* Data access CPLB protection violation -             EXCAUSE 0x23 */
@@ -225,7 +225,7 @@ void jump_to_zero(void)
 /* Illegal use of supervisor resource -                EXCAUSE 0x2E */
 void supervisor_instruction(void)
 {
-	asm("cli R0;");
+	asm volatile("cli R0;");
 }
 
 void supervisor_resource_mmr_read(void)
