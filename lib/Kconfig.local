@@ -125,6 +125,11 @@ config LIB_LIBIPOD
 config LIB_LIBMAD
 	bool "Build libmad"
 
+config LIB_LIBMODBUS
+	bool "Build libmodbus"
+	help
+	  https://launchpad.net/libmodbus/
+
 config LIB_LIBMPEG2
 	bool "Build libmpeg2"
 

@@ -23,6 +23,7 @@ dir_3_$(CONFIG_LIB_LIBIPOD)          += libipod
 dir_3_$(CONFIG_LIB_LIBGSASL)         += libgsasl
 dir_3_$(CONFIG_LIB_LIBGPG_ERROR)     += libgpg-error
 dir_3_$(CONFIG_LIB_LIBMAD)           += libmad
+dir_3_$(CONFIG_LIB_LIBMODBUS)        += libmodbus
 dir_3_$(CONFIG_LIB_LIBMPEG2)         += mpeg2dec
 dir_3_$(CONFIG_LIB_LIBSDL)           += libsdl
 dir_3_$(CONFIG_LIB_LIBTOOL)          += libtool

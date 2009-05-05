@@ -1,0 +1,32 @@
+Compilation
+-----------
+
+After installation, you can use pkg-config to compile these tests.
+For example, to compile random-test-slave run:
+
+gcc random-test-slave.c -o random-test-slave `pkg-config --libs --cflags modbus`
+
+random-test-slave
+-----------------
+It's necessary to launch this server before run random-test-master. By
+default, it receives and responses to Modbus query on the localhost
+and port 1502.
+
+random-test-master
+------------------
+This programm sends many different queries to a large range of
+addresses and values to test the communication between the master and
+the slave.
+
+unit-test-slave
+unit-test-master
+----------------
+By default, this program sends some queries with the values defined in
+unit-test.h and checks the responses. These programs are useful to
+test the protocol implementation.
+
+bench-bandwidth-slave
+bench-bandwidth-master
+----------------------
+It returns some very useful informations about the performance of
+transfert rate between the slave and the master.

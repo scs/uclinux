@@ -1,0 +1,51 @@
+==================
+A groovy libmodbus
+==================
+
+Overview
+========
+
+libmodbus is a free software library to send/receive data with a
+device which respects the Modbus protocol. This library can use a
+serial port or an Ethernet connection.
+
+The functions included in the library have been derived from the
+Modicon Modbus Protocol Reference Guide which can be obtained from
+Schneider at www.schneiderautomation.com.
+
+The license of libmodbus is LGPL v3.
+The licence of programs in the tests directory is GPL v3.
+
+https://launchpad.net/libmodbus
+http://copyleft.free.fr/wordpress/index.php/libmodbus/
+
+
+Installation
+============
+
+WARNING, don't use the two build systems at the same time.
+
+With autotools
+--------------
+The shell commands are './configure; make; make install'.
+
+With Waf
+--------
+The build system is Waf (http://code.google.com/p/waf), the shell commandes are:
+  $ ./waf configure
+  $ ./waf build
+  $ sudo ./waf install
+
+or 'waf' if you use a global Waf script.
+
+The sources are built in the 'build' directory at the root of the
+project source files.
+
+
+Testing
+=======
+
+Some testing programs are provided in the tests directory, you can
+freely edit the source code to fit your needs (it's Free Sofware :).
+
+See tests/README for a description of each program.
