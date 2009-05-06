@@ -125,7 +125,7 @@ if [ "$first_time_boot" ]; then
 	
 	tftp "$serverip" -g -r "runinit.sh" -l "/tmp/runinit.sh"
 	[ -e "/tmp/runinit.sh" ] && chmod +x "/tmp/runinit.sh" && "/tmp/runinit.sh"
-elif [ "$fallback_boot" ]; then
+elif [ "$fallback_boot" ] && [ ! "$fallback_disabled" ]; then
 	echo "The device has been booted in fallback mode with default network configurations."
 	echo "The device will automatically reboot in 10 minutes."
 	
