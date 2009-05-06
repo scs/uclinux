@@ -35,6 +35,9 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))
 
+void _bad_return_address(unsigned long rets);
+asm("__bad_return_address: rets = R0; nop; nop; nop; nop; rts;\n");
+
 /*
  * These tests should test all things possible that can create an
  * exception. For details, look in arch/blackfin/mach-common/entry.S
@@ -196,21 +199,45 @@ void null_pointer_read(void)
 void instruction_fetch_odd_address(void)
 {
 	int (*foo)(void);
-	int i;
-	i = (int)&instruction_fetch_odd_address;
-	foo = (void *)(i + 1);
+	foo = get_func_ptr((int)&instruction_fetch_odd_address + 1);
 	(*foo)();
 }
 
-/* Instruction fetch CPLB protection violation -       EXCAUSE 0x2B */
+/* Instruction fetch CPLB protection violation -       EXCAUSE 0x2B 
+ * with mpu on, these return 2B, otherwise
+ */
+void bad_return_scratchpad(void)
+{
+	_bad_return_address(0xFFB00000);
+}
+
+void bad_return_l1dataA(void)
+{
+	_bad_return_address(0xFF800000);
+}
+
+void bad_return_l1dataB(void)
+{
+	_bad_return_address(0xFF900000);
+}
 
 /* Instruction fetch CPLB miss -                       EXCAUSE 0x2C */
 void instruction_fetch_miss(void)
 {
 	int (*foo)(void);
-	int i;
-	i = 0x87654320;
-	foo = (void *)i;
+	foo = get_func_ptr(0x87654320);
+	(*foo)();
+}
+
+void bad_return_bad_location(void)
+{
+	_bad_return_address(0x87654320);
+}
+
+void mmr_jump(void)
+{
+	int (*foo)(void);
+	foo = get_func_ptr(0xFFC00014);
 	(*foo)();
 }
 
@@ -220,6 +247,11 @@ void jump_to_zero(void)
 	int (*foo)(void);
 	foo = get_func_ptr(0);
 	(*foo)();
+}
+
+void bad_return_zero(void)
+{
+	_bad_return_address(0x0);
 }
 
 /* Illegal use of supervisor resource -                EXCAUSE 0x2E */
@@ -299,11 +331,14 @@ void l1_non_existant_write(void)
 	*i = 0;
 }
 
-void mmr_jump(void)
+void bad_return_l1_non_existant(void)
 {
-	int (*foo)(void);
-	foo = get_func_ptr(0xFFC00014);
-	(*foo)();
+	_bad_return_address(0xFFAFFFFC);
+}
+
+void bad_return_mmr(void)
+{
+	_bad_return_address(0xFFC00014);
 }
 
 /* Performance Monitor Overflow                        HWERRCAUSE 0x012*/
@@ -346,18 +381,25 @@ struct {
 	{ 0x27, null_pointer_read, SIGSEGV, "Data access multiple CPLB hits/Null Pointer Read" },
 	{ 0x27, null_pointer_write, SIGSEGV, "Data access multiple CPLB hits/Null Pointer Write" },
 	{ 0x2a, instruction_fetch_odd_address, SIGBUS, "Instruction fetch misaligned address violation"  },
+	{ 0x2b, l1_dataA_jump,  SIGBUS, "Jump to L1 Data A" },
+	{ 0x2b, bad_return_l1dataA, SIGBUS, "Return to L1 Data A" },
+	{ 0x2b, l1_dataB_jump,  SIGBUS, "Jump to L1 Data B" },
+	{ 0x2b, bad_return_l1dataB, SIGBUS, "Return to L1 Data B" },
+	{ 0x2b, l1_scratchpad_jump, SIGBUS, "Jump to L1 scratchpad" },
+	{ 0x2b, bad_return_scratchpad, SIGBUS, "Return to scratchpad" },
 	{ 0x2c, instruction_fetch_miss, SIGBUS, "Instruction fetch CPLB miss"  },
+	{ 0x2c, mmr_jump, SIGBUS, "Jump to MMR Space" },
+	{ 0x2c, bad_return_bad_location, SIGBUS, "Return to non-existant L3" },
+	{ 0x2c, bad_return_mmr, SIGBUS, "Return to an MMR address" },
 	{ 0x2d, jump_to_zero, SIGSEGV, "Instruction fetch multiple CPLB hits - Jump to zero" },
+	{ 0x2d, bad_return_zero, SIGBUS, "Return to zero" },
 	{ 0x2e, supervisor_instruction, SIGILL, "Illegal use of supervisor resource - Instruction" },
 	{ 0x3f, l1_instruction_read, SIGBUS, "Read of L1 instruction" },
 	{ 0x3f, l1_instruction_write, SIGBUS, "Write of L1 instruction" },
-	{ 0x3f, l1_dataA_jump,  SIGBUS, "Jump to L1 Data A" },
-	{ 0x3f, l1_dataB_jump,  SIGBUS, "Jump to L1 Data B" },
-	{ 0x3f, l1_scratchpad_jump, SIGBUS, "Jump to L1 scratchpad" },
-	{ 0x3f, mmr_jump, SIGBUS, "Jump to MMR Space" },
 	{ 0x3f, l1_non_existant_jump, SIGBUS, "Jump to non-existant L1" },
 	{ 0x3f, l1_non_existant_read, SIGBUS, "Read non-existant L1" },
 	{ 0x3f, l1_non_existant_write, SIGBUS, "Write non-existant L1" },
+	{ 0x3f, bad_return_l1_non_existant, SIGBUS, "Return to non-existant L1" },
 };
 
 void usage(const char *errmsg)
