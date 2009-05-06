@@ -1,25 +1,28 @@
 #! /usr/bin/env bash
 # do-build <platform> <results-dir>: This script is used to generate a binary to release.
 
-if [ $# -ne 2 ]; then
-	echo "wrong number of arguments"
-	exit 1
-fi
+set -e -o pipefail
 
-PLATFORM=$1
-RESULTS_DIR=$2
+print() { echo "$1" >&2; }
+inform() { print "$0: $1"; }
+warn() { print "Warning: $1"; }
+error() { inform "Error: $1"; }
+fail() { error "$1"; exit 1; }
+status() { echo -n "$1" >&2; }
 
-make distclean || exit $?
+[ "$1" ] && PLATFORM=$1 || fail "No platform given!"
+[ "$2" ] && RESULTS_DIR=$2
+[ "$3" ] && fail "Too many arguments!"
 
 if [ "$PLATFORM" == "leanXcam" ]; then
-	make SCS/BF537_LEANXCAM_config || exit $?
+	make distclean
+	make SCS/BF537_LEANXCAM_config
 elif [ "$PLATFORM" == "indXcam" ]; then
-	make SCS/BF537_INDXCAM_config || exit $?
+	make distclean
+	make SCS/BF537_INDXCAM_config
 else
-	exit 1
-	echo "unknown platform: $PLATFORM"
+	fail "Unknown platform: $PLATFORM"
 fi
 
-make || exit $?
-
-cp "images/uImage" "HISTORY" "$RESULTS_DIR" || exit $?
+time make
+[ "$RESULTS_DIR" ] && cp "images/uImage" "HISTORY" "$RESULTS_DIR"
