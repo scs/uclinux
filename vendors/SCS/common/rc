@@ -101,6 +101,9 @@ if [ ! "$fallback_boot" ] && [ ! "$first_time_boot" ]; then
 			timeout=`expr "$timeout" - 1`
 			sleep 1
 		done
+		
+		# Because the damn DHCP client deactivates the interface after a minute.
+		[ "$fallback_boot" ] && killall -9 dhcpcd
 	fi
 fi
 
