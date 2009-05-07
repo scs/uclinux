@@ -1,7 +1,5 @@
-VER = sqlite-3.6.12
-URL = http://sqlite.org/$(VER).tar.gz
-
-CONF_OPTS = --disable-tcl
+VER = sqlite-3.6.14
+URL = http://sqlite.org/sqlite-amalgamation-$(patsubst sqlite-%,%,$(VER)).tar.gz
 
 FLTFLAGS = -s 32000
 
