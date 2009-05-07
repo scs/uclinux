@@ -48,8 +48,12 @@ for i in ipaddr netmask gatewayip serverip ethaddr runscript fallback_disabled f
 done
 
 # ... and do some sanity checking on them.
-echo "$ethaddr:" | grep -qE '^([0-9a-f]{2}:){6}$' || first_time_boot=1
 echo "$fallback_timeout" | grep -qE '^[0-9]+$' || fallback_timeout=15
+
+if echo "$ethaddr:" | grep -qvE '^([0-9a-f]{2}:){6}$'; then
+	first_time_boot=1
+	ethaddr='00:20:e3:23:00:00'
+fi
 
 if echo "$ipaddr" | grep -qiE '^dhcp$'; then
 	ipaddr='dhcp'
@@ -58,23 +62,42 @@ else
 	echo "$netmask." | grep -qE '^([0-9]{1,3}.){4}$' || fallback_boot=1
 fi
 
-# Bring up the interface if we're neither in first time nor fallback boot.
-if [ ! "$first_time_boot" ] && [ ! "$fallback_boot" ]; then
-	ifconfig eth0 hw ether "$ethaddr"
-	ifconfig eth0 up
+# Bring up the interface
+ifconfig eth0 hw ether "$ethaddr"
+ifconfig eth0 up
+
+# Check wether we have link.
+if [ ! "$first_time_boot" ] && [ ! "$fallback_boot" ] && [ ! "$fallback_disabled" ]; then
+	sleep 2 # /sys/class/net/eth0/operstate says up for a second or two even if it isn't
 	
-	if [ ! "$fallback_disabled" ]; then
-		sleep 2 # /sys/class/net/eth0/operstate says up for a second or two even if it isn't
+	fallback_boot=1
+	timeout=$fallback_timeout
+	while [ "$timeout" -gt 0 ]; do
+		if [ "`cat /sys/class/net/eth0/operstate`" == 'up' ]; then
+			fallback_boot=
+			break
+		fi
+		
+		echo "Waiting for carrier on eth0: $timeout s"
+		timeout=`expr "$timeout" - 1`
+		sleep 1
+	done
+fi
+
+if [ ! "$fallback_boot" ] && [ ! "$first_time_boot" ]; then
+	# Check wether we should do DHCP.
+	if [ "$ipaddr" == 'dhcp' ]; then
+		dhcpcd eth0 &
 		
 		fallback_boot=1
 		timeout=$fallback_timeout
 		while [ "$timeout" -gt 0 ]; do
-			if [ "`cat /sys/class/net/eth0/operstate`" == 'up' ]; then
+			if [ -e '/etc/dhcpc/dhcpcd-eth0.info' ]; then
 				fallback_boot=
 				break
 			fi
 			
-			echo "Waiting for carrier on eth0: $timeout s"
+			echo "Waiting for an IP address over DHCP: $timeout s"
 			timeout=`expr "$timeout" - 1`
 			sleep 1
 		done
@@ -90,28 +113,10 @@ if [ "$fallback_boot" ] || [ "$first_time_boot" ]; then
 	serverip='192.168.1.2'
 	ethaddr='00:20:e3:23:00:00'
 	runscript=
-	
-	ifconfig eth0 hw ether "$ethaddr"
-	ifconfig eth0 up
 fi
 
-# Check wether we should do DHCP.
-if [ "$ipaddr" == 'dhcp' ]; then
-	dhcpcd eth0 &
-	
-	fallback_boot=1
-	timeout=$fallback_timeout
-	while [ "$timeout" -gt 0 ]; do
-		if [ -e '/etc/dhcpc/dhcpcd-eth0.info' ]; then
-			fallback_boot=
-			break
-		fi
-		
-		echo "Waiting a IP address over DHCP: $timeout s"
-		timeout=`expr "$timeout" - 1`
-		sleep 1
-	done
-else
+# Setup IP configuration when not using DHCP.
+if [ "$ipaddr" != 'dhcp' ]; then
 	ifconfig eth0 "$ipaddr" netmask "$netmask"
 	
 	if echo "$gatewayip." | grep -qE '^([0-9]{1,3}.){4}$'; then
@@ -119,7 +124,7 @@ else
 	fi
 fi
 
-# Check if we're dooing a first time, a fallback or a normal boot.
+# Check if we're doing a first time or a fallback or normal boot.
 if [ "$first_time_boot" ]; then
 	echo "ethaddr not defined in U-Boot environment: Going into first time boot mode."
 	
