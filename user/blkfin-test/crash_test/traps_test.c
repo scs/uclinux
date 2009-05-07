@@ -38,6 +38,11 @@
 void _bad_return_address(unsigned long rets);
 asm("__bad_return_address: rets = R0; nop; nop; nop; nop; rts;\n");
 
+void _bad_stack_set(unsigned long rets);
+asm("__bad_stack_set: SP = R0; FP = R0; nop; nop; rts;\n");
+
+#define bad_stack_push(addr)	asm volatile ("R1 = SP ; SP = %0; [SP] = %0; SP = R1" :  : "r"(addr) : "R1" );
+
 /*
  * These tests should test all things possible that can create an
  * exception. For details, look in arch/blackfin/mach-common/entry.S
@@ -160,7 +165,15 @@ void data_write_odd_address(void)
 	*i = 0;
 }
 
+void stack_odd_address(void)
+{
+	_bad_stack_set(0x87654321);
+}
 
+void stack_push_odd_address(void)
+{
+	bad_stack_push(0x87654321);
+}
 
 /* Unrecoverable event -                               EXCAUSE 0x25 */
 /* Can't do this in userspace (hopefully) */
@@ -178,6 +191,16 @@ void data_write_miss(void)
 	*i = 0;
 }
 
+void stack_miss(void)
+{
+        _bad_stack_set(0x87654320);
+}
+
+void stack_push_miss(void)
+{
+	bad_stack_push(0x87654320);
+}
+
 /* Data access multiple CPLB hits -                    EXCAUSE 0x27 */
 /* We use this to trap null pointers */
 void null_pointer_write(void)
@@ -190,6 +213,16 @@ void null_pointer_read(void)
 {
 	int *i = 0;
 	printf("%i", *i);
+}
+
+void stack_zero(void)
+{
+        _bad_stack_set(0x0);
+}
+
+void stack_push_zero(void)
+{
+	bad_stack_push(0);
 }
 
 /* Exception caused by an emulation watchpoint match - EXCAUSE 0x28 */
@@ -291,6 +324,11 @@ void l1_instruction_write(void)
 	*i = 0;
 }
 
+void stack_instruction(void)
+{
+        _bad_stack_set(0xffa10000);
+}
+
 void l1_dataA_jump(void)
 {
 	int (*foo)(void);
@@ -329,6 +367,16 @@ void l1_non_existant_write(void)
 {
 	int *i = (void *)0xFFAFFFFC;
 	*i = 0;
+}
+
+void stack_l1_non_existant(void)
+{
+        _bad_stack_set(0xFFAFFF00);
+}
+
+void stack_push_l1_non_existant(void)
+{
+	bad_stack_push(0xFFAFFF00);
 }
 
 void bad_return_l1_non_existant(void)
@@ -376,10 +424,16 @@ struct {
 	{ 0x23, supervisor_resource_mmr_write, SIGBUS, "Illegal use of supervisor resource - MMR Write" },
 	{ 0x24, data_read_odd_address, SIGBUS, "Data read misaligned address violation" },
 	{ 0x24, data_write_odd_address, SIGBUS, "Data write misaligned address violation" },
+	{ 0x24, stack_odd_address, SIGBUS, "Stack set to odd address - misaligned address violation" },
+	{ 0x24, stack_push_odd_address, SIGBUS, "Stack push to odd address" },
 	{ 0x26, data_read_miss, SIGBUS, "Data Read CPLB miss" },
 	{ 0x26, data_write_miss, SIGBUS, "Data Write CPLB miss" },
+	{ 0x26, stack_miss, SIGBUS, "Stack CPLB miss" },
+	{ 0x26, stack_push_miss, SIGBUS, "Stack push to miss" },
 	{ 0x27, null_pointer_read, SIGSEGV, "Data access multiple CPLB hits/Null Pointer Read" },
 	{ 0x27, null_pointer_write, SIGSEGV, "Data access multiple CPLB hits/Null Pointer Write" },
+	{ 0x27, stack_zero, SIGSEGV, "Stack set to zero" },
+	{ 0x27, stack_push_zero, SIGSEGV, "Stack, push while SP is zero" },
 	{ 0x2a, instruction_fetch_odd_address, SIGBUS, "Instruction fetch misaligned address violation"  },
 	{ 0x2b, l1_dataA_jump,  SIGBUS, "Jump to L1 Data A" },
 	{ 0x2b, bad_return_l1dataA, SIGBUS, "Return to L1 Data A" },
@@ -392,7 +446,7 @@ struct {
 	{ 0x2c, bad_return_bad_location, SIGBUS, "Return to non-existant L3" },
 	{ 0x2c, bad_return_mmr, SIGBUS, "Return to an MMR address" },
 	{ 0x2d, jump_to_zero, SIGSEGV, "Instruction fetch multiple CPLB hits - Jump to zero" },
-	{ 0x2d, bad_return_zero, SIGBUS, "Return to zero" },
+	{ 0x2d, bad_return_zero, SIGSEGV, "Return to zero" },
 	{ 0x2e, supervisor_instruction, SIGILL, "Illegal use of supervisor resource - Instruction" },
 	{ 0x3f, l1_instruction_read, SIGBUS, "Read of L1 instruction" },
 	{ 0x3f, l1_instruction_write, SIGBUS, "Write of L1 instruction" },
@@ -400,6 +454,9 @@ struct {
 	{ 0x3f, l1_non_existant_read, SIGBUS, "Read non-existant L1" },
 	{ 0x3f, l1_non_existant_write, SIGBUS, "Write non-existant L1" },
 	{ 0x3f, bad_return_l1_non_existant, SIGBUS, "Return to non-existant L1" },
+	{ 0x3f, stack_instruction, SIGBUS, "Stack set to L1 instruction" },
+	{ 0x3f, stack_l1_non_existant, SIGBUS, "Stack set to non-existant L1" },
+	{ 0x3f, stack_push_l1_non_existant, SIGBUS, "Stack push to non-existant L1" },
 };
 
 void usage(const char *errmsg)
