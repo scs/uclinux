@@ -1,4 +1,4 @@
-dir_y = fpga_loader fpga-test hs_conv_driver
+dir_y = fpga_loader fpga-test hs_conv_driver fpga_netd
 dir_n =
 dir_  =
 dir_all = $(dir_y) $(dir_n) $(dir_)
