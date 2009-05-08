@@ -89,7 +89,7 @@ rm -rf ./user/mawk
 rm -rf ./user/mp3play
 rm -rf ./user/mysql
 rm -rf ./user/nessus
-rm -rf ./user/ntp
+rm -rf ./user/ntpclient
 rm -rf ./user/oggplay
 rm -rf ./user/openvpn
 rm -rf ./user/p7zip
