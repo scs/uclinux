@@ -33,6 +33,7 @@ rcp: module
 
 romfs:
 	$(ROMFSINST) -d -M hs_conv.ko blkfindrvs/hs_conv.ko
+	$(ROMFSINST) -a "modprobe hs_conv" /etc/rc
 
 clean:
 	$(MAKE_KERNEL) clean
