@@ -1,7 +1,7 @@
 /*
  * File:         fpga_netd.c
  * Based on:
- * Description:  Simply UDP network data server
+ * Description:  Simple UDP network data server
  *
  * Michael Hennerich Copyright 2009 Analog Devices Inc.
  *
