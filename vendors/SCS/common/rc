@@ -43,7 +43,7 @@ if fw_printenv "no-root-login" > /dev/null 2>&1; then
 fi
 
 # Read network configurations from the U-Boot environment variables ...
-for i in ipaddr netmask gatewayip serverip ethaddr runscript fallback_disabled fallback_timeout; do
+for i in ipaddr netmask gatewayip serverip ethaddr runscript fallback_disabled fallback_timeout ntpserver; do
 	eval `fw_printenv "$i" 2> /dev/null`
 done
 
@@ -103,7 +103,11 @@ if [ ! "$fallback_boot" ] && [ ! "$first_time_boot" ]; then
 		done
 		
 		# Because the damn DHCP client deactivates the interface after a minute.
-		[ "$fallback_boot" ] && killall -9 dhcpcd
+		if [ "$fallback_boot" ]; then
+			killall -9 dhcpcd
+		else
+			[ "$ntpserver" ] || ntpserver=`grep -E '^NTP=' < /etc/dhcpc/dhcpcd-eth0.info | cut -d '=' -f '2-'`
+		fi
 	fi
 fi
 
@@ -139,6 +143,11 @@ elif [ "$fallback_boot" ] && [ ! "$fallback_disabled" ]; then
 	
 	sh -c 'sleep 600; reboot' &
 else
+	if [ "$ntpserver" ] && [ "$ntpserver" != "none" ]; then
+		echo "Synchronizing time with NTP server $ntpserver ..."
+		ntpdate -t "$fallback_timeout" "$ntpserver"
+	fi
+	
 	cat /etc/motd
 	
 	# Launch user specific application script
