@@ -1044,6 +1044,17 @@ ntohl(*(unsigned int *)DhcpOptions.val[dhcpIPaddrLeaseTime]),
 ntohl(*(unsigned int *)DhcpOptions.val[dhcpT1value]),
 ntohl(*(unsigned int *)DhcpOptions.val[dhcpT2value]));
 
+if (DhcpOptions.val[ntpServers])
+	fprintf(
+		f,
+		"NTP=%u.%u.%u.%u\n",
+		((unsigned char *)DhcpOptions.val[ntpServers])[0],
+		((unsigned char *)DhcpOptions.val[ntpServers])[1],
+		((unsigned char *)DhcpOptions.val[ntpServers])[2],
+		((unsigned char *)DhcpOptions.val[ntpServers])[3]
+	);
+
+
       if (ferror(f)) {
 	failed = ENOSPC;
       }
