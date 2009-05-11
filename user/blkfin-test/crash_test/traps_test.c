@@ -459,20 +459,31 @@ struct {
 	{ 0x3f, stack_push_l1_non_existant, SIGBUS, "Stack push to non-existant L1" },
 };
 
-void usage(const char *errmsg)
+void list_tests(void)
 {
 	long test_num;
 
-	printf(
-		"Usage: bad_code [test number]\n"
-		"\n"
-		"If no test number is specified, the number of tests available will be shown.\n"
-		"If a test number is specified (0 <= n < # of tests), that test will be run.\n"
-		"If you specify -1, then all tests will be run in order.\n\n"
-		"#\texcause\ttest\n"
-	);
+	printf("#\texcause\ttest\n");
 	for (test_num = 0; test_num < ARRAY_SIZE(bad_funcs); ++test_num)
 		printf("%li\t0x%02x\t%s\n", test_num, bad_funcs[test_num].excause, bad_funcs[test_num].name);
+
+	exit(EXIT_SUCCESS);
+}
+
+void usage(const char *errmsg, char *progname)
+{
+	printf(
+		"Usage: %s [-c count] [-d milliseconds] [-q] [-l] [test number]\n"
+		"\n"
+		"-c count\tRepeat the test(s) count times before stopping\n"
+		"-d seconds\tThe number of milliseconds to delay between flushing stdout, and\n"
+		"\t\trunning the test (default is 1)\n"
+		"-l\t\tList tests, then quit\n"
+		"-q\t\tQuiet (don't print out test info)\n"
+		"If no test number is specified, the number of tests available will be shown.\n"
+		"If a test number is specified (0 <= n < # of tests), that test will be run.\n"
+		"If you specify -1, then all tests will be run in order.\n\n", progname
+	);
 
 	if (errmsg) {
 		fprintf(stderr, "\nERROR: %s\n", errmsg);
@@ -484,43 +495,87 @@ void usage(const char *errmsg)
 int main(int argc, char *argv[])
 {
 	char *endptr;
-	long test_num;
+	long test_num = 0;
+	int c, repeat = 1, count = 1, del;
+	int pass_count = 0, quiet = 0;
+	struct timespec delay;
+
+	delay.tv_sec = 1;
+	delay.tv_nsec = 0;
+	del = 1000;
 
 	if (argc == 1) {
 		printf("%li\n", ARRAY_SIZE(bad_funcs) - 1);
 		return EXIT_SUCCESS;
 	}
 
-	if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
-		usage(NULL);
+	while ((c = getopt (argc, argv, "1c:d:hlq")) != -1)
+		switch (c)
+		{
+		case '1':
+			test_num = -1;
+			break;
+		case 'c':
+			repeat = strtol(optarg, &endptr, 10);
+			if (optarg == endptr || endptr[0] || repeat <= 0)
+				usage("did not understand count", argv[0]);
+			break;
+		case 'h':
+			usage(NULL, argv[0]);
+			break;
+		case 'd':
+			del = strtol(optarg, &endptr, 10);
+			if (optarg == endptr || endptr[0])
+				usage("did not understand delay", argv[0]);
+			/* get seconds & nanoseconds */
+			delay.tv_sec = del / 1000;
+			delay.tv_nsec = (del - (delay.tv_sec * 1000)) * 1000000;
+			break;
+		case 'l':
+			list_tests();
+			break;
+		case 'q':
+			quiet = 1;
+			break;
+		case '?':
+		default:
+			usage("unknown option", argv[0]);
+			break;
+		}
 
-	if (argc != 2)
-		usage("Invalid number of arguments");
+	if (optind == argc && test_num != -1)
+		usage(NULL, argv[0]);
 
-	test_num = strtol(argv[1], &endptr, 10);
-	if (argv[1] == endptr || endptr[0])
-		usage("Specified test is not a number");
+	if (test_num != -1)
+		test_num = strtol(argv[optind], &endptr, 10);
+
+	if ((argv[optind] == endptr || endptr[0]) && test_num != -1)
+		usage("Specified test is not a number", argv[0]);
 
 	if (test_num >= 0 && test_num < ARRAY_SIZE(bad_funcs)) {
-		/* should get killed ... */
-		printf("\nRunning test %li for exception 0x%02x: %s\n... ", test_num, bad_funcs[test_num].excause, bad_funcs[test_num].name);
-		fflush(stdout);
-		sleep(1);
-		(*bad_funcs[test_num].func)();
-	} else if (test_num == -1) {
-		int pass_count = 0;
-		char number[10];
-		argv[1] = number;
+		int sig_actual=0;
+		char *str_actual;
 
-		for (test_num = 0; test_num < ARRAY_SIZE(bad_funcs); ++test_num) {
+		if (!quiet) {
+			printf("\nRunning test %li for exception 0x%02x: %s\n... ", test_num, bad_funcs[test_num].excause, bad_funcs[test_num].name);
+			fflush(stdout);
+		}
+		nanosleep(&delay, NULL);
+
+		/* should get killed ... */
+		if (repeat == 1)
+			(*bad_funcs[test_num].func)();
+
+		count = repeat;
+		while (count) {
 			pid_t pid;
 			int status;
 
-			sprintf(number, "%li", test_num);
+			count--;
 
 			pid = vfork();
 			if (pid == 0) {
-				int _ret = execvp(argv[0], argv);
+				int _ret = execlp(argv[0], argv[0], "-d", "0", "-q", argv[optind], NULL);
 				fprintf(stderr, "Execution of '%s' failed (%i): %s\n",
 					argv[0], _ret, strerror(errno));
 				_exit(_ret);
@@ -529,31 +584,63 @@ int main(int argc, char *argv[])
 			wait(&status);
 			if (WIFSIGNALED(status)) {
 				int sig_expect = bad_funcs[test_num].kill_sig;
-				int sig_actual = WTERMSIG(status);
-				char *str_expect = strsignal(sig_expect);
-				char *str_actual = strsignal(sig_actual);
+				sig_actual = WTERMSIG(status);
 				if (sig_expect == sig_actual) {
-					printf("PASS (test failed as expected by signal %i: %s)\n",
-						 sig_actual, str_actual);
 					++pass_count;
-				} else
+				} else {
+					char *str_expect = strsignal(sig_expect);
+					str_actual = strsignal(sig_actual);
 					printf("FAIL (test failed, but not with the right signal)\n"
 						"\t(We expected %i '%s' but instead we got %i '%s')\n",
 						sig_expect, str_expect, sig_actual, str_actual);
-			} else if (WIFEXITED(status))
-				printf("FAIL (test incorrectly 'passed' by exiting with %i)\n",
-					 WEXITSTATUS(status));
-			else
+					exit(EXIT_FAILURE);
+				}
+			}
+		}
+		str_actual = strsignal(sig_actual);
+		printf("PASS (test failed %i times, as expected by signal %i: %s)\n",
+			pass_count, sig_actual, str_actual);
+		exit(EXIT_SUCCESS);
+	} else if (test_num == -1) {
+		char number[10];
+		char pause[10];
+		char cnt[10];
+		argv[1] = number;
+
+		for (test_num = 0; test_num < ARRAY_SIZE(bad_funcs); ++test_num) {
+			pid_t pid;
+			int status;
+
+			sprintf(number, "%li", test_num);
+			sprintf(pause, "%i", del);
+			sprintf(cnt, "%i", repeat);
+
+			pid = vfork();
+			if (pid == 0) {
+				int _ret = execlp(argv[0], argv[0], "-d", pause, "-c", cnt, number, NULL);
+				fprintf(stderr, "Execution of '%s' failed (%i): %s\n",
+					argv[0], _ret, strerror(errno));
+				_exit(_ret);
+			}
+
+			wait(&status);
+			if (WIFSIGNALED(status)) {
+				int sig_actual = WTERMSIG(status);
+				char *str_actual = strsignal(sig_actual);
+				printf("Test application issue: received signal %i, (%s)\n", sig_actual, str_actual);
+				exit(EXIT_FAILURE);
+			} else if (WIFEXITED(status)) {
+				if (WEXITSTATUS(status) == EXIT_SUCCESS)
+					++pass_count;
+			} else
 				printf("FAIL (unknown exit status 0x%x)\n", status);
 
-			fflush(stdout);
-                        sleep (1);
 		}
 
 		exit(pass_count == ARRAY_SIZE(bad_funcs) ? EXIT_SUCCESS : EXIT_FAILURE);
 
 	} else
-		usage("Test number out of range");
+		usage("Test number out of range", argv[0]);
 
 	/* should never actually make it here ... */
 	return EXIT_FAILURE;
