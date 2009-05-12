@@ -1,3 +1,11 @@
++ Release v1.2
+
+* Added a fallback/recovery boot-mode which resets the IP address to 192.168.1.10 and inhibits the user application from running when no Ethernet cable is plugged in while booting.
+* Added SMB network filesystem mount ('smbmount') support.
+* Added NTP time synchronization support either through DHCP or the 'ntpserver' U-Boot environment variable.
+* Updated the image sensor driver to relax capture region (region of interest) requirements.
+
+
 + Release v1.1 indXcam
 
 Add support for samba mounting.
