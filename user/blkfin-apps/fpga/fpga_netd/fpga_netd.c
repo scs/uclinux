@@ -25,7 +25,7 @@
 #define BUFFSIZE		(4096 * 2)
 #define SYNCPATTERN		'S'
 #define SYNCPATTERN_SIZE	1
-#define DACFILESIZE		(BUFFSIZE)
+#define DACFILESIZE		(BUFFSIZE + 2)
 #define DACFILE_MAGIC		0xFFFF
 
 #undef DAEMONIZE
@@ -134,6 +134,7 @@ int main(int argc, char *argv[])
 			argv[0]);
 		exit(1);
 	}
+
 #ifdef DAEMONIZE
 	if (daemon(0, 0) < 0) {
 		Die("daemon");

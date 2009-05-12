@@ -14,6 +14,7 @@ $(EXEC): $(OBJS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
+	$(ROMFSINST) -a "[ -e /home/firmware.bin ] && fpga_loader /home/firmware.bin" /etc/rc
 
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o
