@@ -265,6 +265,9 @@ config USER_NDSO
 config USER_AWG 
 	bool "Networked Arbitrary Waveform Genertor"
 
+config USER_PPIFPGACGI 
+	bool "Networked PPI/FPGA Demo Project"
+
 config USER_BLACKFIN_PPIFCDCGI
 	bool "CGI based Test Application for the PPI Frame Capture Driver"
 

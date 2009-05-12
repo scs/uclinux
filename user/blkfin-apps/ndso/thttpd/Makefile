@@ -7,6 +7,10 @@ ifdef CONFIG_USER_AWG
 EXEC = awg
 endif
 
+ifdef CONFIG_USER_PPIFPGACGI
+EXEC = t_httpd
+endif
+
 OBJS = thttpd.o libhttpd.o mmc.o timers.o match.o tdate_parse.o
 
 
@@ -23,6 +27,7 @@ $(EXEC): $(OBJS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
+	$(ROMFSINST) -e CONFIG_USER_PPIFPGACGI -a "t_httpd &" /etc/rc
 
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o ndso awg

@@ -6,6 +6,7 @@ dir_y += thttpd
 dir_y += gnuplot
 dir_$(CONFIG_USER_NDSO) += src_ndso
 dir_$(CONFIG_USER_AWG)  += src_awg
+dir_$(CONFIG_USER_PPIFPGACGI)  += src_ppi_fpga_prj
 
 all:
 	for i in $(dir_y) ; do $(MAKE) -C $$i || exit $$? ; done
@@ -18,6 +19,9 @@ romfs:
 
 	$(ROMFSINST) -e CONFIG_USER_AWG web_awg /home/httpd/
 	$(ROMFSINST) -e CONFIG_USER_AWG -s index.htm /home/httpd/index.html
+
+	$(ROMFSINST) -e CONFIG_USER_PPIFPGACGI web_ppi_fpga_prj /home/httpd/
+	$(ROMFSINST) -e CONFIG_USER_PPIFPGACGI -s index.htm /home/httpd/index.html
 
 clean:
 	for i in $(dir_y) $(dir_n) $(dir_) ; do $(MAKE) -C $$i $@ || exit $$? ; done

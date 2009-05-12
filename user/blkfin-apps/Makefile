@@ -20,6 +20,7 @@ dir_$(CONFIG_USER_MPLAYER)                       += mplayer
 dir_$(CONFIG_USER_VLC)                           += vlc
 dir_$(CONFIG_USER_AWG)                           += ndso
 dir_$(CONFIG_USER_NDSO)                          += ndso
+dir_$(CONFIG_USER_PPIFPGACGI)                    += ndso
 dir_$(CONFIG_USER_NET_AUDIO)                     += net_audio
 dir_$(CONFIG_USER_UBOOT_TOOLS)                   += u-boot-tools
 dir_$(CONFIG_USER_SDLEXAMPLES)                   += sdl-examples
