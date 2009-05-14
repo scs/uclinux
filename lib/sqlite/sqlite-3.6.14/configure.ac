@@ -64,12 +64,16 @@ AC_SUBST(THREADSAFE_FLAGS)
 #   --enable-dynamic-extensions
 #
 AC_ARG_ENABLE(dynamic-extensions, [AS_HELP_STRING(
-  [--enable-dynamic-extensions], [support loadable extensions [default=yes]])], 
-  [], [enable_dynamic_extensions=yes])
-if test x"$enable_dynamic_extensions" != "xno"; then
-  AC_SEARCH_LIBS(dlopen, dl)
-else
+  [--enable-dynamic-extensions], [support loadable extensions [default=detect]])], 
+  [], [enable_dynamic_extensions=$ac_cv_header_dlfcn_h])
+if test x"$ac_cv_header_dlfcn_h" = xno ; then
+  if test x"$enable_dynamic_extensions" = xyes ; then
+    AC_MSG_ERROR([loadable extensions requested but no dlfcn support found!])
+  fi
   DYNAMIC_EXTENSION_FLAGS=-DSQLITE_OMIT_LOAD_EXTENSION=1
+  enable_dynamic_extensions=no
+else
+  AC_SEARCH_LIBS(dlopen, dl)
 fi
 AC_MSG_CHECKING([for whether to support dynamic extensions])
 AC_MSG_RESULT($enable_dynamic_extensions)
