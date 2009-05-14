@@ -1,5 +1,7 @@
 SUBDIRS = example test_module
 
+CFLAGS += -Wall
+
 all: corebld all_subdirs
 
 clean: clean_subdirs
