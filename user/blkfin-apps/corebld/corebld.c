@@ -2,13 +2,14 @@
  * User space application to load a standalone Blackfin ELF
  * into the second core of a dual core Blackfin (like BF561).
  *
- * Copyright 2005-2007 Analog Devices Inc.
+ * Copyright 2005-2009 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
  * Licensed under the GPL-2 or later.
  */
 
+#include <bfin_sram.h>
 #include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -22,6 +23,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/sysinfo.h>
 #include <sys/types.h>
 
 #ifndef ARRAY_SIZE
@@ -30,6 +32,10 @@
 #ifndef EM_BLACKFIN
 # define EM_BLACKFIN 106
 #endif
+
+#define CMD_COREB_START 2
+
+static bool force = false;
 
 static int open_coreb(void)
 {
@@ -41,12 +47,23 @@ static int open_coreb(void)
 	return ret;
 }
 
-static void StartCoreB(void)
+static void start_coreb(void)
 {
 	int fd = open_coreb();
-	ioctl(fd, 2, NULL);
+	ioctl(fd, CMD_COREB_START, NULL);
 	close(fd);
 }
+
+static unsigned long total_mem(void)
+{
+	struct sysinfo info;
+	if (sysinfo(&info))
+		perror("sysinfo() failed");
+	return info.totalram;
+}
+
+#define ASYNC_BASE 0x20000000
+#define ASYNC_LEN  0x10000000
 
 /* The valid memory map of Core B ... sanity checking so we don't
  * do something bad (by accident?)
@@ -88,6 +105,7 @@ static int put_region(void *dst, size_t dst_size, const void *src, size_t src_si
 	size_t i;
 	int ret;
 	void *new_src = NULL;
+	unsigned long ldst = (unsigned long)dst;
 
 	/* figure out how to get this section into the memory map */
 	for (i = 0; i < ARRAY_SIZE(mem_regions); ++i) {
@@ -122,27 +140,45 @@ static int put_region(void *dst, size_t dst_size, const void *src, size_t src_si
 	}
 
 	/* move the memory into Core B -- L1 stuff needs kernel help */
-	if (mem_regions[i].index < 0) {
-		ret = 0;
-		memcpy(dst, src, dst_size);
-	} else {
-		int fd = open_coreb();
-		ret = ioctl(fd, 1, &mem_regions[i].index);
-		if (ret)
-			fprintf(stderr, "coreb ioctl set failed: %s\n", strerror(errno));
-		else {
-			off_t seek = (unsigned long)mem_regions[i].start ^ (unsigned long)dst;
-			if ((ret = lseek(fd, seek, SEEK_SET)) < 0)
-				fprintf(stderr, "coreb seek failed: %s\n", strerror(errno));
-			else if ((ret = (write(fd, src, dst_size) != dst_size)))
-				fprintf(stderr, "coreb write failed: %s\n", strerror(errno));
+#define MEM_ERR(fmt, args...) \
+	fprintf(stderr, \
+		"\nERROR: Your destination address looks wrong: %p\n" \
+		fmt "; aborting.\n"\
+		" (re-run with --force to skip this check)\n\n", dst, ## args)
+
+	ret = 0;
+	if (!force) {
+		if (ldst >= 0xff000000) {
+			/* should not load into Core A L1 */
+			ret = 1;
+			MEM_ERR("This seems to be Core A L1 memory");
+		} else if (ldst >= ASYNC_BASE && ldst < ASYNC_BASE + ASYNC_LEN) {
+			/* should not load into async memory */
+			ret = 1;
+			MEM_ERR("It doesn't really make sense to try and load into async");
+		} else if (ldst >= total_mem() && ldst < 0xef000000) {
+			/* should not load into unavailable memory */
+			ret = 1;
+			MEM_ERR("The max mem available on your system seems to be 0x%08lx,\n"
+			        "but the destination is above that", total_mem());
+		} else if (ldst <= 0x4000) {
+			/* should not load into start of memory */
+			ret = 1;
+			MEM_ERR("The start of memory is reserved (NULL/fixed_code/kernel)");
 		}
-		close(fd);
+	}
+
+	if (ret == 0) {
+		if (ldst >= 0xff000000)
+			dma_memcpy(dst, src, dst_size);
+		else
+			memcpy(dst, src, dst_size);
 	}
 
 	free(new_src);
 
-	printf("wrote %zi bytes to 0x%p\n", dst_size, dst);
+	printf("writing to 0x%08lx, 0x%-7zx bytes: %s\n", (unsigned long)dst, dst_size,
+		ret ? "FAILED" : "OK");
 
 	return ret;
 }
@@ -204,9 +240,10 @@ int elf_load(const char *buf)
 	return ret;
 }
 
-#define GETOPT_FLAGS "shV"
+#define GETOPT_FLAGS "fshV"
 #define a_argument required_argument
 static struct option const long_opts[] = {
+	{"force",      no_argument, NULL, 'f'},
 	{"skip-start", no_argument, NULL, 's'},
 	{"help",       no_argument, NULL, 'h'},
 	{"version",    no_argument, NULL, 'V'},
@@ -229,7 +266,8 @@ static void show_usage(int exit_status)
 		"Usage: corebld [options] <Blackfin ELF>\n"
 		"\n"
 		"Options:\n"
-		"\t-s, --skip-start\tskip starting of Core B -- just load\n"
+		"\t-f, --force       force loading (ignore sanity checks)\n"
+		"\t-s, --skip-start  skip starting of Core B -- just load\n"
 	);
 	exit(exit_status);
 }
@@ -244,6 +282,7 @@ int main(int argc, char *argv[])
 
 	while ((i=getopt_long(argc, argv, GETOPT_FLAGS, long_opts, NULL)) != -1) {
 		switch (i) {
+		case 'f': force = true; break;
 		case 's': skip_coreb_start = true; break;
 		case 'h': show_usage(EXIT_SUCCESS);
 		case 'V': show_version();
@@ -293,7 +332,7 @@ int main(int argc, char *argv[])
 
 	i = elf_load(buf);
 	if (!i && !skip_coreb_start)
-		StartCoreB();
+		start_coreb();
 
 	munmap(buf, stat.st_size);
 	close(fd);
