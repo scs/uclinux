@@ -191,7 +191,7 @@ while 1 {
          case_fail $case_num
          break
       }
-      -re "wrote.*wrote.*$kernel_prompt" {
+      -re "wrot.*wrot.*$kernel_prompt" {
          send_user "\nexecute C application on another core\n"
          case_pass $case_num
          break
