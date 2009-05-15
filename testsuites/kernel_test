@@ -573,6 +573,12 @@ do
   make clean > /dev/null 2>&1
   fi
 
+  if [ ${AUTO_TESTCASE[$i]} == "xenomai" ] ; then
+  rm -rf $UCLINUX_DIST_PATH/user/xenomai
+  cd $UCLINUX_DIST_PATH/user
+  cp -a  $UCLINUX_DIST_PATH_BAK/user/xenomai .
+  fi
+
   echo  "End testing ${AUTO_TESTCASE[$i]}..."
   sleep 10
   
