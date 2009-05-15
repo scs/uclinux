@@ -84,6 +84,9 @@ while 1 {
     }
 }
 
+send "ls\r"
+expect -re $kernel_prompt
+
 incr case_num
 set timeout 2
 send "/usr/bin/bfin_opcontrol --dump\r"
