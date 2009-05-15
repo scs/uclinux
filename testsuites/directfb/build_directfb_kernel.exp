@@ -65,7 +65,7 @@ while 1 {
             send "Y\r"
         }
 
-        -re "SHARP LQ035 TFT LCD on uClinux.*FB_BF537_LQ035.*\\\[.*]" {
+        -re "SHARP LQ035 TFT LCD.*FB_BF537_LQ035.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
                 send "Y\r"
             } else {
@@ -137,7 +137,7 @@ while 1 {
             send "Y\r"
         }
 
-        -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
+        -re "Bank 3.*BANK_3.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
                 send "0xAAC2\r"
             } else {
@@ -248,7 +248,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .1
+            sleep .01
             send "\r"
         }
 

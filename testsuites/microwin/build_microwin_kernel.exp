@@ -88,7 +88,7 @@ while 1 {
             }
         }
 
-        -re "SHARP LQ035 TFT LCD.*BF537 STAMP.*\\\[.*]" {
+        -re "SHARP LQ035 TFT LCD.*FB_BF537_LQ035.*\\\[.*]" {
             send "M\r"
         }
 

@@ -84,7 +84,7 @@ while 1 {
             send "Y\r"
         }
 
-        -re "SHARP LQ035 TFT LCD on uClinux.*BF537 STAMP.*FB_BF537_LQ035.*\\\[.*]" {
+        -re "SHARP LQ035 TFT LCD.*FB_BF537_LQ035.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
                 send "M\r"
             } else {
