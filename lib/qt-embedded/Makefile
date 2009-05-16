@@ -1,4 +1,4 @@
-VER = qt-embedded-linux-opensource-src-4.5.0
+VER = qt-embedded-linux-opensource-src-4.5.1
 URL = ftp://ftp.trolltech.no/qt/source/$(VER).tar.gz
 
 USE_ECHO = $(shell test "$(CONFIG_$(1))" = "y" && echo "$(2)" || echo "$(3)")
@@ -12,13 +12,16 @@ CONF_SHARED_OPT = -static
 CONF_XPLATFORM  = qws/linux-bfin-flat-g++
 HAVE_SHARED := n
 endif
+CONF_ARCH = bfin
 
 CONFIG_QT_DEPTH ?= 8,16,24,32
 
 CONF_OPTS-y :=
 CONF_OPTS = \
-	-verbose \
 	-confirm-license \
+	-opensource \
+	-verbose \
+	\
 	-prefix /usr \
 	-plugindir /usr/lib/qt \
 	-datadir /usr/share/qt \
@@ -27,7 +30,7 @@ CONF_OPTS = \
 	-examplesdir /usr/qt/examples \
 	-demosdir /usr/qt/demos \
 	\
-	-embedded bfin \
+	-embedded $(CONF_ARCH) \
 	-xplatform $(CONF_XPLATFORM) \
 	-little-endian \
 	-force-pkg-config \
