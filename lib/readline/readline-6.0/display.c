@@ -1774,7 +1774,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	     space_to_eol will insert too many spaces.  XXX - maybe we should
 	     adjust col_lendiff based on the difference between _rl_last_c_pos
 	     and _rl_screenwidth */
-	  if (col_lendiff && (_rl_last_c_pos < _rl_screenwidth))
+	  if (col_lendiff && ((MB_CUR_MAX == 1 || rl_byte_oriented) || (_rl_last_c_pos < _rl_screenwidth)))
 #endif
 	    {	  
 	      if (_rl_term_autowrap && current_line < inv_botlin)
