@@ -626,17 +626,31 @@ int main(int argc, char *argv[])
 			wait(&status);
 			if (WIFSIGNALED(status)) {
 				int sig_actual = WTERMSIG(status);
+				int sig_expect = bad_funcs[test_num].kill_sig;
 				char *str_actual = strsignal(sig_actual);
-				printf("Test application issue: received signal %i, (%s)\n", sig_actual, str_actual);
-				exit(EXIT_FAILURE);
-			} else if (WIFEXITED(status)) {
+				if (repeat == 1) {
+					if (sig_actual == sig_expect) {
+						++pass_count;
+						printf("PASS (test failed, as expected by signal %i: %s)\n",
+							sig_actual, str_actual);
+					} else {
+						char *str_expect = strsignal(sig_expect);
+						printf("FAIL (test failed, but not with the right signal)\n"
+							"\t(We expected %i '%s' but instead we got %i '%s')\n",
+							sig_expect, str_expect, sig_actual, str_actual);
+					}
+				} else {
+					printf("Test application issue: received signal %i, (%s)\n", sig_actual, str_actual);
+					exit(EXIT_FAILURE);
+				}
+			} else if (repeat != 1 && WIFEXITED(status)) {
 				if (WEXITSTATUS(status) == EXIT_SUCCESS)
 					++pass_count;
 			} else
 				printf("FAIL (unknown exit status 0x%x)\n", status);
 
 		}
-
+		printf("\n%i/%i tests passed\n", pass_count, (int)ARRAY_SIZE(bad_funcs));
 		exit(pass_count == ARRAY_SIZE(bad_funcs) ? EXIT_SUCCESS : EXIT_FAILURE);
 
 	} else
