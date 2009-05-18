@@ -117,6 +117,42 @@ while 1 {
             send "N\r"
         }
 
+        -re "ftpd.*USER_FTPD_FTPD.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "telnet.*USER_TELNET_TELNET.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "telnetd.*USER_TELNETD_TELNETD.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "e2fsck.*USER_E2FSPROGS_E2FSCK_E2FSCK.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "mke2fs.*USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "mkdosfs.*USER_DOSFSTOOLS_MKDOSFS.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "dosfsck.*USER_DOSFSTOOLS_DOSFSCK.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "watchdogd.*USER_WATCHDOGD.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "zmodem utils.*USER_LRZSZ_LRZSZ.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "mp3play.*USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
             send "N\r"
         }
