@@ -832,7 +832,7 @@ static int empty_out_buf(void *buf, unsigned long nbytes)
 			continue;
 		fprintf (stderr, "bad OUT byte %d, expected %02x got %02x\n",
 				i, expected, *data);
-		for (i = 0, data = 0; i < nbytes; i++, data++) {
+		for (i = 0, data = buf; i < nbytes; i++, data++) {
 			if (0 == (i % 16))
 				fprintf (stderr, "%4d:", i);
 			fprintf (stderr, " %02x", *data);
