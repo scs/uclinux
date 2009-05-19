@@ -369,6 +369,13 @@ void l1_non_existant_write(void)
 	*i = 0;
 }
 
+void l1_non_existant_write_syscall(void)
+{
+	int *i = (void *)0xFFAFFFFC;
+	*i = 0;
+	sync();
+}
+
 void stack_l1_non_existant(void)
 {
         _bad_stack_set(0xFFAFFF00);
@@ -453,6 +460,7 @@ struct {
 	{ 0x3f, l1_non_existant_jump, SIGBUS, "Jump to non-existant L1" },
 	{ 0x3f, l1_non_existant_read, SIGBUS, "Read non-existant L1" },
 	{ 0x3f, l1_non_existant_write, SIGBUS, "Write non-existant L1" },
+	{ 0x3f, l1_non_existant_write_syscall, SIGBUS, "Write non-existant L1, then system call" },
 	{ 0x3f, bad_return_l1_non_existant, SIGBUS, "Return to non-existant L1" },
 	{ 0x3f, stack_instruction, SIGBUS, "Stack set to L1 instruction" },
 	{ 0x3f, stack_l1_non_existant, SIGBUS, "Stack set to non-existant L1" },
