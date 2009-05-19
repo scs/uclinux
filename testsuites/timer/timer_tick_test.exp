@@ -44,7 +44,7 @@ while 1 {
         -re $kernel_prompt {
             send_user "\nIt's not a SMP kernel.\n"
             set timer_interrupt_id 6
-            set timer_interrupt_name "Blackfin Core Timer"
+            set timer_interrupt_name "Blackfin CoreTimer"
             break
         }
         timeout {
