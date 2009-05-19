@@ -43,7 +43,9 @@ for {set case_num 1} {$case_num <= $count} {incr case_num} {
             }
         }
     }
-
+    
+    send -s "\r"
+    expect ">"
     sleep 4
     set timeout 50
     send -s "bootm $kernel_start_addr\r"
