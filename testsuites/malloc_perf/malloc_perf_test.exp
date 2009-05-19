@@ -35,22 +35,37 @@ while 1 {
     }
 }
 
-set timeout 500
-send "malloc-perf $time\r"
-while 1 {
-    expect {
-        -re "FAIL" {
-            send_log "\nTest for malloc performance fail\n"
-            case_fail $case_num
-        }
-        -re "PASS" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
+set malloc_pass 0
+set malloc_fail 0
+set Total_Count 10
+
+for {set count 1} {$count <= $Total_Count} {incr count} {
+    sleep 2
+    set timeout 500
+    send "malloc-perf $time\r"
+    while 1 {
+        expect {
+            -re "FAIL.*$kernel_prompt" {
+                incr malloc_fail
+                break
+            }
+            -re "PASS.*$kernel_prompt" {
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
+}
+
+incr case_num
+if { $malloc_fail == 0 } {
+    send_user "malloc-perf pass\n"
+    case_pass $case_num
+} else {
+    send_user "malloc-perf fails for $malloc_fail times\n"
+    case_fail $case_num
 }
 
 send_log "\n"
