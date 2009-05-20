@@ -267,7 +267,7 @@ if [ $BOARD_CONFIG = "BF527-EZKIT-STD" ] ; then
 
    BOARD_TYPE=BF527-EZKIT
 
-  AUTO_RUN_STATUS[2]="1"; AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[44]="1"; AUTO_RUN_STATUS[45]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[55]="0"; AUTO_RUN_STATUS[62]="1"; AUTO_RUN_STATUS[70]="1"; AUTO_RUN_STATUS[64]="1"; AUTO_RUN_STATUS[65]="1"; AUTO_RUN_STATUS[75]="1"; AUTO_RUN_STATUS[$(( n + 5 ))]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"; AUTO_RUN_STATUS[$(( n + 9 ))]="1"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 13 ))]="1"; AUTO_RUN_STATUS[$(( n + 17 ))]="1"
+  AUTO_RUN_STATUS[2]="1"; AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[44]="1"; AUTO_RUN_STATUS[45]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[55]="0"; AUTO_RUN_STATUS[62]="1"; AUTO_RUN_STATUS[70]="1"; AUTO_RUN_STATUS[64]="1"; AUTO_RUN_STATUS[65]="1"; AUTO_RUN_STATUS[75]="1"; AUTO_RUN_STATUS[$(( n + 5 ))]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"; AUTO_RUN_STATUS[$(( n + 9 ))]="1"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 13 ))]="1"; AUTO_RUN_STATUS[$(( n + 17 ))]="1"
 
    MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="1"  [7]="0" [8]="1"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"  [16]="1" [17]="0" [18]="1"  [19]="1" [20]="1" [$(( n + 1 ))]="0" [$(( n + 2 ))]="1" )
 
@@ -278,7 +278,7 @@ if [ $BOARD_CONFIG = "BF533-EZKIT-STD" ] ; then
 
    BOARD_TYPE=BF533-EZKIT
 
-   AUTO_RUN_STATUS[10]="0"; AUTO_RUN_STATUS[11]="0"; AUTO_RUN_STATUS[12]="0"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="1"
+   AUTO_RUN_STATUS[10]="0"; AUTO_RUN_STATUS[11]="0"; AUTO_RUN_STATUS[12]="0"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[42]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="1"
    
    MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="0"  [7]="0" [8]="0"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"  [16]="0" [17]="0" [18]="0"   [$(( n + 1 ))]="0"  )
       
@@ -289,7 +289,7 @@ if [ $BOARD_CONFIG = "BF548-EZKIT-STD" ] ; then
 
    BOARD_TYPE=BF548-EZKIT
    
-   AUTO_RUN_STATUS[9]="1";AUTO_RUN_STATUS[12]="1"; AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[44]="1"; AUTO_RUN_STATUS[45]="0"; AUTO_RUN_STATUS[54]="1"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[55]="1"; AUTO_RUN_STATUS[62]="1"; AUTO_RUN_STATUS[64]="1"; AUTO_RUN_STATUS[65]="1"; AUTO_RUN_STATUS[66]="1"; AUTO_RUN_STATUS[67]="1"; AUTO_RUN_STATUS[68]="1"; AUTO_RUN_STATUS[70]="1"; AUTO_RUN_STATUS[75]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1";AUTO_RUN_STATUS[$(( n + 9 ))]="1"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 13 ))]="1"; AUTO_RUN_STATUS[$(( n + 14 ))]="1"
+   AUTO_RUN_STATUS[9]="1";AUTO_RUN_STATUS[12]="1"; AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[44]="1"; AUTO_RUN_STATUS[45]="0"; AUTO_RUN_STATUS[54]="1"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[55]="1"; AUTO_RUN_STATUS[62]="1"; AUTO_RUN_STATUS[64]="1"; AUTO_RUN_STATUS[65]="1"; AUTO_RUN_STATUS[66]="1"; AUTO_RUN_STATUS[67]="1"; AUTO_RUN_STATUS[68]="1"; AUTO_RUN_STATUS[70]="1"; AUTO_RUN_STATUS[75]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1";AUTO_RUN_STATUS[$(( n + 9 ))]="1"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 13 ))]="1"; AUTO_RUN_STATUS[$(( n + 14 ))]="1"
 
    MANUAL_RUN_STATUS=( [0]="1"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="1"  [7]="0" [8]="1"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"  [16]="1" [17]="0" [18]="1"  [19]="1" [20]="1" [$(( n + 1 ))]="0"  [$(( n + 2 ))]="1" )
 
@@ -299,7 +299,7 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
 
    BOARD_TYPE=BF561-EZKIT
 
-   AUTO_RUN_STATUS[8]="0"; AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[66]="1"; AUTO_RUN_STATUS[67]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="1"; AUTO_RUN_STATUS[$(( n + 8 ))]="1"; AUTO_RUN_STATUS[$(( n + 12 ))]="0"
+   AUTO_RUN_STATUS[8]="0"; AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[42]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[66]="1"; AUTO_RUN_STATUS[67]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="1"; AUTO_RUN_STATUS[$(( n + 8 ))]="1"; AUTO_RUN_STATUS[$(( n + 12 ))]="0"
 
    MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="0"  [7]="0" [8]="0"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"  [16]="0" [17]="0" [18]="0"   [$(( n + 1 ))]="0" )
 
@@ -309,7 +309,7 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-SMP" ] ; then
 
    BOARD_TYPE=BF561-EZKIT
 
-   AUTO_RUN_STATUS[8]="0"; AUTO_RUN_STATUS[17]="0"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[41]="0"; AUTO_RUN_STATUS[42]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[$(( n + 8 ))]="0"; AUTO_RUN_STATUS[$(( n + 12 ))]="0"
+   AUTO_RUN_STATUS[8]="0"; AUTO_RUN_STATUS[17]="0"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[41]="0"; AUTO_RUN_STATUS[42]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[$(( n + 8 ))]="0"; AUTO_RUN_STATUS[$(( n + 12 ))]="0"
 
    MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="0"  [7]="0" [8]="0"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"  [16]="0" [17]="0" [18]="0"   [$(( n + 1 ))]="0" )
 
