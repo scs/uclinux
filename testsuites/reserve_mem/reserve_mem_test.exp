@@ -14,34 +14,21 @@ source ../reboot_kernel.exp
 
 step "Starting test."
 set timeout 8
-
-set MemTotal_HIGH  32000
-set MemTotal_LOW  28000
-
 set case_num 0
+
 incr case_num
-                       
-expect  -re $kernel_prompt
-send -s "cat /proc/meminfo\r"
+send "dmesg|head -n 20\r"
 while 1 {
     expect {
-        -re "MemTotal: +(\[0-9]+) kB" {
-            set MemTotal $expect_out(1,string)
+        -re "Board Memory: 64MB.*Kernel Managed Memory: 32MB.*0x\[0-9a-f]+-0x02000000\r\n\[A-Z]" {
+            expect -re $kernel_prompt
             case_pass $case_num
             break
         }
-
         timeout {
             case_fail $case_num
         }
     }
-}
-
-incr case_num
-if { $MemTotal < $MemTotal_HIGH  &&  $MemTotal > $MemTotal_LOW } {
-    case_pass $case_num
-} else {
-    case_fail $case_num
 }
 
 send_log "\n"
