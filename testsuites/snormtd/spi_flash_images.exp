@@ -12,6 +12,8 @@ send_user "Starting $argv0\n"
 
 set TITLE [title "$argv0"]
 
+append TITLE " TEST"
+
 step "Spawn kermit"
 source ../spawn_kermit.exp
 

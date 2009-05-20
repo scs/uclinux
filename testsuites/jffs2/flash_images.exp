@@ -8,6 +8,8 @@ send_user "Starting $argv0\n"
 
 set TITLE [title "$argv0"]
 
+append TITLE " TEST" 
+
 step "Spawn kermit"
 source ../spawn_kermit.exp
 
@@ -21,9 +23,14 @@ send -s "set bootargs $bootargs\r"
 expect   ">" 
 send -s "save\r"
 expect   ">" 
+
 step "Flash images."
 
-set timeout 1200   
+set case_num 0
+
+incr case_num
+
+set timeout 120   
 send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
 while 1 {
 expect {
@@ -97,13 +104,14 @@ set timeout 240
 	
 		"done" {
 			send_user " cp success\n"
+                        case_pass $case_num
 			break
 		}
 		
 				
 		timeout {
 		send_user "ERROR:  cp failed\n"
-		
+		case_fail $case_num
 		break
 		}
 	}
@@ -186,6 +194,7 @@ expect {
 
 	"done" {
 		send_user " cp success\n"
+                case_pass $case_num 
 		break
 	}
 	
@@ -193,7 +202,7 @@ expect {
 	
 	timeout {
 	send_user "ERROR:  cp failed\n"
-	
+	case_fail $case_num
 	break
 	}
 }
@@ -223,5 +232,8 @@ send -s "reset\r"
 }
 }
 
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
 log_file
-	
+exit 0	
