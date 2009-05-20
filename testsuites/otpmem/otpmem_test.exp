@@ -14,7 +14,7 @@ source ../reboot_kernel.exp
 
 step "Starting test"
 set timeout 8
-set count_size 440
+set count_size 3
 
 set case_num 0
 
