@@ -39,7 +39,7 @@ source  make_default_config.exp
 # Following make specific configuration for this case.
 
 cd $uclinux_path
-set timeout 30 
+set timeout 300 
 set baud_rate_done_flag 0
 spawn make config
 
