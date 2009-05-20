@@ -1,4 +1,7 @@
-VER := ntp-4.2.4p5
+VER := ntp-4.2.4p7
+
+# the ipv6 test passes compile but fails on link
+export ac_cv_have_in6addr_any = no
 
 ifdef CONFIG_USER_NTPD_NTPDATE
 NTPDATE := with
@@ -40,20 +43,7 @@ CONF_OPTS = \
 	--without-electricfence --without-sntp --$(NTPDATE)-ntpdate \
 	--$(NTPDC)-ntpdc --$(NTPQ)-ntpq
 
-
-all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER)
-
-build-$(VER)/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
-
-clean:
-	rm -rf build*
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPD build-$(VER)/ntpd/ntpd /bin/ntpd
@@ -62,5 +52,3 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPQ build-$(VER)/ntpq/ntpq /bin/ntpq
 	$(ROMFSINST) -a "ntp	123/tcp" /etc/services
 	$(ROMFSINST) -a "ntp	123/udp" /etc/services
-
-.PHONY: all clean romfs
