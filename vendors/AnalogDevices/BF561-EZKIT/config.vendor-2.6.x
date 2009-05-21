@@ -102,6 +102,7 @@ CONFIG_LIB_ZLIB=y
 # CONFIG_LIB_LIBID3TAG is not set
 # CONFIG_LIB_LIBIPOD is not set
 # CONFIG_LIB_LIBMAD is not set
+# CONFIG_LIB_LIBMODBUS is not set
 # CONFIG_LIB_LIBMPEG2 is not set
 # CONFIG_LIB_LIBSDL is not set
 # CONFIG_LIB_LIBTOOL is not set
@@ -1484,12 +1485,14 @@ CONFIG_USER_BF561_COREBLD=y
 # CONFIG_USER_UVC_VIDEO is not set
 # CONFIG_USER_CPUFREQUTILS is not set
 # CONFIG_USER_PICTUREFLOW is not set
+# CONFIG_USER_SERCD is not set
 
 #
 # Blackfin canned demos
 #
 # CONFIG_USER_NDSO is not set
 # CONFIG_USER_AWG is not set
+# CONFIG_USER_PPIFPGACGI is not set
 # CONFIG_USER_BLACKFIN_PPIFCDCGI is not set
 # CONFIG_USER_LINPHONE is not set
 # CONFIG_USER_NET_AUDIO is not set
