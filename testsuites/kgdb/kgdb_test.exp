@@ -672,6 +672,10 @@ while 1 {
 		}
 	}
 	expect {
+		"to quit---" {
+			send "\r"
+			exp_continue
+		}
 		"(gdb) " {
                         case_pass $case_num
 		}
@@ -700,6 +704,10 @@ while 1 {
                 }
         }
 	expect {
+		"to quit---" {
+			send "\r"
+			exp_continue
+		}
 		"(gdb) " {
                           case_pass $case_num
 		}
@@ -741,6 +749,10 @@ while 1 {
 		}
 	}
 	expect {
+		"to quit---" {
+			send "\r"
+			exp_continue
+		}
 		"(gdb) " {
 			if { 0 == [expr $reg_addr_after2 - $reg_addr_after1] } {
                             case_pass $case_num
@@ -1156,6 +1168,10 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 		}
 	}
 	expect {
+		"to quit---" {
+			send "\r"
+			exp_continue
+		}
 		"(gdb) " {
                         case_pass $case_num
 		}
@@ -1184,6 +1200,10 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
                 }
         }
 	expect {
+		"to quit---" {
+			send "\r"
+			exp_continue
+		}
 		"(gdb) " {
                           case_pass $case_num
 		}
@@ -1225,6 +1245,10 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 		}
 	}
 	expect {
+		"to quit---" {
+			send "\r"
+			exp_continue
+		}
 		"(gdb) " {
 			if { 0 == [expr $reg_addr_after2 - $reg_addr_after1] } {
                             case_pass $case_num
