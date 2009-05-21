@@ -148,7 +148,7 @@ static int put_region(void *dst, size_t dst_size, const void *src, size_t src_si
 
 	ret = 0;
 	if (!force) {
-		if (ldst >= 0xff000000) {
+		if (ldst >= 0xff800000) {
 			/* should not load into Core A L1 */
 			ret = 1;
 			MEM_ERR("This seems to be Core A L1 memory");
