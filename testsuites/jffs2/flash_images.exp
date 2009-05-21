@@ -29,6 +29,8 @@ step "Flash images."
 set case_num 0
 
 incr case_num
+send -s "\r"
+expect   ">" 
 
 set timeout 120   
 send -s "tftp 0x1000000 $compressed_kernel_only_image\r"

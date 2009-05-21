@@ -386,6 +386,30 @@ if [ $BINARY_FORMAT = "elf" ] ; then
    AUTO_RUN_STATUS[11]="0"; AUTO_RUN_STATUS[12]="0"; AUTO_RUN_STATUS[47]="0"; MANUAL_RUN_STATUS[13]="1"
 fi
 
+#########################   List the tests to be run on the machine  #########################
+
+testcase_list=(${AUTO_TESTCASE[@]:0} ${MANUAL_TESTCASE[@]:0})
+run_status_list=(${AUTO_RUN_STATUS[@]:0} ${MANUAL_RUN_STATUS[@]:0})
+#echo ${testcase_list[@]:0}
+#echo ${run_status_list[@]:0}
+
+p=${#testcase_list[*]}
+q=${#run_status_list[*]}
+
+echo "**********************************************"
+echo "All the testcases that run on this machine:"
+echo "(Auto test and manual test.)"
+if [ $p -eq $q ] ; then
+for i in `seq 0 $p`
+do
+if [ ! -z ${run_status_list[$i]} ] && [ ${run_status_list[$i]} == 1 ] ; then
+echo ${testcase_list[$i]}
+
+fi
+done
+echo "**********************************************"
+fi
+
 
 #########################   Build and run the tests     #######################################
 
