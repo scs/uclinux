@@ -146,7 +146,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 15
+set timeout 30
 send "fdisk $dev\r"
 while 1 {
     expect {
@@ -170,7 +170,9 @@ while 1 {
                     -re "kernel still uses the old table|\[eE]rror|\[fF]ail" {
                         case_fail $case_num
                     }
-                    -re "Syncing disks.*#" {
+                    -re "Syncing disks" {
+                        send "\r"
+                        expect "#"
                         case_pass $case_num
                         break
                     }
@@ -223,7 +225,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 60
+set timeout 120
 send "time dd if=/dev/zero of=$mnt_point/10m.bin bs=1M count=10\r"
 while 1 {
     expect {
