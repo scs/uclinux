@@ -7,6 +7,8 @@ VER = 606f38a2221648ca5c5fa292c9f71d2ddd59fa66
 TARGETS-y :=
 TARGETS-$(CONFIG_USER_MTDUTILS_ERASE)        += flash_erase
 TARGETS-$(CONFIG_USER_MTDUTILS_ERASEALL)     += flash_eraseall
+TARGETS-$(CONFIG_USER_MTDUTILS_LOCK)         += flash_lock
+TARGETS-$(CONFIG_USER_MTDUTILS_UNLOCK)       += flash_unlock
 TARGETS-$(CONFIG_USER_MTDUTILS_FTL_CHECK)    += ftl_check
 TARGETS-$(CONFIG_USER_MTDUTILS_FTL_FORMAT)   += ftl_format
 TARGETS-$(CONFIG_USER_MTDUTILS_NFTL_FORMAT)  += nftl_format
@@ -56,6 +58,8 @@ clean:
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASE        build-$(VER)/flash_erase /bin/flash_erase
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASEALL     build-$(VER)/flash_eraseall /bin/flash_eraseall
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_LOCK         build-$(VER)/flash_lock /bin/flash_lock
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_UNLOCK       build-$(VER)/flash_unlock /bin/flash_unlock
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_FTL_CHECK    build-$(VER)/ftl_check /bin/ftl_check
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_FTL_FORMAT   build-$(VER)/ftl_format /bin/ftl_format
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_MKFSJFFS     build-$(VER)/mkfs.jffs /bin/mkfs.jffs
