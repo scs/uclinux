@@ -58,6 +58,18 @@ while 1 {
             send -s "Y\r"
         }
 
+        -re "SPI support.*SPI.*\\\[.*]" {
+            if { $board_type == "BF518-EZBRD" } {
+                send "N\r"
+            }
+        }
+
+        -re "Distributed Switch Architecture support.*NET_DSA.*\\\[.*]" {
+            if { $board_type == "BF518-EZBRD" } {
+                send "N\r"
+            }
+        }
+
         "\\\(*) \\\[*]" {
             sleep .01
             send "\r"
