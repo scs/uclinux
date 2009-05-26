@@ -82,6 +82,8 @@ send -s "set ipaddr $targetip\r"
 expect ">"
 send -s "save\r"
 expect ">"
+send -s "\r"
+expect ">"
 
 if { $ram_size <= 32 } {
          set bootaddr $bootaddr_low
