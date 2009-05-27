@@ -689,7 +689,7 @@ while 1 {
 	incr case_num
         send "disassemble\r"
         expect {
-               -re "$reg_addr_before.*\[\r\n].*(\[^0-9a-zA-Z]0x\[0-9a-fA-F]{8})" {
+		-re "$reg_addr_before.*\[\r\n]?.*\[\r\n](0x\[0-9a-fA-F]{8})" {
                           set reg_addr_after1 $expect_out(1,string)
                           puts "\nreg_addr_after1 $reg_addr_after1 \n"
                 }
@@ -1185,7 +1185,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 	incr case_num
         send "disassemble\r"
         expect {
-               -re "$reg_addr_before.*\[\r\n].*(\[^0-9a-zA-Z]0x\[0-9a-fA-F]{8})" {
+		-re "$reg_addr_before.*\[\r\n]?.*\[\r\n](0x\[0-9a-fA-F]{8})" {
                           set reg_addr_after1 $expect_out(1,string)
                           puts "\nreg_addr_after1 $reg_addr_after1 \n"
                 }

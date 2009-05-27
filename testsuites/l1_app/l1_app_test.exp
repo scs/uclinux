@@ -14,6 +14,26 @@ source ../reboot_kernel.exp
 step "Start testing."
 set case_num 0
 
+send "\r"
+expect  -re $kernel_prompt
+
+send "ifconfig eth0 $targetip up\r"
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+         puts "ifconfig set success.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
+
+
 
 if [ catch { exec make clean } ] {
     send_user "\nFAIL: Clean src directory\n"
