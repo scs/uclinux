@@ -36,3 +36,24 @@ ifdef checks match those found in QDecorationDefault
  }
  //! [paint end]
 +#endif
+
+make ifdefs match those found in qkbdusb_qws.h
+
+--- qt-embedded-linux-opensource-src-4.5.0/src/gui/embedded/qkbdusb_qws.cpp
++++ qt-embedded-linux-opensource-src-4.5.0/src/gui/embedded/qkbdusb_qws.cpp
+@@ -43,6 +43,8 @@
+ 
+ #ifndef QT_NO_QWS_KEYBOARD
+ 
++#ifndef QT_NO_QWS_KBD_USB
++
+ #include "qscreen_qws.h"
+ 
+ #include "qwindowsystem_qws.h"
+@@ -398,4 +400,6 @@
+ 
+ #include "qkbdusb_qws.moc"
+ 
++#endif // QT_NO_QWS_KBD_USB
++
+ #endif // QT_NO_QWS_KEYBOARD
