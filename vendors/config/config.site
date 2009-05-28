@@ -35,7 +35,8 @@ find_gnuconfig() {
 		${v} \
 		/usr/share/gnuconfig/config.$1 \
 		/usr/share/libtool/config.$1 \
-		/usr/share/automake/config.$1 \
+		/usr/share/libtool/*/config.$1 \
+		/usr/share/automake*/config.$1 \
 		${ac_confdir}/config.$1
 	do
 		if [ -x "${c}" ] ; then
