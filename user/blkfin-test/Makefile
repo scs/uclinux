@@ -4,7 +4,6 @@ dir_  =
 dir_all = $(dir_y) $(dir_n) $(dir_)
 
 dir_$(CONFIG_USER_BLACKFIN_RTC)             += rtc-test
-dir_$(CONFIG_USER_BLACKFIN_PFLAGS)          += pflags-test
 dir_$(CONFIG_USER_BLACKFIN_PFBUTTONS)       += pfbuttons-test
 dir_$(CONFIG_USER_BLACKFIN_PPIFCDTEST)      += ppifcd-test
 dir_$(CONFIG_USER_BLACKFIN_DPMC)            += dpmc-test
