@@ -177,10 +177,6 @@ config USER_PCMCIAUTILS
 	select LIB_LIBSYSFS
 config USER_DAGRAB_DAGRAB
 	bool "dagrab"
-config USER_CAN_EXAMPLES
-	bool "can4linux examples"
-config USER_CAN_HORCH
-	bool "horch"
 config USER_SDLEXAMPLES
 	bool "SDL Examples"
 	select LIB_LIBSDL
