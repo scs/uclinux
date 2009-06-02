@@ -693,10 +693,29 @@ while 1 {
                           set reg_addr_after1 $expect_out(1,string)
                           puts "\nreg_addr_after1 $reg_addr_after1 \n"
                 }
-		"to quit---" {
-			send "\r"
-			exp_continue
-		}
+                -re "(0x\[0-9a-fA-F]{8}).*\[\r\n].*to quit" {
+
+                       send "\r"
+
+                       if { 0 == [expr $reg_addr_before - $expect_out(1,string)] } {
+                             expect {
+                                     -re "(0x\[0-9a-fA-F]{8})" {
+                                                set reg_addr_after1 $expect_out(1,string)
+                                                puts "\nreg_addr_after1 $reg_addr_after1 \n"
+                                      }
+                                     timeout {
+                                                clean_host_gdb
+                                                case_fail $case_num
+                                                        exit
+
+                                     }
+                              }
+                        } else {
+                              exp_continue
+                        }
+
+                }
+
                 timeout {
                 clean_host_gdb
                 case_fail $case_num
