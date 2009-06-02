@@ -128,7 +128,7 @@ while 1 {
 }
 
 set spawn_id $kermit_spawn_id
-set timeout 2
+set timeout 15
 send "/test_helloworld\r"
 while 1 {
    expect {
@@ -139,9 +139,11 @@ while 1 {
       }
 
       eof {
+         case_pass $case_num
          break
       }
       timeout {
+         case_fail $case_num
          break
       }
    }
