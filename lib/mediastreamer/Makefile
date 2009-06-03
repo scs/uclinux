@@ -2,6 +2,7 @@ VER = mediastreamer-2.1.0
 
 CONF_OPTS = \
 	--disable-strict \
+	SPEEX_LIBS="-L$(STAGEDIR)/usr/lib -lspeex -lspeexdsp -lm" \
 	$(call USE_ENABLE,LIB_FFMPEG,video)
 
 include $(ROOTDIR)/tools/autotools.mk
