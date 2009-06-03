@@ -1815,7 +1815,7 @@ set result_matrix {
        { setuid01     	     {setuid01}                     	 notrun		UCLINUX } 
        { setuid02     	     {setuid02}                     	 notrun		UCLINUX } 
        { setuid03     	     {setuid03}                     	 notrun		UCLINUX } 
-       { shmat01     	     {shmat01}                     	 notrun		UCLINUX } 
+       { shmat01     	     {shmat01}                     	 notrun		NA } 
        { shmat02     	     {shmat02}                     	 notrun		UCLINUX } 
        { shmat03     	     {shmat03}                     	 notrun		UCLINUX } 
        { shmctl01     	     {shmctl01}                     	 notrun		UCLINUX } 
