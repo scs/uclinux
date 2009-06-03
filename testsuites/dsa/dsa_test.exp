@@ -63,7 +63,7 @@ while 1 {
 }
 
 expect -re  $sh_prompt
-send -s "ifconfig eth1 $host_eth1 \r"
+send -s "ifconfig eth2 $host_eth1 \r"
 while 1 {
    expect {
       -re "$sh_prompt" {
@@ -74,6 +74,34 @@ while 1 {
             break
          }
      }
+}
+
+proc restore_host_ipaddr { } {
+
+global host_id
+global sh_prompt 
+global serverip
+global password
+global host_eth1 
+
+set spawn_id $host_id
+
+expect -re  $sh_prompt
+send -s "sudo /sbin/ifconfig eth2 $serverip \r"
+while 1 {
+   expect {
+      -re "\[Pp\]assword" {
+         send -s "$password\r"
+         expect "ifconfig host eth1 to new address $host_eth1"
+         break 
+      }
+
+      timeout {
+            send_log "Restore host ipaddr error!"
+            break
+         }
+     }
+}
 }
 
 set case_num 0
@@ -120,6 +148,9 @@ while 1 {
          break
       }
 
+      "No such device" {
+         exit
+      }
       timeout {
             puts "Fail ifconfig. "
             break
@@ -150,6 +181,7 @@ while 1 {
       timeout {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          }
      }
@@ -164,6 +196,7 @@ while 1 {
       -re "seq=15.*ttl.*time" {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          break
       }
@@ -178,6 +211,7 @@ while 1 {
       timeout {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          }
      }
@@ -191,6 +225,7 @@ while 1 {
    expect {
       -re "Unable|failure|H!|$target_eth2" {
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          break
       }
@@ -204,6 +239,7 @@ while 1 {
       timeout {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
      }
      }
@@ -223,6 +259,7 @@ while 1 {
  
       -re "traceroute to.*ms.*ms.*ms" {
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          break
       }
@@ -230,6 +267,7 @@ while 1 {
       timeout {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
      }
      }
@@ -287,6 +325,7 @@ while 1 {
       }
 
       timeout {
+         restore_host_ipaddr
          case_fail $case_num
      }
      }
@@ -305,6 +344,7 @@ while 1 {
       }
 
       timeout {
+         restore_host_ipaddr
          case_fail $case_num
      }
      }
@@ -315,6 +355,7 @@ if { $host_md5sum_value == $target_md5sum_value } {
     case_pass $case_num
 } else {
     send_user "Ftp through eth1 fail!"
+         restore_host_ipaddr
     case_fail $case_num
 }
 
@@ -402,6 +443,7 @@ while 1 {
       -re "seq=15.*Destination Host Unreachable" {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          break
       }
@@ -409,6 +451,7 @@ while 1 {
       timeout {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          }
      }
@@ -423,6 +466,7 @@ while 1 {
       -re "seq=15.*ttl.*time" {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          break
       }
@@ -437,6 +481,7 @@ while 1 {
       timeout {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          }
      }
@@ -450,6 +495,7 @@ while 1 {
    expect {
       -re "Unable|failure|H!|$target_eth1" {
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          break
       }
@@ -463,6 +509,7 @@ while 1 {
       timeout {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
      }
      }
@@ -482,6 +529,7 @@ while 1 {
  
       -re "traceroute to.*ms.*ms.*ms" {
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
          break
       }
@@ -489,6 +537,7 @@ while 1 {
       timeout {
          send "\003"
          expect -re "$sh_prompt"
+         restore_host_ipaddr
          case_fail $case_num
      }
      }
@@ -546,6 +595,7 @@ while 1 {
       }
 
       timeout {
+         restore_host_ipaddr
          case_fail $case_num
      }
      }
@@ -564,39 +614,25 @@ while 1 {
       }
 
       timeout {
+         restore_host_ipaddr
          case_fail $case_num
      }
      }
 }
+
 
 if { $host_md5sum_value == $target_md5sum_value } {
     send_user "Ftp through eth2 success!"
     case_pass $case_num
 } else {
     send_user "Ftp through eth2 fail!"
+    restore_host_ipaddr
     case_fail $case_num
 }
 }
-
-set spawn_id $host_id
-
-expect -re  $sh_prompt
-send -s "sudo /sbin/ifconfig eth1 $serverip \r"
-while 1 {
-   expect {
-      -re "\[Pp\]assword" {
-         send -s "$password\r"
-         expect "ifconfig host eth1 to new address $host_eth1"
-         break
-      }
-
-      timeout {
-            break
-         }
-     }
-}
-
    
+restore_host_ipaddr
+
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
