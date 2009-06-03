@@ -171,7 +171,7 @@ while 1 {
             }
         }
 
-        -re "Policy.*Write back.*BFIN_WB.*Write through.*BFIN_WT.*choice.*\\\[.*]" {
+        -re "\[Pp]olicy.*Write back.*BFIN_WB.*Write through.*BFIN_WT.*choice.*\\\[.*]" {
             if { $policy == "write_through" } {
                 send "2\r"
             } elseif { $policy == "write_back" } {
