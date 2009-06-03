@@ -12,7 +12,11 @@ soname=libaio.so.1
 minor=0
 micro=1
 libname=$(soname).$(minor).$(micro)
+ifeq ($(CONFIG_FMT_USE_FLAT), y) 
+all_targets += libaio.a
+else
 all_targets += libaio.a $(libname)
+endif
 
 all: $(all_targets)
 
@@ -55,9 +59,11 @@ $(libname): $(libaio_sobjs) libaio.map
 install: $(all_targets)
 	install -D -m 644 libaio.h $(DESTDIR)$(includedir)/libaio.h
 	install -D -m 644 libaio.a $(DESTDIR)$(usrlibdir)/libaio.a
+ifneq ($(CONFIG_FMT_USE_FLAT), y) 
 	install -D -m 755 $(libname) $(DESTDIR)$(libdir)/$(libname)
 	ln -sf $(libname) $(DESTDIR)$(usrlibdir)/$(soname)
 	ln -sf $(libname) $(DESTDIR)$(usrlibdir)/libaio.so
+endif
 
 $(libaio_objs): libaio.h
 
