@@ -28,7 +28,6 @@ expect {
         }
 }
 
-sleep 1
 
 set timeout 2
 while 1 {
@@ -48,8 +47,6 @@ set timeout 30
 send -s "tftpboot 0x1000000 $boot_image\r"
 while 1 {
    expect {
-      "TFTP" {
-      }
       ">" {
          break
       }

@@ -36,7 +36,7 @@ while 1 {
        }
 
            -re "Enable writing support of OTP pages.*BFIN_OTP_WRITE_ENABLE.*\\\[.*]" {
-             send "\r"
+                send "Y\r"
       }
 
            -re  "\\\(.*\\\) \\\[.*]" {
