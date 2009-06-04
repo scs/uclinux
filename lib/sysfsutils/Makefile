@@ -16,6 +16,6 @@ clean:
 
 romfs:
 	#$(ROMFSINST) build/systool /bin/systool
-	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/lib/libsysfs.so.2 /lib/libsysfs.so.2
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libsysfs.so.2 /lib/libsysfs.so.2
 
 .PHONY: all clean romfs
