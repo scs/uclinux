@@ -1878,9 +1878,9 @@ set result_matrix {
        { sync02     	     {sync02}                     	 notrun		UCLINUX } 
        { syscall01     	     {syscall01}                     	 notrun		UCLINUX } 
        { sysconf01     	     {sysconf01}                     	 notrun		UCLINUX } 
-       { sysctl01     	     {sysctl01}                     	 notrun		UCLINUX } 
-       { sysctl03     	     {sysctl03}                     	 notrun		UCLINUX } 
-       { sysctl04     	     {sysctl04}                     	 notrun		UCLINUX } 
+       { sysctl01     	     {sysctl01}                     	 notrun		NA } 
+       { sysctl03     	     {sysctl03}                     	 notrun		NA } 
+       { sysctl04     	     {sysctl04}                     	 notrun		NA } 
        { sysctl05     	     {sysctl05}                     	 notrun		NA } 
        { sysfs01     	     {sysfs01}                     	 notrun		NA } 
        { sysfs02     	     {sysfs02}                     	 notrun		NA } 
