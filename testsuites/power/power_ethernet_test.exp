@@ -148,10 +148,12 @@ proc standby_test_case2 {} {
 
 step "Start testing"
 set case_num 0
+set timeout 15
 set Total_Count 5
 sleep 5
 send "\r"
 expect -re $kernel_prompt
+expect -re "Up.*Full"
 
 set timeout 20
 incr case_num
