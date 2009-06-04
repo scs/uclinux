@@ -21,6 +21,7 @@ Some make variable can be used to control compilation.
  NO_PIE=	  if non-empty, don't build portmap as a PIE
  NO_TCP_WRAPPER=  if non-empty, don't use tcp_wrappers
  NO_DAEMON=	  if non-empty, don't use the daemon() func (for no-MMU)
+ NO_MMU=	  if non-empty, don't use the fork() func (for no-MMU)
  USE_DNS=	  if set, tcp_wrappers can check peers based on hostname
 		  as well as IP address.  This should only be used if you
 		  are certain that gethostbyname will never trigger a

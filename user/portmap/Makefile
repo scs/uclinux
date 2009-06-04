@@ -4,7 +4,7 @@ export NO_TCP_WRAPPER = disabled
 export NO_PIE = disabled
 
 all:
-	$(MAKE) -C $(VER)
+	$(MAKE) NO_MMU=1 -C $(VER)
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_PORTMAP_PORTMAP $(VER)/portmap /bin/portmap

@@ -120,7 +120,9 @@ static void reg_service(struct svc_req *rqstp, SVCXPRT *xprt);
 #ifndef IGNORE_SIGCHLD			/* Lionel Cons <cons@dxcern.cern.ch> */
 static void reap(int);
 #endif
+#ifndef NO_MMU
 static void callit(struct svc_req *rqstp, SVCXPRT *xprt);
+#endif
 struct pmaplist *pmaplist;
 int debugging = 0;
 int store_fd = -1;
@@ -628,6 +630,7 @@ static void reg_service(struct svc_req *rqstp, SVCXPRT *xprt)
 		}
 		break;
 
+#ifndef NO_MMU
 	case PMAPPROC_CALLIT:
 		/*
 		 * Calls a procedure on the local machine.  If the requested
@@ -638,6 +641,7 @@ static void reg_service(struct svc_req *rqstp, SVCXPRT *xprt)
 		 */
 		callit(rqstp, xprt);
 		break;
+#endif
 
 	default:
 		/* remote host authorization check */
@@ -647,7 +651,7 @@ static void reg_service(struct svc_req *rqstp, SVCXPRT *xprt)
 	}
 }
 
-
+#ifndef NO_MMU
 /*
  * Stuff for the rmtcall service
  */
@@ -796,6 +800,7 @@ static void callit(struct svc_req *rqstp, SVCXPRT *xprt)
 	(void)close(so);
 	exit(0);
 }
+#endif
 
 #ifndef IGNORE_SIGCHLD			/* Lionel Cons <cons@dxcern.cern.ch> */
 static void reap(int ignore)

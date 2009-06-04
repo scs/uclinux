@@ -62,8 +62,6 @@
 #define MOUNTPROC_MNT	((u_long) 1)
 #define NFS_PORT	2049
 
-static void logit(int severity, struct sockaddr_in *addr,
-		  u_long procnum, u_long prognum, char *text);
 static void toggle_verboselog(int sig);
 int     verboselog __attribute ((visibility ("hidden"))) = 0;
 int     allow_severity __attribute ((visibility ("hidden"))) = LOG_INFO;
@@ -77,6 +75,10 @@ int     deny_severity __attribute ((visibility ("hidden"))) = LOG_WARNING;
 
 #define	legal_port(a,p) \
   (reserved_port(ntohs((a)->sin_port)) || unreserved_port(p))
+
+#ifndef NO_MMU
+static void logit(int severity, struct sockaddr_in *addr,
+		  u_long procnum, u_long prognum, char *text);
 
 #define log_bad_port(addr, proc, prog) \
   logit(deny_severity, addr, proc, prog, ": request from unprivileged port")
@@ -92,7 +94,13 @@ int     deny_severity __attribute ((visibility ("hidden"))) = LOG_WARNING;
 
 #define log_client(addr, proc, prog) \
   logit(allow_severity, addr, proc, prog, "")
-
+#else
+#define log_bad_port(addr, proc, prog)
+#define log_bad_host(addr, proc, prog)
+#define log_bad_owner(addr, proc, prog)
+#define log_no_forward(addr, proc, prog)
+#define log_client(addr, proc, prog)
+#endif
 /* check_startup - additional startup code */
 
 void check_startup(void)
@@ -273,7 +281,7 @@ static void toggle_verboselog(int sig)
 }
 
 /* logit - report events of interest via the syslog daemon */
-
+#ifndef NO_MMU
 static void logit(int severity, struct sockaddr_in *addr,
 		  u_long procnum, u_long prognum, char *text)
 {
@@ -328,3 +336,4 @@ static void logit(int severity, struct sockaddr_in *addr,
 	exit(0);
     }
 }
+#endif
