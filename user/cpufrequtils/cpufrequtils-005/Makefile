@@ -179,8 +179,7 @@ libcpufreq.la: $(LIB_OBJS) $(LIB_HEADERS) $(LIB_PARTS) Makefile
 		exit -1; \
 	fi;
 ifeq ($(CONFIGURE_SHARED_ENABLE),--enable-shared)
-	$(QUIET) $(CC) $(CFLAGDEF) $(CFLAGS) $(LDFLAGS) -o libcpufreq.so.0 -Wl,-soname,libcpufreq.so.0
-		$(LIB_PARTS)
+	$(QUIET) $(CC) $(CFLAGDEF) $(CFLAGS) $(LDFLAGS) -shared -o libcpufreq.so.0 -Wl,-soname,libcpufreq.so.0 $(LIB_PARTS)
 	ln -sf libcpufreq.so.0 libcpufreq.so
 endif
 	$(QUIET) $(CC) $(CFLAGDEF) $(CFLAGS) -c $(LIB_OBJS)
