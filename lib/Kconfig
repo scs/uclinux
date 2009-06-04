@@ -66,6 +66,7 @@ config LIB_LIBLDAP
 
 config LIB_LIBLZMA
 	bool "Build liblzma"
+	select LIB_ZLIB
 	default n
 
 config LIB_LIBLZO
