@@ -1,0 +1,77 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+source ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+
+step "Make config"
+
+source make_default_config.exp
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "n\r"
+        }
+
+        -re "Blackfin JTAG Communication.*BFIN_JTAG_COMM.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Console on Blackfin JTAG.*BFIN_JTAG_COMM_CONSOLE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source copy_image.exp
+
+send_user "Ending $argv0\n"
+log_file
