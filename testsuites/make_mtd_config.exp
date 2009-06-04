@@ -49,6 +49,14 @@ while 1 {
             send "Y\r"
         }
 
+        -re "lock.*USER_MTDUTILS_LOCK.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "unlock.*USER_MTDUTILS_UNLOCK.*\\\[.*]" {
+            send "Y\r"
+        }
+
         -re "mkfs.jffs2.*USER_MTDUTILS_MKFSJFFS2.*\\\[.*]" {
             send "Y\r"
         }
