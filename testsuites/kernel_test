@@ -472,7 +472,7 @@ fi
   ####################            AUTOMATED TESTING             ###############################
   #############################################################################################
  
-for i in `seq 0 76` 
+for i in `seq 0 76`
 do
   if [ ${AUTO_RUN_STATUS[$i]} -eq 1  ] ; then
   
@@ -581,6 +581,12 @@ do
 
   fi
  
+  if [ ${AUTO_TESTCASE[$i]} == "g729" ] ; then
+  mkdir $THIS_LOG/g729
+  cd $UCLINUX_DIST_PATH/lib/libbfgdots/g729/test/
+  cp -fr test_data alltests.sh g729ab_test g729ab_testsimgot g729ab_testfdpic g729ab_testfdpic_so ../src.fdpic/libg729ab.so $THIS_LOG/g729
+  fi
+
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
   cp $UCLINUX_DIST_PATH/images/vmImage  $THIS_LOG/vmImage.${AUTO_TESTCASE[$i]}
   cp $UCLINUX_DIST_PATH/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.${AUTO_TESTCASE[$i]}
@@ -1973,7 +1979,7 @@ fi
   ###########################          MANUAL TEST          ######################################
   ################################################################################################
     
-for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
+for i in `seq 0 21`
   do
   if [ ${MANUAL_RUN_STATUS[$i]} -eq 1  ] ; then
   
