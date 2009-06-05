@@ -60,7 +60,6 @@ dir_3_$(CONFIG_LIB_LIBIDN)       += libidn
 dir_3_$(CONFIG_LIB_LIBCRYPT_OLD) += libcrypt_old
 dir_3_$(CONFIG_LIB_LIBLZO)       += lzo
 dir_3_$(CONFIG_LIB_LIBPCRE)      += pcre
-dir_3_$(CONFIG_LIB_LIBLZMA)      += liblzma
 dir_3_$(CONFIG_LIB_OSIP2)        += osip2
 dir_3_$(CONFIG_LIB_LIBEFENCE)    += libefence
 dir_3_$(CONFIG_LIB_TERMCAP)      += termcap
@@ -76,6 +75,7 @@ dir_3_$(CONFIG_LIB_LIBFFI)       += libffi
 dir_3_$(CONFIG_LIB_BITVECTOR)    += bitvector
 
 # See Kconfig for the dependencies
+dir_4_$(CONFIG_LIB_LIBLZMA)      += liblzma
 dir_4_$(CONFIG_LIB_LIBPNG)       += libpng
 dir_4_$(CONFIG_LIB_LIBCURL)      += libcurl
 dir_5_$(CONFIG_LIB_LIBXML2)      += libxml2
