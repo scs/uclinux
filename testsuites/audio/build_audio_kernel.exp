@@ -138,6 +138,14 @@ while 1 {
             }
         }
 
+        -re "Set a SPORT for Sound chip.*SND_BF5XX_SPORT_NUM.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" && $audio_dev == "audio_ad1981b" } {
+                send "1\r"
+            } else {
+                send "\r"
+            }
+        }
+
         -re "Support for frame buffer devices.*FB.*\\\[.*]" {
             if { $board_type == "BF527-EZKIT" && $audio_dev == "audio_ad1981b" } {
                 #ad1981b conflicts with bfin-t350mcqb on BF527-EZKIT

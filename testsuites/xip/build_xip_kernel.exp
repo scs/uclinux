@@ -42,19 +42,23 @@ while 1 {
         }
 
         -re "ROM file system support.*ROMFS_FS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "MTD-based ROM file system support.*ROMFS_MTD_FS.*\\\[.*]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Enable shared FLAT support \\\(BINFMT_SHARED_FLAT\\\).*\\\[././.]" {
-            send "y\r"
+            send "Y\r"
         }
 
         -re "Generic uClinux RAM/ROM filesystem support \\\(MTD_UCLINUX\\\).*\\\[./././.]" {
-            send "y\r"
+            send "Y\r"
+        }
+
+        -re "Build bit vector.*LIB_BITVECTOR.*\\\[.*]" {
+            send "N\r"
         }
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {

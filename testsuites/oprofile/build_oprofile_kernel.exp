@@ -76,6 +76,7 @@ while 1 {
 
         -re "Profiling support.*PROFILING.*\\\[.*]" {
             send "Y\r"
+            sleep .01
         }
 
         -re "OProfile system profiling.*OPROFILE.*\\\[.*]" {
