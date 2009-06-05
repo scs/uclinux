@@ -34,6 +34,8 @@ test: FORCE
 	cd tests; make test
 
 romfs: FORCE
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y) 
 	for l in libraries/liblber/.libs/liblber.so libraries/libldap/.libs/libldap.so; do \
 		cp -fa --preserve=mode $$l* $(ROMFSDIR)/lib/;	\
 	done
+endif
