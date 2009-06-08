@@ -46,7 +46,7 @@ while 1 {
 
         -re "Blackfin on-chip NAND Flash Controller driver.*MTD_NAND_BF5XX.*\\\[.*]" {
         
-             if { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
+             if { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" || $board_type == "BF526-EZBRD" } {
 
                         send -s "Y\r"
 
@@ -66,7 +66,7 @@ while 1 {
 
         -re "Blackfin on-chip MAC support.*BFIN_MAC.*\\\[.*]" {
 
-             if { $board_type == "BF527-EZKIT" } {
+             if { $board_type == "BF527-EZKIT" || $board_type == "BF526-EZBRD" } {
 
                         send -s "M\r"
 

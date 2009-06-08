@@ -66,6 +66,12 @@ while 1 {
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "N\r"
         }
+
+        -re "Distributed Switch Architecture support.*NET_DSA.*\\\[.*]" {
+
+                    send -s "N\r"
+        }
+
 #######################################################################################
 
         -re "Build ncurses.*LIB_NCURSES.*\\\[.*]" {
