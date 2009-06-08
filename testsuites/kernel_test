@@ -1803,7 +1803,11 @@ fi
   ################################## USB DEVICE STRESS TEST #####################################
   
  if [ ${AUTO_RUN_STATUS[$(( n + 18 ))]} -eq 1  ] ; then
-  echo  "Testing usbdev..."
+  TARGET_MUSB_MODE="dma pio"
+  for config in $TARGET_MUSB_MODE
+  do
+
+  echo  "Testing usbdev in $config mode..."
 
   rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
   cd $UCLINUX_DIST_PATH/
@@ -1813,7 +1817,7 @@ fi
   rm -rf romfs/ images/
 
   cd $UCLINUX_DIST_TESTSUITES/usbdev
-  ./build_usbdev_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
+  ./build_usbdev_kernel.exp $BOARD_TYPE $config >/dev/null  2>&1
 
 
   if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
@@ -1888,9 +1892,17 @@ fi
 
   fi
 
-  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.usbdev
-  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.usbdev
-  cp $UCLINUX_DIST_TESTSUITES/usbdev/*_log $THIS_LOG
+  cd $UCLINUX_DIST_TESTSUITES/usbdev
+  usbdev_file=`ls *log`
+  echo $usbdev_file
+  for file in $usbdev_file;
+  do
+      mv $file $file.$config
+  done
+
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.usbdev.$config
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.usbdev.$config
+  cp $UCLINUX_DIST_TESTSUITES/usbdev/*_log* $THIS_LOG
 
   sleep 30
 
@@ -1899,6 +1911,8 @@ fi
       ./reset_board.exp  >/dev/null  2>&1
       sleep 10
   fi
+
+  done
 
  fi
 
