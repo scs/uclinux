@@ -26,10 +26,21 @@ set TEST_FAIL fail
 if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
 
 set bootargs 		 $bootargs_param1
-}  elseif { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
+
+}  elseif { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" || $board_type == "BF518F-EZBRD" || $board_type == "BF526-EZBRD" } {
 #set bootargs 		 $bootargs_param3
 exit 1
 }
+
+if { $board_type == "BF537-STAMP" } {
+
+set chip_select 1
+
+}  elseif { $board_type == "BF533-STAMP"  } {
+
+set chip_select 2
+}
+
 send -s "set bootargs $bootargs\r" 
 expect ">"
 send -s "save\r"
@@ -40,43 +51,50 @@ set case_num 0
 
 incr case_num
   
-send -s "mw.b 0x1000000 0xff $spi_rootfs_size \r"
+send -s "sf probe $chip_select\r"
 
 while 1 {
 set timeout 500
 expect {
 
-	">" {
-	
+	"now current device" {
+        expect $uboot_prompt 
+	set probe_sf_flag $TEST_PASS
 	break
+	}
+
+	"Failed to initialize" {
+	set probe_sf_flag $TEST_FAIL
+        case_fail $case_num
+        exit
 	}
 
 	timeout {
-	send_user "ERROR: read eeprom error\n"
-	set temp_status_flag $TEST_FAIL	
-	break
-	}
-}
-}
-
-send -s "eeprom write 0x1000000 $spi_rootfs_start_addr $spi_rootfs_size\r"
-
-while 1 {
-set timeout 500
-expect {
-
-	"done" {
-	set write_eeprom_flag $TEST_PASS
-	break
-	}
-
-	timeout {
-	send_user "ERROR: write eeprom error\n"
+	send_user "ERROR: probe sf error\n"
 	set temp_status_flag $TEST_FAIL
 	break
 	}
 }
 }
+
+send -s "sf erase 0x0 $spi_size\r"
+
+while 1 {
+	set timeout 500
+	expect {
+
+	    $uboot_prompt {
+		set write_sf_flag $TEST_PASS
+		break
+	    }
+    
+	    timeout {
+		send_user "ERROR: write sf error\n"
+		set temp_status_flag $TEST_FAIL
+		break
+	    }
+	}
+    }
 
 
 ##########################################################################################################
@@ -90,6 +108,7 @@ expect {
         -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
                 set image_size $expect_out(1,string)
                 send_user "Image size is $image_size\n"
+                expect  $uboot_prompt   
                 break
         }
 	
@@ -101,50 +120,44 @@ expect {
 	}
 }
 }
-expect ">"  
  
-
-send -s "eeprom write 0x1000000 $spi_kernel_start_addr 0x$image_size\r"
+send -s "sf write 0x1000000 $spi_kernel_start_addr 0x$image_size\r"
 
 while 1 {
-	set timeout 500
 	expect {
 
-	    "done" {
-		set write_eeprom_flag $TEST_PASS
+	    $uboot_prompt {
+		set write_sf_flag $TEST_PASS
 		break
 	    }
     
 	    timeout {
-		send_user "ERROR: write eeprom error\n"
+		send_user "ERROR: write sf error\n"
 		set temp_status_flag $TEST_FAIL
 		break
 	    }
 	}
     }
-  
-expect ">"   
-send -s "eeprom read 0x2000000 $spi_kernel_start_addr 0x$image_size\r"
+sleep 1  
+send -s "sf read 0x2000000 $spi_kernel_start_addr 0x$image_size\r"
 
 while 1 {
-	set timeout 500
 	expect {
 
-	    "done" {
-		set read_eeprom_flag $TEST_PASS
+	    $uboot_prompt {
+		set read_sf_flag $TEST_PASS
 		break
 	    }
     
 	    timeout {
-		send_user "ERROR: read eeprom error\n"
+		send_user "ERROR: read sf error\n"
 		set temp_status_flag $TEST_FAIL
 		break
 	    }
 	}
     }
 
-expect ">"
-
+sleep 1
 send -s "cmp.b 0x1000000 0x2000000 0x$image_size\r"
 
 while 1 {
@@ -157,9 +170,10 @@ while 1 {
 	    }
     
 	    timeout {
-		send_user "ERROR: compare eeprom error\n"
+		send_user "ERROR: compare sf error\n"
 		set temp_status_flag $TEST_FAIL
-		exit
+                break
+		#exit
 	    }
 	}
     }
@@ -175,6 +189,7 @@ expect {
          -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
                 set image_size $expect_out(1,string)
                 send_user "Image size is $image_size\n"
+                expect  $uboot_prompt   
                 break
         }
 	
@@ -186,20 +201,19 @@ expect {
 }
 }
 
-expect ">"   
-send -s "eeprom write 0x1000000 $spi_rootfs_start_addr 0x$image_size\r"
+send -s "sf write 0x1000000 $spi_rootfs_start_addr 0x$image_size\r"
 
 while 1 {
 	set timeout 500
 	expect {
 
-	    "EEPROM*write*done" {
-		set write_eeprom_flag $TEST_PASS
+	    $uboot_prompt {
+		set write_sf_flag $TEST_PASS
 		break
 	    }
     
 	    timeout {
-		send_user "ERROR: write eeprom error\n"
+		send_user "ERROR: write sf error\n"
 		set temp_status_flag $TEST_FAIL
 		break
 	    }
@@ -208,8 +222,6 @@ while 1 {
   
 
     
-expect ">"
-
 send -s "bootm 0x2000000\r"
 while 1 {
 	set timeout 35

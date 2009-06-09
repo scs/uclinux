@@ -18,6 +18,7 @@ set spi_kernel_start_addr 0x40000
 set spi_kernel_size 0x180000
 set spi_rootfs_start_addr 0x1c0000
 set spi_rootfs_size 0x63ffff
+set spi_size 0x800000
 set pnor_rootfs_num 2
 set spi_rootfs_num 2
 set nand_rootfs_num 1
