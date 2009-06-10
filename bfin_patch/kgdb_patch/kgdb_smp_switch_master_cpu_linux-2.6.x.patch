@@ -54,7 +54,7 @@ index e4dcfb2..277986d 100644
  
  	local_irq_save(flags);
  	cpu = raw_smp_processor_id();
-@@ -577,10 +578,26 @@
+@@ -577,10 +578,33 @@
  	smp_wmb();
  	atomic_set(&cpu_in_kgdb[cpu], 1);
  
@@ -64,8 +64,15 @@ index e4dcfb2..277986d 100644
  	while (atomic_read(&passive_cpu_wait[cpu]))
  		cpu_relax();
  
++#ifdef __ARCH_SYNC_CORE_ICACHE
++	resync_core_icache();
++#endif
++#ifdef __ARCH_SYNC_CORE_DCACHE
++	resync_core_dcache();
++#endif
++
 +	/* Trap into kgdb as the active CPU if gdb asks to switch. */
-+	thread = getthread(regs, -raw_smp_processor_id() - 2);
++	thread = getthread(regs, -cpu - 2);
 +	if ((arch_kgdb_ops.flags & KGDB_THR_PROC_SWAP) &&
 +		kgdb_contthread && kgdb_contthread == current) {
 +		kgdb_breakpoint();
@@ -81,7 +88,7 @@ index e4dcfb2..277986d 100644
  	kgdb_info[cpu].debuggerinfo = NULL;
  	kgdb_info[cpu].task = NULL;
  
-@@ -1066,13 +1083,16 @@
+@@ -1066,13 +1090,16 @@
  			sprintf(tmpstr, "shadowCPU%d",
  					(int)(-ks->threadid - 2));
  			kgdb_mem2hex(tmpstr, remcom_out_buffer, strlen(tmpstr));
@@ -99,7 +106,7 @@ index e4dcfb2..277986d 100644
  {
  	struct task_struct *thread;
  	char *ptr;
-@@ -1089,6 +1109,15 @@
+@@ -1089,6 +1116,15 @@
  		kgdb_usethread = thread;
  		ks->kgdb_usethreadid = ks->threadid;
  		strcpy(remcom_out_buffer, "OK");
@@ -115,7 +122,7 @@ index e4dcfb2..277986d 100644
  		break;
  	case 'c':
  		ptr = &remcom_in_buffer[2];
-@@ -1102,10 +1131,27 @@
+@@ -1102,10 +1138,27 @@
  				break;
  			}
  			kgdb_contthread = thread;
@@ -143,7 +150,7 @@ index e4dcfb2..277986d 100644
  }
  
  /* Handle the 'T' thread query packets */
-@@ -1114,6 +1160,9 @@
+@@ -1114,6 +1167,9 @@
  	char *ptr = &remcom_in_buffer[1];
  	struct task_struct *thread;
  
@@ -153,7 +160,7 @@ index e4dcfb2..277986d 100644
  	kgdb_hex2long(&ptr, &ks->threadid);
  	thread = getthread(ks->linux_regs, ks->threadid);
  	if (thread)
-@@ -1223,7 +1272,12 @@
+@@ -1223,7 +1279,12 @@
  	/* Clear the out buffer. */
  	memset(remcom_out_buffer, 0, sizeof(remcom_out_buffer));
  
@@ -167,7 +174,7 @@ index e4dcfb2..277986d 100644
  		unsigned char thref[8];
  		char *ptr;
  
-@@ -1238,6 +1292,7 @@
+@@ -1238,6 +1299,7 @@
  		put_packet(remcom_out_buffer);
  	}
  
@@ -175,7 +182,7 @@ index e4dcfb2..277986d 100644
  	kgdb_usethread = kgdb_info[ks->cpu].task;
  	ks->kgdb_usethreadid = shadow_pid(kgdb_info[ks->cpu].task->pid);
  	ks->pass_exception = 0;
-@@ -1284,7 +1339,8 @@
+@@ -1284,7 +1346,8 @@
  			gdb_cmd_query(ks);
  			break;
  		case 'H': /* task related */
@@ -185,7 +192,7 @@ index e4dcfb2..277986d 100644
  			break;
  		case 'T': /* Query thread status */
  			gdb_cmd_thread(ks);
-@@ -1324,6 +1380,7 @@
+@@ -1324,6 +1387,7 @@
  			if (error >= 0 || remcom_in_buffer[0] == 'D' ||
  			    remcom_in_buffer[0] == 'k') {
  				error = 0;
@@ -193,7 +200,7 @@ index e4dcfb2..277986d 100644
  				goto kgdb_exit;
  			}
  
-@@ -1464,11 +1521,15 @@
+@@ -1464,11 +1528,15 @@
  	 * Get the passive CPU lock which will hold all the non-primary
  	 * CPU in a spin state while the debugger is active
  	 */
@@ -210,7 +217,7 @@ index e4dcfb2..277986d 100644
  	/*
  	 * spin_lock code is good enough as a barrier so we don't
  	 * need one here:
-@@ -1477,7 +1538,7 @@
+@@ -1477,7 +1545,7 @@
  
  #ifdef CONFIG_SMP
  	/* Signal the other CPUs to enter kgdb_wait() */
@@ -219,7 +226,7 @@ index e4dcfb2..277986d 100644
  		kgdb_roundup_cpus(flags);
  #endif
  
-@@ -1496,7 +1557,6 @@
+@@ -1496,7 +1564,6 @@
  	kgdb_post_primary_code(ks->linux_regs, ks->ex_vector, ks->err_code);
  	kgdb_deactivate_sw_breakpoints();
  	kgdb_single_step = 0;
@@ -227,7 +234,7 @@ index e4dcfb2..277986d 100644
  	exception_level = 0;
  
  	/* Talk to debugger with gdbserial protocol */
-@@ -1510,7 +1570,14 @@
+@@ -1510,7 +1577,14 @@
  	kgdb_info[ks->cpu].task = NULL;
  	atomic_set(&cpu_in_kgdb[ks->cpu], 0);
  
@@ -243,7 +250,7 @@ index e4dcfb2..277986d 100644
  		for (i = NR_CPUS-1; i >= 0; i--)
  			atomic_set(&passive_cpu_wait[i], 0);
  		/*
-@@ -1536,9 +1603,9 @@
+@@ -1536,9 +1610,9 @@
  int kgdb_nmicallback(int cpu, void *regs)
  {
  #ifdef CONFIG_SMP
