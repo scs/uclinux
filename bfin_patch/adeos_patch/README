@@ -4,6 +4,11 @@ Last update: 2009-04-08
 
 History:
 
+2009-06-10
+------------
+update to: ipipe-2.6.28.10-noarch-1.10-00.patch
+from http://download.gna.org/adeos/patches/v2.6/blackfin/adeos-ipipe-2.6.28.10-blackfin.git-1.10-00.patch
+
 2009-04-08
 --------------
 ipipe-2.6.28.9-noarch-git95aafe6.patch
