@@ -228,8 +228,8 @@ send -s "reset\r"
 
 	timeout {
 	send_user "failed reset attempt\n"
-	
-	break
+	case_fail $case_num
+	exit
 	}
 }
 }
