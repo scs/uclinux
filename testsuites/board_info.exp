@@ -40,7 +40,16 @@ set pnor_rootfs_num 2
 set spi_rootfs_num 6
 set nand_rootfs_num 1
  
-} elseif { $board_type == "BF527-EZKIT" || $board_type == "BF518F-EZBRD" || $board_type == "BF526-EZBRD" } {
+} elseif { $board_type == "BF518F-EZBRD" } {
+set uboot_size 0x40000
+set kernel_size 0x1c0000
+set rootfs_size 0x200000
+set spi_rootfs_start_addr 0x40000
+set spi_rootfs_size 0x1bffff
+set pnor_rootfs_num 2
+set spi_rootfs_num 4
+
+} elseif { $board_type == "BF527-EZKIT" || $board_type == "BF526-EZBRD" } {
 set uboot_size 0x40000
 set kernel_size 0x1c0000
 set rootfs_size 0x200000
@@ -71,6 +80,10 @@ if { $board_type == "BF537-STAMP" } {
   set  cpu       BF548
 } elseif { $board_type == "BF527-EZKIT" } {
   set  cpu       BF527
+} elseif { $board_type == "BF526-EZBRD" } {
+  set  cpu       BF526
+} elseif { $board_type == "BF518F-EZBRD" } {
+  set  cpu       BF518
 } else {
   set  cpu       BF537
 }
