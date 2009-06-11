@@ -65,11 +65,11 @@ sleep 3
 expect {
     ">" {
          set flag 1
-         puts "ifconfig set success.\n"
+         send_log "ifconfig set success.\n"
     }
 
     timeout {
-         puts "Fail ifconfig. "
+         send_log "Fail ifconfig. "
     }
 }
 
@@ -658,14 +658,14 @@ while 1 {
 	expect {
 		-re "pc\[\x20\t]+(0x\[0-9a-fA-F]+)" {
                         set reg_addr_before $expect_out(1,string)
-                        puts "\nreg_addr_before $reg_addr_before \n"
+                        send_log "\nreg_addr_before $reg_addr_before \n"
 		}
 		"to quit---" {
 			send "\r"
 			exp_continue
 		}
                 timeout {
-                        puts "\nreg_addr_before timeout! \n"
+                        send_log "\nreg_addr_before timeout! \n"
                 clean_host_gdb
                 case_fail $case_num
 			exit
@@ -689,28 +689,32 @@ while 1 {
 	incr case_num
         send "disassemble\r"
         expect {
-		-re "$reg_addr_before.*\[\r\n]?.*\[\r\n](0x\[0-9a-fA-F]{8})" {
+		-re "$reg_addr_before.*\[\r\n](0x\[0-9a-fA-F]{8})" {
                           set reg_addr_after1 $expect_out(1,string)
-                          puts "\nreg_addr_after1 $reg_addr_after1 \n"
+                          send_log "\nreg_addr_after1 $reg_addr_after1 \n"
                 }
                 -re "(0x\[0-9a-fA-F]{8}).*\[\r\n].*to quit" {
 
                        send "\r"
 
                        if { 0 == [expr $reg_addr_before - $expect_out(1,string)] } {
+                             send_log "Test log 11.\n"
                              expect {
                                      -re "(0x\[0-9a-fA-F]{8})" {
                                                 set reg_addr_after1 $expect_out(1,string)
-                                                puts "\nreg_addr_after1 $reg_addr_after1 \n"
+                                                send_log "\nreg_addr_after1 $reg_addr_after1 \n"
+                                                send_log "Test log 22.\n"
                                       }
                                      timeout {
                                                 clean_host_gdb
+                                                send_log "Test log 33.\n"
                                                 case_fail $case_num
                                                         exit
 
                                      }
                               }
                         } else {
+                              send_log "Test log 44.\n"
                               exp_continue
                         }
 
@@ -718,6 +722,7 @@ while 1 {
 
                 timeout {
                 clean_host_gdb
+                send_log "Test log 55.\n"
                 case_fail $case_num
                         exit
                 }
@@ -725,12 +730,15 @@ while 1 {
 	expect {
 		"to quit---" {
 			send "\r"
+                send_log "Test log 66.\n"
 			exp_continue
 		}
 		"(gdb) " {
+                send_log "Test log 77.\n"
                           case_pass $case_num
 		}
 		timeout {
+                send_log "Test log 88.\n"
 		clean_host_gdb
 		case_fail $case_num
 			exit
@@ -754,14 +762,14 @@ while 1 {
 	expect {
 		-re "pc\[\x20\t]+(0x\[0-9a-fA-F]+)" {
                         set reg_addr_after2 $expect_out(1,string)
-                        puts "\nreg_addr_after2 $reg_addr_after2 \n"
+                        send_log "\nreg_addr_after2 $reg_addr_after2 \n"
 		}
 		"to quit---" {
 			send "\r"
 			exp_continue
 		}
                 timeout {
-                        puts "\nreg_addr_after timeout! \n"
+                        send_log "\nreg_addr_after timeout! \n"
                 clean_host_gdb
                 case_fail $case_num
 			exit
@@ -1173,14 +1181,14 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 	expect {
 		-re "pc\[\x20\t]+(0x\[0-9a-fA-F]+)" {
                         set reg_addr_before $expect_out(1,string)
-                        puts "\nreg_addr_before $reg_addr_before \n"
+                        send_log "\nreg_addr_before $reg_addr_before \n"
 		}
 		"to quit---" {
 			send "\r"
 			exp_continue
 		}
                 timeout {
-                        puts "\nreg_addr_before timeout! \n"
+                        send_log "\nreg_addr_before timeout! \n"
                 clean_host_gdb
                 case_fail $case_num
 			exit
@@ -1206,7 +1214,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         expect {
 		-re "$reg_addr_before.*\[\r\n]?.*\[\r\n](0x\[0-9a-fA-F]{8})" {
                           set reg_addr_after1 $expect_out(1,string)
-                          puts "\nreg_addr_after1 $reg_addr_after1 \n"
+                          send_log "\nreg_addr_after1 $reg_addr_after1 \n"
                 }
 		"to quit---" {
 			send "\r"
@@ -1250,14 +1258,14 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 	expect {
 		-re "pc\[\x20\t]+(0x\[0-9a-fA-F]+)" {
                         set reg_addr_after2 $expect_out(1,string)
-                        puts "\nreg_addr_after2 $reg_addr_after2 \n"
+                        send_log "\nreg_addr_after2 $reg_addr_after2 \n"
 		}
 		"to quit---" {
 			send "\r"
 			exp_continue
 		}
                 timeout {
-                        puts "\nreg_addr_after timeout! \n"
+                        send_log "\nreg_addr_after timeout! \n"
                 clean_host_gdb
                 case_fail $case_num
 			exit

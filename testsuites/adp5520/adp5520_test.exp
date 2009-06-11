@@ -1,0 +1,417 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "Starting test."
+set timeout 8
+
+set case_num 0
+
+incr case_num
+                       
+expect  -re $kernel_prompt
+send -s "modprobe adp5520_bl\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\nmodule insert success.\n"
+                case_pass $case_num
+	break
+}
+
+-re "\[Ff]ail"  {
+                case_fail $case_num
+	exit
+	}
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+
+send -s "cd sys/class/backlight/adp5520-backlight/\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\n cd success.\n"
+                case_pass $case_num
+	break
+}
+
+"bad directory" {
+                case_fail $case_num
+	exit
+	}
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+send -s "echo 3 > brightness\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\n change brightness success.\n"
+                case_pass $case_num
+	break
+}
+
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+sleep 5
+
+send -s "echo 0 > brightness\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\n change brightness success.\n"
+                case_pass $case_num
+	break
+}
+
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+sleep 5
+
+incr case_num
+
+send -s "rmmod adp5520_bl;cd /\r" 
+while 1 {
+   expect {
+      -re $kernel_prompt {
+                case_pass $case_num
+         break
+      }
+
+      timeout { 
+                case_fail $case_num
+	exit
+         }
+     }
+}
+##############################################################################################
+
+incr case_num
+                       
+expect  -re $kernel_prompt
+send -s "modprobe leds-adp5520\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\nmodule insert success.\n"
+                case_pass $case_num
+	break
+}
+
+-re "\[Ff]ail"  {
+                case_fail $case_num
+	exit
+	}
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+
+send -s "cd sys/class/leds/adp5520-led1/\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\n cd success.\n"
+                case_pass $case_num
+	break
+}
+
+"bad directory" {
+                case_fail $case_num
+	exit
+	}
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+send -s "echo 10 > brightness\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\n change brightness success.\n"
+                case_pass $case_num
+	break
+}
+
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+sleep 5
+
+send -s "echo 0 > brightness\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\n change brightness success.\n"
+                case_pass $case_num
+	break
+}
+
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+sleep 5
+
+incr case_num
+
+send -s "rmmod leds-adp5520;cd /\r" 
+while 1 {
+   expect {
+      -re $kernel_prompt {
+                case_pass $case_num
+         break
+      }
+
+      timeout { 
+                case_fail $case_num
+	exit
+         }
+     }
+}
+##################################################
+
+incr case_num
+                       
+expect  -re $kernel_prompt
+send -s "modprobe adp5520-gpio\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\nmodule insert success.\n"
+                case_pass $case_num
+	break
+}
+
+-re "\[Ff]ail"  {
+                case_fail $case_num
+	exit
+	}
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+
+send -s "cd sys/class/gpio/gpiochip50/\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\n cd success.\n"
+                case_pass $case_num
+	break
+}
+
+"bad directory" {
+                case_fail $case_num
+	exit
+	}
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+
+send -s "rmmod adp5520-gpio;cd /\r" 
+while 1 {
+   expect {
+      -re $kernel_prompt {
+                case_pass $case_num
+         break
+      }
+
+      timeout { 
+                case_fail $case_num
+	exit
+         }
+     }
+}
+#####################################################################
+incr case_num
+                       
+expect  -re $kernel_prompt
+send -s "modprobe adp5520-keys\r"
+while 1 {
+expect {
+-re $kernel_prompt {
+
+	puts "\nmodule insert success.\n"
+                case_pass $case_num
+	break
+}
+
+-re "\[Ff]ail"  {
+                case_fail $case_num
+	exit
+	}
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+
+expect  -re $kernel_prompt
+send -s "lsmod\r"
+while 1 {
+expect {
+"adp5520_keys" {
+
+	puts "\nmodule ls success.\n"
+                case_pass $case_num
+	break
+}
+
+timeout {
+                case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+
+send -s "cd /bin\r" 
+while 1 {
+   expect {
+      "root:/bin>" { 
+            break
+      }
+
+      timeout {                           
+         break
+         }
+     }
+}
+
+expect "root:/bin>"
+send -s "event_test /dev/input/event0\r" 
+while 1 {
+   expect {
+     -re "Input device name.*adp5520-keys.*Testing" { 
+         puts "\nPlease touch the board...\n"	 
+	 expect {
+		-re "Event: time .* type .* code .* value " { 
+                case_pass $case_num
+			}
+		
+		timeout {                           
+                case_fail $case_num
+			exit
+			}
+		}
+	 sleep 5
+	 send "\003"
+         break
+      }
+
+      timeout {                           
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+expect "root:/bin>"
+set timeout 50
+
+incr case_num
+
+send -s "rmmod adp5520_keys\r" 
+while 1 {
+   expect {
+      "root:/bin>" {
+                case_pass $case_num
+         break
+      }
+
+      timeout { 
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+incr case_num
+
+send -s "lsmod\r" 
+while 1 {
+   expect {
+      "root:/bin>" {
+                case_pass $case_num
+         break
+      }
+
+      timeout { 
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+log_file
+ 
+

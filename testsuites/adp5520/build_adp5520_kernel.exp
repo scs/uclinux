@@ -1,0 +1,141 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+
+step "Make config."
+
+source  make_default_config.exp
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "I2C support.*I2C. \\\[.*]" {             
+            send "Y\r"
+        }
+
+        -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "100\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Analog Devices ADP5520/01 MFD PMIC Core Support.*PMIC_ADP5520.*\\\[.*]" {
+                send "Y\r"
+        }
+################
+        -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
+                send "Y\r"
+        }
+        -re "Lowlevel Backlight controls.*BACKLIGHT_CLASS_DEVICE.*\\\[.*]" {
+                send "Y\r"
+        }
+        -re "Backlight Driver for ADP5520/ADP5501 using WLED.*BACKLIGHT_ADP5520.*\\\[.*]" {
+                send "M\r"
+        }
+################
+        -re "LED Support.*NEW_LEDS.*\\\[.*]" {
+                send "Y\r"
+        }
+        -re "LED Class Support.*LEDS_CLASS.*\\\[.*]" {
+                send "Y\r"
+        }
+        -re "LED Support for ADP5520/ADP5501 PMIC.*LEDS_ADP5520.*\\\[.*]" {
+                send "M\r"
+        }
+################
+        -re "GPIO Support.*GPIOLIB.*\\\[.*]" {
+                send "Y\r"
+        }
+        -re "/sys/class/gpio/.*sysfs interface.*GPIO_SYSFS.*\\\[.*]" {
+                send "Y\r"
+        }
+        -re "GPIO Support for ADP5520 PMIC.*GPIO_ADP5520.*\\\[.*]" {
+                send "M\r"
+        }
+################
+        -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {
+                send "Y\r"
+        }
+        -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
+            send "Y\r"
+        }
+        -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
+                send "Y\r"
+        }
+        -re "Keypad Support for ADP5520 PMIC.*KEYBOARD_ADP5520.*\\\[.*]" {
+                send "M\r"
+        }
+################
+        -re "Input event device test.*EVENT_TEST.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+log_file
