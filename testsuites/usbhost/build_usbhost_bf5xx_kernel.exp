@@ -9,18 +9,22 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
+set musb_mode [lindex $argv 1]
+send_log "\n#### musb_mode is $musb_mode\n"
+
+if { $argc < 2} {
+    puts "Please input: board_type, musb_mode(pio or dma)"
+    exit
+}
+
 cd $uclinux_path/testsuites
-
 step "Make config."
-
 source  make_default_config.exp
 
 # Following make specific configuration for this case.
-
 cd $uclinux_path
 set timeout 300
 spawn make config
-
 while 1 {
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
@@ -68,10 +72,10 @@ while 1 {
         }
 
         -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "n\r"
-            } elseif { $board_type == "BF527-EZKIT" } {
-                send "y\r"
+            if { $musb_mode == "pio" } {
+                send "Y\r"
+            } elseif { $musb_mode == "dma" }  {
+                send "N\r"
             } else {
                 send "\r"
             }
