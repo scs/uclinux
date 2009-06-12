@@ -192,7 +192,7 @@ while 1 {
 append dev "1"
 
 incr case_num
-set timeout 5
+set timeout 600
 send "mke2fs $dev\r"
 while 1 {
     expect {
@@ -225,8 +225,8 @@ while 1 {
 }
 
 incr case_num
-set timeout 120
-send "time dd if=/dev/zero of=$mnt_point/10m.bin bs=1M count=10\r"
+set timeout 1000
+send "date; time dd if=/dev/zero of=$mnt_point/10m.bin bs=1M count=10\r; date"
 while 1 {
     expect {
         -re "(\[eE]rror|\[fF]ail).*#" {
