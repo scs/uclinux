@@ -1,5 +1,5 @@
 #! /usr/bin/env bash
-# do-build <platform> <results-dir>: This script is used to generate a binary to release.
+# do-build [ --platform <platform> ] [ --results <results-dir> ]
 
 set -e -o pipefail
 
@@ -7,22 +7,42 @@ print() { echo "$1" >&2; }
 inform() { print "$0: $1"; }
 warn() { print "Warning: $1"; }
 error() { inform "Error: $1"; }
-fail() { error "$1"; exit 1; }
-status() { echo -n "$1" >&2; }
+fail() { [ "$1" ] && error "$1"; return 1; }
+usage() { print "$USAGE"; fail "$1"; }
 
-[ "$1" ] && PLATFORM=$1 || fail "No platform given!"
-[ "$2" ] && RESULTS_DIR=$2
-[ "$3" ] && fail "Too many arguments!"
+# The usage message
+USAGE='Usage: do-build [ --platform <platform> ] [ --results <repository> ]'
 
-if [ "$PLATFORM" == "leanXcam" ]; then
+# Defaults for options
+OPT_PLATFORM='leanXcam'
+OPT_RESULTS=
+
+# Read options
+while [ "${1:0:1}" == '-' ]; do
+	if [ "$1" == '--platform' ]; then
+		[ "$2" ] && OPT_PLATFORM=$2 || usage "Options requires an argument: $1"
+		shift
+	elif [ "$1" == '--results' ]; then
+		[ "$2" ] && OPT_RESULTS=$2 || usage "Options requires an argument: $1"
+		shift
+	else
+		usage "Unknown option: $1"
+	fi
+	
+	shift
+done
+
+[ "$1" ] && usage "No arguments required."
+
+if [ "$OPT_PLATFORM" == "leanXcam" ]; then
 	make distclean
 	make SCS/BF537_LEANXCAM_config
-elif [ "$PLATFORM" == "indXcam" ]; then
+elif [ "$OPT_PLATFORM" == "indXcam" ]; then
 	make distclean
 	make SCS/BF537_INDXCAM_config
 else
-	fail "Unknown platform: $PLATFORM"
+	fail "Unknown platform: $OPT_PLATFORM"
 fi
 
 time make
-[ "$RESULTS_DIR" ] && cp "images/uImage" "HISTORY" "$RESULTS_DIR"
+[ "$OPT_RESULTS" ] && cp "images/uImage" "HISTORY" "$OPT_RESULTS"
