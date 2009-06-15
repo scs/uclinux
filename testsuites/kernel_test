@@ -1807,6 +1807,7 @@ fi
   for config in $TARGET_MUSB_MODE
   do
 
+  CONFIG=`echo $config|tr 'a-z' 'A-Z'`
   echo  "Testing usbhost in $config mode..."
 
   rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
@@ -1826,13 +1827,13 @@ fi
   else
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbhost
-      ./usbhost_bf5xx_test.exp $BOARD_TYPE >/dev/null  2>&1
+      ./usbhost_bf5xx_test.exp $BOARD_TYPE $CONFIG >/dev/null  2>&1
   fi
 
   cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.usbhost_bf5xx.$config
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.usbhost_bf5xx.$config
-  cp $UCLINUX_DIST_TESTSUITES/usbhost/build_usbhost_bf5xx_kernel_log $THIS_LOG/build_usbhost_bf5xx_kernel_log.$config
-  cp $UCLINUX_DIST_TESTSUITES/usbhost/usbhost_bf5xx_test_log $THIS_LOG/usbhost_bf5xx_test_log.$config
+  mv $UCLINUX_DIST_TESTSUITES/usbhost/build_usbhost_bf5xx_kernel_log $THIS_LOG/build_usbhost_bf5xx_${config}_kernel_log
+  mv $UCLINUX_DIST_TESTSUITES/usbhost/usbhost_bf5xx_test_log $THIS_LOG/usbhost_bf5xx_${config}_test_log
 
   sleep 30
 
@@ -1855,6 +1856,7 @@ fi
   for config in $TARGET_MUSB_MODE
   do
 
+  CONFIG=`echo $config|tr 'a-z' 'A-Z'`
   echo  "Testing usbdev in $config mode..."
 
   rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
@@ -1875,25 +1877,25 @@ fi
   else
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbdev
-      ./gadget_zero_control_test.exp >/dev/null  2>&1
+      ./gadget_zero_control_test.exp $CONFIG >/dev/null  2>&1
       cd $UCLINUX_DIST_TESTSUITES
       ./reset_board.exp  >/dev/null  2>&1
 
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbdev
-      ./gadget_fs_control_test.exp >/dev/null  2>&1
+      ./gadget_fs_control_test.exp $CONFIG >/dev/null  2>&1
       cd $UCLINUX_DIST_TESTSUITES
       ./reset_board.exp  >/dev/null  2>&1
 
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbdev
-      ./gadget_zero_bulk_test.exp >/dev/null  2>&1
+      ./gadget_zero_bulk_test.exp $CONFIG >/dev/null  2>&1
       cd $UCLINUX_DIST_TESTSUITES
       ./reset_board.exp  >/dev/null  2>&1
 
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbdev
-      ./gadget_fs_bulk_test.exp >/dev/null  2>&1
+      ./gadget_fs_bulk_test.exp $CONFIG >/dev/null  2>&1
       cd $UCLINUX_DIST_TESTSUITES
       ./reset_board.exp  >/dev/null  2>&1
 
@@ -1902,38 +1904,38 @@ fi
 
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbdev
-      ./gadget_audio_test.exp >/dev/null  2>&1
+      ./gadget_audio_test.exp $CONFIG >/dev/null  2>&1
       cd $UCLINUX_DIST_TESTSUITES
       ./reset_board.exp  >/dev/null  2>&1
 
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbdev
-      ./gadget_ethernet_test.exp >/dev/null  2>&1
+      ./gadget_ethernet_test.exp $CONFIG >/dev/null  2>&1
       cd $UCLINUX_DIST_TESTSUITES
       ./reset_board.exp  >/dev/null  2>&1
 
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbdev
-      ./gadget_serial_generic_test.exp >/dev/null  2>&1
+      ./gadget_serial_generic_test.exp $CONFIG >/dev/null  2>&1
       cd $UCLINUX_DIST_TESTSUITES
       ./reset_board.exp  >/dev/null  2>&1
 
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbdev
-      ./gadget_serial_linuxACM_test.exp >/dev/null  2>&1
+      ./gadget_serial_linuxACM_test.exp $CONFIG >/dev/null  2>&1
       cd $UCLINUX_DIST_TESTSUITES
       ./reset_board.exp  >/dev/null  2>&1
 
       sleep 30
       cd $UCLINUX_DIST_TESTSUITES/usbdev
-      ./gadget_storage_ram_test.exp >/dev/null  2>&1
+      ./gadget_storage_ram_test.exp $CONFIG >/dev/null  2>&1
       cd $UCLINUX_DIST_TESTSUITES
       ./reset_board.exp  >/dev/null  2>&1
 
       if [ $BOARD_TYPE == "BF548-EZKIT" ] ; then
           sleep 30
           cd $UCLINUX_DIST_TESTSUITES/usbdev
-          ./gadget_storage_hd_test.exp >/dev/null  2>&1
+          ./gadget_storage_hd_test.exp $CONFIG >/dev/null  2>&1
           cd $UCLINUX_DIST_TESTSUITES
           ./reset_board.exp  >/dev/null  2>&1
       fi
@@ -1941,16 +1943,17 @@ fi
   fi
 
   cd $UCLINUX_DIST_TESTSUITES/usbdev
-  usbdev_file=`ls *log`
+  usbdev_file=`ls gadget_*_test_log |awk -Fgadget_ '{print $2}'|awk -F_test_log '{print $1}'`
   echo $usbdev_file
   for file in $usbdev_file;
   do
-      mv $file $file.$config
+      mv gadget_${file}_test_log gadget_${file}_${config}_test_log
   done
 
   cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.usbdev.$config
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.usbdev.$config
-  cp $UCLINUX_DIST_TESTSUITES/usbdev/*_log* $THIS_LOG
+  mv $UCLINUX_DIST_TESTSUITES/usbdev/build_usbdev_kernel_log $THIS_LOG/build_usbdev_${config}_kernel_log
+  mv $UCLINUX_DIST_TESTSUITES/usbdev/*_log $THIS_LOG
 
   sleep 30
 

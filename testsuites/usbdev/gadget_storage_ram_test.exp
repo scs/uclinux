@@ -7,8 +7,17 @@
 source  ../kernel_config.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
+
+set musb_mode [lindex $argv 0]
+send_user "\n#### musb_mode is $musb_mode\n"
+
+if { $argc < 1} {
+    puts "Please input: musb_mode(PIO or DMA)"
+    exit
+}
+append TITLE " ($musb_mode)"
+
 
 step "Spawn kermit"
 source ../spawn_kermit.exp
