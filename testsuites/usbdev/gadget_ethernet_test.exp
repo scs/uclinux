@@ -30,6 +30,7 @@ step "Reboot the kernel."
 source ../reboot_kernel.exp
 
 set case_num 0
+set fail_count 0
 set usb_peripheral "192.168.1.66"
 set usb_host  "192.168.1.56"
 sleep 3
@@ -135,76 +136,96 @@ while 1 {
 }
 
 
-step "Start testing cycle"
-
 set spawn_id $host_spawn_id 
-
 sleep 10
-incr case_num
-set timeout 30
-send "ping -f -l50 -c 1000 $usb_peripheral\r"
-while 1 {
-    expect {
-        -re "1000 packets transmitted, 1000 received.*#" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            send "\3"
-            expect "#"
-            case_fail $case_num
-        }
-    }
-}
+set max_count 10
 
-incr case_num
-set timeout 30
-send "ping -f -l50 -c 10000 $usb_peripheral\r"
-while 1 {
-    expect {
-        -re "10000 packets transmitted, 10000 received.*#" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            send "\3"
-            expect "#"
-            case_fail $case_num
-        }
-    }
-}
-
-for {set size 1024} {$size <= 4096 } { incr size 512} {
+step "ping flood test (host -> target)"
+for {set count 0} {$count < $max_count} { incr count} {
     incr case_num
-    set timeout 2
-    send "ping -c 1 -s $size $usb_peripheral\r"
+    set timeout 30
+    send "ping -f -l50 -c 1000 $usb_peripheral\r"
     while 1 {
         expect {
-            -re "wrong data byte #.*#" {
-                case_fail $case_num
-            }
-            -re "1 packets transmitted, 1 received.*#" {
+            -re "1000 packets transmitted, (1000|9\[5-9].) received.*#" {
                 case_pass $case_num
                 break
             }
             timeout {
+                send_user "FAIL: ping flood test (host -> target)\r"
+                incr fail_count
                 send "\3"
                 expect "#"
-                case_fail $case_num
+                break
             }
         }
+    }
+
+    incr case_num
+    set timeout 30
+    send "ping -f -l50 -c 10000 $usb_peripheral\r"
+    while 1 {
+        expect {
+            -re "10000 packets transmitted, (10000|9\[5-9]..) received.*#" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "FAIL: ping flood test (host -> target)\r"
+                incr fail_count
+                send "\3"
+                expect "#"
+                break
+            }
+        }
+    }
+}
+
+step "ping size test (host -> target)"
+for {set size 1024} {$size <= 4096 } { incr size 512} {
+    for {set count 0} {$count < $max_count} { incr count} {
+        incr case_num
+        set timeout 20
+        send "ping -c 1 -s $size $usb_peripheral\r"
+        while 1 {
+            expect {
+                -re "wrong data byte #.*#" {
+                    send_user "FAIL: ping size test (host -> target)\r"
+                    incr fail_count
+                    break
+                }
+                -re "1 packets transmitted, 1 received.*#" {
+                    case_pass $case_num
+                    break
+                }
+                -re ":.*#" {
+                    send_user "FAIL: ping size test (host -> target)\r"
+                    incr fail_count
+                    break
+                }
+                timeout {
+                    send_user "FAIL: ping size test (host -> target)\r"
+                    incr fail_count
+                    send "\3"
+                    expect "#"
+                    break
+                }
+            }
+        }
+        sleep 2
     }
 }
 
 
 set spawn_id $kermit_spawn_id
 
+step "ping test (target -> host)"
 incr case_num
-set timeout 1200
-send "ping -f -l50 -c 1000 $usb_host\r"
+set timeout 600
+send "ping -c 100 $usb_host\r"
 while 1 {
     expect {
-        -re "1000 packets transmitted, 1000 packets received.*$kernel_prompt" {
+        -re "100 packets transmitted, (100|9\[5-9]) packets received.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -216,42 +237,38 @@ while 1 {
     }
 }
 
-incr case_num
-set timeout 1200
-send "ping -f -l50 -c 10000 $usb_host\r"
-while 1 {
-    expect {
-        -re "10000 packets transmitted, 10000 packets received.*$kernel_prompt" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            send "\3"
-            expect -re $kernel_prompt
-            case_fail $case_num
-        }
-    }
-}
-
+step "ping size test (target -> host)"
 for {set size 1024} {$size <= 4096 } { incr size 512} {
-    incr case_num
-    set timeout 2
-    send "ping -c 1 -s $size $usb_host\r"
-    while 1 {
-        expect {
-            -re "wrong.*$kernel_prompt" {
-                case_fail $case_num
-            }
-            -re "1 packets transmitted, 1 packets received.*$kernel_prompt" {
-                case_pass $case_num
-                break
-            }
-            timeout {
-                send "\3"
-                expect "#"
-                case_fail $case_num
+    for {set count 0} {$count < $max_count} { incr count} {
+        incr case_num
+        set timeout 20
+        send "ping -c 1 -s $size $usb_host\r"
+        while 1 {
+            expect {
+                -re "wrong.*$kernel_prompt" {
+                    send_user "FAIL: ping size test (target -> host)\r"
+                    incr fail_count
+                    break
+                }
+                -re "1 packets transmitted, 1 packets received.*$kernel_prompt" {
+                    case_pass $case_num
+                    break
+                }
+                -re $kernel_prompt {
+                    send_user "FAIL: ping size test (target -> host)\r"
+                    incr fail_count
+                    break
+                }
+                timeout {
+                    send_user "FAIL: ping size test (target -> host)\r"
+                    send "\3"
+                    expect "#"
+                    incr fail_count
+                    break
+                }
             }
         }
+        sleep 2
     }
 }
 
@@ -292,6 +309,15 @@ while 1 {
             case_fail $case_num
         }
     }
+}
+
+incr case_num
+if { $fail_count == 0 } {
+    send_user "PASS: all test case\n"
+    case_pass $case_num
+} else {
+    send_user "FAIL: $fail_count times\n"
+    case_fail $case_num
 }
 
 send_log "\n"
