@@ -3,15 +3,14 @@
 source ../kernel_config.exp
 
 set debug_port "ethernet"
+set core_config ""
 
 if { $argc >= 2} {
 set debug_port [lindex $argv 1]
 }
-
-log_file [log_file_name $argv0.$debug_port ]
-
-source  ../board_info.exp
-send_user "Starting $argv0\n"
+if { $argc >= 3} {
+set core_config [lindex $argv 2]
+}
 
 if { $debug_port == "uart" || $debug_port == "ethernet" } {
 send_log "\n#### Debugging is through $debug_port port.\n"
@@ -20,6 +19,18 @@ send_log "\n#### This port $debug_port is not supported. Sorry.\n"
 exit
 }
 
+if { $core_config != "" } {
+
+log_file [log_file_name $argv0.$core_config.$debug_port ]
+
+} else {
+
+log_file [log_file_name $argv0.$debug_port ]
+}
+
+source  ../board_info.exp
+send_user "Starting $argv0\n"
+
 step "Apply kgdb patch."
 
 cd $uclinux_path/linux-2.6.x
@@ -27,6 +38,11 @@ cd $uclinux_path/linux-2.6.x
 if { $debug_port == "ethernet" } {
 
 exec patch -p0  < ../bfin_patch/kgdb_patch/kgdboe_bfin_linux-2.6.x.patch
+
+}
+if { $core_config == "SMP" } {
+
+exec patch -p1  < ../bfin_patch/kgdb_patch/kgdb_smp_switch_master_cpu_linux-2.6.x.patch
 
 }
 
@@ -58,6 +74,16 @@ while 1 {
 
         -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
             send "y\r"
+        }
+
+        -re "Symmetric multi-processing support.*SMP.*\\\[.*]" {
+            if { $core_config == "SMP" } {
+                send "y\r"
+            } elseif { $core_config == "" } {
+                send "n\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "Kernel debugging.*DEBUG_KERNEL.*\\\[.*]" {
