@@ -112,7 +112,7 @@ tools/cksum: tools/sg-cksum/*.c
 	ln -sf $(ROOTDIR)/tools/sg-cksum/cksum tools/cksum
 
 .PHONY: sstrip
-tools: sstrip
+#tools: sstrip
 sstrip: tools/sstrip
 tools/sstrip: tools/sstrip.c
 	$(HOSTCC) -Wall -O2 -g -o $@ $<
