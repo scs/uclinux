@@ -26,7 +26,6 @@ source  make_default_config.exp
 cd $uclinux_path
 set timeout 300
 spawn make config
-
 while 1 {
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
@@ -42,10 +41,6 @@ while 1 {
         }
 
         -re "ROM file system support.*ROMFS_FS.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "MTD-based ROM file system support.*ROMFS_MTD_FS.*\\\[.*]" {
             send "Y\r"
         }
 
@@ -69,6 +64,46 @@ while 1 {
             } else {
                 send "4\r"
             }
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+spawn make config
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "n\r"
+        }
+
+        -re "MTD-based ROM file system support.*ROMFS_MTD_FS.*\\\[.*]" {
+            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {
