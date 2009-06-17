@@ -83,7 +83,7 @@ while 1 {
     }
 }
 
-if { $board_type == "BF548-EZKIT" } {
+if { $board_type == "BF548-EZKIT" || $board_type == "BF526-EZBRD" } {
     send -s "set bootargs root=mtd3 rootfstype=romfs ro console=ttyBF0,57600\r"
 } else {
     send -s "set bootargs root=mtd0 rootfstype=romfs ro console=ttyBF0,57600\r"
