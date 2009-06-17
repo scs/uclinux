@@ -542,6 +542,8 @@ do
 	./kgdb_test.exp  $BOARD_TYPE uart >/dev/null  2>&1    
         elif [ ${AUTO_TESTCASE[$i]} == "kgdb_smp" ] ; then
 	./kgdb_test.exp  $BOARD_TYPE ethernet SMP >/dev/null  2>&1    
+        elif [ ${AUTO_TESTCASE[$i]} == "linphone_ad1981b" ] || [ ${AUTO_TESTCASE[$i]} == "linphone_ad73322" ] ; then
+	./linphone_test.exp  $BOARD_TYPE  >/dev/null  2>&1    
 	else
 	./${AUTO_TESTCASE[$i]}_test.exp  $BOARD_TYPE >/dev/null  2>&1    
 	fi

@@ -66,6 +66,7 @@ while 1 {
      }
 }
 
+
 incr case_num
 spawn linphonec 
 set host_linphonec_id $spawn_id
@@ -152,7 +153,7 @@ expect {
         set underrun_test_status 1
         break
         }
-        "Network is unreachable" {
+      -re  "Network is unreachable|Illegal instruction|Bus error" {
         set underrun_test_status 1
         break
         }
