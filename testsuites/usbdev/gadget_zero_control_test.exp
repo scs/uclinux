@@ -32,7 +32,8 @@ source ../reboot_kernel.exp
 step "Start testing."
 sleep 5
 set case_num 0
-set test_interval [expr 3600*24]
+#24 hours: set test_interval [expr 3600*24]
+set test_interval 3500
 
 if [ catch {exec make clean -f Makefile.testusb -C src} ] {
     send_user "FAIL: Make clean of testusb\n"
