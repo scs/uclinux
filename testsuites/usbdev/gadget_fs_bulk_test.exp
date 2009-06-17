@@ -309,7 +309,6 @@ set fail_count_t2 0
 set fail_count_t4 0
 set fail_count_t6 0
 set fail_count_t8 0
-set fail_count_at13 0
 set cur_time [timestamp]
 set end_time $cur_time
 incr end_time $test_interval
@@ -493,33 +492,11 @@ for {set count 1} {$cur_time <= $end_time} {incr count} {
         }
     }
 
-    incr case_num
-    set timeout 10
-    send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -at13\r"
-    while 1 {
-        expect {
-            -re "\[0-9]\\\.\[0-9]+ secs.*#" {
-                case_pass $case_num
-                break
-            }
-            -re "(error|-->).*#" {
-                incr fail_count_at13
-                send_user "FAIL: testusb at13\n"
-                break
-            }
-            timeout {
-                incr fail_count_at13
-                send_user "timeout: testusb at13\n"
-                case_fail $case_num
-            }
-        }
-    }
-
     send_user "\n\ntest round $count finish\n\n"
 }
 
 incr case_num
-if { $fail_count_t1 == 0 && $fail_count_t3 == 0 && $fail_count_t5 == 0 && $fail_count_t7 == 0 && $fail_count_t2 == 0 && $fail_count_t4 == 0 && $fail_count_t6 == 0 && $fail_count_t8 == 0 && $fail_count_at13 == 0} {
+if { $fail_count_t1 == 0 && $fail_count_t3 == 0 && $fail_count_t5 == 0 && $fail_count_t7 == 0 && $fail_count_t2 == 0 && $fail_count_t4 == 0 && $fail_count_t6 == 0 && $fail_count_t8 == 0 } {
     send_user "No error when running testusb\n"
     case_pass $case_num
 } else {
@@ -531,7 +508,6 @@ if { $fail_count_t1 == 0 && $fail_count_t3 == 0 && $fail_count_t5 == 0 && $fail_
     send_user "test 4 fail $fail_count_t4 times\n"
     send_user "test 6 fail $fail_count_t6 times\n"
     send_user "test 8 fail $fail_count_t8 times\n"
-    send_user "test at13 fail $fail_count_at13 times\n"
     case_fail $case_num
 }
 
