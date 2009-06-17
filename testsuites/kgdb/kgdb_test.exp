@@ -673,11 +673,12 @@ if {  $core_config != "SMP" } {
                 }
                 -re "\[^0-9a-fA-F](0x\[0-9a-fA-F]{8}).*\[\r\n].*to quit" {
 
+                       set match_addr $expect_out(1,string)
                        send "\r"
-                       send_log "reg_addr_after1 after quit.\n"
-
-                       if { 0 == [expr $reg_addr_before - $expect_out(1,string)] } {
-                             send_log "Locate the right reg_addr_before .\n"
+                       send_log "reg_addr_after1 after quit.####reg_addr_before $reg_addr_before ####$expect_out(1,string)###\n"
+                       
+                       if { 0 == [ expr $reg_addr_before - $match_addr ] } {
+                             send_log "Locate the right reg_addr_before.\n"
                              expect {
                                      -re "(0x\[0-9a-fA-F]{8})" {
                                                 set reg_addr_after1 $expect_out(1,string)
@@ -1622,7 +1623,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
                        send "\r"
                        send_log "reg_addr_after1 after quit.\n"
 
-                       if { 0 == [expr $reg_addr_before - $expect_out(1,string)] } {
+                       if { 0 == [ expr $reg_addr_before - $expect_out(1,string) ] } {
                              send_log "Locate the right reg_addr_before .\n"
                              expect {
                                      -re "(0x\[0-9a-fA-F]{8})" {
