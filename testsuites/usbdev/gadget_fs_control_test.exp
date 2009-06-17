@@ -370,7 +370,7 @@ if { $fail_count_t9 == 0 && $fail_count_t10 == 0 } {
 }
 
 incr case_num
-set timeout 5
+set timeout 20
 send "sudo rmmod ./configs/usbtest.ko\r"
 while 1 {
     expect {
