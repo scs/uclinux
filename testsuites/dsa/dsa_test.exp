@@ -93,12 +93,16 @@ while 1 {
       -re "\[Pp\]assword" {
          send -s "$password\r"
          expect -re $sh_prompt 
-         send_log "ifconfig host eth1 to new address $host_eth1"
+         send_log "Give password and ifconfig host eth1 to new address $host_eth1\n"
+         break 
+      }
+      -re $sh_prompt {
+         send_log "ifconfig host eth1 to new address $host_eth1\n"
          break 
       }
 
       timeout {
-            send_log "Restore host ipaddr error!"
+            send_log "Restore host ipaddr error!\n"
             break
          }
      }
@@ -106,13 +110,27 @@ while 1 {
 send -s "sudo /etc/init.d/network restart \r"
 while 1 {
    expect {
-      -re $sh_prompt {
-         send_log "Network restarted."
+      -re "done.*$sh_prompt" {
+         send_log "Network restarted.\n"
          break 
       }
 
       timeout {
-            send_log "Restart network error!"
+            send_log "Restart network error!\n"
+            break
+         }
+     }
+}
+send -s "sudo ifconfig \r"
+while 1 {
+   expect {
+      -re $sh_prompt {
+         send_log "ifconfig .\n"
+         break 
+      }
+
+      timeout {
+            send_log "ifconfig error!\n"
             break
          }
      }

@@ -95,7 +95,7 @@ set timeout 5
 send -s "rm -f /mnt/$name/version\r"
 while 1 {
     expect {
-        ">" {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -106,11 +106,10 @@ while 1 {
 }
 
 incr case_num
-expect ">"
 send -s "smbumount /mnt\r" 
 while 1 {
     expect {
-        ">" {         
+        -re $kernel_prompt {         
             puts "smbfs umount.\n"
             case_pass $case_num
             break
