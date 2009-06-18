@@ -1,7 +1,7 @@
 #!/usr/bin/expect
 
 #
-# This is bulk traffic test for Gadget FS 
+# This is bulk traffic test for Gadget FS on BF548-EZKIT/BF527-EZKIT
 #
 
 source  ../kernel_config.exp
@@ -34,6 +34,9 @@ sleep 5
 set case_num 0
 #24 hours: set test_interval [expr 3600*24]
 set test_interval 3500
+
+send "\r"
+expect -re $kernel_prompt
 
 if [ catch {exec make clean -f Makefile.testusb -C src} ] {
     send_user "FAIL: Make clean of testusb\n"
@@ -569,11 +572,33 @@ while 1 {
 set spawn_id $kermit_spawn_id
 
 incr case_num
-set timeout 5
+set timeout 15
+send "\3"
+sleep 1
+send "\3"
+sleep 1
 send "\3"
 while 1 {
     expect {
         -re "disconnect.*done.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "umount /dev/gadget\r"
+while 1 {
+    expect {
+        -re "umount:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }

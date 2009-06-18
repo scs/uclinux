@@ -1,7 +1,7 @@
 #!/usr/bin/expect
 
 #
-# This usb device test script is for GadgetFS on BF548-EZKIT/BF527-EZKIT
+# This is control test for Gadget FS on BF548-EZKIT/BF527-EZKIT
 #
 
 source  ../kernel_config.exp
@@ -305,7 +305,7 @@ while 1 {
 }
 
 set fail_count_t9 0
-set fail_count_t10 0
+#set fail_count_t10 0
 set cur_time [timestamp]
 set end_time $cur_time
 incr end_time $test_interval
@@ -335,6 +335,7 @@ for {set count 1} {$cur_time <= $end_time} {incr count} {
         }
     }
 
+while 0 {
     incr case_num
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t10\r"
     while 1 {
@@ -355,17 +356,19 @@ for {set count 1} {$cur_time <= $end_time} {incr count} {
             }
         }
     }
+}
 
     send_user "\n\ntest round $count finish\n\n"
 }
 
 incr case_num
-if { $fail_count_t9 == 0 && $fail_count_t10 == 0 } {
+#if { $fail_count_t9 == 0 && $fail_count_t10 == 0 } 
+if { $fail_count_t9 == 0 } {
     send_user "No error when running testusb\n"
     case_pass $case_num
 } else {
     send_user "test 9 fail $fail_count_t9 times\n"
-    send_user "test 10 fail $fail_count_t10 times\n"
+#    send_user "test 10 fail $fail_count_t10 times\n"
     case_fail $case_num
 }
 
@@ -389,7 +392,7 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "umount /proc/bus/usb\r"
+send "sudo umount /proc/bus/usb\r"
 while 1 {
     expect {
         -re "umount:|\[eE]rror|\[fF]ail" {
@@ -423,14 +426,73 @@ while 1 {
     }
 }
 
+
 set spawn_id $kermit_spawn_id
 
 incr case_num
-set timeout 5
+set timeout 15
+send "\3"
+sleep 1
+send "\3"
+sleep 1
 send "\3"
 while 1 {
     expect {
         -re "disconnect.*done.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "umount /dev/gadget\r"
+while 1 {
+    expect {
+        -re "umount:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "modprobe -r gadgetfs\r"
+while 1 {
+    expect {
+        -re "modprobe:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "gadgetfs" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
