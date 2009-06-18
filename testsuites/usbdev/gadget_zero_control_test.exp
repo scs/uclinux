@@ -244,7 +244,7 @@ while 1 {
 }
 
 set fail_count_t9 0
-set fail_count_t10 0
+#set fail_count_t10 0
 set fail_count_t14 0
 set cur_time [timestamp]
 set end_time $cur_time
@@ -275,6 +275,7 @@ for {set count 1} {$cur_time <= $end_time} {incr count} {
         }
     }
 
+while 0 {
     incr case_num
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t10\r"
     while 1 {
@@ -295,6 +296,7 @@ for {set count 1} {$cur_time <= $end_time} {incr count} {
             }
         }
     }
+}
 
     incr case_num
     send "sudo ./src/testusb -D /proc/bus/usb/$gadget_bus/$gadget_dev -t14 -c 15000 -s 256 -v 1\r"
@@ -395,12 +397,13 @@ while 1 {
 }
 
 incr case_num
-if { $fail_count_t9 == 0 && $fail_count_t10 == 0 && $fail_count_t14 == 0 } {
+#if { $fail_count_t9 == 0 && $fail_count_t10 == 0 && $fail_count_t14 == 0 } 
+if { $fail_count_t9 == 0 && $fail_count_t14 == 0 } {
     send_user "No error when running testusb\n"
     case_pass $case_num
 } else {
     send_user "test 9 fail $fail_count_t9 times\n"
-    send_user "test 10 fail $fail_count_t10 times\n"
+    #send_user "test 10 fail $fail_count_t10 times\n"
     send_user "test 14 fail $fail_count_t14 times\n"
     case_fail $case_num
 }
