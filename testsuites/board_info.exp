@@ -47,9 +47,19 @@ set rootfs_size 0x200000
 set spi_rootfs_start_addr 0x40000
 set spi_rootfs_size 0x1bffff
 set pnor_rootfs_num 2
-set spi_rootfs_num 4
+set spi_rootfs_num 1
 
-} elseif { $board_type == "BF527-EZKIT" || $board_type == "BF526-EZBRD" } {
+} elseif { $board_type == "BF526-EZBRD" } {
+set uboot_size 0x40000
+set kernel_size 0x1c0000
+set rootfs_size 0x200000
+set spi_rootfs_start_addr 0x40000
+set spi_rootfs_size 0x3ffff
+set pnor_rootfs_num 2
+set spi_rootfs_num 4
+set nand_rootfs_num 2
+
+} elseif { $board_type == "BF527-EZKIT" } {
 set uboot_size 0x40000
 set kernel_size 0x1c0000
 set rootfs_size 0x200000
