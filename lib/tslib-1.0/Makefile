@@ -37,7 +37,7 @@ romfs:
 	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/input.so /usr/lib/ts/input.so
 	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/linear.so /usr/lib/ts/linear.so
 	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/pthres.so /usr/lib/ts/pthres.so
-	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/variance.so /usr/lib/variance.so
+	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/variance.so /usr/lib/ts/variance.so
 	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/ts_calibrate /usr/bin/ts_calibrate
 	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/ts.conf /etc/ts.conf
 
