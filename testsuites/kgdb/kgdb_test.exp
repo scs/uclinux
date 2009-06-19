@@ -671,7 +671,7 @@ if {  $core_config != "SMP" } {
                           send_log "Get reg_addr_after1.\n"
                           puts "\nreg_addr_after1 $reg_addr_after1 \n"
                 }
-                -re "\[^0-9a-fA-F](0x\[0-9a-fA-F]{8}).*\[\r\n].*to quit" {
+                -re "\[^0-9a-fA-F](0x\[0-9a-fA-F]{8})\[^\n]*\[\r\n]\[^\n]*to quit" {
 
                        set match_addr $expect_out(1,string)
                        send "\r"
@@ -1618,7 +1618,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
                           send_log "Get reg_addr_after1.\n"
                           puts "\nreg_addr_after1 $reg_addr_after1 \n"
                 }
-                -re "\[^0-9a-fA-F](0x\[0-9a-fA-F]{8}).*\[\r\n].*to quit" {
+                -re "\[^0-9a-fA-F](0x\[0-9a-fA-F]{8})\[^\n]*\[\r\n]\[^\n]*to quit" {
 
                        send "\r"
                        send_log "reg_addr_after1 after quit.\n"

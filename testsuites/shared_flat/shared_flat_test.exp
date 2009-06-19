@@ -36,7 +36,7 @@ while 1 {
       }
    }
 }
-
+expect -re $kernel_prompt
 set case_num 0
 incr case_num
 
@@ -57,8 +57,31 @@ while 1 {
      }
 }
 
+expect -re $kernel_prompt
+send -s  "ls -l /bin/rcp\r" 
+while 1 {
+   expect {
+      -re "root *root * (\[0-9]*) .*rcp" {        
+           set rcp_size  $expect_out(1,string) 
+           send_log "\nrcp_size $rcp_size\n"
+           case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+if { $rcp_size > 8000  &&  $rcp_size < 12000 } {
+
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n" 
+} else {
+                case_fail $case_num
+} 
 
 send_user "Ending $argv0\n"
 
