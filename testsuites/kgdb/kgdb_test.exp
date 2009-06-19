@@ -413,7 +413,7 @@ if {  $core_config != "SMP" } {
         expect {
                 "Continuing." {
                  expect {
-                        "Breakpoint 2, kgdb_test*(gdb)" {
+                       -re "Breakpoint 2, kgdb_test.*\\\(gdb\\\)" {
                         }
                 }
                 }
@@ -444,7 +444,7 @@ if {  $core_config != "SMP" } {
         expect {
                 "Continuing." {
                  expect {
-                        "Breakpoint 3, kgdb_l1_test*(gdb)" {
+                       -re "Breakpoint 3, kgdb_l1_test.*\\\(gdb\\\)" {
                         }
                 }
                 }
@@ -475,7 +475,7 @@ if {  $core_config != "SMP" } {
         expect {
                 "Continuing." {
                  expect {
-                        "Breakpoint 4, kgdb_l1_test*(gdb)" {
+                        -re "Breakpoint 4, kgdb_l1_test.*\\\(gdb\\\)" {
                         }
                 }
                 }
@@ -852,7 +852,7 @@ for { set j 0 } { $j < 2 } { incr j 1 } {
         expect {
         "Continuing." {
            expect {
-              "Breakpoint 4, kgdb_l1_test*(gdb)" {
+              -re "Breakpoint 4, kgdb_l1_test.*\\\(gdb\\\)" {
               }
               timeout {
               send_user "!!!!!!!! Breakpoint 4 has been skipped. Error!"
@@ -1153,7 +1153,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         expect {
                 "Continuing." {
                  expect {
-                        "Breakpoint .*, kgdb_l2_test*(gdb)" {
+                        -re "Breakpoint .*, kgdb_l2_test.*\\\(gdb\\\)" {
                         }
                 }
                 }
@@ -1360,7 +1360,7 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
         expect {
                 "Continuing." {
                  expect {
-                       -re "Breakpoint *, kgdb_l2_test.*\\\(gdb\\\)" {
+                       -re "Breakpoint .*, kgdb_l2_test.*\\\(gdb\\\)" {
                         }
                 }
                 }

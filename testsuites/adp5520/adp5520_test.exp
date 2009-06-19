@@ -1,9 +1,31 @@
 #!/usr/bin/expect
 
 source ../kernel_config.exp
-log_file [log_file_name "$argv0"]
-send_user "Starting $argv0\n"
+
+set extra_config "GPI"
+
+if { $argc < 1} {
+puts "Please input: board_type [extra_config] ."
+exit
+}
+if { $argc >= 2} {
+set extra_config [lindex $argv 1]
+}
+
+log_file [log_file_name $argv0.$extra_config ]
+
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
 set TITLE [title "$argv0"]
+send_user "Starting $argv0\n"
+
+if { $extra_config == "GPI" || $extra_config == "KP" } {
+send_log "\n#### Extra config is $extra_config.\n"
+} else {
+send_log "\n#### This config $extra_config is not supported. Sorry.\n"
+exit
+}
 
 step "Start kermit."
 source ../spawn_kermit.exp
@@ -15,7 +37,7 @@ step "Starting test."
 set timeout 8
 
 set case_num 0
-
+if { $extra_config == "GPI" } {
 incr case_num
                        
 expect  -re $kernel_prompt
@@ -283,7 +305,9 @@ while 1 {
          }
      }
 }
+}
 #####################################################################
+if { $extra_config == "KP" } {
 incr case_num
                        
 expect  -re $kernel_prompt
@@ -407,7 +431,7 @@ while 1 {
          }
      }
 }
-
+}
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
