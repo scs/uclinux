@@ -76,7 +76,7 @@ while 1 {
 
         -re "Profiling support.*PROFILING.*\\\[.*]" {
             send "Y\r"
-            sleep .01
+            sleep .05
         }
 
         -re "OProfile system profiling.*OPROFILE.*\\\[.*]" {
@@ -103,6 +103,52 @@ while 1 {
             } else {
                 send "4\r"
             }
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+set timeout 300
+spawn make config
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "n\r"
+        }
+
+        -re "Profiling support.*PROFILING.*\\\[.*]" {
+            send "Y\r"
+            sleep .05
+        }
+
+        -re "OProfile system profiling.*OPROFILE.*\\\[.*]" {
+            send "Y\r"
         }
 
         "\\\(*) \\\[*]" {
