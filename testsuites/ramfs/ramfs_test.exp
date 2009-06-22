@@ -33,7 +33,7 @@ set timeout 2
 while 1 {
    send -s "\r"
    expect {
-      ">" {
+      -re $uboot_prompt {
          break
       }
         timeout {
@@ -43,14 +43,16 @@ while 1 {
    }
 }
 
-set timeout 30
+set timeout 10
 send -s "tftpboot 0x1000000 $boot_image\r"
 while 1 {
    expect {
-      ">" {
+      -re $uboot_prompt {
+        send_log "Get u-boot prompt."
          break
       }
 	timeout {
+         send_log "Timeout when getting u-boot prompt."
                 case_fail $case_num
 		exit
 	}
@@ -73,7 +75,7 @@ while 1 {
    }
 }
 
-expect ">"
+expect -re $kernel_prompt
 send -s "\r"
 
 set timeout 30
@@ -98,7 +100,7 @@ set timeout 5
 send -s "\r\r"
 while 1 {
    expect {
-	">" {
+	-re $kernel_prompt {
 		break
 	}
 
@@ -122,7 +124,7 @@ while 1 {
        expect {
          "Hit any key " {
              send "\r"
-             expect ">"
+             expect -re $kernel_prompt
              break
          }
 
