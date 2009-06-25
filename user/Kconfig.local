@@ -88,6 +88,8 @@ config FIXED_CODE_TEST
 	bool "Fixed code test"
 config DYNTICK_TEST
 	bool "Dynamic Tick Test"
+config BFIN_DMA
+	bool "bfin-dma test"
 endmenu
 
 

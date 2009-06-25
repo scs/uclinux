@@ -1,0 +1,49 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+sleep 10
+send "\r"
+expect -re $kernel_prompt
+
+set case_num 0
+incr case_num
+
+step "Start testing"
+set timeout 20
+send "bfin-dma\r"
+while 1 {
+    expect {
+        -re "Hardware Trace|\[fF]ail|\[eE]rror" {
+            expect -re $kernel_prompt
+            case_fail $case_num
+        }
+        -re "memcmp = 0.*memcmp = 0.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send -s "\3"
+            send_user "FAIL: run bfin-dma timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+send_user "Ending $argv0\n"
+
+log_file
