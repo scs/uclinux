@@ -138,11 +138,13 @@ while 1 {
          case_fail $case_num
       }
 
-      eof {
+      -re "INS.*TEST PASS.*INS.*TEST PASS.*DATA.*TEST PASS.*INS.*TEST PASS" {
+         send_log "\nTest for data and instruction ends.\n"
          case_pass $case_num
          break
       }
       timeout {
+         send_log "\nTest for data and instruction timeout.\n"
          case_fail $case_num
          break
       }

@@ -102,7 +102,11 @@ while 1 {
             }
         }
 
-        -re "netperf test tool.*USER_NETPERF_TEST.*\\\[.*]" {
+        -re "netperf.*USER_NETPERF_NETPERF.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        -re "netserver.*USER_NETPERF_NETSERVER.*\\\[.*]" {
             send -s "Y\r"
         }
 
