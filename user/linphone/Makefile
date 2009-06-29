@@ -1,6 +1,6 @@
 VER = linphone-3.0.0
 
-CFLAGS += -fno-strict-aliasing -ffast-math -mfast-fp
+CFLAGS += -fno-strict-aliasing -ffast-math -mfast-fp -Wl,--defsym,__stacksize=0x40000
 
 CONF_OPTS = \
 	--enable-portaudio=no \
@@ -12,6 +12,7 @@ CONF_OPTS = \
 	--disable-shared \
 	--enable-static \
 	--with-osip=$(STAGEDIR)/usr \
+	--with-thread-stack-size=0xa000 \
 	$(call USE_ENABLE,USER_LINPHONE_VIDEO,video)
 
 # Don't require the intltool utils since we aren't going to actually
