@@ -127,13 +127,10 @@ while 1 {
             exit
          }
 
-         -re "Sash command shell.*/> " {
-            send_user "successful boot attempt"         
-            break
-         }
-	 
 	 -re "$kernel_prompt" {
-            puts "successful boot attempt"          
+            send -s "version\r"
+            expect -re $kernel_prompt 
+            send_log "successful boot attempt"          
             break
          }
 
@@ -142,10 +139,6 @@ while 1 {
             break
          }
         
-	 -re "Welcome to.*#" {
-            puts "successful boot attempt"          
-            break
-         }
          -re "Linux version (.*) " {
             set linux_version $expect_out(1,string)
          }
@@ -153,45 +146,6 @@ while 1 {
          # Look for gcc version N.N[.N[.N]]
          -re "gcc version (\[0-9](\.\[0-9]+)+)" {
             set gcc_version [lindex $expect_out(0,string) 2]
-         }
-
-         # Look for text followed by 1 or more spaces or tabs
-         # followed by = followed by 1 or more spaces or tabs
-         # followed by (0xNNNNNN-0xNNNNNN)
-         -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_text $expect_out(1,string)
-         }
-
-         -re "data\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_data $expect_out(1,string)
-         }
-
-         -re "bss\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_bss $expect_out(1,string)
-         }
-         -re "rootfs\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_rootfs $expect_out(1,string)
-         }
-
-         # Note that here we're looking for zero or 1 space. Doh!
-         -re "stack\[\x20\t]?=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_stack $expect_out(1,string)
-         }
-
-         -re "\[Ii]nstruction \[Cc]ache \[Ee]nabled" {
-            set instruction_cache_boot_flag $CACHE_ENABLED
-         }
-
-         -re "\[Ii]nstruction \[Cc]ache \[Dd]isabled" {
-            set instruction_cache_boot_flag $CACHE_DISABLED
-         }
-
-         -re "\[Dd]ata \[Cc]ache \[Ee]nabled" {
-            set data_cache_boot_flag $CACHE_ENABLED
-         }
-
-         -re "\[Dd]ata \[Cc]ache \[Dd]isabled" {
-            set data_cache_boot_flag $CACHE_DISABLED
          }
 
          -re "Trace:.*\r\n\r\n" {
@@ -208,5 +162,3 @@ while 1 {
       }
 }
 
-send -s "version\r"
-expect -re $kernel_prompt 
