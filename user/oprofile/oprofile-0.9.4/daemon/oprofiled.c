@@ -120,7 +120,7 @@ void opd_open_logfile(void)
  */
 static void opd_fork(void)
 {
-	switch (vfork()) {
+	switch (fork()) {
 		case -1:
 			perror("oprofiled: fork() failed: ");
 			exit(EXIT_FAILURE);
@@ -137,7 +137,7 @@ static void opd_fork(void)
  
 static void opd_go_daemon(void)
 {
-	opd_fork();
+	/*opd_fork();*/
 
 	if (chdir(op_session_dir)) {
 		fprintf(stderr, "oprofiled: opd_go_daemon: couldn't chdir to %s: %s",
@@ -150,7 +150,7 @@ static void opd_go_daemon(void)
 		exit(EXIT_FAILURE);
 	}
 
-	opd_fork();
+	/*opd_fork();*/
 }
 
 

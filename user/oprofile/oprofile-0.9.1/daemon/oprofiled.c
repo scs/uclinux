@@ -109,8 +109,7 @@ void opd_open_logfile(void)
  */
 static void opd_fork(void)
 {
-	switch(vfork()){
-	//switch (fork()) {
+	switch (fork()) {
 		case -1:
 			perror("oprofiled: fork() failed: ");
 			exit(EXIT_FAILURE);
@@ -127,7 +126,7 @@ static void opd_fork(void)
  
 static void opd_go_daemon(void)
 {
-	opd_fork();
+	/*opd_fork();*/
 
 	if (chdir(OP_BASE_DIR)) {
 		fprintf(stderr, "oprofiled: opd_go_daemon: couldn't chdir to "
@@ -140,7 +139,7 @@ static void opd_go_daemon(void)
 		exit(EXIT_FAILURE);
 	}
 
-	opd_fork();
+	/*opd_fork();*/
 }
 
 
@@ -380,7 +379,6 @@ static void opd_options(int argc, char const * argv[])
 
 	cpu_type = op_get_cpu_type();
 	op_nr_counters = op_get_nr_counters(cpu_type);
-	printf("KSDBG:get cputype=%d,counts=%d\n",cpu_type,op_nr_counters);
 
 	if (!no_vmlinux) {
 		if (!vmlinux || !strcmp("", vmlinux)) {
