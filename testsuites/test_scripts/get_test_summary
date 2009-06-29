@@ -22,7 +22,7 @@ rm -f test_summary/build_kernel_pass_log
 
 # check with test log to see if test result is given out
 
-ls *log* | grep -v build.*log | grep -v ftp_test_log | grep -v telnet_test_log | grep -v flash_images_log | grep -v spi_flash_images_log | grep -v kernel_test_log | grep -v .*detailed.* | grep -v .*summary.* > test_summary/all_test_log_list
+ls *log* | grep -v build.*log | grep -v ftp_test_log | grep -v telnet_test_log | grep -v kernel_test_log | grep -v .*detailed.* | grep -v .*summary.* > test_summary/all_test_log_list
 
 grep -r "T[Ee][Ss][Tt] .*\.\.\.\[[PF]A[SI][SL]]" -m 1 *log* --binary-files=text | sed 's/:/ /'| awk '{print $1}' > test_summary/test_log_with_result
 
