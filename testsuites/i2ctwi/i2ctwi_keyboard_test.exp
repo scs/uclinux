@@ -23,11 +23,10 @@ step "Start testing."
 set timeout 8
 set flag 0
 
-send "modprobe twi_keypad\r"
+send "modprobe pcf8574_keypad\r"
 while 1 {
    expect {
-      "Using" {
-         expect ">"
+      -re $kernel_prompt {
          break
       }
 
@@ -39,7 +38,7 @@ while 1 {
 send "lsmod\r"
 while 1 {
    expect {
-      "twi_keypad" {
+      "pcf8574_keypad" {
          puts "insert module success."
          break
       }
