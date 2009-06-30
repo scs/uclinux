@@ -1,5 +1,5 @@
 #!/usr/bin/expect
-#Set chip select to 1 or change chip select parameter in file stamp.c. Refer to doc about touchscreen
+#Set chip select to 1 or change chip select parameter in file stamp.c for bf537-stamp. Refer to doc about touchscreen
 #After build image, boot up system and run "event_test /dev/input/event0"
 
 source ../kernel_config.exp
@@ -38,66 +38,88 @@ while 1 {
         -re "Enable UART0.*SERIAL_BFIN_UART0.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "Y\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "Enable UART1.*SERIAL_BFIN_UART1.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "N\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "Y\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "Framebuffer Console support.*FRAMEBUFFER_CONSOLE.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "Y\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "Map the console to the primary display device.*FRAMEBUFFER_CONSOLE_DETECT_PRIMARY.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "Y\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "Select compiled-in fonts.*FONTS.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "Y\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "Mini 4x6 font.*FONT_MINI_4x6.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "Y\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "Bootup logo.*LOGO.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "Y\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "224-colour Blackfin Processor Linux logo.*LOGO_BLACKFIN_CLUT224.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "Y\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "Support most SPI Flash chips.*MTD_M25P80.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "N\r"
+            } else {
+                send "\r"
             }
         }
 
         -re "Support for frame buffer devices.*FB.*\\\[.*]" {
             if { $board_type == "BF526-EZBRD" } {
                 send "Y\r"
+            } else {
+                send "\r"
             }
         }
 
@@ -110,10 +132,6 @@ while 1 {
         }
 
         -re "Generic input layer.*needed for keyboard\, mouse.*\\\[././.*]" {
-            send "Y\r"
-        }
-
-        -re "Touchscreen interface.*INPUT_TSDEV.*\\\[.*]" {
             send "Y\r"
         }
 
