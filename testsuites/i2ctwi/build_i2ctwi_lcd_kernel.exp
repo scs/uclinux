@@ -69,7 +69,11 @@ while 1 {
             send "M\r"
         }
 
-        -re "Analog Devices AD5252 and AD5251 Digital Potentiometers.*SENSORS_AD5252.*\\\[.*]" {
+        -re "Hardware Monitoring support.*HWMON.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Analog Devices AD5252 and AD5251.*SENSORS_AD5252.*\\\[.*]" {
             send "Y\r"
         }
 
