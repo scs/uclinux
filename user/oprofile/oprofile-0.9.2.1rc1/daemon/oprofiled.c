@@ -134,7 +134,16 @@ static void opd_fork(void)
  
 static void opd_go_daemon(void)
 {
-	/*opd_fork();*/
+#ifdef __uClinux__
+	daemon (1, 1);
+
+	if (chdir(OP_BASE_DIR)) {
+		fprintf(stderr, "oprofiled: opd_go_daemon: couldn't chdir to "
+			OP_BASE_DIR ": %s", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+#else
+	opd_fork();
 
 	if (chdir(OP_BASE_DIR)) {
 		fprintf(stderr, "oprofiled: opd_go_daemon: couldn't chdir to "
@@ -147,7 +156,8 @@ static void opd_go_daemon(void)
 		exit(EXIT_FAILURE);
 	}
 
-	/*opd_fork();*/
+	opd_fork();
+#endif
 }
 
 
