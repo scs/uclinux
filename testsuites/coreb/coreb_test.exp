@@ -19,24 +19,6 @@ set spawn_id $kermit_spawn_id
 step "Start testing: test_cpp"
 
 incr case_num
-set timeout 2
-send "cat /sys/class/misc/coreb/coreb_status\r"
-while 1 {
-   expect {
-      -re "Base Address.*Core B is stalled.*$kernel_prompt" {
-         send_user "Get coreb information from /sys\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_user "Get coreb information from /sys\n"
-         case_fail $case_num
-         break
-      }
-   }
-}
-
-incr case_num
 set timeout 5
 send "modprobe dualcore_test\r"
 while 1 {
@@ -68,7 +50,7 @@ while 1 {
 }
 
 sleep 3
-set timeout 5
+set timeout 10
 incr case_num
 send "corebld /usr/coreb/test_cpp\r"
 while 1 {
@@ -78,7 +60,7 @@ while 1 {
          case_fail $case_num
          break
       }
-      -re "wrote.*wrote.*wrote.*$kernel_prompt" {
+      -re "writing.*OK.*writing.*OK.*writing.*OK.*$kernel_prompt" {
          send_user "\nexecuted C++ application on another core\n"
          case_pass $case_num
          break
@@ -92,27 +74,10 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
-send "cat /sys/class/misc/coreb/coreb_status\r"
-while 1 {
-   expect {
-      -re "Base Address.*Core B is running.*$kernel_prompt" {
-         send_user "Core B is running.\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         case_fail $case_num
-         break
-      }
-   }
-}
-
-incr case_num
 send "modprobe -r dualcore_test\r"
 while 1 {
    expect {
-      -re "Dual core test module removed: testarg = \\\[12\]*" {
+      -re "Dual core test module removed: testarg = \\\[1]\r\n$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -132,24 +97,6 @@ sleep 3
 step "Start testing: test_c"
 
 incr case_num
-set timeout 2
-send "cat /sys/class/misc/coreb/coreb_status\r"
-while 1 {
-   expect {
-      -re "Base Address.*Core B is stalled.*$kernel_prompt" {
-         send_user "Get coreb information from /sys\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_user "Get coreb information from /sys\n"
-         case_fail $case_num
-         break
-      }
-   }
-}
-
-incr case_num
 set timeout 5
 send "modprobe dualcore_test\r"
 while 1 {
@@ -181,7 +128,7 @@ while 1 {
 }
 
 sleep 3
-set timeout 5
+set timeout 10 
 incr case_num
 send "corebld /usr/coreb/test_c\r"
 while 1 {
@@ -191,7 +138,7 @@ while 1 {
          case_fail $case_num
          break
       }
-      -re "wrot.*wrot.*$kernel_prompt" {
+      -re "writing.*OK.*writing.*OK.*$kernel_prompt" {
          send_user "\nexecute C application on another core\n"
          case_pass $case_num
          break
@@ -205,27 +152,10 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
-send "cat /sys/class/misc/coreb/coreb_status\r"
-while 1 {
-   expect {
-      -re "Base Address.*Core B is running.*$kernel_prompt" {
-         send_user "Core B is running.\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         case_fail $case_num
-         break
-      }
-   }
-}
-
-incr case_num
 send "modprobe -r dualcore_test\r"
 while 1 {
    expect {
-      -re "Dual core test module removed: testarg = \\\[2\]*" {
+      -re "Dual core test module removed: testarg = \\\[1]\r\n$kernel_prompt" {
          case_pass $case_num
          break
       }
