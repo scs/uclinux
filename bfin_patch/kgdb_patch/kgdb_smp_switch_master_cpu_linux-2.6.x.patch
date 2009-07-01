@@ -106,14 +106,13 @@ index e4dcfb2..277986d 100644
  {
  	struct task_struct *thread;
  	char *ptr;
-@@ -1089,6 +1116,15 @@
+@@ -1089,6 +1116,14 @@
  		kgdb_usethread = thread;
  		ks->kgdb_usethreadid = ks->threadid;
  		strcpy(remcom_out_buffer, "OK");
 +#ifdef CONFIG_SMP
 +		if ((arch_kgdb_ops.flags & KGDB_THR_PROC_SWAP) &&
-+			!ks->thr_query && ks->kgdb_usethreadid < -1 &&
-+			- ks->kgdb_usethreadid - 2 != raw_smp_processor_id()) {
++			!ks->thr_query && ks->kgdb_usethreadid < -1) {
 +			kgdb_roundup_cpu(raw_smp_processor_id(), 0);
 +			kgdb_contthread = kgdb_usethread;
 +			return 1;
@@ -122,26 +121,7 @@ index e4dcfb2..277986d 100644
  		break;
  	case 'c':
  		ptr = &remcom_in_buffer[2];
-@@ -1102,10 +1138,27 @@
- 				break;
- 			}
- 			kgdb_contthread = thread;
-+#ifdef CONFIG_SMP
-+			if ((arch_kgdb_ops.flags & KGDB_THR_PROC_SWAP) &&
-+				thread != current) {
-+				int cpu;
-+				for_each_online_cpu(cpu) {
-+					if (thread == kgdb_info[cpu].task) {
-+						kgdb_roundup_cpu(
-+							raw_smp_processor_id(),
-+							0);
-+						ks->kgdb_usethreadid = -cpu-2;
-+						return 1;
-+					}
-+				}
-+			}
-+#endif
- 		}
+@@ -1106,6 +1141,8 @@
  		strcpy(remcom_out_buffer, "OK");
  		break;
  	}
@@ -150,7 +130,7 @@ index e4dcfb2..277986d 100644
  }
  
  /* Handle the 'T' thread query packets */
-@@ -1114,6 +1167,9 @@
+@@ -1114,6 +1151,9 @@
  	char *ptr = &remcom_in_buffer[1];
  	struct task_struct *thread;
  
@@ -160,7 +140,7 @@ index e4dcfb2..277986d 100644
  	kgdb_hex2long(&ptr, &ks->threadid);
  	thread = getthread(ks->linux_regs, ks->threadid);
  	if (thread)
-@@ -1223,7 +1279,12 @@
+@@ -1223,7 +1263,12 @@
  	/* Clear the out buffer. */
  	memset(remcom_out_buffer, 0, sizeof(remcom_out_buffer));
  
@@ -174,7 +154,7 @@ index e4dcfb2..277986d 100644
  		unsigned char thref[8];
  		char *ptr;
  
-@@ -1238,6 +1299,7 @@
+@@ -1238,6 +1283,7 @@
  		put_packet(remcom_out_buffer);
  	}
  
@@ -182,7 +162,7 @@ index e4dcfb2..277986d 100644
  	kgdb_usethread = kgdb_info[ks->cpu].task;
  	ks->kgdb_usethreadid = shadow_pid(kgdb_info[ks->cpu].task->pid);
  	ks->pass_exception = 0;
-@@ -1284,7 +1346,8 @@
+@@ -1284,7 +1330,8 @@
  			gdb_cmd_query(ks);
  			break;
  		case 'H': /* task related */
@@ -192,7 +172,7 @@ index e4dcfb2..277986d 100644
  			break;
  		case 'T': /* Query thread status */
  			gdb_cmd_thread(ks);
-@@ -1324,6 +1387,7 @@
+@@ -1324,6 +1371,7 @@
  			if (error >= 0 || remcom_in_buffer[0] == 'D' ||
  			    remcom_in_buffer[0] == 'k') {
  				error = 0;
@@ -200,7 +180,7 @@ index e4dcfb2..277986d 100644
  				goto kgdb_exit;
  			}
  
-@@ -1464,11 +1528,15 @@
+@@ -1464,11 +1512,15 @@
  	 * Get the passive CPU lock which will hold all the non-primary
  	 * CPU in a spin state while the debugger is active
  	 */
@@ -217,7 +197,7 @@ index e4dcfb2..277986d 100644
  	/*
  	 * spin_lock code is good enough as a barrier so we don't
  	 * need one here:
-@@ -1477,7 +1545,7 @@
+@@ -1477,7 +1529,7 @@
  
  #ifdef CONFIG_SMP
  	/* Signal the other CPUs to enter kgdb_wait() */
@@ -226,7 +206,7 @@ index e4dcfb2..277986d 100644
  		kgdb_roundup_cpus(flags);
  #endif
  
-@@ -1496,7 +1564,6 @@
+@@ -1496,7 +1548,6 @@
  	kgdb_post_primary_code(ks->linux_regs, ks->ex_vector, ks->err_code);
  	kgdb_deactivate_sw_breakpoints();
  	kgdb_single_step = 0;
@@ -234,7 +214,7 @@ index e4dcfb2..277986d 100644
  	exception_level = 0;
  
  	/* Talk to debugger with gdbserial protocol */
-@@ -1510,7 +1577,14 @@
+@@ -1510,7 +1561,14 @@
  	kgdb_info[ks->cpu].task = NULL;
  	atomic_set(&cpu_in_kgdb[ks->cpu], 0);
  
@@ -242,7 +222,7 @@ index e4dcfb2..277986d 100644
 +#ifdef CONFIG_SMP
 +	i = -(ks->kgdb_usethreadid + 2);
 +	if ((arch_kgdb_ops.flags & KGDB_THR_PROC_SWAP) &&
-+		kgdb_contthread && i != cpu) {
++		kgdb_contthread) {
 +		atomic_set(&passive_cpu_wait[i], 0);
 +	}
 +#endif
@@ -250,7 +230,7 @@ index e4dcfb2..277986d 100644
  		for (i = NR_CPUS-1; i >= 0; i--)
  			atomic_set(&passive_cpu_wait[i], 0);
  		/*
-@@ -1536,9 +1610,9 @@
+@@ -1536,9 +1594,9 @@
  int kgdb_nmicallback(int cpu, void *regs)
  {
  #ifdef CONFIG_SMP
@@ -264,4 +244,3 @@ index e4dcfb2..277986d 100644
  	}
 -- 
 1.6.0
-
