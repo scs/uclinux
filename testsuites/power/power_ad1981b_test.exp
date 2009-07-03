@@ -133,6 +133,25 @@ expect -re $kernel_prompt
 
 set timeout 20
 incr case_num
+send "modprobe snd-soc-core\r"
+while 1 {
+    expect {
+        -re "(\[eE]rror|\[fF]ail|Hardware Trace).*$kernel_prompt" {
+            send_user "Install module failed!\r"
+            case_fail $case_num
+        }
+        -re "ASoC version.*$kernel_prompt" {
+            break
+        }
+        timeout {
+            send_user "Install module failed!\r"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 20
+incr case_num
 send "modprobe snd-ad1980\r"
 while 1 {
     expect {
