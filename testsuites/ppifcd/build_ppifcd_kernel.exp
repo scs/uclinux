@@ -22,7 +22,7 @@ spawn make config
 #puts "Begin the interactive process of configuration"
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
