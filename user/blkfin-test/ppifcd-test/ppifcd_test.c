@@ -73,15 +73,15 @@ int WriteIMG(char *, unsigned long);
 #define HEIGHT          1024
 #endif
 
-#define BF537_MICRON_STANDBY  "/dev/pf27"      /* pg11 */
-#define BF537_MICRON_LED      "/dev/pf24"      /* pg8 */
+#define BF537_MICRON_STANDBY  "/dev/gpio27"      /* pg11 */
+#define BF537_MICRON_LED      "/dev/gpio24"      /* pg8 */
 #define BF537_MICRON_TRIGGER_STROBE 29
 
-#define BF533_MICRON_STANDBY  "/dev/pf8"
-#define BF533_MICRON_LED      "/dev/pf11"
+#define BF533_MICRON_STANDBY  "/dev/gpio8"
+#define BF533_MICRON_LED      "/dev/gpio11"
 #define BF533_MICRON_TRIGGER_STROBE 6
 
-#define FS3             "/dev/pf3"
+#define FS3             "/dev/gpio3"
 
 #define MASTERCLOCK     48	//MHz
 
@@ -355,7 +355,7 @@ int main(int argc, char *argv[])
 
 	offset = getoffset();
 
-	write(fd_standby, "0", sizeof("0"));
+	write(fd_standby, "O0", 2);
 
 	if (board == 533) {
 
@@ -364,10 +364,10 @@ int main(int argc, char *argv[])
 			printf("%s open error %d\n", FS3, errno);
 			return -1;
 		}
-		write(fd_fs3, "0", sizeof("0"));
+		write(fd_fs3, "O0", 2);
 	}
 
-	write(fd_led, "1", sizeof("0"));
+	write(fd_led, "O1", 2);
 
 	if (usetrigger) {
 		i2c_write_register(I2C_DEVICE, DEVID, 0x1E, 0x8100);
@@ -463,7 +463,7 @@ int main(int argc, char *argv[])
 		    ("*******************************************************************************\n");
 	}
 
-	write(fd_led, "0", sizeof("0"));
+	write(fd_led, "O0", 2);
 
 	close(fd_standby);
 	close(fd_led);
