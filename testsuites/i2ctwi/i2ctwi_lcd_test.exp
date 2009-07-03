@@ -81,8 +81,8 @@ incr case_num
 send "ls\r" 
 while 1 {
    expect {
-     -re "0-0022.*0-002f" {
-         
+     -re "0022.*(\[0-9]-002f)" {
+         set subfolder $expect_out(1,string) 
          case_pass $case_num
          break
       }
@@ -96,7 +96,7 @@ while 1 {
 
 incr case_num
 expect ">"
-send "cd 0-002f\r" 
+send "cd $subfolder\r" 
 while 1 {
    expect {
       ">" {
