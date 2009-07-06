@@ -23,7 +23,7 @@ set timeout 5
 send "modprobe dualcore_test\r"
 while 1 {
    expect {
-      -re "Dual core test module inserted: set testarg = \\\[1\].*feb1fffc.*$kernel_prompt" {
+      -re "Dual core test module inserted: set testarg = \\\[\[0-9]+].*feb1fffc.*$kernel_prompt" {
          send_user "\nDual core test module inserted\n"
          break
       }
@@ -77,7 +77,7 @@ incr case_num
 send "modprobe -r dualcore_test\r"
 while 1 {
    expect {
-      -re "Dual core test module removed: testarg = \\\[1]\r\n$kernel_prompt" {
+      -re "Dual core test module removed: testarg = \\\[\[0-9]+]\r\n$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -101,7 +101,7 @@ set timeout 5
 send "modprobe dualcore_test\r"
 while 1 {
    expect {
-      -re "Dual core test module inserted: set testarg = \\\[1\].*feb1fffc.*$kernel_prompt" {
+      -re "Dual core test module inserted: set testarg = \\\[\[0-9]+].*feb1fffc.*$kernel_prompt" {
          send_user "\nDual core test module inserted\n"
          break
       }
@@ -155,7 +155,7 @@ incr case_num
 send "modprobe -r dualcore_test\r"
 while 1 {
    expect {
-      -re "Dual core test module removed: testarg = \\\[1]\r\n$kernel_prompt" {
+      -re "Dual core test module removed: testarg = \\\[\[0-9]+]\r\n$kernel_prompt" {
          case_pass $case_num
          break
       }
