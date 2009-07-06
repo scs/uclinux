@@ -14,7 +14,7 @@ step "Reboot the kernel."
 # for it is the default value.
 # set bootargs  $bootargs_param0
 source ../reboot_kernel.exp
-sleep 5
+sleep 10
 send "\r"
 expect -re $kernel_prompt
 
