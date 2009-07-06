@@ -34,11 +34,11 @@ while 1 {
             send "y\r"
         }
 
-        -re "Blackfin BF53x Programmable Flags Driver.*BF5xx_PFLAGS.*\\\[.*]" {
+        -re "Blackfin PPI Camera frame capture driver.*BFIN_PPIFCD.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "Blackfin BF5xx PPI Camera frame capture driver.*BF5xx_PPIFCD.*\\\[.*]" {
+        -re "Simple GPIO char interface.*SIMPLE_GPIO.*\\\[.*]" {
             send "Y\r"
         }
 
