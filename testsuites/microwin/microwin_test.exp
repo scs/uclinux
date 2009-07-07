@@ -22,7 +22,7 @@ source ../reboot_kernel.exp
 step "Start testing."
 set case_num 0
 set manual 0
-sleep 5
+sleep 10
 send "\r"
 
 set timeout 10

@@ -16,7 +16,7 @@ step "Reboot the kernel."
 source ../reboot_kernel.exp 
 
 step "Start testing."
-
+sleep 10
 set case_num 0
 
 incr case_num
