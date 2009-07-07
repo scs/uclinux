@@ -58,22 +58,6 @@ while 1 {
             }
         }
 
-        -re "SDA GPIO pin number.*I2C_BLACKFIN_GPIO_SDA.*\\\[.*]" {
-            if { $board_type == "BF533-STAMP" } {
-                send "2\r"
-            } else {
-                send "\r"
-            }
-        }
-
-        -re "SCL GPIO pin number.*I2C_BLACKFIN_GPIO_SCL.*\\\[.*]" {
-            if { $board_type == "BF533-STAMP" } {
-                send "4\r"
-            } else {
-                send "\r"
-            }
-        }
-
         -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
                 send "Y\r"
