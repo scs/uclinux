@@ -57,7 +57,7 @@ echo "$0:       Copy mpu test cases to board"
 rm -fr testcase
 mkdir -p testcase
 
-cp $ltp_testcases_dir/mmap1 $ltp_testcases_dir/mmap0[2-9] testcase
+cp $ltp_testcases_dir/mmap1 $ltp_testcases_dir/mmap0[2-8] testcase
 if [ $? != 0 ] ; then
     echo "copy mpu test cases failed"
     exit 1

@@ -72,7 +72,7 @@ while 1 {
 step "Start testing"
 set spawn_id $kermit_spawn_id
 set testres 0
-set allcases {mmap1 mmap02 mmap03 mmap04 mmap05 mmap06 mmap07 mmap08 mmap09}
+set allcases {mmap1 mmap02 mmap03 mmap04 mmap05 mmap06 mmap07 mmap08}
 set casenum [llength $allcases]
 send_user "casenum=$casenum\n"
 
