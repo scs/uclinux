@@ -61,9 +61,9 @@ while 1 {
             send "y\r"
         }
 
-     #   -re "Blackfin BF53x ADSP SPI ADC support.*SPI_ADC_BF533.*\\\[.*]" {
-     #       send "Y\r"
-     #   }
+        -re "Blackfin ADSP SPI ADC support.*BFIN_SPI_ADC.*\\\[.*]" {
+            send "Y\r"
+        }
 
         -re "User mode SPI device driver support.*SPI_SPIDEV.*\\\[.*]" {
             send "Y\r"
