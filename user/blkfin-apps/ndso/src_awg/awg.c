@@ -498,6 +498,7 @@ sample (int form_method, char **getvars, char **postvars)
     errval = write (fd0, cgiinfo.samples, cgiinfo.samples_cnt * 2);
 
   	sleep(cgiinfo.time2run);
+  ioctl (fd0, CMD_SPI_SET_WRITECONTINUOUS, 0);
 	write (fd0,def, 2);
   close (fd0);
   free(cgiinfo.samples);
