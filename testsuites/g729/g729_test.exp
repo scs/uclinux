@@ -26,6 +26,7 @@ set TEST_PROG "g729ab_test g729ab_testsimgot g729ab_testfdpic g729ab_testfdpic_s
 set case_num 0
 incr case_num
 set timeout 15
+sleep 10
 
 send "ifconfig eth0 $targetip\n"
 expect -re $kernel_prompt

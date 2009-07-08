@@ -63,7 +63,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 60
+set timeout 120
 send "mke2fs /dev/$usb_dev1\r"
 while 1 {
     expect {
@@ -177,6 +177,7 @@ while 1 {
     }
 }
 
+set timeout 10
 incr case_num
 send "umount /mnt\r"
 while 1 {
@@ -325,6 +326,7 @@ while 1 {
     }
 }
 
+set timeout 10
 incr case_num
 send "umount /mnt\r"
 while 1 {
