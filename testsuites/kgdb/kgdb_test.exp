@@ -23,17 +23,21 @@ send_log "\n#### This port $debug_port is not supported. Sorry.\n"
 exit
 }
 
+set TITLE [title "$argv0"]
+
 if { $core_config != "" } {
 
 log_file [log_file_name $argv0.$core_config.$debug_port ]
 
+append TITLE " ($core_config)"
 } else {
 
 log_file [log_file_name $argv0.$debug_port ]
 }
 
+append TITLE " ($debug_port)"
+
 send_user "Starting $argv0\n"
-set TITLE [title "$argv0"]
 
 step "Start kermit."
 source ../spawn_kermit.exp

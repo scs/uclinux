@@ -134,7 +134,7 @@ while 1 {
             break
          }
 
-         -re "turn off boot console early_BFuart0|console handover: boot \\\[early_BFuart0\\\] -> real \\\[ttyBF1\\\]" {
+         -re "turn off boot console early_BFuart0|console handover:boot \\\[early_BFuart0\\\] -> real \\\[ttyBF1\\\]" {
             puts "Closed console."
             break
          }
