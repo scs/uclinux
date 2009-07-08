@@ -32,19 +32,17 @@ send_user "*********************************\n"
 set timeout 5
 set case_num 0
 
+set timer_interrupt_id 6
+set timer_interrupt_name "Blackfin CoreTimer"
 send "uname -a\r"
 while 1 {
     expect {
         -re "SMP.*$kernel_prompt" {
             send_user "\nIt's a SMP kernel!\n"
-            set timer_interrupt_id 42
-            set timer_interrupt_name "Timer Tick"
             break
         }
         -re $kernel_prompt {
             send_user "\nIt's not a SMP kernel.\n"
-            set timer_interrupt_id 6
-            set timer_interrupt_name "Blackfin CoreTimer"
             break
         }
         timeout {
