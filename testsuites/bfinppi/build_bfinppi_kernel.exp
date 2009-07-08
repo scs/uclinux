@@ -31,8 +31,24 @@ while 1 {
             send "Y\r"
         }
 
+        -re "IRQ_ERROR.*IRQ_ERROR.*\\\[.*]" {
+            send "8\r"
+        }
+
+        -re "IRQ_PPI.*IRQ_PPI.*\\\[.*]" {
+            send "7\r"
+        }
+
         -re "PPI test program.*USER_BLACKFIN_PPI.*\\\[.*]" {
             send "Y\r"
+        }
+
+        -re "USB support.*USB_SUPPORT.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            send "N\r"
         }
 
         "\\\(*) \\\[*]" {
