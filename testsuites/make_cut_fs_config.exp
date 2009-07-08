@@ -123,15 +123,7 @@ while 1 {
             send "N\r"
         }
 
-        -re "ftpd.*USER_FTPD_FTPD.*\\\[.*]" {
-            send "N\r"
-        }
-
         -re "telnet.*USER_TELNET_TELNET.*\\\[.*]" {
-            send "N\r"
-        }
-
-        -re "telnetd.*USER_TELNETD_TELNETD.*\\\[.*]" {
             send "N\r"
         }
 

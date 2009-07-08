@@ -953,6 +953,10 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 			}
 		}
 		}
+		"to quit---" {
+			send "\r"
+			exp_continue
+		}
 		timeout {
                 clean_host_gdb
                 case_fail $case_num
@@ -1225,6 +1229,10 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
 			}
 		}
 		}
+		"to quit---" {
+			send "\r"
+			exp_continue
+		}
 		timeout {
                 clean_host_gdb
                 case_fail $case_num
@@ -1434,6 +1442,10 @@ if { $board_type == "BF548-EZKIT" || $board_type == "BF561-EZKIT" } {
                         case_pass $case_num
 			}
 		}
+		}
+		"to quit---" {
+			send "\r"
+			exp_continue
 		}
 		timeout {
                 clean_host_gdb
