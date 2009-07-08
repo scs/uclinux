@@ -133,10 +133,10 @@ expect -re $kernel_prompt
 
 set timeout 20
 incr case_num
-send "modprobe i2c-bfin-twi; modprobe snd-ssm2602\r"
+send "modprobe i2c-bfin-twi; modprobe snd-soc-core; modprobe snd-ssm2602\r"
 while 1 {
     expect {
-        -re "(\[eE]rror|\[fF]ail).*$kernel_prompt" {
+        -re "(modprobe:|No such|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             send_user "Install module failed!\r"
             case_fail $case_num
         }
@@ -269,10 +269,10 @@ while 1 {
 
 set timeout 20
 incr case_num
-send "modprobe -r snd-ssm2602; modprobe -r i2c-bfin-twi\r"
+send "modprobe -r snd-ssm2602; modprobe -r snd-soc-core; modprobe -r i2c-bfin-twi\r"
 while 1 {
     expect {
-        -re "(modprobe:|No such).*$kernel_prompt" {
+        -re "(modprobe:|No such|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             send_user "Uninstall module failed!\r"
             case_fail $case_num
         }
