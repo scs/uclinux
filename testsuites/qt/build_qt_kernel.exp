@@ -89,7 +89,7 @@ while 1 {
         }
 
         -re "Build WebKit.*LIB_QT_WEBKIT.*\\\[.*]" {
-            send "Y\r"
+            send "N\r"
         }
 
         -re "Build demos/examples.*LIB_QT_EXAMPLES.*\\\[.*]" {
