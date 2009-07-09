@@ -138,7 +138,7 @@ static int do_modprobe(struct modprobe_conf *conf, const char *module)
 	llist_t *deps = NULL;
 	char *fn, *options, *colon = NULL, *tokens[2];
 	parser_t *p;
-	int rc = -1;
+	int rc = -1, first;
 
 	p = config_open2(CONFIG_DEFAULT_DEPMOD_FILE, fopen_for_read);
 	if (p == NULL)
@@ -166,13 +166,17 @@ static int do_modprobe(struct modprobe_conf *conf, const char *module)
 	if (!(option_mask32 & MODPROBE_OPT_REMOVE))
 		deps = llist_rev(deps);
 
+	first = 1;
 	rc = 0;
 	while (deps && rc == 0) {
 		fn = llist_pop(&deps);
 		filename2modname(fn, modname);
 		if (option_mask32 & MODPROBE_OPT_REMOVE) {
 			if (bb_delete_module(modname, O_EXCL) != 0)
-				rc = errno;
+				if (first)
+					rc = errno;
+			/* do not error out if *deps* fail to unload */
+			first = 0;
 		} else if (llist_find(loaded, modname) == NULL) {
 			options = gather_options(conf->options, modname,
 						 strcmp(modname, module) == 0);
