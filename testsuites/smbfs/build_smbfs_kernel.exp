@@ -50,7 +50,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .02
+            sleep .05
             send "\r"
         }
 

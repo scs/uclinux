@@ -25,7 +25,8 @@ spawn su
 sleep .5
 while 1 {
    expect {
-      "Password:" {
+      -re "\[Pp]assword:" {
+         sleep .5
          send -s "$password\r"
          break
       }
