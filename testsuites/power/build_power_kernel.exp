@@ -181,6 +181,10 @@ while 1 {
             }
         }
 
+        -re "Enable MMAP Support.*SND_BF5XX_MMAP_SUPPORT.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "SoC AD1980/1 Audio support for BF5xx.*SND_BF5XX_SOC_AD1980.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" || $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
                 send "M\r"
