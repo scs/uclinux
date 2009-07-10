@@ -236,7 +236,7 @@ set case_num 0
 
 send_log "\nPlease listen to the earphone or amplifier.\n\n"
 
-sleep 5
+sleep 10
 set timeout 4
 send "\n"
 expect ">"

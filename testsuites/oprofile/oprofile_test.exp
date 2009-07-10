@@ -206,7 +206,7 @@ while 1 {
         -re "not found|\[eE]rror|\[fF]ail|Hardware Trace" {
             case_fail $case_num
         }
-        -re "Using 2.6\\\+ OProfile kernel interface.*$kernel_prompt" {
+        -re "Using 2.6\\\+ OProfile kernel interface.*oprofiled\.log" {
             case_pass $case_num
             break
         }

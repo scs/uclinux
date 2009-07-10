@@ -288,7 +288,7 @@ while 1 {
 
 set timeout 20
 incr case_num
-send "modprobe -r snd-ad1980; modprobe -r snd-soc-core\r"
+send "modprobe -r snd-ad1980\r"
 while 1 {
     expect {
         -re "(modprobe:|No such).*$kernel_prompt" {
