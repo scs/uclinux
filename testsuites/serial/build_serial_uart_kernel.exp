@@ -5,7 +5,18 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-set boot_image uImage
+set argc [llength $argv]
+
+if { $argc < 1} {
+puts "Please input: board_type [port type : serial_uart or sport_uart ] ."
+exit
+}
+
+set port_type serial_uart
+
+if { $argc >= 2} {
+set port_type [lindex $argv 1]
+}
 
 cd $uclinux_path/testsuites
 
@@ -36,47 +47,75 @@ while 1 {
       }
              
 	   -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
-             send "y\r"
+            if { $port_type == "serial_uart" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            } 
       }
 
           -re "Console on Blackfin serial port.*SERIAL_BFIN_CONSOLE.*\\\[.*]" {
-             send "y\r"
+            if { $port_type == "serial_uart" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            } 
       }
       
           -re "UART Mode.*DMA mode.*SERIAL_BFIN_DMA.*PIO mode.*SERIAL_BFIN_PIO.*choice.*\\\[.*]" {
-             send "1\r"
+            if { $port_type == "serial_uart" } {
+                send "1\r"
+            } else {
+                send "\r"
+            } 
       }
           
           -re "Enable UART0.*SERIAL_BFIN_UART0.*\\\[.*]" {
-            if { $board_type == "BF527-EZKIT" } {
-                send "y\r"
+            if { $board_type == "BF527-EZKIT" || $port_type == "serial_uart"  } {
+                send "Y\r"
             } else {
                 send "\r"
             } 
       }
 
           -re "Enable UART1.*SERIAL_BFIN_UART1.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" } {
-                send "y\r"
+            if { $board_type == "BF537-STAMP" || $port_type == "serial_uart" } {
+                send "Y\r"
             } else {
                 send "\r"
             } 
       }
 
           -re "Enable UART3.*SERIAL_BFIN_UART3.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "y\r"
+            if { $board_type == "BF548-EZKIT" || $port_type == "serial_uart" } {
+                send "Y\r"
             } else {
                 send "\r"
             }
       }
 
           -re "NAND Device Support.*MTD_NAND.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" } {
+            if { $board_type == "BF537-STAMP" || $port_type == "serial_uart" } {
                 send "N\r"
             } else {
                 send "\r"
             }
+      }
+
+         -re "Blackfin SPORT emulate UART.*SERIAL_BFIN_SPORT.*\\\[.*]" {
+            if { $port_type == "sport_uart" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            } 
+      }
+          
+         -re "Console on Blackfin sport emulated uart.*SERIAL_BFIN_SPORT_CONSOLE.*\\\[.*]" {
+            if { $port_type == "sport_uart" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            } 
       }
  
        "\\\(*) \\\[*]" {

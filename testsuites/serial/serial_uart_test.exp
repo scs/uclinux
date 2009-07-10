@@ -1,8 +1,8 @@
 #!/usr/bin/expect
 
 #
-#Test program to test SPORT UART1.
-#Be sure the serial cable is connected to sport uart1 from the host ttyS0.
+#Test program to test extended UART.
+#Be sure the serial cable is connected from the host ttyUSB0 to the extended UART.
 #And  the kernel is booted up with eth0 enabled.
 #
 
@@ -10,13 +10,32 @@ source ../kernel_config.exp
 source ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
-set TITLE [title "$argv0"]
-
 
 step "Start kermit."
 source ../spawn_kermit.exp
 
-step "Reboot the kernel."
+set argc [llength $argv]
+
+if { $argc < 1} {
+puts "Please input: board_type [ port type : serial_uart or sport_uart ] ."
+exit
+}
+
+set port_type serial_uart
+if { $argc >= 2} {
+set port_type [lindex $argv 1]
+}
+set TITLE [title "$argv0"]
+append TITLE " ($port_type)"
+
+if {  $port_type== "sport_uart" } {
+
+set bootargs             $bootargs_param7
+set ttyBFdev /dev/ttySS0
+set bits_number 7
+
+} elseif { $port_type== "serial_uart" } {
+
 if { $board_type == "BF527-EZKIT" } {
 set bootargs             $bootargs_param8
 set ttyBFdev /dev/ttyBF0
@@ -24,26 +43,20 @@ set ttyBFdev /dev/ttyBF0
 set bootargs             $bootargs_param7
 set ttyBFdev /dev/ttyBF1
 }
-set boot_image uImage
+set bits_number 8
+}
+
+step "Reboot the kernel."
 source ../reboot_kernel.exp
 
-send_log "\nStarting test for Serial UART 1...\n"
+send_log "\nStarting test for UART ...\n"
 
 set ttydev $ttyUSBdev
 set target_file aaa
 set host_file bbb
 set save_file ccc
-
-set argc [llength $argv]
-
-if { $argc < 1} {
-puts "Please input: board_type [buffer_status] ."
-exit
-}
-
-if { $argc >= 2} {
-set ttyBFdev [lindex $argv 1]
-}
+set command "/proc/kallsyms"
+#set command "/proc/cmdline"
 
 send_log "*********************************\r"
 send_log "Start $TITLE\r"
@@ -57,38 +70,6 @@ set target_id $spawn_id
 ### so use igncr to set target tty device not to add "\n" sign.
 ###
 
-#config Linux host pc
-spawn /bin/bash
-set shell_spawn_id $spawn_id
-
-incr case_num
-set timeout 30
-send "su \r"
-while 1 {
-    expect {
-        -re "\[Pp]assword:" {break}
-        timeout {
-            send_user "su timeout\n"
-            case_fail $case_num
-        }
-    }
-}
-
-set timeout 60
-send "$password\r"
-while 1 {
-    expect {
-        -re "#" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            send_user "su and login timeout\n"
-            case_fail $case_num
-        }
-    }
-}
-
 set spawn_id $kermit_spawn_id
 
 incr case_num
@@ -97,7 +78,7 @@ set timeout 5
 send "\r"
 expect -re  $kernel_prompt
 
-send -s "cat /proc/kallsyms > $save_file \r"
+send -s "cat $command > $save_file \r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -107,7 +88,7 @@ while 1 {
         }
 }
 
-send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate -icrnl igncr min 1 time 0\r"
+send -s "stty -F $ttyBFdev cs$bits_number ispeed $baud_rate ospeed $baud_rate -icrnl igncr min 1 time 0\r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -116,11 +97,13 @@ while 1 {
                      exit }
         }
 }
+
 send -s "cat $ttyBFdev > $target_file \r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" {
-                      break }
+                      case_fail $case_num
+                      }
                 timeout {
                       break }
         }
@@ -142,7 +125,7 @@ while 1 {
 }
 
 while 1 {
-send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate -icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl min 1 time 0\r"
+send -s "stty -F $ttydev cs$bits_number ispeed $baud_rate ospeed $baud_rate -icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl min 1 time 0\r"
 expect {
         -re  "$sh_prompt" {
           break }
@@ -166,12 +149,13 @@ expect {
 }
 
 set spawn_id $target_id
-
+set timeout 5
 sleep 3
 while 1 {
 expect {
         -re  "$kernel_prompt" {
           puts "Fail to wait.\n"
+          case_fail $case_num
           break }
          timeout {
           puts "\nStill wait.\n"
@@ -193,7 +177,7 @@ expect {
 }
 }
 
-set timeout 60
+set timeout 10
 send -s "diff -u $save_file $target_file \r"
 while 1 {
 expect {
@@ -224,11 +208,11 @@ expect {
 ### Case 2 is sending file from target to host.
 ### Here use igncr to host tty device not to add "\n" sign.
 ###
-
+set timeout 5
 incr case_num
 
 set spawn_id $target_id
-send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate  -icrnl igncr min 1 time 0\r"
+send -s "stty -F $ttyBFdev cs$bits_number ispeed $baud_rate ospeed $baud_rate  -icrnl igncr min 1 time 0\r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -242,7 +226,7 @@ sleep 3
 send "ls\r"
 expect -re  "$sh_prompt"
 
-send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate -icrnl  igncr min 1 time 0\r"
+send -s "stty -F $ttydev cs$bits_number ispeed $baud_rate ospeed $baud_rate -icrnl  igncr min 1 time 0\r"
 while 1 {
         expect {
                 -re  "$sh_prompt" { break  }
@@ -257,6 +241,7 @@ send -s "cat $ttydev > $host_file \r"
 expect {
         -re  "$sh_prompt" {
           puts "Fail to cat on host.\n"
+          case_fail $case_num
           break }
          timeout {
           puts "wait for receiving data...\n"
@@ -272,17 +257,19 @@ send -s "cat $save_file > $ttyBFdev \r"
         expect {
               -re  "$kernel_prompt" {
                       break }
-                timeout { send_user "Failed inital telnet\n"
+                timeout { send_user "Failed to cat file\n"
                         exit }
         }
 
 }
 set spawn_id $host_sh_id
+set timeout 5
 sleep 5
 while 1 {
 expect {
         -re  "$sh_prompt" {
           puts "Fail to wait.\n"
+          case_fail $case_num
           break }
          timeout {
           puts "\nStill wait.\n"
@@ -310,7 +297,7 @@ expect {
 #         puts "Failed to cat file.\n"}
 #}
 #}
-set timeout 50
+set timeout 10
 send -s "diff -u $save_file $host_file \r"
 while 1 {
 expect {
@@ -344,7 +331,7 @@ step "Convert the console to the extend ttyBF."
 
 set spawn_id $target_id
 set console [file tail $ttyBFdev]
-append bootargs_param7 " console=$console"
+append bootargs_param7 " console=$console,57600n$bits_number"
 set bootargs             $bootargs_param7
 source ../reboot_kernel.exp
 
@@ -368,7 +355,7 @@ incr case_num
             }
         }
     }
-
+# set serial 7N1 in kermit if needed.
 step "Start kermit."
 source ../spawn_kermit.exp
 set timeout 20
