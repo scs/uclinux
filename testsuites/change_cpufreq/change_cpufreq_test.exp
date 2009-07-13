@@ -84,12 +84,14 @@ if { $core_clock >= $std_clock } {
     send -s  "cat /proc/cpuinfo\r"
     while 1 {
         expect {
-            -re "cpu MHz\[\x20\t]+: (\[0-9]+\.\[0-9]{3}).*/" {
+            -re "cpu MHz\[\x20\t]+: (\[0-9]+\.\[0-9]{3}).*/.*bogomips\[\x20\t]+: (\[0-9]+\.\[0-9]+)" {
                 set exact_core_clock $expect_out(1,string)
+                set bogomips_before $expect_out(2,string)
                       
                              if { 0 <= [expr $exact_core_clock - $core_clock] && [expr $exact_core_clock - $core_clock] < 1 } {
                                     case_pass $case_num
-                                    puts "\n exact_core_clock $exact_core_clock\n"
+                                    send_log "\n exact_core_clock $exact_core_clock\n"
+                                    send_log "\n bogomips_before $bogomips_before\n"
                                     send_user "\ncat cpuinfo case pass!\n"
                                     expect  -re "$kernel_prompt"
                                     break
@@ -123,12 +125,14 @@ if { $core_clock >= $std_clock } {
     }
 
     set new_core_clock [ expr $new_core_clock_inK / 1000 ] 
-
+    set bogomips_after [ expr $bogomips_before / 2 ]
+ 
     incr case_num
     send -s  "cat /proc/cpuinfo\r"
     while 1 {
         expect {
-            -re "cpu MHz\[\x20\t]+: $new_core_clock\.\[0-9]{3}.*/" {
+            -re "cpu MHz\[\x20\t]+: $new_core_clock\.\[0-9]{3}.*/.*bogomips\[\x20\t]+: $bogomips_after" {
+                send_log "\nMatched new_core_clock and bogomips_after.\n"
                 expect  -re "$kernel_prompt"
                     case_pass $case_num
                     break
