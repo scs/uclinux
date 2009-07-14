@@ -49,7 +49,7 @@ proc standby_test_case1 {} {
     send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
         expect {
-            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done.*$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -107,7 +107,7 @@ proc standby_test_case2 {} {
     send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
         expect {
-            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done.*$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -133,14 +133,14 @@ expect -re $kernel_prompt
 
 set timeout 20
 incr case_num
-send "modprobe i2c-bfin-twi; modprobe snd-soc-core; modprobe snd-ssm2602\r"
+send "modprobe i2c-bfin-twi; modprobe snd-ssm2602\r"
 while 1 {
     expect {
         -re "(modprobe:|No such|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             send_user "Install module failed!\r"
             case_fail $case_num
         }
-        -re "I2C TWI Contoller Driver.*ssm2602 Audio Codec.*mapping ok.*$kernel_prompt" {
+        -re "I2C TWI Contoller.*ASoC version.*ssm2602 Audio Codec.*mapping ok.*$kernel_prompt" {
             break
         }
         timeout {
@@ -269,7 +269,7 @@ while 1 {
 
 set timeout 20
 incr case_num
-send "modprobe -r snd-ssm2602; modprobe -r snd-soc-core; modprobe -r i2c-bfin-twi\r"
+send "modprobe -r snd-ssm2602; modprobe -r i2c-bfin-twi\r"
 while 1 {
     expect {
         -re "(modprobe:|No such|\[eE]rror|\[fF]ail).*$kernel_prompt" {
