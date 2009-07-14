@@ -103,7 +103,7 @@ while 1 {
 }
 
 
-send "rmmod twi_keypad\r" 
+send "rmmod pcf8574_keypad\r" 
 while 1 {
    expect {
      -re ">" {         
