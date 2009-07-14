@@ -108,8 +108,30 @@ while 1 {
 
 step "Start testing"
 set spawn_id $kermit_spawn_id
+
+incr case_num
+set timeout 10
+send "uname -a\r"
+while 1 {
+    expect {
+        -re "SMP.*$kernel_prompt" {
+            set smp_flag 1
+            send_user "\nIt's a SMP kernel!\n"
+            break
+        }
+        -re $kernel_prompt {
+            set smp_flag 0
+            send_user "\nIt's not a SMP kernel.\n"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
 set timeout 60
-send "./dmacopy\r"
+send "taskset 1 ./dmacopy\r"
 while 1 {
     expect {
         -re "CURRENT PROCESS.*Call Trace.*|Kernel panic.*" {
@@ -129,6 +151,33 @@ while 1 {
             send_log "timeout\n"
             case_fail $case_num
             break
+        }
+    }
+}
+
+if { $smp_flag == 1 } {
+    set timeout 60
+    send "taskset 2 ./dmacopy\r"
+    while 1 {
+        expect {
+            -re "CURRENT PROCESS.*Call Trace.*|Kernel panic.*" {
+                case_fail $case_num
+                break
+            }
+            -re "SUMMARY: all tests passed.*$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            -re "SUMMARY: \[0-9]+ tests failed" {
+                case_fail $case_num
+                break
+            }
+            timeout {
+                send -s "\3"
+                send_log "timeout\n"
+                case_fail $case_num
+                break
+            }
         }
     }
 }
