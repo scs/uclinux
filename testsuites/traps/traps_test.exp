@@ -1,11 +1,8 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
 
 step "Spawn kermit"
@@ -13,97 +10,93 @@ source ../spawn_kermit.exp
 
 step "Reboot the kernel."
 # To add following line here to indicate that if the bootargs is different,
-# it could be set here. If the bootargs value is 0, it needn't be stated, 
+# it could be set here. If the bootargs value is 0, it needn't be stated,
 # for it is the default value.
-# set bootargs 	$bootargs_param0   
-source ../reboot_kernel.exp 
+# set bootargs 	$bootargs_param0
+source ../reboot_kernel.exp
 
 step "Start testing."
 sleep 10
 set case_num 0
-set timeout 5
+set timeout 10
 
-send -s "cd /bin\r" 
+send "uname -a\n"
 while 1 {
-   expect {
-      "bin" {         
-         break
-      }
-
-      timeout { 
-                case_fail $case_num
-	exit
-      }
-   }
+    expect {
+        -re "SMP.*$kernel_prompt" {
+            set smp_flag 1
+            send_user "\nIt's a SMP kernel!\n"
+            break
+        }
+        -re $kernel_prompt {
+            set smp_flag 0
+            send_user "\nIt's not a SMP kernel.\n"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+send -s "cd /bin\r"
+while 1 {
+    expect {
+        "bin" {
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-
-set timeout 50
-
-send -s  "./traps_test #\r"
+set timeout 10
+send -s  "taskset 1 ./traps_test #\r"
 while 1 {
-   expect {
-     
-       -re "(\[0-9]+)\r\n" {
-        set case_number $expect_out(1,string)
-        send_user "Case_num is $case_number .\n"
-        break
-      }
-
-      timeout {
-        case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "(\[0-9]+)\r\n" {
+            set case_number $expect_out(1,string)
+            incr case_number
+            send_user "Total case num is $case_number.\n"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
-set timeout 50
-set pass_num 0
-set fail_num 0
-
-send -s  "./traps_test -1\r"
-for { set j 0 } { $j < [ expr $case_number + 1 ] } { incr j 1 } { 
+incr case_num
+set timeout [ expr $case_number * 10 ]
+send -s  "taskset 1 ./traps_test -1\r"
 while 1 {
-   expect {
-      -re "$j.*:" {
-               expect {
-                        -re "PASS\[\x20\t]+\\(.*\\)" {
-                           incr pass_num
-                           send_user "This pass_num is $j .\n"
-                           break
-                        }
-                        -re "FAIL\[\x20\t]+\\(.*\\)" {
-                           incr fail_num
-                           send_user "This fail_num is $j .\n"
-                           break
-                        }
-
-                        timeout {
-                           case_fail $case_num
-                           break
-                        }
-                }
-      }
-      timeout {
-        case_fail $case_num
-	break
-      }
-     }
-}
+    expect {
+        -re "$case_number/$case_number tests passed.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
-if { $pass_num == [expr $case_number + 1] } {
-   send_log "\n"
-   send_log "\n$TITLE ............\[PASS\]\n"
-} else {
-   send_user "\n Total passed num is $pass_num . Should be [expr $case_number + 1] \n"
-   send_user "All fail_num is $fail_num .\n"
-   case_fail $case_num
+if { $smp_flag == 1 } {
+    incr case_num
+    send -s  "taskset 2 ./traps_test -1\r"
+    while 1 {
+        expect {
+            -re "$case_number/$case_number tests passed.*$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
 }
-
 
 send_user "Ending $argv0\n"
-
 log_file
-

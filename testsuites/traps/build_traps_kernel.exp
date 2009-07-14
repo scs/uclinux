@@ -37,6 +37,10 @@ while 1 {
             send -s "y\r"
         }
 
+        -re "taskset.*USER_BUSYBOX_TASKSET.*\\\[.*]" {
+            send  "Y\r"
+        }
+
         "\\\(*) \\\[*]" {
             sleep .01
             send "\r"
