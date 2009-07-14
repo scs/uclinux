@@ -82,11 +82,34 @@ send "echo \"nobody:x:1:1:nobody:/:/bin/sh\" >> /etc/passwd\n"
 send "cd /bin\n"
 expect -re $kernel_prompt
 
-for {set i 0} {$i < $casenum} {incr i} {
+set timeout 500
+send "./mmap1 -x 0.1\n"
+while 1 {
+    expect {
+        -re "FAIL|\[eE]rror|\[fF]ail|Hardware Trace" {
+            incr testres
+            send_user "testres=$testres\n"
+        }
+        -re "bin>" {
+            send "\r"
+            expect "bin>"
+            break
+        }
+        timeout {
+            send -s "\3"
+            expect "bin>"
+            break
+        }
+    }
+}
+sleep 5
+
+set timeout 10
+for {set i 1} {$i < $casenum} {incr i} {
     send "./[lindex $allcases $i]\n"
     while 1 {
         expect {
-            -re "FAIL" {
+            -re "FAIL|\[eE]rror|Hardware Trace" {
                 incr testres
                 send_user "testres=$testres\n"
             }
