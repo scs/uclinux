@@ -40,6 +40,10 @@ while 1 {
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "N\r"
         }
+       
+        -re "USB support.*USB_SUPPORT.*\\\[.*]" {
+            send "N\r"
+        }
 
         -re "Simple GPIO test.*SIMPLE_GPIO_TEST.*\\\[.*]" {
             send "Y\r"

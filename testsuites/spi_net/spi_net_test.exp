@@ -22,10 +22,30 @@ set TransRate  0
 set Throughput  0
 set case_num 0
 
-incr case_num
+set test_time 10
+set spi_net_ip 10.100.4.51
 
+incr case_num
+puts "Switch the ethernet line to spi_net port."
+sleep 15
+
+send "ifconfig eth0 down\r" 
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+         puts "ifconfig eth0 down.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
 set timeout 8
-send "ifconfig eth1 $targetip\r" 
+send "ifconfig eth1 $spi_net_ip\r" 
 while 1 {
    sleep 3
    expect {
@@ -44,9 +64,7 @@ while 1 {
 step "Untar netperf."
 
 cd  $uclinux_path/testsuites/ethernet/
-exec tar zxvf netperf.tgz
-
-exec rcp netperf_script  root@$targetip:/
+exec tar zxvf netperf.tar.gz
 
 spawn /bin/sh
 expect -re  $sh_prompt
@@ -87,11 +105,8 @@ set spawn_id $kermit_spawn_id
 
 send "cd /\r"
 expect    -re $kernel_prompt
-send "chmod 777 netperf_script\r"
-
-expect    -re $kernel_prompt
-send  "./netperf_script\r"
-set timeout 4000
+send  "netperf -H $serverip -t TCP_RR -l $test_time > netperf_tcp_rr \r"
+set timeout 2000
 while 1 {
    expect {
        -re $kernel_prompt {
@@ -99,7 +114,22 @@ while 1 {
       }
 
       timeout {
-            puts "Failed ethernet test."
+            puts "Failed ethernet tcp_rr test."
+            break
+         }
+     }
+}
+
+send  "netperf -H $serverip -t TCP_STREAM -l $test_time  > netperf_tcp_stream \r"
+set timeout 2000
+while 1 {
+   expect {
+       -re $kernel_prompt {
+         break
+      }
+
+      timeout {
+            puts "Failed ethernet tcp_rr test."
             break
          }
      }
@@ -128,10 +158,10 @@ send  "cat netperf_tcp_rr\r"
 set timeout 10
 while 1 {
    expect {
-      -re "600.* +(\[0-9]+\.\[0-9]+)" {   
+      -re "$test_time\\\.\[0-9]{2} +(\[0-9]+\\\.\[0-9]{2})" {
          set TransRate $expect_out(1,string)
-	 expect ">"
-	 puts " TransRate $expect_out(1,string)"
+         expect -re $kernel_prompt
+         send_log "TransRate $expect_out(1,string)\n"
          break
       }
 
@@ -146,10 +176,10 @@ send  "cat netperf_tcp_stream\r"
 set timeout 10
 while 1 {
    expect {
-     -re "600.* +(\[0-9]+\.\[0-9]+)" {   
+     -re "$test_time\\\.\[0-9]{2} +(\[0-9]+\\\.\[0-9]{2})" {
          set Throughput $expect_out(1,string)
-	 expect ">"
-	 puts "Throughput $expect_out(1,string)"
+         expect -re $kernel_prompt
+         send_log "Throughput $expect_out(1,string)\n"
          break
       }
 
@@ -160,81 +190,6 @@ while 1 {
      }
 }
 
-if { $board_type == "BF537-STAMP" } {
-
-	if { $TransRate > 4000 && $Throughput > 85 } {
-	
-                case_pass $case_num
-	
-	} else {
-                case_fail $case_num
-		exit
-	}
-	
-} elseif { $board_type == "BF533-STAMP" } {
-
-	if { $TransRate > 4000 && $Throughput > 55 } {
-	
-                case_pass $case_num
-	
-	} else {
-                case_fail $case_num
-		exit
-		
-	}
-
-}
-
-spawn ftp $targetip 
-while 1 {
-    expect {
-                "Name" { }
-                timeout { send_user "Failed first return\n"
-                        break }
-        }
-        send -s "root\r"
-        expect {
-                -re "\[Pp\]assword" { }
-                timeout { send_user "Failed first return\n"
-                        break }
-        }
-        send -s "uClinux\r"
-        expect {
-                "ftp>" { }
-                timeout { send_user "Failed first return\n"
-                        break }
-        }
-
-        send -s "cd /\r"
-        expect {
-                "ftp>" { }
-                timeout { send_user "Failed first return\n"
-                        break }
-        }
-
-        send -s "get netperf_tcp_rr\r"
-        expect {
-                "ftp>" { }
-                timeout { send_user "Failed first return\n"
-                        break }
-        }
-	
-	send -s "get netperf_tcp_stream\r"
-        expect {
-                "ftp>" { }
-                timeout { send_user "Failed first return\n"
-                        break }
-        }
-         
-	 send -s "bye\r"
-	 expect {
-                "Goodbye" { break }
-                timeout { send_user "Failed first return\n"
-                        break }
-         }
-	 
-   }
-   
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
