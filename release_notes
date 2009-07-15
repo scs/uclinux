@@ -1,441 +1,222 @@
-Release Notes for uClinux for Blackfin 2008R1 Release
-
-Version: 2008R1
-
-Date: Jan. 23, 2008
-
-The latest version of this document can always be found here: http://docs.blackfin.uclinux.org/doku.php?id=release_notes
+﻿Release Notes for Blackfin Linux Distribution 2009R1
+Version: 2009R1 
+Date: Jul. 3, 2009 
+The latest version of this document can always be found here: http://docs.blackfin.uclinux.org/doku.php?id=release_notes 
 Development Environments
-
-Tool Chain: Toolchain Release 2008R1
-
-u-boot: uboot_1.1.6 Release 2008R1
-
-Host platform: SuSE Linux 9.2 or above
-
-Target board: STAMP & EZKIT Board
-
-Note: However, other similar host platforms are also supported, but they are not well tested.
+Tool Chain: toolchain release 2009R1 based on GCC 4.1/4.3 
+u-boot: uboot telease 2009R1 based on uboot_2008.10 
+Host platform: SuSE Linux 9.2 or above 
+Target board: STAMP, EZKIT and EZBRD boards 
+Note: This release source code can be used to develop application under other Linux host distributions and for other blackfin based target boards, but they are not tested by ADI. 
 Deliverables
-
-Source files
-
-uClinux_dist_2008R1.tar.bz2
-
-Linux ELF file
-
-linux-bf533-stamp
-linux-bf533-ezkit
-linux-bf537
-linux-bf561
-linux-bf548
-
-Compressed Linux image
-
+Source files 
+uClinux_dist_2009R1.tar.bz2
+Compressed Linux image 
+uImage-bf518-ezbrd
+uImage-bf526-ezbrd
+uImage-bf527-ezkit
 uImage-bf533-stamp
 uImage-bf533-ezkit
-uImage-bf537
-uImage-bf561
-uImage-bf548
-
-This document
-
-release_notes_2008R1.pdf
-
-Compressed archive of test results
-
-test_results_bf533_STAMP_2008R1.tar.gz
-test_results_bf533_EZKIT_2008R1.tar.gz
-test_results_bf537_2008R1.tar.gz
-test_results_bf561_2008R1.tar.gz
-test_results_bf548_2008R1.tar.gz
-
-Summary of test results
-
-test_results_summary_2008R1
-
+uImage-bf537-stamp
+uImage-bf538-ezkit
+uImage-bf548-ezkit
+uImage-bf561-ezkit
+This document 
+release_notes_2009R1.pdf
+Compressed archive of test results 
+test_results_bf518_EZBRD_2009R1.tar.gz
+test_results_bf526_EZBRD_2009R1.tar.gz
+test_results_bf527_EZKIT_2009R1.tar.gz
+test_results_bf533_STAMP_2009R1.tar.gz
+test_results_bf533_EZKIT_2009R1.tar.gz
+test_results_bf537_STAMP_2009R1.tar.gz
+test_results_bf538_EZKIT_2009R1.tar.gz
+test_results_bf548_EZKIT_2009R1.tar.gz
+test_results_bf561_EZKIT_2009R1.tar.gz
+Summary of test results 
+test_results_summary_2009R1
 New features and changes
-
-   1.
-      Port kernel to bf54x(done) and bf52x(experimental only, not tested)
-          *
-            Port header files of bf54x and bf52x from VDSP.
-          *
-            Initial boot up porting. Enable interrupt hanlding, PLL/CCLK/SCLK configuration, DMA driver, serial driver, GPIO setting.
-          *
-            Enable GPIO framework, SPI framework, I2C-TWI driver, SPI flash driver, NOR flash driver, touch screen driver.
-          *
-            Add ad1980 ASOC sound driver (BF548-EZKIT)
-          *
-            Add SDIO driver
-          *
-            Add DDR EBIU driver and PM driver. (BF548-EZKIT)
-          *
-            Add ATAPI driver (BF548-EZKIT)
-          *
-            Add NAND flash driver
-          *
-            Add SMSC 921x Ethernet driver (BF548-EZKIT)
-          *
-            Add USB device and USB host driver
-          *
-            Add TFT LCD LQ043 driver
-          *
-            Add keypad driver
-          *
-            Add option to priorize DMA over Core
-          *
-            Add support for wm8731 codec (BF527-EZkit)
-   2.
-      Improve kernel.
-          *
-            Upgrade kernel to 2.6.22.16
-          *
-            Update real time ADEOS patch to 2.6.22 kernel.
-          *
-            Enable voluntary preemptive option in kernel on blackfin.
-          *
-            Put user space atomic operation into a fix address. This allows much more efficient pthread lock implementations than the bfin_spinlock syscall we're currently using.
-          *
-            munmap can now unmap subparts of previously allocated blocks. It is no longer possible to get blocks smaller than a page through mmap. mmap can now be asked not to round up the allocation to the next power of 2 page size.
-          *
-            Add ability to expend the hardware trace buffer via a configurable software buffer - so you can have lots of history when a crash occurs.
-          *
-            Update KGDB patch and avoid double exception by disable soft breakpoint in kgdb code. Move some arch dependent code from kgdb patch into kernel source.
-          *
-            Clean up SPI driver.
-          *
-            Add early printk support.
-          *
-            Add an exception request/free api similar to the interrupt request/free api so people can utilize the free software based exceptions for their own purposes
-          *
-            Add pread64/pwrite64/fadvise64 to Blackfin arch
-          *
-            Add memory protection support for blackfin arch (Experimental only)
-          *
-            Enable initramfs for blackfin and store rootfs in initramfs by default.
-          *
-            Allow people to store their default kernel configs in the linux source tree
-   3.
-      Drivers
-          *
-            Add SPI MMC driver support on bf533-stamp.
-          *
-            Mark MDMA channel 0 as reserved, since were using it internally. Add DMA based equivalents for insX and outsX.
-          *
-            Use DMA for PIO block reads and writes in IDE driver
-          *
-            Add fbdma and TEA5764 driver
-          *
-            New camera driver for bf537-stamp, which supports Micron Head Boards and VS6624.
-          *
-            Add watchdog driver
-          *
-            date Blackfin v4l capture driver. Changed naming convention. Added homebrewn v4l ioctl VIDIOSFPS: Let the driver know the requested frame rate. Added sysfs support in /sys/class/video4linux to control fps, flicker frequency, horizontal and vertical mirror.
-          *
-            Change char drivers to misc drivers and export class devices.
-          *
-            Enable framebuffer Console: Support pseudo palette and colormap
-          *
-            add dm9000 ethernet driver
-          *
-            Add peripheral resource allocation support
-          *
-            Add phy abstraction layer supporting in bfin_emac driver
-          *
-            Enable AXIS AX88180 Gigabit Ethernet Hardware and Driver
-          *
-            Add Hitachi TX09D70VM1CDA TFT LCD driver pacth written by Harald Krapfenbauer harald.krapfenbauer@bluetechnix.at
-          *
-            Replace current blackfin specific pfbutton driver with kernel generic gpio key driver
-          *
-            Added OV9655 sensor basic code (SRV1 board supply), added Minotaur BSP.
-          *
-            Add support for Blackfin/Linux logo for framebuffer console
-          *
-            Replace old Blackfin specifi GPIO based I2C driver with generic GPIO based I2C driver. Enable it in EZKIT-BF561 also.
-          *
-            Add char driver for otp memory (only read supported atm)
-          *
-            use common flash driver to setup partitions rather than the bf5xx-flash driver
-   4.
-      board support
-          *
-            Add tepla-bf561 board support
-          *
-            Add HV Sistemas H8606 board support
-          *
-            Update Bluetchnix board support
-   5.
-      Application and library
-          *
-            Install library head files and shared library binaries into staging folder.
-          *
-            Enable qt and konqueror patches to build fdpic binary.
-          *
-            Enable Asia fonts support in NANO-X Microwin and install proper microwin apps and demos.
-          *
-            Enable mdev daemon to create proper dynamic device inode.
-          *
-            Optimize performance for the ffmpeg codec on blackfin
-          *
-            Add g729 lib in uclinux-dist to release under BSD-style license. Enable linphone to use g.729 lib.
-          *
-            Add lib mpegdec-0.4.1
-          *
-            Add mpc2x
-          *
-            Add SDL examples
-          *
-            Add qtopia-core-opensource-src-4.2.2.bfin.patch to build qtopia for blakcfin.
-          *
-            import openntpd-3.9p1
-          *
-            import u-boot userspace tools
-          *
-            import ftplib-3.1-1
-          *
-            import w3cam-0.7.2
-          *
-            import CGIC 2.05 lib
-          *
-            import DirectFB 1.1.1 lib and DirectFB-examples from http://www.directfb.org/
-          *
-            Update readline lib to 5.2_p12
-          *
-            Update busybox to 1.4.1
-          *
-            Update strace to 4.5.15
-          *
-            Update libpcap to 0.9.8
-          *
-            Update wireless-tools to 27
-          *
-            Update pppd to 2.4.3
-          *
-            Update sysfsutils to 2.1.0
-          *
-            Update libpng to 1.2.24
-          *
-            Update expat lib to 2.0.1
-          *
-            Update libbzip2 to 1.0.4
-          *
-            Update libcurl to 7.17.1
-          *
-            Update libgmp to 4.2.2
-          *
-            Update libpcap to 0.8.9
-          *
-            Update libsdl to 1.2.13
-          *
-            Update mpfr lib to 2.3.0_p4
-          *
-            Update popt lib to 1.13
-          *
-            Update speex lib to svn-13013
-          *
-            Update sqlit lib to 3.5.4
-          *
-            Update iptable to 1.4.0
-          *
-            Update lirc to 0.8.2
-          *
-            Update npt to 4.2.4p4
-          *
-            Update mplayer to svn-25211
-          *
-            Update linphone to 2.0.0. Enable video and camera support on blackfin.
-          *
-            Update UPNP library to 1.4.6
-          *
-            Update LTP test suite to version of Dec. 2007
-   6.
-      Automate new test cases to include more manual testings. Update existed automated test suites against new bf54x board and 2.6.22 kernel.
-
+Improve kernel
+1.mainline framework
+Upgrade kernel to 2.6.28.10
+Update real time ADEOS patch to 2.6.28.10 kernel and merge blackfin arch specific source.
+Remove page cache limit patch completely and reap page cache at runtime when memory is allocated.
+Drop NP2 patch.
+update kgdb to mainline. Support access to MMR registers and L1/L2 SRAM.
+Add support for cpu frequency, cpu voltage and platform voltage scaling under Power Management framework.
+Add functional power management support
+1.SMP related
+Full SMP kernel support on bf561.
+Improve SMP IPI handler to circle all IPI messages in one loop in order to avoid dead lock.
+Enable kgdb to support SMP kernel on bf561. 
+1.Blackfin arch specific
+Port kernel to bf51x, bf526/4/2, bf538/9, mobile ddr bf54xm.
+change L1 malloc to base on slab cache and lists. Remove the sram piece limitation and improve the performance to alloc/free sram piece data. And extend support to L2 SRAM as well.
+Skip single step if event priority of current instruction is higher than that of the instruction under gdb single stepping. Also make kgdb code transparent to app debugging.
+Improve double fault handling and other exception handling
+update anomaly lists to match latest blackfin data sheets
+Add basic irq stack checking for Blackfin
+Convert CPLB management code from assembly to C.
+Improve exception handling to make defered hardware error exception more exact by inserting code on every interrupt entry, which does a SSYNC (forcing all writes to complete, and all hardware errors to be signaled). 
+Drivers
+1.Changes
+Convert Blackfin GPIO driver to use common gpiolib/gpiochip infrastructure
+Cleanup and unify Blackfin IRQ and GPIO IRQ handling. Use irq_to_gpio where applicable. Remove gpio_edge_triggered bitfield, check irq_desc fields instead. Remove gpio_both_edge_triggeredb bitfield, check irq_desc fields instead.
+Allow a gpio pin be requested both as gpio and irq.
+Add simple-gpio driver to replace dead/broken pflags driver
+enable twi_lcd and twi_keypad i2c driver for bf527-ezkit
+Remove pca9543 driver - people sould use i2c-dev to init the pca9543 on the Micron camera head board.
+Enable ISOCHRONOUS mode in sl811 usb host driver.
+enables EPPI1 instead of PPI on bf54x.
+Transform ad73311 driver from old alsa framework to ASOC framework
+add mutichannel support for ad1980/1
+add writing support to OTP driver
+Change bfin serial driver hardware flowcontrol from poll to interrupt driven. Only CTS bit is affected.
+get dma working in bfin SPI driver for SPI flashes. Add GPIO controlled SPI Slave Select support for Blackfin?\226?\128?\153s SPI Master Driver.
+implement spi_lock_bus(), spi_unlock_bus() to SPI framwork to ensure atomic SPI transfers on SPI bus, which is asked by some spi devices, such as spi mmc.
+add 4 bit SDIO support for bfin onboard sdio controller.
+Enable SDH/EMAC driver on bf51x.
+extend PPI driver to support arbitrary number of PPIs (like on BF56x/BF54x)
+Walk around most MUSB hardware anomalies. Bfin host and peripheral MUSB driver works well in both PIO and DMA mode.
+1.move to mainline
+Remove old IDE driver, switch IDE devices to libata platform ata driver and CF devices to pcmcia driver instead.
+deprecate the bfin_nand (async) driver in favor of the generic platform nand driver
+Retire old spi_mmc driver. Turn to use the mmc_spi driver in mainline kernel. 
+Enable IS1760 USB Host Driver (added mainstream 2.6.26). Remove obsolete and “un-maintained” pehci driver
+1.new
+Add Support for ATMEL AT25DF641 64-Megabit SPI Data Flash
+add cascaded AD73322 support on both sport0 and sport1 to transfer several PCM streams concurrently
+add SSM2602 audio codec support for BF52xC
+Port USB Video Class devices driver in mainstream to blackfin.
+Add ADV7183B support for Blackfin V4L
+Add BF54x / BF52x Rotary Input device driver
+Add framebuffer driver for the Landscape LCD EZ-Extender (ADZS-BFLLCD-EZEXT) connecting to bf526 ezbrd.
+Add an emulated serial driver based on EMUDAT/JTAG port.
+add AD7879 SPI and I2C Touchscreen driver
+add support for libertas wifi over sdio driver
+Add ENC28J60 SPI Ethernet MAC driver for bf537-stamp
+Add ADP5588 QWERTY I2C Keyboard Input device driver
+Add userspace memory dma driver
+Add ubifs rootfs support.
+Add USB Audio Gadget driver, function driverand ALSA sound card utilities
+add KSZ8893M ethernet switch driver for bf518-ezbrd. Enable VLAN support in bfin emac driver.
+Enable hardware based CTS and RTS serial flowcontrol for bf548.
+Add sport emulated spi driver
+ADP5520 Multifunction LCD Backlight and Keypad Input Device Driver
+Add a “shadow_console”, which is a console keeps a copy of the printk buffer in a predefined portion of memory, which U-Boot can print out if it thinks there has been an error during boot.
+new board support
+bf518-ezbrd
+bf526-ezbrd
+bf538-ezkit
+ADZS-BFLLCD-EZEXT
+blackfin SPORT SPI/UART/IRDA/ADF70xx add-on board
+ADP5588 add-on board
+ENC28J60 add-on board
+ADP5520 add-on board
+Application and library
+1.new app
+import genext2fs
+import user/games/tama
+import nano
+Add madplay 
+Add Slave Serial Mode configuration/bootload utility for Xilinx FPGAs
+add benchmark suite that is aimed at performing a number of simple tests of hard drive and file system performance - bonnie++
+import directvnc
+Add user-space tools for USB Video Class devices.
+Add simple dynamic tick test utility
+import pcmciautils-015 to provide userspace pcmcia support
+add cpufrequtils
+add lynx
+Add Bluegiga iWarp boot mode utility
+add boost
+add xenomai 
+Add EDN benchmark application
+import usbhubctrl 
+import sscep
+import logrotate
+Add PPI/FPGA Demo Project
+1.new lib
+Add libbtiff
+Add ircp and libopenobex.
+import libxml2
+Port Bluetooth-alsa library to blackfin
+import of qt-embedded 4.5.0 and drop old qt/qtopia patches
+import libaio
+import giflib
+import agg lib
+import dirac lib
+Import libogg
+import libvorbis and vorbis-tools
+import libmodbus
+1.improvement
+Enable oprofile-0.9.2.
+Remove local asterrisk zaptel code, use the stuff found in the ucasterisk project instead.
+Allow nano-x to use tslib
+enable support for python built as a shared library for FDPIC
+Optimize libjpeg forward DCT for Blackfin
+kernel with a compressed initramfs is not generated by default, because booting kernel ELFs is no longer supported in uboot.
 Known Issues
-
-A full list of known issues can be found at:
-
-http://blackfin.uclinux.org/gf/project/uclinux-dist/tracker/?action=TrackerItemBrowse&tracker_id=141
-No 	Issue Title
-1146	a couple of the libraries don't compile.
-1186	Sometimes CTRL+C kills shell
-1475	Blackfin dpmc and pm driver are broken
-1676	busybox hdparm doesn't work properly if only built once
-1685	cplbmgr.S does not exit properly on error condition
-1800	kaffe.flt crash
-2718	/proc/self/exe link is broken for FLAT binaries
-2719	unable to strace across vforks
-2779	Null pointer exception when run a test bash script
-2896	dpmc test case doesn't pass with higher or lower VCO and voltage value.
-2977	OPROFILE doesn't seem to work and crashes with null pointer access
-3380	apply dpm patch fails on svn trunk kernel now
-3402	Busybox compile error if some applets are removed
-3417	loading module with certain relocations into L1 may crash kernel
-3433	cannot cp or mv a file with Chinese name
-3513	It failed some time when format harddisk of a large size on BF548-EZKIT
-3713	spi_mmc driver not working well with concurrent access on the spi bus.
-3716	xip kernel with binary format FDPIC boot up fails, and it stops at userspace
-3787	pata_bf54x does not unload cleanly
-3788	USB hang with ZiO! CF reader
-3799	overhauled mmap/munmap code causes erroneous warning with mmap of framebuffer
-3803	USB & cameras on BF54x fails
-3826	`strace env <something>` crashes when built as FLAT
-3849	SPI mmc driver can't auto create entrys of spi_mmc1 and spi_mmc2 in /sys/block/spi_mmc/ after system reboot
-
-There are also some issues in the latest LTP test suite. They are recorded as bug 3742, 3743, 3744, 3745, 3746, 3816.
+A full list of known issues of 2009R1 release can be found at: 
+http://blackfin.uclinux.org/gf/project/uclinux-dist/tracker/?action=TrackerItemBrowse&tracker_id=141 
+No 
+Issue Title 
+1800
+kaffe.flt crash
+2718
+/proc/self/exe link is broken for FLAT binaries
+2719
+unable to strace across vforks
+2745
+trying to mount cifs filesystem crashes kernel with misaligned access
+3715
+mount jffs2 on bf548 always have Empty flash error
+3908
+For BF533-STAMP with AD1836/AD73311/AD1981b, there will be under run or overrun errors
+3960
+When generate a file into ext2 fs on one specific SD card on BF548-EZKIT, there will be data transferring error
+4090
+XIP can't work in flash 
+4108
+mplayer cannot play mp3 smoothly
+4141
+usb gadget zero test NO. 14 fails 
+4289
+ffmpeg cannot run on BF531
+4443
+bfin nand hangs under pressure on BF548-EZKIT
+4564
+DCPLB miss kills kernel on BF533
+4842
+multiple insmod of bf5xx_nand.ko panics
+4832
+watchdog fails to reboot bf526 ezbrd when get killed 
+4865
+Xenomai latency test trips BUGs when CONFIG_PREEMPT set
+4922
+unwanted sound comes up after g_audio module is installed on BF548 and BF527
+4930
+USB gadget audio driver play audio not very smoothly on BF527C-EZKIT with SSM2602 audio codec
+5145
+SPORT UART hits underflow when flooding
+5154
+running linphone through ad73322 has underrun
+5192
+run l2 app on bf548 ezkit frequent fails
+5197
+running traps test case in fdpic format would randomly make kernel reboot
+5225
+xenomai test failed on bf533-stamp/bf548/bf527/bf526
+There are also some issues in the latest LTP test suite. They are recorded as bug 3594 and 4757. 
 Build Procedure
-
-1. Install Toolchain Release 2008R1
-
-Go to http://blackfin.uclinux.org/frs/?group_id=18 for more information
-
-2. Download the source code of project uClinux for Blackfin release 2008R1
-
-Go to http://blackfin.uclinux.org/frs/?group_id=17
-
-3. Uncompress uclinux-dist.tar.bz2 to working directory
-
-cp uClinux-dist_2008R1.tar.bz /(WORK_DIR)
-cd /(WORK_DIR)
-bunzip2 uClinux-dist_2008R1.tar.bz2
-tar -xvf uClinux-dist_2008R1.tar
-
-4. Compile the source using following commands
-
-cd uClinux-dist
-make menuconfig (save and exit without making any changes)
-make clean 
-make 
-
-5. Find the compiled Blackfin executable images in the following location
-
-$(WORK_DIR)/uClinux-dist/images/
-
-6. 8 types of images are available according to the kernel configuration.
-
-linux-initramfs
-linux-ext2
-linux-cramfs
-linux-romfs
-uImage-initramfs
-uImage-ext2
-uImage-cramfs
-uImage-romfs
-
-Load Kernel to Target Board
-
-1. Use below serial cables to connect board to host computer.
-
-Male-Female 1-1 serial cable
-
-2. Use minicom or some other serial communications utility to configure the serial port with the following parameters. If run minicom for the first time, run “minicom -s” to setup the port.
-
-Serial Device = /dev/ttyS0
-Baud Rate = Baud that have been selected in kernel menuconfig (Default value is 57600)
-Number of bits = 8
-Parity = None
-Stop bits = 1
-
-3. Make sure the BMODE pins on the target board are set to 00. If u-boot loads automatically on reset, the pins are already set correctly.
-
-4. Make sure tftp server is installed in the host machine. Copy linux from uClinux-dist/images/ that is built in above steps to the /tftpboot of the host PC.
-
-5. Load the linux file with the following boot loader commands. Make sure the ipaddr (target board IP) and serverip (host IP) are correct.
-
-STAMP> setenv ipaddr x.y.z.n
-STAMP> setenv serverip x.y.z.m 
-STAMP> saveenv
-STAMP> tftp 0x1000000 linux
-STAMP> bootelf 0x1000000
-
-Where x.y.z.m is the ip address of the host machine, and x.y.z.n is the ip address of the target board.
-
-6. The kernel should then boot
-Adding / upgrading kernel in flash
-Building Linux image (compressed and uncompressed)
-
-(This Image Will be Used in bootm command) Linux ELF image has to be changed as per u-boot standards to load Linux using bootm command. Following subsections explain how to build compressed and uncompressed Linux images.
-Building Compressed Linux Image Manually
-
-Compressed Linux images can be found under folder “uClinux-dist/image”. But, you can also generate by yourself as follows.
-
-1. Generate the binary file from the ELF file, using following command
-
-$ bfin-uclinux-objcopy -O binary linux linux.bin 
-
-2. Compress the binary file obtained above, using following command
-
-$ gzip -9 linux.bin  
-
-3. Build the final linux image, using following command
-
-bfin-uclinux-mkimage -A blackfin -O linux -T kernel -C gzip -a 0x1000 
--e 0x1000 -n "Bfin uClinux Kernel" -d linux.bin.gz uImage
-
-Use the utility bfin-uclinux-mkimage to merge the header information like Image Name, Image Type, Data Size, Load Address, Entry Point into the linux.bin.gz.
-Building uncompressed Linux image
-
-Use following commands to build uncompressed Linux image
-
-bfin-uclinux-mkimage -A blackfin -O linux -T kernel -C none -a 0x1000 -e 0x1000 
--n "Bfin uClinux kernel" -d linux.bin uImage
-
-0×1000 is used because we have compiled the kernel with that location as the entry point. If anyone wants to chose a different address for entry point (for eg, 0×20000), then please give that address instead of 0×1000. Ensure to change the entry point of the kernel.
-Programming Flash
-
-STAMP> tftp 0x1000000 uImage
-STAMP> protect off all
-STAMP> erase 0x20040000 0x203EFFFF
-STAMP> cp.b 0x1000000 0x20040000 $(filesize) 
-STAMP> setenv bootcmd bootm 0x20040000 
-STAMP> save
-STAMP> reset
-
-Build Customized uClinux
-Customize Kernel
-
-1. make menuconfig in uClinux for Blackfin project
-
-2. select option [Kernel/Library/Defaults Selection] → [Customize Kernel Settings] and exit
-
-3. In kernel configuration, processor and board specific options can be changed in [Processor type and features], such as cache status, CPU, DMA, etc.
-
-4. Driver specific options are in respective menus. Such as Ethernet driver in [Networking supporting], sound card driver in [Sound], video driver in [Graphic Support], etc.
-
-5. Save and exit. Then make the image again as mentioned before. The changes of the kernel take effects after you load and run the new image.
-Customize Application and Lib
-
-1. make menuconfig in uClinux for Blackfin project
-
-2. select Blackfin architecture in menu [Vendor/Product Selection] → [AnalogDevices Product]
-
-3. select option [Kernel/Library/Defaults Selection] → [Customize Vendor/User Settings] and exit
-
-4. In user configuration, applications and libraries can be selected and debugging information can be enabled.
-
-5. After the menuconfig is done, make the image again as mentioned before. The new selected application can be found in the romfs after you load and run the new image.
-Customize FLAT/ELF Binary Format
-
-1. make menuconfig in uClinux for Blackfin project
-
-2. select Blackfin architecture in menu [Vendor/Product Selection] → [AnalogDevices Product]
-
-3. select [Kernel/Library/Defaults Selection] → [Customize Vendor/User Settings] and exit
-
-4. In menu [Blackfin Build Options] → [Binary Format], select FDPIC to build application into ELF binary and library, select FLAT to build FLAT binary, select Shared-FLAT to build shared FLAT binary and library. Don't foget to select install shared libraries if you want to run application built with shared library.
-
-5. Change into folder uClinux-dist and make the image.
-Customize for debugging
-
-1. To debug an application, please refer to the document “gdb_guide_bfin.txt” in patch folder bfin_patch/kgdb_patch.
-
-2. To do source level kernel debugging by kgdb, please refer to the README file in patch folder bfin_patch/kgdb_patch. After apply the kgdb patch file to the kernel, a simple guide “kgdb_bfin.txt” can be found in subfolder “linux-2.6.x/Documentation/blackfin/”
+1.Install Toolchain Release 2009R1
+Release Notes
+2.Installation instructions
+3.File List
+4.Download the source code of project uClinux-dist for Blackfin release 2009R1
+File List
+5.Follow basic compilation directions
 Reporting Bugs
+1. Go to the following Blackfin uClinux bug tracker page, 
+http://blackfin.uclinux.org/tracker/?atid=141&group_id=17&func=browse 
+2. If the bug is not already reported click on “Submit New” button to report new bug. 
 
-1. Go to the following Blackfin uClinux bug tracker page,
-
-http://blackfin.uclinux.org/tracker/?atid=141&group_id=17&func=browse
-
-2. If the bug is not already reported click on “Submit New” button to report new bug.
