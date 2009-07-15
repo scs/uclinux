@@ -6,38 +6,11 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-step "Change config file in /vender folder."
-
-cd $uclinux_path
-sleep 3
- set timeout 2
-      spawn ex vendors/AnalogDevices/vendor.mak
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/EXT2_BLOCKS\r"
-      expect "EXT2_BLOCKS*="
-      send "d\r"
-      expect ":"
-      send "i\r"
-      sleep .5
-      if { $board_type == "BF548-EZKIT" } {
-          send "EXT2_BLOCKS ?= 12288\r"
-      } else {
-          send "EXT2_BLOCKS ?= 8192\r"
-      }
-      sleep .5
-      send ".\r"
-      expect ":"
-      send "wq\r"
-      expect eof
-
+if { $board_type == "BF548-EZKIT" } {
+    set env(EXT2_BLOCKS) "16384"
+} else {
+    set env(EXT2_BLOCKS) "8192"
+}
 
 cd $uclinux_path/testsuites
 
@@ -91,7 +64,7 @@ while 1 {
 
         -re "Choose SLAB allocator.*SLAB.*SLUB.*SLOB.*choice.*\\\[.*]" {
             if { $allocator == "slab\(p2\)" } {
-                send "1\r"		       
+                send "1\r"
             } elseif { $allocator == "slob\(p2\)" } {
                 send "3\r"
             } elseif { $allocator == "slub\(p2\)" } {
@@ -179,18 +152,16 @@ while 1 {
             }
         }
 
-
-         -re "Distributed Switch Architecture support.*NET_DSA.*\\\[.*]" {
-
-              if { $board_type == "BF518F-EZBRD" } {
-                    send -s "N\r"
-              } else {
-                    send -s "\r"
-              }
+        -re "Distributed Switch Architecture support.*NET_DSA.*\\\[.*]" {
+            if { $board_type == "BF518F-EZBRD" } {
+                send -s "N\r"
+            } else {
+                send -s "\r"
+            }
         }
 
         -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
-            send "Y\r"		
+            send "Y\r"
         }
 
         -re "UART Mode.*DMA mode.*SERIAL_BFIN_DMA.*PIO mode.*SERIAL_BFIN_PIO.*choice\\\[.*]" {
@@ -230,7 +201,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .01 
+            sleep .01
             send "\r"
         }
 
@@ -261,6 +232,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
- 
+
 send_user "Ending $argv0\n"
 log_file

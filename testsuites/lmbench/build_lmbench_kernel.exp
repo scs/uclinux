@@ -5,43 +5,14 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-step "Change config file in /vender folder."
-
-cd $uclinux_path
-sleep 3
- set timeout 2
-      spawn ex vendors/AnalogDevices/vendor.mak
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/EXT2_BLOCKS\r"
-      expect "EXT2_BLOCKS*="
-      send "d\r"
-      expect ":"
-      send "i\r"
-      if { $board_type == "BF548-EZKIT" } {
-          send "EXT2_BLOCKS ?= 18864\r"
-      } else {
-          send "EXT2_BLOCKS ?= 12288\r"
-      }
-      send ".\r"
-      expect ":"
-
-      send "wq\r"
-      expect eof
-
-
+if { $board_type == "BF548-EZKIT" } {
+    set env(EXT2_BLOCKS) "18432"
+} else {
+    set env(EXT2_BLOCKS) "12288"
+}
 
 cd $uclinux_path/testsuites
-
 step "Make config."
-
 source  make_default_config.exp
 
 # Following make specific configuration for this case.
