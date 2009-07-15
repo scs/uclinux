@@ -52,7 +52,7 @@ while 1 {
 
 incr case_num
 set timeout 10
-send -s  "taskset 1 ./traps_test #\r"
+send -s "./traps_test #\r"
 while 1 {
     expect {
         -re "(\[0-9]+)\r\n" {
@@ -67,24 +67,11 @@ while 1 {
     }
 }
 
-incr case_num
 set timeout [ expr $case_number * 10 ]
-send -s  "taskset 1 ./traps_test -1\r"
-while 1 {
-    expect {
-        -re "$case_number/$case_number tests passed.*$kernel_prompt" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
 
 if { $smp_flag == 1 } {
     incr case_num
-    send -s  "taskset 2 ./traps_test -1\r"
+    send -s  "taskset 1 ./traps_test -1\r"
     while 1 {
         expect {
             -re "$case_number/$case_number tests passed.*$kernel_prompt" {
@@ -94,6 +81,34 @@ if { $smp_flag == 1 } {
             timeout {
                 case_fail $case_num
             }
+        }
+    }
+
+    incr case_num
+    send -s "taskset 2 ./traps_test -1\r"
+    while 1 {
+        expect {
+            -re "$case_number/$case_number tests passed.*$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+incr case_num
+send -s "./traps_test -1\r"
+while 1 {
+    expect {
+        -re "$case_number/$case_number tests passed.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
         }
     }
 }

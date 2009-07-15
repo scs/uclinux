@@ -131,32 +131,34 @@ while 1 {
 }
 
 set timeout 60
-send "taskset 1 ./dmacopy\r"
-while 1 {
-    expect {
-        -re "CURRENT PROCESS.*Call Trace.*|Kernel panic.*" {
-            case_fail $case_num
-            break
-        }
-        -re "SUMMARY: all tests passed.*$kernel_prompt" {
-            case_pass $case_num
-            break
-        }
-        -re "SUMMARY: \[0-9]+ tests failed" {
-            case_fail $case_num
-            break
-        }
-        timeout {
-            send -s "\3"
-            send_log "timeout\n"
-            case_fail $case_num
-            break
-        }
-    }
-}
 
 if { $smp_flag == 1 } {
-    set timeout 60
+    incr case_num
+    send "taskset 1 ./dmacopy\r"
+    while 1 {
+        expect {
+            -re "CURRENT PROCESS.*Call Trace.*|Kernel panic.*" {
+                case_fail $case_num
+                break
+            }
+            -re "SUMMARY: all tests passed.*$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            -re "SUMMARY: \[0-9]+ tests failed" {
+                case_fail $case_num
+                break
+            }
+            timeout {
+                send -s "\3"
+                send_log "timeout\n"
+                case_fail $case_num
+                break
+            }
+        }
+    }
+
+    incr case_num
     send "taskset 2 ./dmacopy\r"
     while 1 {
         expect {
@@ -178,6 +180,31 @@ if { $smp_flag == 1 } {
                 case_fail $case_num
                 break
             }
+        }
+    }
+}
+
+incr case_num
+send "./dmacopy\r"
+while 1 {
+    expect {
+        -re "CURRENT PROCESS.*Call Trace.*|Kernel panic.*" {
+            case_fail $case_num
+            break
+        }
+        -re "SUMMARY: all tests passed.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        -re "SUMMARY: \[0-9]+ tests failed" {
+            case_fail $case_num
+            break
+        }
+        timeout {
+            send -s "\3"
+            send_log "timeout\n"
+            case_fail $case_num
+            break
         }
     }
 }
