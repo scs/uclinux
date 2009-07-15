@@ -45,11 +45,11 @@ Drop NP2 patch.
 update kgdb to mainline. Support access to MMR registers and L1/L2 SRAM.
 Add support for cpu frequency, cpu voltage and platform voltage scaling under Power Management framework.
 Add functional power management support
-1.SMP related
+2.SMP related
 Full SMP kernel support on bf561.
 Improve SMP IPI handler to circle all IPI messages in one loop in order to avoid dead lock.
 Enable kgdb to support SMP kernel on bf561. 
-1.Blackfin arch specific
+3.Blackfin arch specific
 Port kernel to bf51x, bf526/4/2, bf538/9, mobile ddr bf54xm.
 change L1 malloc to base on slab cache and lists. Remove the sram piece limitation and improve the performance to alloc/free sram piece data. And extend support to L2 SRAM as well.
 Skip single step if event priority of current instruction is higher than that of the instruction under gdb single stepping. Also make kgdb code transparent to app debugging.
@@ -78,12 +78,12 @@ add 4 bit SDIO support for bfin onboard sdio controller.
 Enable SDH/EMAC driver on bf51x.
 extend PPI driver to support arbitrary number of PPIs (like on BF56x/BF54x)
 Walk around most MUSB hardware anomalies. Bfin host and peripheral MUSB driver works well in both PIO and DMA mode.
-1.move to mainline
+2.move to mainline
 Remove old IDE driver, switch IDE devices to libata platform ata driver and CF devices to pcmcia driver instead.
 deprecate the bfin_nand (async) driver in favor of the generic platform nand driver
 Retire old spi_mmc driver. Turn to use the mmc_spi driver in mainline kernel. 
 Enable IS1760 USB Host Driver (added mainstream 2.6.26). Remove obsolete and “un-maintained” pehci driver
-1.new
+3.new
 Add Support for ATMEL AT25DF641 64-Megabit SPI Data Flash
 add cascaded AD73322 support on both sport0 and sport1 to transfer several PCM streams concurrently
 add SSM2602 audio codec support for BF52xC
@@ -135,7 +135,7 @@ import usbhubctrl
 import sscep
 import logrotate
 Add PPI/FPGA Demo Project
-1.new lib
+2.new lib
 Add libbtiff
 Add ircp and libopenobex.
 import libxml2
@@ -148,7 +148,7 @@ import dirac lib
 Import libogg
 import libvorbis and vorbis-tools
 import libmodbus
-1.improvement
+3.improvement
 Enable oprofile-0.9.2.
 Remove local asterrisk zaptel code, use the stuff found in the ucasterisk project instead.
 Allow nano-x to use tslib
