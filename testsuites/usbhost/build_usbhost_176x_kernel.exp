@@ -41,7 +41,7 @@ while 1 {
         }
 
         -re "Bank 3.*BANK_3.*\\\[.*]" {
-            send "0x88C0\r"
+            send "0x66C4\r"
         }
 
         -re "SCSI device support \\\(SCSI\\\).*\\\[.*]" {
