@@ -1,17 +1,20 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
+source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
-if { $argc == 1 } {
-    set pm_state_count [lindex $argv 0]
+if { $argc == 2 } {
+    set pm_state_count [lindex $argv 1]
 } else {
     puts "Please input a power management state:"
     puts "1: Standby; 2: Suspend-to-RAM"
     exit
 }
+
+set wakeup_pattern "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done.*$kernel_prompt"
 
 if { $pm_state_count == 1 } {
     set pm_state_str "standby"
@@ -19,10 +22,14 @@ if { $pm_state_count == 1 } {
 } elseif { $pm_state_count == 2 } {
     set pm_state_str "mem"
     append TITLE " (SUSPEND-TO-RAM)"
+    if { $board_type == "BF533-STAMP" || $board_type == "BF533-EZKIT" }  {
+        set wakeup_pattern "wakeup from.*rtcwake: short write.*$kernel_prompt"
+    }
 } else {
     send_user "Power Management State setting error\n"
     exit
 }
+
 
 step "Spawn kermit"
 source ../spawn_kermit.exp
@@ -43,13 +50,14 @@ proc standby_test_case1 {} {
     global wait_time
     global standby_fail
     global pm_state_str
+    global wakeup_pattern
 
     set timeout [expr $wait_time + 5]
     incr case_num
     send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
         expect {
-            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done.*$kernel_prompt" {
+            -re $wakeup_pattern {
                 case_pass $case_num
                 break
             }
@@ -102,13 +110,14 @@ proc standby_test_case2 {} {
     global wait_time
     global standby_fail
     global pm_state_str
+    global wakeup_pattern
 
     set timeout [expr $wait_time + 5]
     incr case_num
     send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
         expect {
-            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done.*$kernel_prompt" {
+            -re $wakeup_pattern {
                 case_pass $case_num
                 break
             }
@@ -134,29 +143,10 @@ expect -re $kernel_prompt
 
 set timeout 20
 incr case_num
-send "modprobe snd-soc-core\r"
-while 1 {
-    expect {
-        -re "(\[eE]rror|\[fF]ail|Trace).*$kernel_prompt" {
-            send_user "Install module failed!\r"
-            case_fail $case_num
-        }
-        -re "ASoC version.*$kernel_prompt" {
-            break
-        }
-        timeout {
-            send_user "Install module failed!\r"
-            case_fail $case_num
-        }
-    }
-}
-
-set timeout 20
-incr case_num
 send "modprobe snd-ad73311\r"
 while 1 {
     expect {
-        -re "(\[eE]rror|\[fF]ail|Trace).*$kernel_prompt" {
+        -re "(modprobe:|\[eE]rror|\[fF]ail|Trace).*$kernel_prompt" {
             send_user "Install module failed!\r"
             case_fail $case_num
         }
@@ -290,7 +280,7 @@ while 1 {
 
 set timeout 20
 incr case_num
-send "modprobe -r snd-ad73311; modprobe -r snd-soc-core\r"
+send "modprobe -r snd-ad73311\r"
 while 1 {
     expect {
         -re "(modprobe:|No such).*$kernel_prompt" {
