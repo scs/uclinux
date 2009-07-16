@@ -192,13 +192,12 @@ LDFLAGS +=
 #LDFLAGS += -static
 endif
 
-ifeq ($(ARCH), blackfin)
+# set up sane defaults for everyone
 COMPILER = gcc
 CXX_COMPILER = g++
-TOOLSPREFIX = $(BLACKFINTOOLSPREFIX)
+TOOLSPREFIX = $(CROSS_COMPILE)
 DEFINES += -DLINUX=1 -DUNIX=1 -Dlinux -DBLACKFIN
 CFLAGS += $(GCC_WARNINGS) $(OPTFLAGS)
-endif
 
 ifeq ($(BIGENDIAN), Y)
 DEFINES += -DMW_CPU_BIG_ENDIAN=1

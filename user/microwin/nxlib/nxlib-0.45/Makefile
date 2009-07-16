@@ -35,7 +35,7 @@ SOEXTRALIBS = -L$(MWIN_LIB) -lnano-X
 INSTALL_DIR = $(X11_LIB)
 
 # compiler flags
-CC = bfin-linux-uclibc-gcc
+#CC = we got $CC from upper level config
 LN = ln -s
 MV = mv
 RM = rm -f

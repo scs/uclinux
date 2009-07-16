@@ -37,12 +37,11 @@
 # note: ELKS can't build client/server nano-X, nor widget lib
 #
 ####################################################################
-ARCH                     = blackfin
+#ARCH                     = we got $ARCH from upper level config
 BIGENDIAN                = N
 NATIVETOOLSPREFIX        = 
 ARMTOOLSPREFIX           = arm-linux-
 MIPSTOOLSPREFIX          = mipsel-linux-
-BLACKFINTOOLSPREFIX	 = $(CROSS_COMPILE)
 POWERPCTOOLSPREFIX       = powerpc-linux-
 SHTOOLSPREFIX            = sh-linux-gnu
 RTEMSTOOLSPREFIX         = i386-rtemself-
