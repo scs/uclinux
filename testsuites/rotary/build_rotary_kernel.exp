@@ -41,6 +41,15 @@ while 1 {
             send "Y\r"
         }
 
+        -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
+            send "M\r"
+        }
+        # Disable the following keypad item for it would be used in
+        # event test as default.
+        -re "Blackfin BF54x keypad support.*KEYBOARD_BFIN.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "Blackfin Rotary support.*JOYSTICK_BFIN_ROTARY.*\\\[.*]" {            
             send "Y\r"
         }

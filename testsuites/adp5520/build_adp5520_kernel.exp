@@ -77,13 +77,35 @@ while 1 {
                 send "M\r"
         }
 ################
-        -re "GPIO Support.*GPIOLIB.*\\\[.*]" {
-                send "Y\r"
+       -re "GPIO Support \\\(GPIOLIB\\\) \\\[\[^\r]*]" {
+            set timeout 5
+            expect {
+            -nocase -re  " (\[ym])\r\n" {
+                send_user "\n Item_value is selected  $expect_out(1,string).\n"
+                sleep 3
+            }
+            timeout {
+                send -s "Y\r"
+            }
+            }
+            set timeout 300
         }
-        -re "/sys/class/gpio/.*sysfs interface.*GPIO_SYSFS.*\\\[.*]" {
-                send "Y\r"
+       
+         -re "/sys/class/gpio/.*sysfs interface.* \\\(GPIO_SYSFS\\\) \\\[\[^\r]*]" {
+            set timeout 5
+            expect {
+            -nocase -re  " (\[ymn])\r\n" {
+                send_user "\n Item_value is selected  $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "Y\r"
+            }
+            }
+            set timeout 300
         }
+
         -re "GPIO Support for ADP5520 PMIC.*GPIO_ADP5520.*\\\[.*]" {
+                send_log "222\n"
                 send "M\r"
         }
 ################
@@ -102,6 +124,9 @@ while 1 {
 ################
         -re "Input event device test.*EVENT_TEST.*\\\[.*]" {
             send "Y\r"
+        }
+
+         -nocase -re  " \\\(.*\\\) \\\[\[^\r]*] (\[ymn])" {
         }
 
         "\\\(*) \\\[*]" {

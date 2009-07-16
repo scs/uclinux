@@ -6,7 +6,7 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
-step "$TITLE needs SW5: on on on on for bf537 stamp board."
+step "$TITLE needs SW5: on on on on for bf537 stamp board and bf548 ezkit board."
 step "SW13: on on off off off off for bf527 ezkit board."
 
 step "Start kermit."
