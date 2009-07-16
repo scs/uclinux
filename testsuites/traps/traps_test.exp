@@ -113,5 +113,6 @@ while 1 {
     }
 }
 
+all_pass
 send_user "Ending $argv0\n"
 log_file
