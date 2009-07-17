@@ -71,7 +71,7 @@ while 1 {
       }
           
           -re "Enable UART0.*SERIAL_BFIN_UART0.*\\\[.*]" {
-            if { $board_type == "BF527-EZKIT" || $port_type == "serial_uart"  } {
+            if { $board_type == "BF527-EZKIT" && $port_type == "serial_uart"  } {
                 send "Y\r"
             } else {
                 send "\r"
@@ -79,7 +79,7 @@ while 1 {
       }
 
           -re "Enable UART1.*SERIAL_BFIN_UART1.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" || $port_type == "serial_uart" } {
+            if { $board_type == "BF537-STAMP" && $port_type == "serial_uart" } {
                 send "Y\r"
             } else {
                 send "\r"
@@ -87,7 +87,7 @@ while 1 {
       }
 
           -re "Enable UART3.*SERIAL_BFIN_UART3.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" || $port_type == "serial_uart" } {
+            if { $board_type == "BF548-EZKIT" && $port_type == "serial_uart" } {
                 send "Y\r"
             } else {
                 send "\r"
@@ -95,7 +95,7 @@ while 1 {
       }
 
           -re "NAND Device Support.*MTD_NAND.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" || $port_type == "serial_uart" } {
+            if { $board_type == "BF537-STAMP" && $port_type == "serial_uart" } {
                 send "N\r"
             } else {
                 send "\r"
