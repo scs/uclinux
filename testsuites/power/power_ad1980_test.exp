@@ -44,7 +44,7 @@ proc standby_test_case1 {} {
     global standby_fail
     global pm_state_str
 
-    set timeout [expr $wait_time + 5]
+    set timeout [expr $wait_time + 10]
     incr case_num
     send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
@@ -102,7 +102,7 @@ proc standby_test_case2 {} {
     global standby_fail
     global pm_state_str
 
-    set timeout [expr $wait_time + 5]
+    set timeout [expr $wait_time + 10]
     incr case_num
     send "\nrtcwake -s $wait_time -m $pm_state_str\r"
     while 1 {
