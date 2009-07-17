@@ -295,7 +295,7 @@ expect "\r"
 while 1 {
    expect {
 
-      -re "(\[0-9a-fA-F]+)\[\x20\t]+.*$ftp_file" {
+      -re "(\[0-9a-fA-F]+)\[\x20\t]+/root/$ftp_file" {
             expect -re  $sh_prompt
             set target_md5sum_value $expect_out(1,string)
             send_user "target md5sum $target_md5sum_value .\n"
@@ -565,7 +565,7 @@ expect "\r"
 while 1 {
    expect {
 
-      -re "(\[0-9a-fA-F]+)\[\x20\t]+.*$ftp_file" {
+      -re "(\[0-9a-fA-F]+)\[\x20\t]+/root/$ftp_file" {
             expect -re  $sh_prompt
             set target_md5sum_value $expect_out(1,string)
             send_user "target md5sum $target_md5sum_value .\n"
