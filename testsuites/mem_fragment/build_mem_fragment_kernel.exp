@@ -9,15 +9,15 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
 cd $uclinux_path/testsuites
-
 step "Make config."
-source  make_default_config.exp
-# Following make specific configuration for this case.
+source make_default_config.exp
+
+cd $uclinux_path/testsuites
+source make_config_reserve_mem.exp
 
 cd $uclinux_path
 set timeout 300
 spawn make config
-
 #tee "Begin the interactive process of configuration"
 while 1 {
     expect {

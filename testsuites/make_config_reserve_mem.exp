@@ -1,0 +1,197 @@
+#!/usr/bin/expect
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+while 1 {
+    expect {
+        -re "Vendor/Product Selection.* (\[0-9]+). AnalogDevices.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Power Management support.*PM.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Build ncurses.*LIB_NCURSES.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "boa.*USER_BOA_SRC_BOA.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "dhrystone.*USER_DHRYSTONE_DHRYSTONE.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "whetstone.*USER_WHETSTONE_WHETSTONE.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "TWI LCD test program.*USER_BLACKFIN_TWILCDTEST.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "netperf test tool.*USER_NETPERF_TEST.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "strace.*USER_STRACE_STRACE.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "dhcp.*USER_DHCP.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "pngview.*USER_PNGVIEW.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "jpegview.*USER_JPEGVIEW_JPEGVIEW.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "e2fsck.*USER_E2FSPROGS_E2FSCK_E2FSCK.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "mke2fs.*USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "mkdosfs.*USER_DOSFSTOOLS_MKDOSFS.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "dosfsck.*USER_DOSFSTOOLS_DOSFSCK.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "zmodem utils.*USER_LRZSZ_LRZSZ.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "mp3play.*USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "vplay.*USER_VPLAY_VPLAY.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "vrec.*USER_VPLAY_VREC.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "gdbserver.*USER_GDB.*\\\[.*]" {
+            send "N\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+                send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+                break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+                break
+        }
+    }
+}
+
+##############################################################################
+# It is impossible to unselected libpng and libjpeg in the first round.
+# Spawn another make config to disable it.
+##############################################################################
+spawn make config
+while 1 {
+    expect {
+        -re "Vendor/Product Selection.* (\[0-9]+). AnalogDevices.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Build libpng \\\(LIB_LIBPNG\\\) \\\[(\[^\r]*)]" {
+            set timeout 5
+            expect {
+                -nocase -re " (\[ym])\r\n" {
+                    send_user "\n Item_value is selected $expect_out(1,string).\n"
+                }
+                timeout {
+                    send -s "N\r"
+                }
+            }
+            set timeout 50
+        }
+
+        -re "Build libjpeg \\\(LIB_LIBJPEG\\\) \\\[(\[^\r]*)]" {
+            set timeout 5
+            expect {
+                -nocase -re " (\[ym])\r\n" {
+                    send_user "\n Item_value is selected $expect_out(1,string).\n"
+                }
+                timeout {
+                    send -s "N\r"
+                }
+            }
+            set timeout 50
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}

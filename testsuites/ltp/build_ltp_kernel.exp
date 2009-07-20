@@ -27,10 +27,11 @@ if { $argc == 4 } {
 
 
 cd $uclinux_path/testsuites
-
 step "Make config"
 source  make_default_config.exp
-# Following make specific configuration for this case.
+
+cd $uclinux_path/testsuites
+source make_config_reserve_mem.exp
 
 cd $uclinux_path
 set timeout 300
