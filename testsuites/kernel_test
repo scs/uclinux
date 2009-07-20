@@ -1369,13 +1369,13 @@ do
   else
         if [ ${AUTO_RUN_STATUS[$(( n + 10 ))]} -eq 1  ] ; then
             cd $UCLINUX_DIST_TESTSUITES/power
-            ./power_adv7393_test.exp 1 >/dev/null  2>&1
+            ./power_adv7393_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
             cd $UCLINUX_DIST_TESTSUITES
             ./reset_board.exp  >/dev/null  2>&1
             sleep 10
 
             cd $UCLINUX_DIST_TESTSUITES/power
-            ./power_adv7393_test.exp 2 >/dev/null  2>&1
+            ./power_adv7393_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
             cd $UCLINUX_DIST_TESTSUITES
             ./reset_board.exp  >/dev/null  2>&1
             sleep 10
@@ -1383,13 +1383,13 @@ do
 
         if [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
             cd $UCLINUX_DIST_TESTSUITES/power
-            ./power_ad73311_test.exp 1 >/dev/null  2>&1
+            ./power_ad73311_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
             cd $UCLINUX_DIST_TESTSUITES
             ./reset_board.exp  >/dev/null  2>&1
             sleep 10
 
             cd $UCLINUX_DIST_TESTSUITES/power
-            ./power_ad73311_test.exp 2 >/dev/null  2>&1
+            ./power_ad73311_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
             cd $UCLINUX_DIST_TESTSUITES
             ./reset_board.exp  >/dev/null  2>&1
             sleep 10
@@ -1411,13 +1411,13 @@ do
 
         if [ ${AUTO_RUN_STATUS[$(( n + 3 ))]} -eq 1  ] ; then
             cd $UCLINUX_DIST_TESTSUITES/power
-            ./power_ad1836_test.exp 1 >/dev/null  2>&1
+            ./power_ad1836_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
             cd $UCLINUX_DIST_TESTSUITES
             ./reset_board.exp  >/dev/null  2>&1
             sleep 10
 
             cd $UCLINUX_DIST_TESTSUITES/power
-            ./power_ad1836_test.exp 2 >/dev/null  2>&1
+            ./power_ad1836_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
             cd $UCLINUX_DIST_TESTSUITES
             ./reset_board.exp  >/dev/null  2>&1
             sleep 10
@@ -1439,13 +1439,13 @@ do
 
         if [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
             cd $UCLINUX_DIST_TESTSUITES/power
-            ./power_ad1981b_test.exp 1 >/dev/null  2>&1
+            ./power_ad1981b_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
             cd $UCLINUX_DIST_TESTSUITES
             ./reset_board.exp  >/dev/null  2>&1
             sleep 10
 
             cd $UCLINUX_DIST_TESTSUITES/power
-            ./power_ad1981b_test.exp 2 >/dev/null  2>&1
+            ./power_ad1981b_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
             cd $UCLINUX_DIST_TESTSUITES
             ./reset_board.exp  >/dev/null  2>&1
             sleep 10
@@ -1466,13 +1466,13 @@ do
         fi
 
         cd $UCLINUX_DIST_TESTSUITES/power
-        ./power_ethernet_test.exp 1 >/dev/null  2>&1
+        ./power_ethernet_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
         cd $UCLINUX_DIST_TESTSUITES
         ./reset_board.exp  >/dev/null  2>&1
         sleep 10
 
         cd $UCLINUX_DIST_TESTSUITES/power
-        ./power_ethernet_test.exp 2 >/dev/null  2>&1
+        ./power_ethernet_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
 
   fi
 
