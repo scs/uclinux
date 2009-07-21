@@ -1,11 +1,8 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
 
 set argc [llength $argv]
@@ -31,12 +28,8 @@ step "Load orinoco_cs Module"
 send -s "modprobe orinoco_cs\r"
 while 1 {
     expect {
-        -re "Using.*Using.*Using.*orinoco_cs.*>" {
-            send_user "modprobe finish\n"
-            break
-        }
-        -re "request for exclusive IRQ could not be fulfilled.*driver needs updating to supported shared IRQ lines.*>" {
-            send_user "pcmcia message, harmless, ignore\n"
+        -re $kernel_prompt {
+            case_pass $case_num
             break
         }
         timeout {
@@ -46,11 +39,12 @@ while 1 {
     }
 }
 
+incr case_num
 set timeout 20
-send -s "dmesg\r"
+send -s "dmesg|grep eth1\r"
 while 1 {
     expect {
-        -re "eth1.*orinoco_cs at 0.0, irq 54, io 0x\[0-9a-f].*>" {
+        -re "eth1.*orinoco_cs at 0.0, irq 54, io 0x\[0-9a-f]+.*$kernel_prompt" {
             send_user "Load orinoco_cs Module successfully\n"
             case_pass $case_num
             break

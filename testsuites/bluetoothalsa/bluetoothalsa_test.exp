@@ -165,7 +165,7 @@ set timeout 10
 send "hcid -n &\r"
 while 1 {
     expect {
-        -re "Bluetooth HCI daemon.*Starting security manager \[0-9].*hdev=\[0-9]" {
+        -re "Bluetooth HCI daemon.*Starting security manager \[0-9]" {
             case_pass $case_num
             sleep 3
             send "\r"
