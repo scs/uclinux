@@ -1,0 +1,187 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+step "Make config."
+source  make_default_config.exp
+
+if [catch "exec mkdir $uclinux_path/romfs/lib" msg] {
+    send_user "\nFAIL: mkdir $uclinux_path/romfs/lib\n"
+}
+if [catch "exec mkdir $uclinux_path/romfs/lib/firmware" msg] {
+    send_user "\nFAIL: mkdir $uclinux_path/romfs/lib/firmware\n"
+}
+if [catch "exec cp $uclinux_path/download/sd8686.bin $uclinux_path/romfs/lib/firmware" msg] {
+    send_user "\nFAIL: cp $uclinux_path/download/sd8686.bin $uclinux_path/romfs/lib/firmware\n"
+}
+if [catch "exec cp $uclinux_path/download/sd8686_helper.bin $uclinux_path/romfs/lib/firmware" msg] {
+    send_user "\nFAIL: cp $uclinux_path/download/sd8686_helper.bin $uclinux_path/romfs/lib/firmware\n"
+}
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+#wireless network stack
+        -re "Wireless \\\(WIRELESS\\\) \\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Improved wireless configuration API.*CFG80211.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "nl80211 new netlink interface support.*NL80211.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Old wireless static regulatory definitions.*WIRELESS_OLD_REGULATORY.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Wireless extensions.*WIRELESS_EXT.*\\\[././.*]" {
+            send "Y\r"
+        }
+
+        -re "Wireless extensions sysfs files.*WIRELESS_EXT_SYSFS.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Generic IEEE 802.11 Networking Stack \\\(mac80211\\\).*MAC80211.*\\\[.*]" {
+            send "Y\r"
+        }
+
+#Blackfin SD host driver
+        -re "MMC/SD/SDIO card support \\\(MMC\\\).*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Blackfin Secure Digital Host support.*SDH_BFIN.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Pull Up Resistor Workaround.*SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Enable sdio irq for sdio device.*SDH_BFIN_ENABLE_SDIO_IRQ.*\\\[.*]" {
+            send "Y\r"
+        }
+
+#libertas driver
+        -re "Wireless LAN \\\(IEEE 802.11\\\).*WLAN_80211.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Marvell 8xxx Libertas WLAN driver support \\\(LIBERTAS\\\) \\\[.*]" {
+            send "M\r"
+        }
+
+        -re "Marvell Libertas 8385 and 8686 SDIO 802.11.*LIBERTAS_SDIO.*\\\[.*]" {
+            send "M\r"
+        }
+
+        -re "Support transferring block with size of power-of-2 only.*POWEROF2_BLOCKSIZE_ONLY.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Enable full debugging output in the Libertas module.*LIBERTAS_DEBUG.*\\\[.*]" {
+            send "Y\r"
+        }
+
+#Disable Nand flash controller support, as it uses the same DMA channel as SDH
+        -re "Blackfin on-chip NAND Flash Controller driver.*MTD_NAND_BF5XX.*\\\[.*]" {
+            send "N\r"
+        }
+
+#WIFI tools
+        -re "wireless_tools support.*USER_WIRELESS_TOOLS.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "iwconfig.*USER_WIRELESS_TOOLS_IWCONFIG.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "iwgetid.*USER_WIRELESS_TOOLS_IWGETID.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "iwlist.*USER_WIRELESS_TOOLS_IWLIST.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "iwpriv.*USER_WIRELESS_TOOLS_IWPRIV.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "iwspy.*USER_WIRELESS_TOOLS_IWSPY.*\\\[.*]" {
+            send "Y\r"
+        }
+
+#Enable userspace firmware loading support
+        -re "Userspace firmware loading support.*FW_LOADER.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "mdev.*USER_BUSYBOX_MDEV.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Support loading of firmwares.*USER_BUSYBOX_FEATURE_MDEV_LOAD_FIRMWARE.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+step "Make"
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+step "Copy linux"
+source  copy_image.exp
+
+send_user "Ending $argv0\n"
+log_file
