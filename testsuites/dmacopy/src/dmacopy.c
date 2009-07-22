@@ -104,6 +104,7 @@ int _do_test(char *src_desc, char *dst_desc, char *src, char *dst, char *chk, in
 
 	memset(src, 's', size);
 	memset(dst, 'd', size);
+	__builtin_bfin_ssync();
 	if (!is_l1_inst(chk))
 		memset(chk, 'c', size);
 
