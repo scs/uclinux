@@ -123,7 +123,7 @@ Add sport emulated spi driver
 ADP5520 Multifunction LCD Backlight and Keypad Input Device Driver
 Add a “shadow_console”, which is a console keeps a copy of the printk buffer in a predefined portion of memory, which U-Boot can print out if it thinks there has been an error during boot.
 
-new board support
+New supported development board
 
 bf518-ezbrd
 bf526-ezbrd
@@ -229,6 +229,16 @@ run l2 app on bf548 ezkit frequent fails
 running traps test case in fdpic format would randomly make kernel reboot
 5225
 xenomai test failed on bf533-stamp/bf548/bf527/bf526
+5351
+Wake up from mem in bf548-ezkit, audio apps fail to work
+5354
+Wake up from mem in bf527-ezkit, audio driver fail to work (can't resolve symbol)
+5370
+alsa tool fails to work after wake up from mem in bf537-stamp with ad1836 (can't resolve symbol)
+5371
+Sometimes wake up from standby will crash in BF527-EZKIT with ssm2602
+
+
 There are also some issues in the latest LTP test suite. They are recorded as bug 3594 and 4757. 
 
 
