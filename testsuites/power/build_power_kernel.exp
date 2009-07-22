@@ -9,6 +9,15 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
+
+if { $argc < 2} {
+    puts "Please input: board_type, whether include ad1981b(yes or no)"
+    exit
+}
+set ad1981b_flag [lindex $argv 1]
+send_log "\ninclude ad1981b: $ad1981b_flag\n"
+
+
 cd $uclinux_path/testsuites
 step "Make default config."
 source  make_default_config.exp
@@ -158,7 +167,7 @@ while 1 {
         }
 
         -re "SoC SSM2602 Audio support for BF52x ezkit.*SND_BF5XX_SOC_SSM2602.*\\\[.*]" {
-            if { $board_type == "BF527-EZKIT" } {
+            if { $board_type == "BF527-EZKIT" && $ad1981b_flag == "no" } {
                 send "M\r"
             } else {
                 send "N\r"
@@ -190,6 +199,14 @@ while 1 {
                 send "M\r"
             } else {
                 send "N\r"
+            }
+        }
+
+        -re "Set a SPORT for Sound chip.*SND_BF5XX_SPORT_NUM.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" && $ad1981b_flag == "yes" } {
+                send "1\r"
+            } else {
+                send "\r"
             }
         }
 
