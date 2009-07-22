@@ -1,0 +1,165 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+set argc [llength $argv]
+if { $argc < 2} {
+   puts "Usage:  $argv0 ping_ipaddr essid"
+   puts ""
+   exit
+}
+set ping_ipaddr [lindex $argv 0]
+set essid [lindex $argv 1]
+set local_ip "192.168.1.120" 
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+set case_num 0
+sleep 10
+step "Start testing."
+
+incr case_num
+set timeout 5
+send "dmesg|grep mmc\r"
+while 1 {
+    expect {
+        -re "SDIO card at address.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "FAIL: detect sdio wifi card\n"
+            case_fail $case_num
+        }
+    }
+}
+
+step "Load Module libertas"
+incr case_num
+set timeout 10
+send "modprobe libertas\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "FAIL: install module libertas\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "modprobe libertas_sdio helper_name=sd8686_helper.bin fw_name=sd8686.bin\r"
+while 1 {
+    expect {
+        -re "Libertas SDIO driver.*requesting sd8686_helper\.bin.*sd8686\.bin.*Marvell WLAN 802\.11 adapter" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "FAIL: install wifi firmware\n"
+            case_fail $case_num
+        }
+    }
+}
+
+step "Setup wifi configuration"
+incr case_num
+set timeout 5
+send "ifconfig eth1 up\r"
+while 1 {
+   expect {
+       -re $kernel_prompt {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "\ntimeout: eth1 up\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "iwconfig eth1 essid $essid\r"
+while 1 {
+   expect {
+       -re $kernel_prompt {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "\ntimeout: wifi config\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "ifconfig eth1 $local_ip up\r"
+while 1 {
+   expect {
+       -re $kernel_prompt {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "\ntimeout: set local ip\n"
+         case_fail $case_num
+      }
+   }
+}
+
+sleep 5
+
+incr case_num
+set timeout 5
+send "iwconfig eth1\r"
+while 1 {
+   expect {
+       -re "ESSID:\"$essid\".*$kernel_prompt" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "\nCan not find $essid\n"
+         case_fail $case_num
+      }
+   }
+}
+
+step "ping to target"
+incr case_num
+send "ping $ping_ipaddr\r"
+sleep 5
+send "\03\r"
+while 1 {
+   expect {
+      -re ".* 0% packet loss.*>" {
+         send_user "\nping remote host: pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "\nping fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+all_pass
+send_user "Ending $argv0\n"
+log_file
