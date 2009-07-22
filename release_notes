@@ -245,13 +245,13 @@ There are also some issues in the latest LTP test suite. They are recorded as bu
 Build Procedure
 
 1.Install Toolchain Release 2009R1
-Release Notes
-2.Installation instructions
-3.File List
-4.Download the source code of project uClinux-dist for Blackfin release 2009R1
-File List
-5.Follow basic compilation directions
-
+Release Notes [http://docs.blackfin.uclinux.org/doku.php?id=toolchain:release-notes:2009r1]
+Installation instructions [http://docs.blackfin.uclinux.org/doku.php?id=toolchain:installing]
+File List [http://blackfin.uclinux.org/gf/project/toolchain/frs/]
+2.Download the source code of project uClinux-dist for Blackfin release 2009R1
+File List [http://blackfin.uclinux.org/gf/project/uclinux-dist/frs]
+3.Follow basic compilation directions
+[http://docs.blackfin.uclinux.org/doku.php?id=basic_compilation]
 
 Reporting Bugs
 
