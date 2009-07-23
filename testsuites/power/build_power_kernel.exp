@@ -211,11 +211,7 @@ while 1 {
         }
 
         -re "Uncached DMA region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
-            if { $board_type == "BF537-STAMP" } {
-                send "2\r"
-            } else {
-                send "\r"
-            }
+            send "2\r"
         }
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
