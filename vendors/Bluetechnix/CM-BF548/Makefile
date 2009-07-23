@@ -13,7 +13,7 @@ EXT2_INODES = 1024
 ROMFS_DIRS-y = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp etc/config var/run var/lib/misc
 ETC_FILES-y = \
 	filesystems group hosts host.conf inetd.conf issue mime.types \
-	modprobe.conf motd passwd protocols services TZ tux-bf.gif
+	modprobe.conf motd passwd profile protocols services TZ tux-bf.gif
 
 ROMFS_DIRS-$(CONFIG_USER_BOA_SRC_BOA_NEW) += home/httpd home/httpd/cgi-bin etc/boa var/log/boa
 ETC_FILES-$(CONFIG_USER_BOA_SRC_BOA_NEW) += boa.conf index.html tux-wink.gif tuxsit_small.gif
