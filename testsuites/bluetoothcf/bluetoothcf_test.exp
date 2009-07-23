@@ -13,121 +13,106 @@ step "Reboot the kernel."
 source ../reboot_kernel.exp
 
 step "Start testing."
-
-set MST_BD_ADDR			"00:10:60:D0:8C:41"	
-set SLV_BD_ADDR			"11:11:11:11:11:11"
-
-set case_num		0
-
+set case_num 0
 sleep 2
+
+set MST_BD_ADDR	"00:10:60:D0:8C:41"
+set SLV_BD_ADDR	"11:11:11:11:11:11"
+
+step "run hciconfig"
 incr case_num
+set timeout 5
 send "hciconfig hci0 up\r"
-expect  -re $kernel_prompt
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
 
-puts "\r############### EXEC: hciconfig... ###############\r"
 sleep 2
+
+incr case_num
+set timeout 5
 send "hciconfig\r"
-set timeout 2
 while 1 {
-	expect {
-		"DOWN" {
-			puts "\r-- FAILED: hciconfig\r"
-                        case_fail $case_num
-		}
-		-re "BD Address.*" {
-			puts "\r-- SUCCESS: hci0 is up\r"
-                        case_pass $case_num
-			break
-		}
-                -re "not found" {
-                        case_fail $case_num
-                }
-		timeout {
-			#incr failed_case
-                        #case_fail $case_num
-			break
-		}
-	}
+    expect {
+        -re "DOWN|not found" {
+            case_fail $case_num
+        }
+        -re "BD Address.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
-
+step "scan other bluetooth device"
 incr case_num
-puts "\r############### EXEC: hcitool... ###############\r"
+set timeout 300
 send "hcitool scan\r"
-set timeout 20
-sleep 15
 while 1 {
-	expect {
-		"Inquiry failed: Success" {
-			puts "\rNo remote Bluetooth device found\r"
-                        case_fail $case_num
-		}
-		"*$SLV_BD_ADDR*" {
-			puts "\rRemote Bluetooth found\r"
-                        case_pass $case_num
-			break
-		}
-                -re "not found" {
-                        case_fail $case_num
-                }
-		timeout {
-			#puts "\rScan remote device time out\r"
-			break
-		}
-	}
+    expect {
+        -re "Inquiry failed: Success|not found" {
+            case_fail $case_num
+        }
+        -re "$SLV_BD_ADDR.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
+step "inquire other device"
 incr case_num
-puts "\r############### EXEC: hcitool inq... ###############\r"
-send "hcitool -i hci0 info $SLV_BD_ADDR\r"
 set timeout 30
-sleep 30 
+send "hcitool -i hci0 info $SLV_BD_ADDR\r"
+sleep 2
 while 1 {
-	expect {
-		"$SLV_BD_ADDR" {
-			puts "\rInquire done\r"
-                        case_pass $case_num
-			break
-		}
-                -re "not found" {
-                        case_fail $case_num
-                }
-		timeout {
-			puts "\rInquire failed\r"
-                        case_fail $case_num
-		}	
-	}
+    expect {
+        -re "not found" {
+            case_fail $case_num
+        }
+        -re "$SLV_BD_ADDR.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
+step "ping to target device"
 incr case_num
-puts "\r############### EXEC: l2ping... ###############\r"
-send "l2ping -i hci0 -f $SLV_BD_ADDR\r"
-set timeout 10
-sleep 1
+set timeout 20
+send "l2ping -i hci0 -c 50 -f $SLV_BD_ADDR\r"
 while 1 {
-	expect {
-		"bytes" {
-			send "\3\r"
-			puts "\rping pass\r"
-                        case_pass $case_num
-			break
-		}
-		"Can't connect:" {
-			puts "\rping failed\r"
-                        case_fail $case_num
-		}
-                -re "not found" {
-                        case_fail $case_num
-                }
-		timeout {
-			#puts "\rtimeout\r"
-			break
-		}
-	}
+    expect {
+        -re "not found|Can't connect:" {
+            case_fail $case_num
+        }
+        -re "50 sent, 50 received, 0% loss" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 all_pass
-
 send_user "Ending $argv0\n"
-
 log_file
