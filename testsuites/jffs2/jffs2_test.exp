@@ -51,13 +51,13 @@ for {set case_num 1} {$case_num <= $count} {incr case_num} {
     send -s "bootm $kernel_start_addr\r"
     while 1 {
         expect {
-            -re "\"physmap-flash.*\".*(0x\[0-9a-fA-F]+)-0x\[0-9a-fA-F]+\[\x20\t]+:\[\x20\t]+\".*\"\r\n(0x\[0-9a-fA-F]+)-0x\[0-9a-fA-F]+\[\x20\t]+:\[\x20\t]+\".*\"\r\n(0x\[0-9a-fA-F]+)-0x\[0-9a-fA-F]+\[\x20\t]+:\[\x20\t]+\".*\"\r\n" {
+            -re "\"physmap-flash\.0\":\[^\n]+\[\n](0x\[0-9a-fA-F]+)-0x\[0-9a-fA-F]+\[\x20\t]+:.*\[\r\n](0x\[0-9a-fA-F]+)-0x\[0-9a-fA-F]+\[\x20\t]+:.*\[\r\n](0x\[0-9a-fA-F]+)-0x\[0-9a-fA-F]+\[\x20\t]+:.*\[\r\n](0x\[0-9a-fA-F]+)-0x\[0-9a-fA-F]+\[\x20\t]+:.*\[\r\n]" {
                 set run_kernel_start_addr $expect_out(2,string)
                 set run_rootfs_start_addr $expect_out(3,string)
                 if { [format "%08x" [expr $mtd_base_addr + $run_kernel_start_addr]] == $kernel_start_addr && [format "%08x" [expr $mtd_base_addr + $run_rootfs_start_addr]] == $rootfs_start_addr } {
-                puts "\nThe two address are equal.\nkernel_start_addr [format "%08x" [expr $mtd_base_addr + $run_kernel_start_addr]], rootfs_start_addr [format "%08x" [expr $mtd_base_addr + $run_rootfs_start_addr]] \n"
+                send_log "\nThe two address are equal.\nkernel_start_addr [format "%08x" [expr $mtd_base_addr + $run_kernel_start_addr]], rootfs_start_addr [format "%08x" [expr $mtd_base_addr + $run_rootfs_start_addr]] \n"
                 } else {
-                puts "\nThe two address are not equal.\n kernel_start_addr [format "%08x" [expr $mtd_base_addr + $run_kernel_start_addr]], rootfs_start_addr [format "%08x" [expr $mtd_base_addr + $run_rootfs_start_addr]] \n"
+                send_log "\nThe two address are not equal.\n kernel_start_addr [format "%08x" [expr $mtd_base_addr + $run_kernel_start_addr]], rootfs_start_addr [format "%08x" [expr $mtd_base_addr + $run_rootfs_start_addr]] \n"
                 case_fail $case_num 
                 }
 	     }

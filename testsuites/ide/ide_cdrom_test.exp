@@ -150,7 +150,7 @@ while 1 {
          }
      }
 }
-
+expect -re $kernel_prompt
 incr case_num
 send "while \[ 1 \]; md5sum /mnt/setup.exe ; done\r" 
 while 1 {
@@ -169,11 +169,36 @@ while 1 {
      }
 }
 
+expect -re $kernel_prompt
 incr case_num
 send "umount /mnt\r" 
 while 1 {
    expect {
-      ">" {
+        -re "umount.*failed.*$kernel_prompt" {
+            send_user "umount failed, test fail\n"
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            send_user "umount done, test pass\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "umount timeout, test fail\n"
+            case_fail $case_num
+        }
+
+     }
+}
+
+incr case_num
+send "ls -al /mnt\r" 
+while 1 {
+   expect {
+      -re  "setup.exe" {
+                case_fail $case_num
+      }
+      -re  "$kernel_prompt" {
                 case_pass $case_num
 		break
       }
