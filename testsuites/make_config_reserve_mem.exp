@@ -69,6 +69,14 @@ while 1 {
             send "N\r"
         }
 
+        -re "ftp.*USER_FTP_FTP_FTP.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "telnet.*USER_TELNET_TELNET.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "e2fsck.*USER_E2FSPROGS_E2FSCK_E2FSCK.*\\\[.*]" {
             send "N\r"
         }
@@ -105,9 +113,17 @@ while 1 {
             send "N\r"
         }
 
+        -re "Install ELF shared libraries.*INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
+            send  "N\r"
+        }
+
+        -re "Install FLAT shared libraries.*INSTALL_FLAT_SHARED_LIBS.*\\\[.*]" {
+            send  "N\r"
+        }
+
         "\\\(*) \\\[*]" {
             sleep .01
-                send "\r"
+            send "\r"
         }
 
         -re "\[cC]hoice\\\[.*]:" {
@@ -116,12 +132,12 @@ while 1 {
 
         eof {
             puts "End of configuration"
-                break
+            break
         }
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
-                break
+            break
         }
     }
 }
