@@ -1,0 +1,27 @@
+--- stamp.c	2009-07-27 17:22:44.096220064 +0800
++++ stamp.c.bak	2009-07-27 17:05:20.581858360 +0800
+@@ -510,6 +505,7 @@
+ static struct bfin5xx_spi_chip spi_flash_chip_info = {
+ 	.enable_dma = 0,         /* use dma transfer with this chip*/
+ 	.bits_per_word = 8,
++        .cs_gpio = GPIO_PF6,
+ };
+ #endif
+ 
+@@ -680,12 +676,12 @@
+ 	{
+ 		/* the modalias must be the same as spi device driver name */
+ 		.modalias = "m25p80", /* Name of spi_driver for this device */
+-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
+-		.bus_num = 0, /* Framework bus number */
+-		.chip_select = 1, /* Framework chip select. On STAMP537 it is SPISSEL1*/
++		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
++		.bus_num = 1, /* Framework bus number */
++		.chip_select = 0, /* Framework chip select. On STAMP537 it is SPISSEL1*/
+ 		.platform_data = &bfin_spi_flash_data,
+ 		.controller_data = &spi_flash_chip_info,
+-		.mode = SPI_MODE_3,
++		.mode = SPI_MODE_0,
+ 	},
+ #endif
+ #if defined(CONFIG_MTD_DATAFLASH) \
