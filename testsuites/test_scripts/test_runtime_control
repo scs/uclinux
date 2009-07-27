@@ -26,6 +26,8 @@ else
  script_name=`echo $whole_command_line | awk '{print $12}'`
  if [ "$script_name" == "./build_qt_kernel.exp" ] ; then
      sleep 7200
+ elif [ "$script_name" == "./ltp_auto_test.exp" ] ; then
+     sleep 4500
  else
      sleep 3600
  fi
