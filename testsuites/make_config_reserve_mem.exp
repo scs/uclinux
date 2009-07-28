@@ -25,6 +25,20 @@ while 1 {
             send "N\r"
         }
 
+        -re "Enable ZFLAT support.*BINFMT_ZFLAT.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Watchdog Timer Support.*WATCHDOG.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {
+            send "N\r"
+        }
+
+#######################################################################################
+
         -re "Build ncurses.*LIB_NCURSES.*\\\[.*]" {
             send "N\r"
         }
@@ -90,6 +104,10 @@ while 1 {
         }
 
         -re "dosfsck.*USER_DOSFSTOOLS_DOSFSCK.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "watchdogd.*USER_WATCHDOGD.*\\\[.*]" {
             send "N\r"
         }
 

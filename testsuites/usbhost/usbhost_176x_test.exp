@@ -92,7 +92,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 20
+set timeout 30
 send "time dd conv=fsync if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
 while 1 {
     expect {
