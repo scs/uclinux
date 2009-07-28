@@ -156,8 +156,9 @@ void write_pid(void)
 
 void fork_now(int ttyfd)
 {
-	int ret;
 	int i;
+#ifndef __uClinux__
+	int ret;
 
 	if ((ret = fork()) > 0)
 		exit(0);
@@ -171,6 +172,9 @@ void fork_now(int ttyfd)
 		/* cleanup_files = 0; */
 		exit(0);
 	}
+#else
+	daemon (1, 1);
+#endif
 
 	/* Close all open inherited files! Except for ttyfd! */
 	for (i = 0; i < 64; i++)
