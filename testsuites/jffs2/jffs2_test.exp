@@ -35,7 +35,7 @@ for {set case_num 1} {$case_num <= $count} {incr case_num} {
     while 1 {
         send -s "\r"
         expect {
-            ">" {
+           -re $uboot_prompt {
                 break
             }
             timeout {
@@ -45,7 +45,7 @@ for {set case_num 1} {$case_num <= $count} {incr case_num} {
     }
     
     send -s "\r"
-    expect ">"
+    expect -re $uboot_prompt
     sleep 4
     set timeout 50
     send -s "bootm $kernel_start_addr\r"
