@@ -13,7 +13,7 @@ set format [lindex $argv 1]
 send_log "\n#### binary_format is $format\n"
 
 if { $argc < 2} {
-    puts "Please input: board_type, binary_format(fdpic or shared-flat)"
+    puts "Please input: board_type, binary_format(fdpic, flat or shared-flat)"
     exit
 }
 
@@ -73,10 +73,12 @@ while 1 {
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             if { $format == "fdpic" } {
                 send  "4\r"
+            } elseif { $format == "flat" } {
+                send  "1\r"
             } elseif { $format == "shared-flat" } {
                 send  "3\r"
             } else {
-                send "4\r"
+                send "1\r"
             }
         }
 

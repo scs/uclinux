@@ -6,7 +6,7 @@ send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
 if { $argc < 1} {
-    puts "Please input:binary format (FDPIC or SHARED-FLAT)"
+    puts "Please input:binary format (FDPIC or FLAT)"
     exit
 }
 
@@ -167,7 +167,7 @@ step "Start oprofile test against user application"
 source ../reboot_kernel.exp
 
 sleep 5
-if {$format == "SHARED-FLAT"} {
+if {$format == "FLAT"} {
     incr case_num
     send_user "rcp ../../user/whetstone/whetstone.gdb root@$targetip:/bin/\n"
     if [ catch {exec rcp ../../user/whetstone/whetstone.gdb root@$targetip:/bin/} ] {
@@ -274,7 +274,7 @@ while 1 {
     }
 }
 
-if {$format == "SHARED-FLAT"} {
+if {$format == "FLAT"} {
     incr case_num
     set timeout 10
     send "mv /bin/whetstone.gdb /bin/whetstone\r"

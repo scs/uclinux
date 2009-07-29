@@ -2019,10 +2019,10 @@ fi
   fi
 
 
-  echo  "Testing oprofile shared-flat format"
+  echo  "Testing oprofile flat format"
 
   cd $UCLINUX_DIST_TESTSUITES/oprofile
-  ./build_oprofile_kernel.exp $BOARD_TYPE shared-flat >/dev/null  2>&1
+  ./build_oprofile_kernel.exp $BOARD_TYPE flat >/dev/null  2>&1
   if [ ! -f $UCLINUX_DIST_PATH/images/uImage ]
   then
 	echo "$0:   Error, failed."
@@ -2032,10 +2032,10 @@ fi
         ./oprofile_test.exp $BOARD_TYPE SHARED-FLAT >/dev/null  2>&1
   fi
 
-  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.oprofile.shared-flat
-  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.oprofile.shared-flat
-  mv $UCLINUX_DIST_TESTSUITES/oprofile/build_oprofile_kernel_log $THIS_LOG/build_oprofile_shared-flat_kernel_log
-  mv $UCLINUX_DIST_TESTSUITES/oprofile/oprofile_test_log $THIS_LOG/oprofile_shared-flat_test_log
+  cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.oprofile.flat
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.oprofile.flat
+  mv $UCLINUX_DIST_TESTSUITES/oprofile/build_oprofile_kernel_log $THIS_LOG/build_oprofile_flat_kernel_log
+  mv $UCLINUX_DIST_TESTSUITES/oprofile/oprofile_test_log $THIS_LOG/oprofile_flat_test_log
 
   cd $UCLINUX_DIST_PATH/
   make clean > /dev/null 2>&1
