@@ -52,6 +52,7 @@ while 1 {
     }
 }
 
+sleep 1
 set timeout 15
 incr case_num
 send "video_test\r"
