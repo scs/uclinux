@@ -50,7 +50,7 @@ while 1 {
         }
 
         -re "SMC 91C9x/91C1xxx support.*SMC91X.*\\\[.*]" {
-            if { $board_type == "BF533-STAMP" || $board_type == "BF533-EZKIT" || $board_type == "BF561-EZKIT" } {
+            if { $board_type == "BF533-STAMP" || $board_type == "BF533-EZKIT" || $board_type == "BF561-EZKIT" || $board_type == "BF538-EZKIT" } {
                 send -s "M\r"
             } else {
                 send -s "\r"

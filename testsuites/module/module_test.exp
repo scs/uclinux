@@ -21,7 +21,7 @@ if { $board_type == "BF537-STAMP" || $board_type == "BF527-EZKIT" || $board_type
    set module_name bfin_mac
 } elseif { $board_type == "BF548-EZKIT" } {
    set module_name smsc911x
-} elseif { $board_type == "BF533-STAMP" || $board_type == "BF533-EZKIT" || $board_type == "BF561-EZKIT" } {
+} elseif { $board_type == "BF533-STAMP" || $board_type == "BF533-EZKIT" || $board_type == "BF561-EZKIT" || $board_type == "BF538-EZKIT"  } {
    set module_name smc91x
 }
                         
