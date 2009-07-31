@@ -231,6 +231,10 @@ while 1 {
     }
 }
 
+if { $board_type == "BF548-EZKIT" }  {
+    set wakeup_pattern "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks"
+}
+
 set pack_num 10
 for {set count 1} {$count <= $Total_Count} {incr count} {
     standby_test_case2
