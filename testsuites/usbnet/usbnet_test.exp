@@ -95,29 +95,25 @@ spawn /bin/bash
 set shell_spawn_id $spawn_id
 
 
+sleep 2
 incr case_num
-set timeout 30
-send "su -\r"
+set timeout 15
+send "su\r"
 while 1 {
     expect {
-        -re "\[Pp]assword:" {break}
-        timeout {
-            send_user "su timeout\n"
+        -re "\[pP]assword:" {
+            sleep 1
+            send "$password\r"
+            continue
+        }
+        -re "\[eE]rror|\[fF]ail" {
             case_fail $case_num
         }
-    }
-}
-
-set timeout 60
-send "$password\r"
-while 1 {
-    expect {
         -re "#" {
             case_pass $case_num
             break
         }
         timeout {
-            send_user "su and login timeout\n"
             case_fail $case_num
         }
     }
