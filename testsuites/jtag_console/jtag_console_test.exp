@@ -1,0 +1,376 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+#source ../reboot_kernel.exp
+source ../reset_to_uboot.exp
+sleep 2
+send "\r"
+expect -re $uboot_prompt
+
+set HOST_KERNEL_PROMPT ":~.*>"
+set case_num 0
+
+step "root_spawn_id: run gdbproxy"
+spawn /bin/sh
+set root_spawn_id $spawn_id
+
+sleep 2
+set timeout 5
+send "\r"
+expect -re $HOST_KERNEL_PROMPT
+
+set timeout 10
+incr case_num
+send "su -\r"
+while 1 {
+    expect {
+        -re "\[pP]assword:" {
+            sleep 1
+            send "$password\r"
+            while 1 {
+                expect {
+                    -re "#" {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        send_user "FAIL: log in as root!\n"
+                        case_fail $case_num
+                    }
+                }
+            }
+            break
+        }
+        timeout {
+            send_user "FAIL: run su command!\n"
+            case_fail $case_num
+        }
+    }
+}
+
+send "export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:/opt/uClinux/bfin-linux-uclibc/bin:\$PATH\n"
+expect -re "#"
+
+set timeout 10
+incr case_num
+send "bfin-gdbproxy bfin\r"
+while 1 {
+    expect {
+        -re "bfin-gdbproxy: waiting on TCP port 2000" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+step "gdb_spawn_id: run bfin-uclinux-gdb"
+spawn /bin/sh
+set gdb_spawn_id $spawn_id
+
+sleep 2
+set timeout 5
+send "export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:/opt/uClinux/bfin-linux-uclibc/bin:\$PATH\n"
+expect -re $HOST_KERNEL_PROMPT
+
+incr case_num
+send "bfin-uclinux-gdb\r"
+while 1 {
+    expect {
+        -re "\\\(gdb\\\)" {
+            send "target remote :2000\r"
+            while 1 {
+                expect {
+                    -re "Remote debugging using.*0x\[0-9a-f]+.*\\\(gdb\\\)" {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        send_user "FAIL: run target remote in gdb\n"
+                        case_fail $case_num
+                    }
+                }
+            }
+            break
+        }
+        timeout {
+            send_user "FAIL: run bfin-uclinux-gdb\n"
+            case_fail $case_num
+        }
+    }
+}
+
+step "netcat_spawn_id: run netcat as jtag console window"
+spawn /bin/sh
+set netcat_spawn_id $spawn_id
+
+sleep 2
+set timeout 5
+send "\r"
+expect -re $HOST_KERNEL_PROMPT
+
+incr case_num
+send -s "netcat localhost 2001\r"
+sleep 2
+while 1 {
+    expect {
+#        -re "\r\n\[a-zA-Z0-9]" 
+        -re $kernel_prompt {
+            send_user "FAIL:run netcat!\n"
+            case_fail $case_num
+        }
+        timeout {
+            case_pass $case_num
+            break
+        }
+    }
+}
+
+step "gdb_spawn_id: Continue to run kernel"
+set spawn_id $gdb_spawn_id
+set timeout 5
+sleep 2
+send "\r"
+expect -re "\\\(gdb\\\)"
+
+incr case_num
+send "c\r"
+while 1 {
+    expect {
+        -re "Continuing\." {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "FAIL:continue in bfin-uclinux-gdb!\n"
+            case_fail $case_num
+        }
+    }
+}
+
+step "kermit_spawn_id: run kernel with jtag console"
+set spawn_id $kermit_spawn_id
+
+sleep 2
+set timeout 10
+send "\r"
+expect -re $kernel_prompt
+
+incr case_num
+send "reset\r"
+while 1 {
+    expect {
+        "Hit any key" {
+            send "\r"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Fail to reboot the kernel\n"
+            case_fail $case_num
+        }
+    }
+}
+
+send "\r"
+expect -re $uboot_prompt
+send "set bootargs $bootargs_param10\r"
+expect -re $uboot_prompt
+send "save\r"
+expect -re $uboot_prompt
+
+if { $boot_image == "linux" } {
+         set bootcmd bootelf
+   } elseif { $boot_image == "uImage" } {
+         set bootcmd bootm
+}
+
+sleep 1
+set bootaddr $bootaddr_low
+incr case_num
+set timeout 20
+send -s "tftpboot $bootaddr $boot_image\r"
+while 1 {
+    expect {	
+        -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Fail to tftp download linux image."
+            case_fail $case_num
+        }	
+    }
+}
+
+sleep 1
+set timeout 60
+incr case_num
+send "run addip; $bootcmd $bootaddr\r"
+while 1 {
+    expect {
+        -re "Kernel panic" {
+            send_user "kernel panic detected..."
+            case_fail $case_num
+        }
+        -re "console handover:boot \\\[early_BFuart0\\\].*-> real \\\[ttyBFJC0\\\]" {
+            case_pass $case_num
+            break
+        }
+        -re "Trace:.*\r\n\r\n" {
+            sleep 10
+            send_user "Kernel booting up with dump info!\n"
+            case_fail $case_num
+        }
+        timeout {
+            send_user "Reboot kernel timeout!\n"
+            case_fail $case_num
+        }
+    }
+}
+
+step "netcat_spawn_id: testing jtag console"
+set spawn_id $netcat_spawn_id
+
+set timeout 120
+incr case_num
+send_user "Check boot up info in jtag console\n\n"
+while 1 {
+    expect {
+        -re "Kernel panic" {
+            send_user "kernel panic detected..."
+            case_fail $case_num
+        }
+        -re "Trace:.*\r\n\r\n" {
+            sleep 10
+            send_user "Kernel booting up with dump info!\n"
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Reboot kernel timeout!\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+send "echo test\r"
+while 1 {
+    expect {
+        -re "echo test\r\ntest\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "FAIL:testing jtag console!\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 60
+incr case_num
+send "ls; version\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "FAIL:testing jtag console!\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 240
+incr case_num
+send "dmesg\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "FAIL:testing jtag console!\n"
+            case_fail $case_num
+        }
+    }
+}
+
+step "netcat_spawn_id: exit netcat"
+set spawn_id $netcat_spawn_id
+sleep 1
+send "\3"
+while 1 {
+    expect {
+        -re "punt" {
+            break
+        }
+        timeout {
+            send_user "FAIL: exit netcat!\n"
+            break
+        }
+    }
+}
+
+step "gdb_spawn_id: exit gdb"
+set spawn_id $gdb_spawn_id
+sleep 1
+send "\3"
+while 1 {
+    expect {
+        -re "\\\(gdb\\\)" {
+            send "q\r"
+            expect "y or n"
+            send "y\r"
+            expect -re $kernel_prompt
+            break
+        }
+        timeout {
+            send_user "FAIL: exit bfin-uclinux-gdb!\n"
+            break
+        }
+    }
+}
+
+step "root_spawn_id: exit gdbproxy"
+set spawn_id $root_spawn_id
+sleep 1
+send "\3"
+while 1 {
+    expect {
+        -re "#" {
+            break
+        }
+        timeout {
+            send_user "FAIL: exit bfin-gdbproxy!\n"
+            break
+        }
+    }
+}
+
+all_pass
+send_user "Ending $argv0\n"
+log_file
