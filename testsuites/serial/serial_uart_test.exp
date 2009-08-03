@@ -32,7 +32,7 @@ if {  $port_type== "sport_uart" } {
 
 set bootargs             $bootargs_param7
 set ttyBFdev /dev/ttySS0
-set bits_number 7
+set bits_number 8
 
 } elseif { $port_type== "serial_uart" } {
 
@@ -52,6 +52,7 @@ source ../reboot_kernel.exp
 send_log "\nStarting test for UART ...\n"
 
 set ttydev $ttyUSBdev
+set ttyflags "-icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl min 1 time 0"
 set target_file aaa
 set host_file bbb
 set save_file ccc
@@ -88,7 +89,7 @@ while 1 {
         }
 }
 
-send -s "stty -F $ttyBFdev cs$bits_number ispeed $baud_rate ospeed $baud_rate -icrnl igncr min 1 time 0\r"
+send -s "stty -F $ttyBFdev cs$bits_number ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -125,7 +126,7 @@ while 1 {
 }
 
 while 1 {
-send -s "stty -F $ttydev cs$bits_number ispeed $baud_rate ospeed $baud_rate -icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl min 1 time 0\r"
+send -s "stty -F $ttydev cs$bits_number ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
 expect {
         -re  "$sh_prompt" {
           break }
@@ -212,7 +213,7 @@ set timeout 5
 incr case_num
 
 set spawn_id $target_id
-send -s "stty -F $ttyBFdev cs$bits_number ispeed $baud_rate ospeed $baud_rate  -icrnl igncr min 1 time 0\r"
+send -s "stty -F $ttyBFdev cs$bits_number ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -226,7 +227,7 @@ sleep 3
 send "ls\r"
 expect -re  "$sh_prompt"
 
-send -s "stty -F $ttydev cs$bits_number ispeed $baud_rate ospeed $baud_rate -icrnl  igncr min 1 time 0\r"
+send -s "stty -F $ttydev cs$bits_number ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
 while 1 {
         expect {
                 -re  "$sh_prompt" { break  }
