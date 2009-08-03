@@ -2029,7 +2029,7 @@ fi
 	tail -50 ./build_oprofile_kernel_log
   else
         sleep 30
-        ./oprofile_test.exp $BOARD_TYPE SHARED-FLAT >/dev/null  2>&1
+        ./oprofile_test.exp FLAT >/dev/null  2>&1
   fi
 
   cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.oprofile.flat
