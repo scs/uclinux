@@ -67,6 +67,10 @@ while 1 {
             send "Y\r"
         }
 
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send "N\r"
+        }
+
         "\\\(*) \\\[*]" {
             sleep .1
             send "\r"

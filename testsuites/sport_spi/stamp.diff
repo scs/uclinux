@@ -1,6 +1,8 @@
---- stamp.c	2009-07-27 17:22:44.096220064 +0800
-+++ stamp.c.bak	2009-07-27 17:05:20.581858360 +0800
-@@ -510,6 +505,7 @@
+Index: stamp.c
+===================================================================
+--- stamp.c	(revision 7103)
++++ stamp.c	(working copy)
+@@ -510,6 +510,7 @@
  static struct bfin5xx_spi_chip spi_flash_chip_info = {
  	.enable_dma = 0,         /* use dma transfer with this chip*/
  	.bits_per_word = 8,
@@ -8,7 +10,15 @@
  };
  #endif
  
-@@ -680,12 +676,12 @@
+@@ -519,6 +520,7 @@
+ static struct bfin5xx_spi_chip spi_adc_chip_info = {
+ 	.enable_dma = 1,         /* use dma transfer with this chip*/
+ 	.bits_per_word = 16,
++        .cs_gpio = GPIO_PF6,
+ };
+ #endif
+ 
+@@ -680,12 +682,12 @@
  	{
  		/* the modalias must be the same as spi device driver name */
  		.modalias = "m25p80", /* Name of spi_driver for this device */
@@ -25,3 +35,14 @@
  	},
  #endif
  #if defined(CONFIG_MTD_DATAFLASH) \
+@@ -705,8 +707,8 @@
+ 	{
+ 		.modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
+ 		.max_speed_hz = 6250000,     /* max spi clock (SCK) speed in HZ */
+-		.bus_num = 0, /* Framework bus number */
+-		.chip_select = 1, /* Framework chip select. */
++		.bus_num = 1, /* Framework bus number */
++		.chip_select = 0, /* Framework chip select. */
+ 		.platform_data = NULL, /* No spi_driver specific config */
+ 		.controller_data = &spi_adc_chip_info,
+ 	},
