@@ -23,12 +23,9 @@ set case_num 0
 
 incr case_num
 set timeout 5
-send "modprobe videodev\r"
+send "dmesg |grep video\r"
 while 1 {
     expect {
-        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
-            case_fail $case_num
-        }
         -re "Linux video capture interface.*$kernel_prompt" {
             case_pass $case_num
             break
@@ -41,13 +38,10 @@ while 1 {
 
 incr case_num
 set timeout 10
-send "modprobe blackfin-cam\r"
+send "dmesg |grep 7183\r"
 while 1 {
     expect {
-        -re "\[eE]rror|\[fF]ail|Hardware Trace|SIGSEGV" {
-            case_fail $case_num
-        }
-        -re "detecting client.*V4L driver Blackfin CMOS Camera now ready.*i2c driver ready.*$kernel_prompt" {
+        -re "i2c driver ready.*V4L driver Blackfin CMOS Camera now ready.*$kernel_prompt" {
             case_pass $case_num
             break
         }

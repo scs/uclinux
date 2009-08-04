@@ -135,6 +135,6 @@ if { $testres != 0 } {
     case_pass $case_num
 }
 
+all_pass
 send_user "Ending $argv0\n"
-
 log_file
