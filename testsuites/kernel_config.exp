@@ -58,6 +58,7 @@ set bootargs_param6      "root=/dev/mtdblock0 rw earlyprintk=serial,uart0,$baud_
 set bootargs_param7      "root=/dev/mtdblock0 rw earlyprintk=serial,uart0,$baud_rate ip=$targetip" 
 set bootargs_param8      "root=/dev/mtdblock0 rw earlyprintk=serial,uart0,$baud_rate ip=$targetip console=ttyBF1,57600" 
 set bootargs_param9      "root=/dev/mtdblock0 rw earlyprintk=serial,uart0,$baud_rate console=tty0 console=ttyBF0,57600" 
+set bootargs_param10     "root=/dev/mtdblock0 rw earlyprintk=serial,uart0,$baud_rate console=ttyBFJC0,57600"
 set bootargs 		 $bootargs_param0
 
 set linux_version "not found"
