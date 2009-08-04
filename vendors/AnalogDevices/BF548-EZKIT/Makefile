@@ -7,7 +7,7 @@ include $(LINUX_CONFIG)
 include $(CONFIG_CONFIG)
 
 # Blocks must be a multiple of 1024
-EXT2_BLOCKS = 16384
+EXT2_BLOCKS ?= 16384
 
 ROMFS_DIRS-y = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp etc/config var/run var/lib/misc
 ETC_FILES-y = \
