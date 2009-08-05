@@ -319,29 +319,10 @@ static void daemonize(Options * options)
 		int pid;
 
 		fflush(NULL);
-		pid = fork();
-		if (pid > 0)
-			_exit(EXIT_SUCCESS);
-		else if (pid < 0) {
+
+		if (daemon(0, 0) < 0) {
 			FATAL("problems fork'ing for daemon!\n");
-		}
-
-		if (chdir("/") < 0) {
-			FATAL("problems changing to root directory\n");
-		}
-
-		if (setsid() < 0) {
-			FATAL("problems setsid'ing\n");
-		}
-
-		fflush(NULL);
-		pid = fork();
-		if (pid > 0)
-			_exit(EXIT_SUCCESS);
-		else if (pid < 0) {
-			FATAL("problems fork'ing for daemon!\n");
-		}
-
+		}   
 		DEBUG("daemonized!\n");
 	}
 
