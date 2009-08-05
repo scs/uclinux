@@ -2,7 +2,7 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 
 --- /dev/null
 +++ b/mkspecs/qws/linux-bfin-fdpic-g++/qmake.conf
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,19 @@
 +#
 +# qmake configuration for linux-bfin-g++ (FDPIC)
 +#
@@ -19,6 +19,7 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +QMAKE_RANLIB      = bfin-linux-uclibc-ranlib
 +QMAKE_OBJCOPY     = bfin-linux-uclibc-objcopy
 +QMAKE_STRIP       = bfin-linux-uclibc-strip
++CONFIG		  -= link_prl
 +
 +load(qt_config)
 --- /dev/null
@@ -33,7 +34,7 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +#endif
 --- /dev/null
 +++ b/mkspecs/qws/linux-bfin-flat-g++/qmake.conf
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,21 @@
 +#
 +# qmake configuration for linux-bfin-g++ (FLAT)
 +#
@@ -52,6 +53,7 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +QMAKE_RANLIB      = bfin-uclinux-ranlib
 +QMAKE_OBJCOPY     = bfin-uclinux-objcopy
 +QMAKE_STRIP       = bfin-uclinux-strip
++CONFIG		  -= link_prl
 +
 +load(qt_config)
 --- /dev/null
