@@ -20,6 +20,8 @@ CONF_OPTS = \
 
 include $(ROOTDIR)/tools/autotools.mk
 
+FLTFLAGS += -s 0x14000
+
 romfs:
 	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/mpd /usr/bin/mpd
 	$(ROMFSINST) /etc/mpd.conf
