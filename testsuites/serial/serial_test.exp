@@ -21,6 +21,7 @@ source ../reboot_kernel.exp
 
 step "Start $TITLE"
 set target_id $spawn_id
+set ttyflags "-icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl min 1 time 0"
 
 set case_num 0
 
@@ -408,7 +409,7 @@ while 1 {
         }
 }
 
-send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate -icrnl igncr min 1 time 0\r"
+send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate $ttyflags \r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -443,7 +444,7 @@ while 1 {
 }
 
 while 1 {
-send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate  -icrnl igncr min 1 time 0\r"
+send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
 expect {
         -re  "$sh_prompt" {
           break }
@@ -524,7 +525,7 @@ expect {
 
 incr case_num
 set spawn_id $telnet_id
-send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate  -icrnl igncr min 1 time 0\r"
+send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
 while 1 {
         expect {
                 -re  "$kernel_prompt" { break  }
@@ -539,7 +540,7 @@ sleep 3
 send "ls\r"
 expect -re  "$sh_prompt"
 
-send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate -icrnl igncr min 1 time 0\r"
+send -s "stty -F $ttydev ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
 while 1 {
         expect {
                 -re  "$sh_prompt" { break  }
