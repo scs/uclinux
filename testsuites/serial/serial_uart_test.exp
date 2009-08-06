@@ -1,9 +1,9 @@
 #!/usr/bin/expect
-
 #
+
 #Test program to test extended UART.
-#Be sure the serial cable is connected from the host ttyUSB0 to the extended UART.
-#And  the kernel is booted up with eth0 enabled.
+#Be sure two serial cables are available and connected correctly.
+#And the kernel is booted up with eth0 enabled.
 #
 
 source ../kernel_config.exp
@@ -11,13 +11,10 @@ source ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-step "Start kermit."
-source ../spawn_kermit.exp
-
 set argc [llength $argv]
 
 if { $argc < 1} {
-puts "Please input: board_type [ port type : serial_uart or sport_uart ] ."
+puts "Please input: board_type [ port type : serial_uart or sport_uart ] [line connection: normal or switch] ."
 exit
 }
 
@@ -25,14 +22,27 @@ set port_type serial_uart
 if { $argc >= 2} {
 set port_type [lindex $argv 1]
 }
-set TITLE [title "$argv0"]
-append TITLE " ($port_type)"
+
+set line_connection normal 
+if { $argc >= 3} {
+set line_connection [lindex $argv 2]
+}
+
+if { $line_connection == "normal" } {
+
+set kermit_ttydev $ttydev
+set ttydev_for_testcase_use $ttyUSBdev
+
+} elseif { $line_connection == "switch" } {
+
+set kermit_ttydev $ttyUSBdev
+set ttydev_for_testcase_use $ttydev
+}
 
 if {  $port_type== "sport_uart" } {
 
 set bootargs             $bootargs_param7
 set ttyBFdev /dev/ttySS0
-set bits_number 8
 
 } elseif { $port_type== "serial_uart" } {
 
@@ -43,16 +53,22 @@ set ttyBFdev /dev/ttyBF0
 set bootargs             $bootargs_param7
 set ttyBFdev /dev/ttyBF1
 }
-set bits_number 8
 }
+
+puts "port_type $port_type ttydev_for_testcase_use $ttydev_for_testcase_use"
+
+step "Start kermit."
+source ../spawn_kermit.exp
 
 step "Reboot the kernel."
 source ../reboot_kernel.exp
 
 send_log "\nStarting test for UART ...\n"
+set TITLE [title "$argv0"]
+append TITLE " ($port_type)"
 
-set ttydev $ttyUSBdev
 set ttyflags "-icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl min 1 time 0"
+set bits_number 8
 set target_file aaa
 set host_file bbb
 set save_file ccc
@@ -64,14 +80,30 @@ send_log "Start $TITLE\r"
 send_log "*********************************\r"
 
 set case_num 0
-set target_id $spawn_id
+set target_default_id $spawn_id
 ###
 ### Case 1 is sending file from  host to target.
 ### Catted file would have "\r\n" as line end, while on target unix file only use "\n" as line terminator,
 ### so use igncr to set target tty device not to add "\n" sign.
 ###
 
-set spawn_id $kermit_spawn_id
+set timeout 3
+sleep 3
+spawn  /bin/sh
+set target_id $spawn_id
+expect  -re  $sh_prompt
+
+### This case is sending file from  host to target.
+
+send -s "telnet $targetip\r"
+while 1 {
+        expect {
+                -re  "$kernel_prompt" { break  }
+                timeout {
+                      send_user "Failed inital telnet\n"
+                      exit }
+        }
+}
 
 incr case_num
 set timeout 5
@@ -126,19 +158,19 @@ while 1 {
 }
 
 while 1 {
-send -s "stty -F $ttydev cs$bits_number ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
+send -s "stty -F $ttydev_for_testcase_use cs$bits_number ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
 expect {
         -re  "$sh_prompt" {
           break }
          timeout {
-          puts " set $ttydev failed...\n"
+          puts " set $ttydev_for_testcase_use failed...\n"
           break
          }
 }
 }
 set timeout 60
 while 1 {
-send -s " cat $save_file > $ttydev  \r"
+send -s " cat $save_file > $ttydev_for_testcase_use  \r"
 expect {
         -re  "$sh_prompt" { 
           break }
@@ -227,7 +259,7 @@ sleep 3
 send "ls\r"
 expect -re  "$sh_prompt"
 
-send -s "stty -F $ttydev cs$bits_number ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
+send -s "stty -F $ttydev_for_testcase_use cs$bits_number ispeed $baud_rate ospeed $baud_rate $ttyflags\r"
 while 1 {
         expect {
                 -re  "$sh_prompt" { break  }
@@ -238,7 +270,7 @@ while 1 {
 }
 
 while 1 {
-send -s "cat $ttydev > $host_file \r"
+send -s "cat $ttydev_for_testcase_use > $host_file \r"
 expect {
         -re  "$sh_prompt" {
           puts "Fail to cat on host.\n"
@@ -328,9 +360,9 @@ expect {
 ### Case 3 is to check if it can use the extend ttyBF port as default console to boot up kernel.
 ###
 
-step "Convert the console to the extend ttyBF."
+step "Convert the console to the extend UART."
 
-set spawn_id $target_id
+set spawn_id $target_default_id
 set console [file tail $ttyBFdev]
 append bootargs_param7 " console=$console,57600n$bits_number"
 set bootargs             $bootargs_param7
@@ -356,8 +388,16 @@ incr case_num
             }
         }
     }
-# set serial 7N1 in kermit if needed.
+
 step "Start kermit."
+if { $line_connection == "normal" } {
+
+set kermit_ttydev $ttyUSBdev 
+
+} elseif { $line_connection == "switch" } {
+
+set kermit_ttydev $ttydev
+}
 source ../spawn_kermit.exp
 set timeout 20
 

@@ -5,7 +5,7 @@
 #  I want these all contained in this file to make it easier for users.
 #  This just builds up a list of commands which are sent to kermit.
 #
-set kparams     [list "set line $ttydev\r"]
+set kparams     [list "set line $kermit_ttydev\r"]
 lappend kparams "set speed $baud_rate\r"
 lappend kparams "set carrier-watch off\r"
 lappend kparams "set handshake none\r"

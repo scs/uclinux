@@ -11,6 +11,7 @@ set log_loc $user/test_scripts/uclinux-dist/logs
 
 set ttydev /dev/ttyS0
 set ttyUSBdev /dev/ttyUSB0
+set kermit_ttydev $ttydev
 set baud_rate   "57600"
 set sh_prompt "\[-@].*\[$>#]"
 set uboot_prompt "bfin>"
