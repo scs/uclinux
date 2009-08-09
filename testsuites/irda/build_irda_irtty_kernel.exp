@@ -38,7 +38,7 @@ while 1 {
         }
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
-            send "N\r"
+            send "n\r"
         }
 
         -re "IrDA \\\(infrared\\\) subsystem support.*IRDA.*\\\[.*]" {
@@ -50,8 +50,8 @@ while 1 {
         }
 
         -re "IrTTY \\\(uses Linux serial driver\\\).*IRTTY_SIR.*\\\[.*]" {
-            send "M\r"             
-        }      
+            send "M\r"
+        }
 
         -re "Blackfin SIR on UART \\\(BFIN_SIR\\\) \\\[.*]" {
             send "N\r"
@@ -118,7 +118,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .01 
+            sleep .01
             send "\r"
         }
 

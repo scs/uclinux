@@ -2069,7 +2069,7 @@ for i in `seq 0 24`
   cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
-  if [ ${MANUAL_TESTCASE[$i]} == "netaudio" ] || [ ${MANUAL_TESTCASE[$i]} == "irda" ] ; then
+  if [ ${MANUAL_TESTCASE[$i]} == "netaudio" ] ; then
       cd $UCLINUX_DIST_PATH/ 
       make clean > /dev/null 2>&1
   fi

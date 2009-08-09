@@ -38,22 +38,22 @@ while 1 {
         }
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
-            send "n\r"
+            send "N\r"
         }
 
 #BF533-STAMP: only one UART, disable serial port for SIR
         -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
             if { $board_type == "BF533-STAMP" } {
-                send "n\r"
+                send "N\r"
             } else {
-                send "y\r"
+                send "Y\r"
             }
         }
 
 #BF537: default serial port is on UART0, open UART1 for IRTTY_SIR
         -re "Enable UART1.*SERIAL_BFIN_UART1.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
-                send "n\r"
+                send "N\r"
             } else {
                 send "\r"
             }
@@ -62,7 +62,7 @@ while 1 {
 #BF548: default serial port is on UART1, open UART3 for IRTTY_SIR
         -re "Enable UART3.*SERIAL_BFIN_UART3.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" } {
-                send "n\r"
+                send "N\r"
             } else {
                 send "\r"
             }
@@ -71,14 +71,14 @@ while 1 {
 #BF527: default serial port is on UART1, open UART0 for IRTTY_SIR
         -re "Enable UART0.*SERIAL_BFIN_UART0.*\\\[.*]" {
             if { $board_type == "BF527-EZKIT" } {
-                send "n\r"
+                send "N\r"
             } else {
                 send "\r"
             }
         }
 
         "\\\(*) \\\[*]" {
-            sleep .01 
+            sleep .01
             send "\r"
         }
 
@@ -126,8 +126,8 @@ while 1 {
         }
 
         -re "IrTTY \\\(uses Linux serial driver\\\).*IRTTY_SIR.*\\\[.*]" {
-            send "N\r"             
-        }      
+            send "N\r"
+        }
 
         -re "Blackfin SIR on UART \\\(BFIN_SIR\\\) \\\[.*]" {
             send "M\r"
@@ -166,7 +166,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .01 
+            sleep .01
             send "\r"
         }
 
