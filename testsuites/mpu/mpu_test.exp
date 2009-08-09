@@ -109,7 +109,13 @@ for {set i 1} {$i < $casenum} {incr i} {
     send "./[lindex $allcases $i]\n"
     while 1 {
         expect {
-            -re "FAIL|\[eE]rror|Hardware Trace" {
+            -re "Hardware Trace" {
+                if { $i != 2 && $i != 4 } {
+                    incr testres
+                    send_user "testres=$testres\n"
+                }
+            }
+            -re "FAIL|\[eE]rror" {
                 incr testres
                 send_user "testres=$testres\n"
             }
