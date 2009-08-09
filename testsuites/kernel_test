@@ -1815,7 +1815,16 @@ fi
   ################################## USB HOST TEST #####################################
   
  if [ ${AUTO_RUN_STATUS[$(( n + 21 ))]} -eq 1  ] ; then
-  TARGET_MUSB_MODE="dma pio"
+  if [ $BOARD_TYPE == "BF527-EZKIT" ] ; then
+      if [ $REVISION == "0.0" ] || [ $REVISION == "0.1" ] ; then
+          TARGET_MUSB_MODE="pio"
+      else
+          TARGET_MUSB_MODE="dma pio"
+      fi
+  else
+      TARGET_MUSB_MODE="dma pio"
+  fi
+
   for config in $TARGET_MUSB_MODE
   do
 
