@@ -2,7 +2,7 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 
 --- /dev/null
 +++ b/mkspecs/qws/linux-bfin-fdpic-g++/qmake.conf
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,18 @@
 +#
 +# qmake configuration for linux-bfin-g++ (FDPIC)
 +#
@@ -19,7 +19,6 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +QMAKE_RANLIB      = bfin-linux-uclibc-ranlib
 +QMAKE_OBJCOPY     = bfin-linux-uclibc-objcopy
 +QMAKE_STRIP       = bfin-linux-uclibc-strip
-+CONFIG		  -= link_prl
 +
 +load(qt_config)
 --- /dev/null
@@ -34,7 +33,7 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +#endif
 --- /dev/null
 +++ b/mkspecs/qws/linux-bfin-flat-g++/qmake.conf
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,22 @@
 +#
 +# qmake configuration for linux-bfin-g++ (FLAT)
 +#
@@ -53,6 +52,7 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +QMAKE_RANLIB      = bfin-uclinux-ranlib
 +QMAKE_OBJCOPY     = bfin-uclinux-objcopy
 +QMAKE_STRIP       = bfin-uclinux-strip
++QMAKE_LIBS_DYNLOAD =
 +CONFIG		  -= link_prl
 +
 +load(qt_config)
@@ -562,3 +562,42 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 -
 -#endif // QATOMIC_BFIN_H
 +#include "qatomic_generic.h"
+--- a/mkspecs/features/unix/dylib.prf	2009-08-11 09:59:17.000000000 +0800
++++ b/mkspecs/features/unix/dylib.prf	2009-08-11 09:58:58.000000000 +0800
+@@ -1 +1,4 @@
++linux-bfin-flat-* {
++} else {
+ LIBS += $$QMAKE_LIBS_DYNLOAD
++}
+--- a/mkspecs/features/unix/x11.prf	2009-08-11 09:59:27.000000000 +0800
++++ b/mkspecs/features/unix/x11.prf	2009-08-11 09:58:58.000000000 +0800
+@@ -1 +1,4 @@
++linux-bfin-* {
++} else {
+ CONFIG *= x11lib x11inc
++}
+--- a/mkspecs/features/unix/x11inc.prf	2009-08-11 09:59:40.000000000 +0800
++++ b/mkspecs/features/unix/x11inc.prf	2009-08-11 09:58:58.000000000 +0800
+@@ -1,3 +1,6 @@
++linux-bfin-* {
++} else {
+ INCLUDEPATH += $$QMAKE_INCDIR_X11
+ QMAKE_CFLAGS += $$QMAKE_CFLAGS_X11
+ QMAKE_CXXFLAGS += $$QMAKE_CFLAGS_X11
++}
+--- a/mkspecs/features/unix/x11lib.prf	2009-08-11 09:59:47.000000000 +0800
++++ b/mkspecs/features/unix/x11lib.prf	2009-08-11 09:58:58.000000000 +0800
+@@ -1,2 +1,5 @@
++linux-bfin-* {
++} else {
+ !isEmpty(QMAKE_LIBDIR_X11):QMAKE_LIBDIR += $$QMAKE_LIBDIR_X11
+ LIBS += $$QMAKE_LIBS_X11
++}
+--- a/mkspecs/features/unix/x11sm.prf	2009-08-11 09:59:53.000000000 +0800
++++ b/mkspecs/features/unix/x11sm.prf	2009-08-11 09:58:58.000000000 +0800
+@@ -1,2 +1,5 @@
++linux-bfin-* {
++} else {
+ !isEmpty(QMAKE_LIBDIR_X11):QMAKE_LIBDIR += $$QMAKE_LIBDIR_X11
+ LIBS += $$QMAKE_LIBS_X11SM
++}

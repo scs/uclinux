@@ -57,3 +57,31 @@ make ifdefs match those found in qkbdusb_qws.h
 +#endif // QT_NO_QWS_KBD_USB
 +
  #endif // QT_NO_QWS_KEYBOARD
+--- qt-embedded-linux-opensource-src-4.5.0/examples/tools/tools.pro	2009-08-11 10:05:59.000000000 +0800
++++ qt-embedded-linux-opensource-src-4.5.0/examples/tools/tools.pro	2009-08-11 10:07:44.000000000 +0800
+@@ -3,17 +3,21 @@
+ SUBDIRS       = codecs \
+                 completer \
+                 customcompleter \
+-                echoplugin \
+                 i18n \
+-                plugandpaintplugins \
+-                plugandpaint \
+                 regexp \
+                 settingseditor \
+-                styleplugin \
+                 treemodelcompleter \
+                 undoframework
+ 
++linux-bfin-flat-* {
++} else {
++SUBDIRS	     += echoplugin \
++                plugandpaintplugins \
++                plugandpaint \
++                styleplugin
++
+ plugandpaint.depends = plugandpaintplugins
++}
+ 
+ # install
+ target.path = $$[QT_INSTALL_EXAMPLES]/tools
