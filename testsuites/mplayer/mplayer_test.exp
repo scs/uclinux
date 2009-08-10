@@ -63,6 +63,22 @@ while 1 {
     }
 }
 
+if {$board_type == "BF527-EZKIT" } {
+    incr case_num
+    send "modprobe i2c-bfin-twi\r"
+    while 1 {
+        expect {
+            -re "I2C TWI Contoller.*$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+}
+
 incr case_num
 send "modprobe $audio_module\r"
 while 1 {
