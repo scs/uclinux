@@ -1,27 +1,14 @@
-VER = mpd-0.13.2
+VER = mpd-0.10.0
 
-CONF_OPTS = \
-	$(call USE_ENABLE,LIB_LIBAO,ao) \
-	--disable-shout \
-	--disable-iconv \
-	--disable-ipv6 \
-	$(call USE_ENABLE,LIB_ALSA_LIB,alsa) \
-	--disable-jack \
-	--disable-pulse \
-	--disable-oggvorbis \
-	--disable-oggflac \
-	$(call USE_ENABLE,LIB_FLAC,flac=$(STAGEDIR)) \
-	$(call USE_ENABLE,LIB_LIBMAD,mp3) \
-	$(call USE_ENABLE,LIB_FAAD2,aac) \
-	--disable-audiofile \
-	--disable-mod \
-	$(call USE_ENABLE,LIB_LIBID3TAG,id3) \
-	--disable-lsr
+all: $(VER)/Makefile
+	$(MAKE) -C $(VER)
 
-include $(ROOTDIR)/tools/autotools.mk
-
-FLTFLAGS += -s 0x14000
+clean:
+	$(MAKE) -C $(VER) clean
 
 romfs:
-	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/mpd /usr/bin/mpd
+	$(MAKE) -C $(VER) romfs
+	$(ROMFSINST) $(VER)/src/mpd /usr/bin/mpd
 	$(ROMFSINST) /etc/mpd.conf
+
+.PHONY: all clean romfs

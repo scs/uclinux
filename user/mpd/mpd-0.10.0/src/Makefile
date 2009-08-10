@@ -74,6 +74,8 @@ EXTRALIBS = $(MPD_LIBS)
 
 CFLAGS += $(MPD_CFLAGS)
 
+FLTFLAGS += -s 0x10000
+
 all: $(EXEC)
 
 $(EXEC): $(OBJS)

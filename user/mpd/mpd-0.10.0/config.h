@@ -33,7 +33,7 @@
 #define HAVE_FAAD_BUFLEN_FUNCS 1
 
 /* Define for FLAC support */
-#define HAVE_FLAC 1
+#undef HAVE_FLAC
 
 /* Define for HTTP streaming */
 #define HAVE_HTTP_INPUT 1
