@@ -7,10 +7,6 @@ TEMPLATE = app
 #is on the contrary. So, hacking it via QMAKE_LIBS_THREAD instead. 
 linux-bfin-* {
 	QMAKE_LIBS_THREAD += -lz -lpng
-} else unix {
-	unix:LIBS += -lz -lpng
-} else win32 {
-	win32:LIBS += -lz -lpng
 }
 HEADERS = pictureflow.h
 SOURCES = pictureflow.cpp main.cpp
