@@ -24,7 +24,7 @@ send -s "reset\r"
 
 for {set case_num 1} {$case_num <= $count} {incr case_num} {
 
-    set timeout 5
+    set timeout 100
     expect {
         "Hit any key" {}
         timeout {}
