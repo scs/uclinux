@@ -27,7 +27,7 @@ else
  if [ "$script_name" == "./build_qt_kernel.exp" ] ; then
      sleep 7200
  elif [ "$script_name" == "./ltp_auto_test.exp" ] ; then
-     sleep 4500
+     sleep 7200
  else
      sleep 3600
  fi
