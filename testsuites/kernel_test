@@ -309,7 +309,7 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-SMP" ] ; then
 
    BOARD_TYPE=BF561-EZKIT
 
-  AUTO_RUN_STATUS[7]="0"; AUTO_RUN_STATUS[8]="0"; AUTO_RUN_STATUS[16]="0"; AUTO_RUN_STATUS[17]="0"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[41]="0"; AUTO_RUN_STATUS[42]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[71]="0"; AUTO_RUN_STATUS[77]="1"; AUTO_RUN_STATUS[$(( n + 8 ))]="0"; AUTO_RUN_STATUS[$(( n + 12 ))]="0"
+  AUTO_RUN_STATUS[7]="0"; AUTO_RUN_STATUS[8]="0"; AUTO_RUN_STATUS[16]="0"; AUTO_RUN_STATUS[17]="0"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[41]="0"; AUTO_RUN_STATUS[42]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[69]="0"; AUTO_RUN_STATUS[71]="0"; AUTO_RUN_STATUS[77]="1"; AUTO_RUN_STATUS[$(( n + 8 ))]="0"; AUTO_RUN_STATUS[$(( n + 12 ))]="0"
 
    MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="0"  [7]="0" [8]="0"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"  [16]="0" [17]="0" [18]="0" [$(( n + 1 ))]="0" )
 
@@ -552,7 +552,8 @@ do
   fi
   
   cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.${AUTO_TESTCASE[$i]}
-  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.${AUTO_TESTCASE[$i]}  
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.linux.${AUTO_TESTCASE[$i]}  
+  cp $UCLINUX_DIST_PATH/config/.config $THIS_LOG/config.config.${AUTO_TESTCASE[$i]}  
   
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
   cp $UCLINUX_DIST_TESTSUITES/jffs2/*_log  $THIS_LOG
