@@ -3,7 +3,8 @@ VER = speex-svn-14525
 CONF_OPTS = \
 	--without-ogg \
 	--enable-blackfin-asm \
-	--enable-fixed-point
+	--enable-fixed-point \
+	--disable-vbr
 
 include $(ROOTDIR)/tools/autotools.mk
 
