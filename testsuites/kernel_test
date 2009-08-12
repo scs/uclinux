@@ -1721,9 +1721,6 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
     echo "ltp copy detailed done"
     mv $UCLINUX_DIST_TESTSUITES/ltp/build_ltp_log $THIS_LOG/build_ltp_log_${ltp_suf[i]}
     mv $UCLINUX_DIST_TESTSUITES/ltp/ltp_test_log $THIS_LOG/ltp_test_log_${ltp_suf[i]}
-    if [ -e $THIS_LOG/ltp_test_log_${ltp_suf[i]} ]; then
-        rm $UCLINUX_DIST_TESTSUITES/ltp/ltp_test_log
-    fi
     echo "copy log files done"
    
     sleep 30    
