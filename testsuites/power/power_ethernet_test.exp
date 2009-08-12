@@ -90,6 +90,7 @@ proc standby_test_case1 {} {
         }
     }
 
+    sleep 2
     set timeout 20
     send "ping $serverip -c 5\r"
     while 1 {

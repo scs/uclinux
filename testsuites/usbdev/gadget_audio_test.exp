@@ -32,10 +32,6 @@ source ../reboot_kernel.exp
 step "Start testing."
 set case_num 0
 
-set timeout 10
-send "ifconfig eth0 $targetip\r"
-expect -re $kernel_prompt
-
 incr case_num
 set timeout 10
 send "modprobe g_audio\r"

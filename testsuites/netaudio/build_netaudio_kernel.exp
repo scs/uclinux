@@ -97,15 +97,15 @@ while 1 {
             send "y\r"
         }
 
-        -re "Build faad2.*LIB_FAAD2.*\\\[./.]" {
+        -re "Build faad2.*LIB_FAAD2\\\) \\\[./.]" {
             send "y\r"
         }
 
-        -re "Build flac.*LIB_FLAC.*\\\[./.]" {
+        -re "Build flac.*LIB_FLAC\\\) \\\[./.]" {
             send "y\r"
         }
 
-        -re "Build tremor.*LIB_TREMOR.*\\\[./.]" {
+        -re "Build tremor.*LIB_TREMOR\\\) \\\[./.]" {
             send "y\r"
         }
 
@@ -115,15 +115,15 @@ while 1 {
 #            send "y\r"
 #        }
 
-        -re "Build libaudio.*LIB_LIBAUDIO.*\\\[./.]" {
+        -re "Build libaudio.*LIB_LIBAUDIO\\\) \\\[./.]" {
             send "y\r"
         }
 
-        -re "Build libmad.*LIB_LIBMAD.*\\\[./.]" {
+        -re "Build libmad.*LIB_LIBMAD\\\) \\\[./.]" {
             send "y\r"
         }
 
-        -re "Build libid3tag.*LIB_LIBID3TAG.*\\\[./.]" {
+        -re "Build libid3tag.*LIB_LIBID3TAG\\\) \\\[./.]" {
             send "y\r"
         }
 

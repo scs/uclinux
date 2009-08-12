@@ -227,6 +227,9 @@ proc recover {} {
 # Using a state variable for all of this helps
 # when we need to expand the functionality.
 #
+      send_log "wait some time after system boot up\r"
+      sleep 15
+
       if { $state_variable == 2 } {
          set timeout 3
          expect {
@@ -389,6 +392,9 @@ proc force_reboot {} {
 # Using a state variable for all of this helps
 # when we need to expand the functionality.
 #
+        send_log "wait some time after system boot up\r"
+        sleep 15
+
         if { $state_variable == 2 } {
             set timeout 3
                 expect {
