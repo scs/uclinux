@@ -249,6 +249,6 @@ endif
 
 config LIB_LIBVORBIS
 	bool "Build libvorbis"
+	select LIB_LIBOGG
 	help
 	  build libvoribis from http://www.xiph.org/vorbis/
-
