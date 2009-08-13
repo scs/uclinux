@@ -11,7 +11,7 @@ source  config.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-set env(EXT2_BLOCKS) "16384"
+set env(EXT2_BLOCKS) "20480"
 
 if { $argc == 2 } {
     set build_opt [lindex $argv 1]
@@ -61,15 +61,15 @@ while 1 {
             send "N\r"
         }
 
-        -re "Build QT \\\(LIB_QT\\\) \\\[.*]" {
+        -re "Build QT \\\(LIB_QT\\\) \\\[./.*]" {
             send "Y\r"
         }
 
-        -re "Build WebKit.*LIB_QT_WEBKIT.*\\\[.*]" {
+        -re "Build WebKit.*LIB_QT_WEBKIT.*\\\[./.*]" {
             send "N\r"
         }
 
-        -re "Build demos/examples.*LIB_QT_EXAMPLES.*\\\[.*]" {
+        -re "Build demos/examples.*LIB_QT_EXAMPLES.*\\\[./.*]" {
             send "Y\r"
         }
 
