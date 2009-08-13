@@ -89,12 +89,12 @@ while 1 {
       expect {
 	"telnet_test" {
 		incr found
-                puts "telnet_test is running.\n"
+                send_log "telnet_test is running.\n"
 	}
 
 	"ftp_test" {
 		incr found
-                puts "ftp_test is running.\n"                
+                send_log "ftp_test is running.\n"                
 	}
 	
 	"telnet_test <defunct>" {
