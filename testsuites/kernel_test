@@ -1515,6 +1515,9 @@ do
   #Build QT kernel and konqueror source of Static FLAT
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
+  cd user/pictureflow/pictureflow-0.1.0/pictureflow-qt
+  rm *.o pictureflow Makefile moc_pictureflow.cpp
+
   cd $UCLINUX_DIST_TESTSUITES/qt
   ./build_qt_kernel.exp $BOARD_TYPE 1 >/dev/null  2>&1
 
@@ -1541,6 +1544,8 @@ do
   #Build QT kernel and konqueror source of FDPIC
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
+  cd user/pictureflow/pictureflow-0.1.0/pictureflow-qt
+  rm *.o pictureflow Makefile moc_pictureflow.cpp
 
   cd $UCLINUX_DIST_TESTSUITES/qt
   ./build_qt_kernel.exp $BOARD_TYPE 2 >/dev/null  2>&1
@@ -1568,6 +1573,8 @@ do
   cp $UCLINUX_DIST_TESTSUITES/qt/qt_test_log $THIS_LOG
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
+  cd user/pictureflow/pictureflow-0.1.0/pictureflow-qt
+  rm *.o pictureflow Makefile moc_pictureflow.cpp
 
   sleep 30
 
