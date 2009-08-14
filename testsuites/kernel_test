@@ -590,9 +590,7 @@ do
   fi
  
   if [ ${AUTO_TESTCASE[$i]} == "g729" ] ; then
-  mkdir $THIS_LOG/g729
-  cd $UCLINUX_DIST_PATH/lib/libbfgdots/g729/test/
-  cp -fr test_data alltests.sh g729ab_test g729ab_testsimgot g729ab_testfdpic g729ab_testfdpic_so ../src.fdpic/libg729ab.so $THIS_LOG/g729
+  mv $UCLINUX_DIST_TESTSUITES/g729/g729 $THIS_LOG/
   fi
 
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
