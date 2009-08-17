@@ -11,7 +11,15 @@ struct xt_string_info
 	char	  algo[XT_STRING_MAX_ALGO_NAME_SIZE];
 	char 	  pattern[XT_STRING_MAX_PATTERN_SIZE];
 	u_int8_t  patlen;
-	u_int8_t  invert;
+        union {
+                struct {
+                        u_int8_t  invert;
+                } v0;
+
+                struct {
+                        u_int8_t  flags;
+                } v1;
+        } u;
 	struct ts_config __attribute__((aligned(8))) *config;
 };
 

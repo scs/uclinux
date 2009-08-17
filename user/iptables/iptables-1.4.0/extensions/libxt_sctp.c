@@ -20,6 +20,7 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
+#include <stdbool.h>
 #include <linux/netfilter/xt_sctp.h>
 
 /* Some ZS!#@:$%*#$! has replaced the ELEMCOUNT macro in ipt_sctp.h with

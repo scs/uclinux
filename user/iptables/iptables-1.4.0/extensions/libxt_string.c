@@ -201,7 +201,7 @@ string_parse(int c, char **argv, int invert, unsigned int *flags,
 		check_inverse(optarg, &invert, &optind, 0);
 		parse_string(argv[optind-1], stringinfo);
 		if (invert)
-			stringinfo->invert = 1;
+			stringinfo->u.v0.invert = 1;
 		stringinfo->patlen=strlen((char *)&stringinfo->pattern);
 		*flags |= STRING;
 		break;
@@ -214,7 +214,7 @@ string_parse(int c, char **argv, int invert, unsigned int *flags,
 		check_inverse(optarg, &invert, &optind, 0);
 		parse_hex_string(argv[optind-1], stringinfo);  /* sets length */
 		if (invert)
-			stringinfo->invert = 1;
+			stringinfo->u.v0.invert = 1;
 		*flags |= STRING;
 		break;
 
@@ -290,10 +290,10 @@ string_print(const void *ip, const struct xt_entry_match *match, int numeric)
 	    (const struct xt_string_info*) match->data;
 
 	if (is_hex_string(info->pattern, info->patlen)) {
-		printf("STRING match %s", (info->invert) ? "!" : "");
+		printf("STRING match %s", (info->u.v0.invert) ? "!" : "");
 		print_hex_string(info->pattern, info->patlen);
 	} else {
-		printf("STRING match %s", (info->invert) ? "!" : "");
+		printf("STRING match %s", (info->u.v0.invert) ? "!" : "");
 		print_string(info->pattern, info->patlen);
 	}
 	printf("ALGO name %s ", info->algo);
@@ -311,10 +311,10 @@ static void string_save(const void *ip, const struct xt_entry_match *match)
 	    (const struct xt_string_info*) match->data;
 
 	if (is_hex_string(info->pattern, info->patlen)) {
-		printf("--hex-string %s", (info->invert) ? "! ": "");
+		printf("--hex-string %s", (info->u.v0.invert) ? "! ": "");
 		print_hex_string(info->pattern, info->patlen);
 	} else {
-		printf("--string %s", (info->invert) ? "! ": "");
+		printf("--string %s", (info->u.v0.invert) ? "! ": "");
 		print_string(info->pattern, info->patlen);
 	}
 	printf("--algo %s ", info->algo);
