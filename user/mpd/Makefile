@@ -8,7 +8,6 @@ clean:
 
 romfs:
 	$(MAKE) -C $(VER) romfs
-	$(ROMFSINST) $(VER)/src/mpd /usr/bin/mpd
 	$(ROMFSINST) /etc/mpd.conf
 
 .PHONY: all clean romfs
