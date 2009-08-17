@@ -16,8 +16,8 @@ source  make_default_config.exp
 cd $uclinux_path/testsuites
 source  make_mtd_config.exp
 
-cd $uclinux_path/testsuites
-source  make_cut_fs_config.exp
+#cd $uclinux_path/testsuites
+#source  make_cut_fs_config.exp
 
 cd $uclinux_path/testsuites/jffs2
 source  make_parallel_config.exp
