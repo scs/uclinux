@@ -6,5 +6,5 @@ clean:
 	$(MAKE) -C $(VER) clean
 romfs:
 	$(MAKE) -C $(VER) romfs
-	$(ROMFSINST) $(VER)/src/mpc /usr/bin/mpc
+
 .PHONY: all clean romfs
