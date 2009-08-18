@@ -52,7 +52,7 @@ static struct _mpm_tasks {
 } mpm_tasks [] = { 
 	{ 0, 0, NULL, NULL },		/* main process */
 	{ 0, 0x20000, update_task, NULL },
-	{ 0, 0x1000, player_task, NULL }, /* this number is _very_ tight */
+	{ 0, 0x20000, player_task, NULL },
 	{ 0, 0x20000, decode_task, NULL },
 	{ 0, 0x400, filebuf_task, NULL }  /* very small */
 };
