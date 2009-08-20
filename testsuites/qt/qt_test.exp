@@ -42,6 +42,8 @@ step "Start testing."
 set case_num 0
 set timeout 10
 
+sleep 10
+
 send "ifconfig eth0 $targetip\r"
 expect -re $kernel_prompt
 
@@ -96,6 +98,21 @@ send "modprobe $module\r"
 while 1 {
     expect {
         -re "FrameBuffer initializing.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 30
+send "rm /usr/bin/pictureflow\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }

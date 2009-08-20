@@ -5,9 +5,6 @@ UCLINUX_DIST_PATH=$USER/checkouts/uclinux-dist
 G729_PATH=$UCLINUX_DIST_PATH/testsuites/g729
 
 cd $G729_PATH
-mkdir -p g729
-mkdir -p g729/test_data
-mkdir -p g729/test_data/g729a
 mkdir -p g729/test_data/g729a/std_in_de
 mkdir -p g729/test_data/g729a/std_in_en
 mkdir -p g729/test_data/g729a/std_out_de

@@ -9,6 +9,8 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
+set env(EXT2_BLOCKS) "16384"
+
 set musb_mode [lindex $argv 1]
 send_log "\n#### musb_mode is $musb_mode\n"
 
