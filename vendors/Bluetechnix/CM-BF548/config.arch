@@ -11,3 +11,6 @@
 #
 
 include $(ROOTDIR)/vendors/config/bfin/config.arch
+
+# For correct jffs2 image creation (eraseblock size, cleanmarkers)
+MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/mkfs.jffs2 --no-cleanmarkers --eraseblock=128
