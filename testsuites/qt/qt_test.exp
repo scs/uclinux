@@ -109,21 +109,6 @@ while 1 {
 
 incr case_num
 set timeout 30
-send "rm /usr/bin/pictureflow\r"
-while 1 {
-    expect {
-        -re $kernel_prompt {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 30
 send "qt_sample -qws\r"
 while 1 {
     expect {
@@ -151,6 +136,48 @@ while 1 {
         }
     }
 }
+
+send_user "rcp -r $user/download/media root@$targetip:/\n"
+if [ catch {exec rcp -r $user/download/media root@$targetip:/} ] {
+    send_user "FAIL: copy sample pictures to target board\n"
+    case_fail $case_num
+} else {
+    send_user "PASS: copy sample pictures to target board\n"
+}
+
+send "cd media\r"
+expect -re $kernel_prompt
+
+incr case_num
+set timeout 30
+send "pictureflow -qws\r"
+while 1 {
+    expect {
+        -re "\r\n\[a-zA-Z0-9]" {
+            case_fail $case_num
+        }
+        timeout {
+            case_pass $case_num
+            break
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+send -s "\3"
+while 1 {
+    expect {
+         -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
 
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n" 
