@@ -121,6 +121,7 @@ config LIB_LIBPCAP
 
 config LIB_LIBPCRE
 	bool "Build libPCRE"
+	depends on LIB_ZLIB
 	default n
 	help
 	  Perl Compatible Regular Expressions library.
