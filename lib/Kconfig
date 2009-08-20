@@ -231,7 +231,11 @@ config LIB_LIBIDN
 
 config LIB_LIBNL
 	bool "Build libnl"
+	depends on FMT_USE_FDPIC_ELF
 	default n
+if !FMT_USE_FDPIC_ELF
+comment "libnl requires FDPIC ELF"
+endif
 
 config LIB_LIBNL_COMPONENTS
 	bool "Select libnl components"
