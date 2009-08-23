@@ -598,8 +598,12 @@ do
   cp $UCLINUX_DIST_PATH/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.${AUTO_TESTCASE[$i]}
   fi
  
-  if [ ${AUTO_TESTCASE[$i]} == "kgdb" ] || [ ${AUTO_TESTCASE[$i]} == "kgdb_uart" ] || [ ${AUTO_TESTCASE[$i]} == "kgdb_smp" ] || [ ${AUTO_TESTCASE[$i]} == "spimmc" ] || [ ${AUTO_TESTCASE[$i]} == "sdiommc" ]; then
+  if [ ${AUTO_TESTCASE[$i]} == "kgdb" ] || [ ${AUTO_TESTCASE[$i]} == "kgdb_uart" ] || [ ${AUTO_TESTCASE[$i]} == "kgdb_smp" ] ; then
   cp $UCLINUX_DIST_PATH/linux-2.6.x/vmlinux  $THIS_LOG/vmlinux.${AUTO_TESTCASE[$i]}
+  fi
+
+  if [ ${AUTO_TESTCASE[$i]} == "spimmc" ] || [ ${AUTO_TESTCASE[$i]} == "sdiommc" ]; then
+      cp $UCLINUX_DIST_PATH/images/vmImage $THIS_LOG/vmImage.${AUTO_TESTCASE[$i]}
   fi
 
   if [ ${AUTO_TESTCASE[$i]} == "msh" ] || [ ${AUTO_TESTCASE[$i]} == "l1_app" ] || [ ${AUTO_TESTCASE[$i]} == "pthread" ] || [ ${AUTO_TESTCASE[$i]} == "sqlite" ]; then
