@@ -227,7 +227,7 @@ while 1 {
             send_user "kernel panic detected..."
             case_fail $case_num
         }
-        -re "console handover:boot \\\[early_BFuart0\\\].*-> real \\\[ttyBFJC0\\\]" {
+        -re "console \\\[ttyBFJC0\\\] enabled, bootconsole disabled" {
             case_pass $case_num
             break
         }
