@@ -2,7 +2,7 @@
 EXEC = ftpd
 OBJS = auth.o conf.o ftpcmd.o ftpd.o popen.o server_mode.o localhost.o xgetcwd.o logwtmp.o xmalloc.o
 
-FLTFLAGS += -s 8192 
+FLTFLAGS += -s 24576
 
 CFLAGS += -DHAVE_CONFIG_H=1 -I.
 CFLAGS += -DPATH_FTPWELCOME=\"/etc/ftpwelcome\"
