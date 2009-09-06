@@ -76,8 +76,8 @@ void start_server(int form_method, char **getvars, char **postvars,
 
 		execlp("/bin/fpga_netd", "fpga_netd", info->pREMOTE_ADDR,
 		       postvars[info->server.adc_port],
-		       postvars[info->server.dac_port],
-		       postvars[info->server.ctl_port], NULL);
+		       postvars[info->server.ctl_port],
+		       postvars[info->server.dac_port], NULL);
 
 		printf
 		    ("<br>Hmm, could not run fpga_netd, that's odd ...<br>\n");
