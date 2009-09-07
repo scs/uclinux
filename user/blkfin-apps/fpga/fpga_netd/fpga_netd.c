@@ -87,31 +87,35 @@ void *rx_thread_code(void *arg)
 	};
 
 	while (1) {
-restart:
-		if ((received = recvfrom(sock_rx, buf, DACFILESIZE, 0,
-					 (struct sockaddr *)&dataserver,
-					 &slen)) != DACFILESIZE) {
+		do {
+			received = 0;
+			do {
+				received += recvfrom(sock_rx, &buf[received], DACFILESIZE, 0,
+						 (struct sockaddr *)&dataserver, &slen);
 
-			syslog(LOG_WARNING,
-			       "Mismatch in number of received bytes: %d\n",
-			       received);
-			goto restart;
-		}
 
-		if (dataserver.sin_addr.s_addr != c->client_addr.s_addr) {
-			syslog(LOG_WARNING,
-			       "Received a packet from an unexpected client");
-			goto restart;
-		}
+					if (dataserver.sin_addr.s_addr != c->client_addr.s_addr) {
+						syslog(LOG_WARNING,
+						       "Received a packet from an unexpected client");
+						break;
+					}
 
-		if (dacfile[4096] != DACFILE_MAGIC) {
-			syslog(LOG_WARNING, "wrong DACFILE_MAGIC: %x\n",
-			       dacfile[4096]);
-			goto restart;
-		}
+			} while(received < DACFILESIZE);
+
+			if (received != DACFILESIZE) {
+				syslog(LOG_WARNING,
+					       "Mismatch in number of received bytes: %d\n", received);
+			} else {
+				if (dacfile[4096] != DACFILE_MAGIC)
+					syslog(LOG_WARNING, "wrong DACFILE_MAGIC: %x\n", dacfile[4096]);
+			}
+
+
+		} while((received != DACFILESIZE) || (dacfile[4096] != DACFILE_MAGIC));
 
 		syslog(LOG_NOTICE, "Matched number of received bytes: %d",
 		       received);
+
 		pthread_mutex_lock(&m);
 		memcpy(c->sequence, buf, DACFILESIZE);
 		c->new_dac_seq = 1;
