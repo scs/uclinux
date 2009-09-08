@@ -39,23 +39,6 @@ static char sccsid[] = "@(#)ftpd.c	8.5 (Berkeley) 4/28/95";
 # include <config.h>
 #endif
 
-#if !defined (__GNUC__) && defined (_AIX)
-#pragma alloca
-#endif
-#ifndef alloca /* Make alloca work the best possible way.  */
-# ifdef __GNUC__
-#  define alloca __builtin_alloca
-# else /* not __GNUC__ */
-#  if HAVE_ALLOCA_H
-#   include <alloca.h>
-#  else /* not __GNUC__ or HAVE_ALLOCA_H */
-#    ifndef _AIX /* Already did AIX, up at the top.  */
-       char *alloca ();
-#    endif /* not _AIX */
-#  endif /* not HAVE_ALLOCA_H */
-# endif /* not __GNUC__ */
-#endif /* not alloca */
-
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
@@ -1903,6 +1886,8 @@ send_file_list (const char *whichf)
     }
   while ((dirname = *dirlist++))
     {
+      int trailingslash = 0;
+
       if (stat (dirname, &st) < 0)
 	{
 	  /* If user typed "ls -l", etc, and the client
@@ -1941,13 +1926,16 @@ send_file_list (const char *whichf)
       else if (!S_ISDIR (st.st_mode))
 	continue;
 
+      if (dirname[strlen(dirname) - 1] == '/')
+		trailingslash++;
+
       dirp = opendir (dirname);
       if (dirp == NULL)
 	continue;
 
       while ((dir = readdir (dirp)) != NULL)
 	{
-	  char *nbuf;
+	  char nbuf[MAXPATHLEN];
 
 	  if (dir->d_name[0] == '.' && dir->d_name[1] == '\0')
 	    continue;
@@ -1955,9 +1943,8 @@ send_file_list (const char *whichf)
 	      dir->d_name[2] == '\0')
 	    continue;
 
-	  nbuf = (char *) alloca (strlen (dirname) + 1 +
-				  strlen (dir->d_name) + 1);
-	  sprintf (nbuf, "%s/%s", dirname, dir->d_name);
+	  (void)snprintf(nbuf, sizeof(nbuf), "%s%s%s", dirname,
+			  trailingslash ? "" : "/", dir->d_name);
 
 	  /* We have to do a stat to insure it's
 	     not a directory or special file.  */

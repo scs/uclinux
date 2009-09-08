@@ -15,9 +15,6 @@
    */
 /* #undef CRAY_STACKSEG_END */
 
-/* Define to 1 if using `alloca.c'. */
-/* #undef C_ALLOCA */
-
 /* FIXME */
 /* #undef DES_ENCRYPTION */
 
@@ -26,13 +23,6 @@
 
 /* 1 */
 /* #undef EWOULDBLOCK */
-
-/* Define to 1 if you have `alloca', as a function or macro. */
-#define HAVE_ALLOCA 1
-
-/* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
-   */
-#define HAVE_ALLOCA_H 1
 
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #define HAVE_ARPA_NAMESER_H 1
