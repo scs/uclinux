@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-#include "../../iproute2/ip/netdevice.h"
 
 static struct iovec iov;
 
