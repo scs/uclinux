@@ -1,0 +1,54 @@
+from upstream
+
+--- session.h	f55aeb209385f54d510c839f99f576432cdd8452
++++ session.h	3295875a39aa06222259c04261880373d6bc9536
+@@ -213,6 +213,10 @@ struct serversession {
+ 	/* The numeric address they connected from, used for logging */
+ 	char * addrstring;
+ 
++#ifdef __uClinux__
++	pid_t server_pid;
++#endif
++
+ };
+ 
+ typedef enum {
+============================================================
+--- svr-session.c	d3d822234c194abbd81e6df5279bab564fb77c57
++++ svr-session.c	2a2cda1b83d5d88b8a82972e85f91daaf7fba26a
+@@ -85,6 +85,10 @@ void svr_session(int sock, int childpipe
+ 	/* Initialise server specific parts of the session */
+ 	svr_ses.childpipe = childpipe;
+ 	svr_ses.addrstring = addrstring;
++#ifdef __uClinux__
++	svr_ses.server_pid = getpid();
++#endif
++	svr_ses.addrstring = addrstring;
+ 	svr_authinitialise();
+ 	chaninitialise(svr_chantypes);
+ 	svr_chansessinitialise();
+@@ -144,11 +148,20 @@ void svr_dropbear_exit(int exitcode, con
+ 
+ 	_dropbear_log(LOG_INFO, fmtbuf, param);
+ 
+-	/* free potential public key options */
+-	svr_pubkey_options_cleanup();
++#ifdef __uClinux__
++	/* only the main server process should cleanup - we don't want
++	 * forked children doing that */
++	if (svr_ses.server_pid == getpid())
++#else
++	if (1)
++#endif
++	{
++		/* free potential public key options */
++		svr_pubkey_options_cleanup();
+ 
+-	/* must be after we've done with username etc */
+-	common_session_cleanup();
++		/* must be after we've done with username etc */
++		common_session_cleanup();
++	}
+ 
+ 	exit(exitcode);
+ 
