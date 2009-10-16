@@ -1,3 +1,7 @@
++ Release v1.2-p2
+Added missing ntpdate
+
+
 + Release v1.2-p1
 
 + This adds the ftp daemon again.
