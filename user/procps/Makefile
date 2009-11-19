@@ -45,7 +45,7 @@ endif
 	$(ROMFSINST) -d -e CONFIG_USER_PROCPS_KILL $(VER)/kill /bin/kill
 	$(ROMFSINST) -d -e CONFIG_USER_PROCPS_PGREP $(VER)/pgrep /usr/bin/pgrep
 	$(ROMFSINST) -d -e CONFIG_USER_PROCPS_PKILL $(VER)/pkill /usr/bin/pkill
-	$(ROMFSINST) -d -e CONFIG_USER_PROCPS_PS ps/ps $(VER)/ps /usr/bin/ps
+	$(ROMFSINST) -d -e CONFIG_USER_PROCPS_PS $(VER)/ps /usr/bin/ps
 	$(ROMFSINST) -d -e CONFIG_USER_PROCPS_SKILL $(VER)/skill /usr/bin/skill
 	$(ROMFSINST) -d -e CONFIG_USER_PROCPS_SNICE $(VER)/snice /usr/bin/snice
 	$(ROMFSINST) -d -e CONFIG_USER_PROCPS_SYSCTL $(VER)/sysctl /usr/bin/sysctl
