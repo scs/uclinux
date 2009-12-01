@@ -118,6 +118,7 @@ set policy         write_through
 set uart_mode      dma
 set smp            off
 set mpu            off
+set xenomai        off
 
 if { $argc >= 3} {
    set revision            [lindex $argv 2]
@@ -161,4 +162,9 @@ if { $argc >= 11} {
 if { $argc >= 12} {
    set mpu                [lindex $argv 11]
    send_log "\n#### MPU is $mpu\n"
+}
+
+if { $argc >= 13} {
+   set xenomai             [lindex $argv 12]
+   send_log "\n#### XENOMAI is $xenomai\n"
 }

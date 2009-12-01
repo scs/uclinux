@@ -22,13 +22,14 @@
  UART_MODE=dma
  SMP=off
  MPU=off
+ XENOMAI=off
  THIS_LOG="$USER/test_scripts/uclinux-dist/logs"
 
 
  ########################################### Please don't edit anything below this line.###################################
 
 if [ $# -lt 1 ] ; then
-  echo "Please input BOARD_CONFIG [ CPU REVISION UCLINUX_DIST_PATH BINARY_FORMAT ALLOCATOR ICACHE DCACHE POLICY UART_MODE SMP MPU THIS_LOG VCO_MULT CCLK_DIV SCLK_DIV ] values: "
+  echo "Please input BOARD_CONFIG [ CPU REVISION UCLINUX_DIST_PATH BINARY_FORMAT ALLOCATOR ICACHE DCACHE POLICY UART_MODE SMP MPU XENOMAI THIS_LOG VCO_MULT CCLK_DIV SCLK_DIV ] values: "
   echo
   echo "The BOARD_CONFIG :  BF533-STAMP-STD, BF537-STAMP-STD, BF537-STAMP-IDE,etc."
   echo "The CPU :           BF533, BF537, BF561,etc."
@@ -38,7 +39,7 @@ if [ $# -lt 1 ] ; then
   echo "The ICACHE,DCACHE : on, off."
   echo "The POLICY :        write_through, write_back."
   echo "The UART_MODE :     dma, pio."
-  echo "The SMP,MPU :       on, off."
+  echo "The SMP,MPU,XENOMAI :       on, off."
   echo "For example:./kernel_test BF537-STAMP-STD BF537 /home/test/work/cruise/checkouts/uclinux-dist flat slab\(p2\) on on write_through dma off off /home/test/work/cruise/test_scripts/uclinux-dist/logs."
   exit
 fi
@@ -100,14 +101,19 @@ if [ $# -gt 11 ] ; then
 fi
 
 if [ $# -gt 12 ] ; then
-  THIS_LOG=${13}
-  echo "##### Test results are in folder: $THIS_LOG."
+  XENOMAI=${13}
+  echo "##### XENOMAI: $XENOMAI."
 fi
 
 if [ $# -gt 13 ] ; then
-  VCO_MULT=${14}
-  CCLK_DIV=${15}
-  SCLK_DIV=${16}
+  THIS_LOG=${14}
+  echo "##### Test results are in folder: $THIS_LOG."
+fi
+
+if [ $# -gt 14 ] ; then
+  VCO_MULT=${15}
+  CCLK_DIV=${16}
+  SCLK_DIV=${17}
   echo "##### VCO_MULT: $VCO_MULT, CCLK_DIV: $CCLK_DIV, SCLK_DIV: $SCLK_DIV."
 fi
 
@@ -118,7 +124,7 @@ echo "************* Tested linux svn info ********************"
 `cd $UCLINUX_DIST_PATH/linux-2.6.x  ;svn info`
 EOF
 
-echo "Testing on $BOARD_CONFIG ($CPU) $BINARY_FORMAT $ALLOCATOR ICACHE($ICACHE) DCACHE($DCACHE) $POLICY $UART_MODE SMP($SMP) MPU($MPU)"
+echo "Testing on $BOARD_CONFIG ($CPU) $BINARY_FORMAT $ALLOCATOR ICACHE($ICACHE) DCACHE($DCACHE) $POLICY $UART_MODE SMP($SMP) MPU($MPU) XENOMAI($XENOMAI)"
 
 ###### See if uclinux-dist has been checked out.##################################################
 
@@ -215,6 +221,15 @@ if [ $BOARD_CONFIG = "BF537-STAMP-MPU" ] ; then
    BOARD_TYPE=BF537-STAMP
 
    AUTO_RUN_STATUS[11]="0"; AUTO_RUN_STATUS[12]="0"; AUTO_RUN_STATUS[16]="0"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[59]="1"
+
+fi
+
+
+if [ $BOARD_CONFIG = "BF537-STAMP-XENOMAI" ] ; then
+
+   BOARD_TYPE=BF537-STAMP
+
+   AUTO_RUN_STATUS[2]="1"; AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[57]="1"
 
 fi
 
@@ -443,7 +458,7 @@ if [ $BUILD_POLICY -eq 1  ] ; then
   echo  "Running build policy in uclinux-dist... "
   
   cd $UCLINUX_DIST_TESTSUITES/policy
-  ./build_policy_kernel.exp  $BOARD_TYPE $CPU $REVISION $UCLINUX_DIST_PATH $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $SMP $MPU >/dev/null  2>&1
+  ./build_policy_kernel.exp  $BOARD_TYPE $CPU $REVISION $UCLINUX_DIST_PATH $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $SMP $MPU $XENOMAI >/dev/null  2>&1
     
   cp $UCLINUX_DIST_PATH/images/uImage $THIS_LOG/uImage.policy
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.policy

@@ -210,6 +210,16 @@ while 1 {
             }
         }
 
+        -re "Xenomai.*USER_XENOMAI.*\\\[.*]" {
+            if { $xenomai == "on" } {
+                send "y\r"
+            } elseif { $xenomai == "off" } {
+                send "n\r"
+            } else {
+                send "\r"
+            }
+        }
+
         "\\\(*) \\\[*]" {
             sleep .05
             send "\r"
