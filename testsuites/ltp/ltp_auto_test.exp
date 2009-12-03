@@ -10,7 +10,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, 59 Temple Place - Suite 330,
@@ -55,13 +55,13 @@ proc usage {} {
 #
 
 proc step { message } {
-  
+
   global step_sequence_number
 
   #puts "\n*******************************************************************"
   puts "\n\nSTEP $step_sequence_number: $message\n"
   send_log "\n************** STEP $step_sequence_number: $message\n\n"
-  incr step_sequence_number 
+  incr step_sequence_number
 }
 
 #
@@ -144,6 +144,7 @@ proc recover {} {
    global LTP_SCRIPT_DIR
    global LTP_TESTCASES_DIR
    global kernel_prompt
+   global errorInfo
 
    set MAX_ATTEMPTS  2
 
@@ -151,7 +152,7 @@ proc recover {} {
 
    # First, try to get kernel prompt without rebooting.
    set fail_count 0
-    
+
    for {set failcount 0} {$failcount<$MAX_ATTEMPTS} {incr failcount} {
       if {$failcount<1} {
          # First three times, try to send a command.
@@ -162,37 +163,36 @@ proc recover {} {
          # After that doesn't work, try Control-C
          set timeout 1
          send "\3"
-         report "!!!! hit Control-C"	 
-      }     
+         report "!!!! hit Control-C"
+      }
       set timeout 1
       while 1 {
          expect {
 
-            "Kernel panic" {	    
+            "Kernel panic" {
                set failcount $MAX_ATTEMPTS
                break
             }
 
-            "/bin> " {	    
+            "/bin> " {
                return 0
             }
 
-             -re $kernel_prompt {	    
+             -re $kernel_prompt {
                 return 0
             }
 
-            timeout {	    
+            timeout {
                break
             }
          }
       }
    }
 
-  
+
    set state_variable 0
    for {set failcount 0} {$failcount<3} {incr failcount} {
-   
-     
+
       report "!!!! reboot"
       reset_board
       set timeout 180
@@ -210,8 +210,8 @@ proc recover {} {
                set state_variable 2
                break
             }
-	    
-	      -re $kernel_prompt {
+
+            -re $kernel_prompt {
                set state_variable 2
 	       send "\r"
                break
@@ -227,8 +227,6 @@ proc recover {} {
 # Using a state variable for all of this helps
 # when we need to expand the functionality.
 #
-      send_log "wait some time after system boot up\r"
-      sleep 15
 
       if { $state_variable == 2 } {
          set timeout 3
@@ -261,37 +259,44 @@ proc recover {} {
             }
          }
       }
+
       if { $state_variable == 4 } {
-        
+        set timeout 30
+        expect -nocase -re "up.*full"
+
 	send "export PATH=\$PATH:/bin\r"
 	expect "/bin>"
 	send "export TMP=/tmp\r"
 	expect "/bin>"
 	send "echo \$PATH\r"
 	expect "/bin>"
-#	sleep 5
-         send -s "chmod 777 /tmp\r"
+        send -s "chmod 777 /tmp\r"
 	# Add network configuration.
-	#sleep 2
 	send -s "ifconfig eth0 $ipaddr up\r"
-#	sleep 5
 	expect "/bin>"
-        catch {exec rcp $LTP_SCRIPT_DIR/config/passwd root@$ipaddr:/etc}
-#        sleep 2
-	catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc}
-#        sleep 2
-	 #sleep 5
-	 catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
-	 catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin}
-	 catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin}
-	 catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
-	#sleep 5
-         set timeout 4
-         set flag 0
-         while 1 {
+        if [ catch {exec rcp $LTP_SCRIPT_DIR/config/passwd root@$ipaddr:/etc} ] {
+            send_user "$errorInfo\n"
+        }
+	if [ catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc} ] {
+            send_user "$errorInfo\n"
+        }
+        if [ catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin} ] {
+            send_user "$errorInfo\n"
+        }
+        if [ catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin} ] {
+            send_user "$errorInfo\n"
+        }
+        if [ catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin} ] {
+            send_user "$errorInfo\n"
+        }
+        if [ catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin} ] {
+            send_user "$errorInfo\n"
+        }
+        set timeout 4
+        set flag 0
+        while 1 {
             expect {
-
-               "No such file or directory" { 
+               "No such file or directory" {
                   set flag 1
                }
 
@@ -301,8 +306,8 @@ proc recover {} {
                      report "!!!! executed chmod 777 /tmp"
                      report "!!!! recovered ok"
 		     send -s "ls -l /\r"
-		    
-		     while 1 {
+
+                     while 1 {
 				expect {
 				"tmp" {
 			#	puts "2222222"
@@ -329,8 +334,6 @@ proc recover {} {
                }
             }
          }
- 
-
 	
       }
    }
@@ -350,6 +353,7 @@ proc force_reboot {} {
     global LTP_SCRIPT_DIR
     global LTP_TESTCASES_DIR
     global kernel_prompt
+    global errorInfo
 
 
     report "!!!! force rebooting"
@@ -376,7 +380,7 @@ proc force_reboot {} {
                     break
                 }
 
-                 -re $kernel_prompt {
+                -re "BusyBox.*$kernel_prompt" {
                     set state_variable 2
                     send "\r"
                     break
@@ -392,8 +396,6 @@ proc force_reboot {} {
 # Using a state variable for all of this helps
 # when we need to expand the functionality.
 #
-        send_log "wait some time after system boot up\r"
-        sleep 15
 
         if { $state_variable == 2 } {
             set timeout 3
@@ -429,6 +431,9 @@ proc force_reboot {} {
         }
 
         if { $state_variable == 4 } {
+            set timeout 30
+            expect -nocase -re "up.*full"
+
             send "export PATH=\$PATH:/bin\r"
             expect "/bin>"
             send "export TMP=/tmp\r"
@@ -438,19 +443,31 @@ proc force_reboot {} {
             send -s "chmod 777 /tmp\r"
             send -s "ifconfig eth0 $ipaddr up\r"
             expect "/bin>"
-            catch {exec rcp $LTP_SCRIPT_DIR/config/passwd root@$ipaddr:/etc}
-            catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc}
-            catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
-            catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin}
-            catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin}
-            catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
+            if [ catch {exec rcp $LTP_SCRIPT_DIR/config/passwd root@$ipaddr:/etc} ] {
+                send_user "$errorInfo\n"
+            }
+            if [ catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc} ] {
+                send_user "$errorInfo\n"
+            }
+            if [ catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin} ] {
+                send_user "$errorInfo\n"
+            }
+            if [ catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin} ] {
+                send_user "$errorInfo\n"
+            }
+            if [ catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin} ] {
+                send_user "$errorInfo\n"
+            }
+            if [ catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin} ] {
+                send_user "$errorInfo\n"
+            }
             set timeout 4
             set flag 0
 
             while 1 {
                 expect {
 
-                    "No such file or directory" { 
+                    "No such file or directory" {
                         set flag 1
                     }
 
@@ -646,7 +663,7 @@ proc all_done { } {
    send_both "  Failed Tests       :  $failed_tests\n"
    send_both "  Broken Tests       :  $broken_tests\n"
    send_both "  Warning Tests      :  $warning_tests\n"
-   send_both "  Crashing Tests     :  $crashing_tests\n"    
+   send_both "  Crashing Tests     :  $crashing_tests\n"
    send_both "  Skipped Tests     :  $tests_not_run\n"
    send_both "  NA on uClinux Tests     :  $test_NA_on_uclinux\n"
    send_both "\n"
@@ -800,7 +817,6 @@ proc test_cleanup { } {
          }
       }
    }
-   
 
    # get any leftover prompt
    set timeout 1
@@ -841,6 +857,7 @@ proc run_LTP_test { filename command torun mode} {
    global LTP_TESTCASES_DIR
    global ipaddr
    global kernel_prompt
+   global board_type
 
    step "Start to test \[$filename\]"
 
@@ -848,6 +865,15 @@ proc run_LTP_test { filename command torun mode} {
       set result_flag $LTP_NA
       step "Test NA on uClinux"
       return $result_flag
+   }
+
+#mount and umount related test now only run on bf548-ezkit
+   if { [string match "mount*" $filename] || [string match "umount*" $filename] } {
+       if { $board_type != "BF548-EZKIT" } {
+           set result_flag $LTP_NA
+           step "Test NA on uClinux"
+           return $result_flag
+       }
    }
 
    if { $filename == "munlock01" || $filename == "semget05"} {
@@ -887,6 +913,9 @@ proc run_LTP_test { filename command torun mode} {
       catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
       catch {exec rcp $LTP_TESTCASES_DIR/mkdir05 root@$ipaddr:/bin}
    }
+   if { $filename == "mount03" } {
+      catch {exec rcp $LTP_TESTCASES_DIR/setuid_test root@$ipaddr:/}
+   }
    if { $filename == "readlink01A" } {
       catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
       catch {exec rcp $LTP_TESTCASES_DIR/readlink01 root@$ipaddr:/bin}
@@ -915,7 +944,7 @@ proc run_LTP_test { filename command torun mode} {
    }
 
    step "get test case \[$filename\] from server"
-   expect ">" 
+   expect ">"
    set timeout 1
    send  "\r"
    expect ">"
@@ -931,7 +960,6 @@ proc run_LTP_test { filename command torun mode} {
    send "$command\r"
    set timeout 60
 
-   
    while 1 {
    	
       expect {
@@ -942,7 +970,7 @@ proc run_LTP_test { filename command torun mode} {
           #  reset_board
             break
          }
-       
+
          $LTP_PASS {
             if {$result_flag == $LTP_NOT_RUN} {
                report "---pass"
@@ -981,8 +1009,7 @@ proc run_LTP_test { filename command torun mode} {
                set result_flag $LTP_PASS
             }
          }
-	 
-	 
+
          # Someone wrote signal with non-standard passing response.
          "No errors." {
             if {$result_flag == $LTP_NOT_RUN} {
@@ -991,9 +1018,16 @@ proc run_LTP_test { filename command torun mode} {
             }
          }
 
-     
          # sigset tests pass when SIGCHLD is still handled by myhandler.
          "SIGCHLD called. Inside handler" {
+            if {$result_flag == $LTP_NOT_RUN} {
+               report "---pass"
+               set result_flag $LTP_PASS
+            }
+         }
+
+         # Someone wrote timerfd01 with a non-standard passing response.
+         "success\r\n*success\r\n" {
             if {$result_flag == $LTP_NOT_RUN} {
                report "---pass"
                set result_flag $LTP_PASS
@@ -1011,10 +1045,10 @@ proc run_LTP_test { filename command torun mode} {
             if {$result_flag != $LTP_FAIL} {
                report "---brok"
                set result_flag $LTP_BROKEN
-               if {$filename == "pause03"} { 
+               if {$filename == "pause03"} {
                       set result_flag $LTP_CRASH
                       reset_board
-                      break 
+                      break
                 }
             }
          }
@@ -1026,10 +1060,9 @@ proc run_LTP_test { filename command torun mode} {
             reset_board
             break
          }
- 
- 
+
          timeout {
-             if {$filename == "fcntl14"} { 
+             if {$filename == "fcntl14"} {
                  send "\r"
                  continue
              } else {
@@ -1136,7 +1169,7 @@ proc run_LTP_test { filename command torun mode} {
          }
       }
    }
- 
+
    return $result_flag
 }
 
@@ -1197,777 +1230,737 @@ set ULIMIT                ulimit
 #
 set i 0
 set cpu_info_loc                        $i
-set result_matrix1 {
-       { abort01     	     {ulimit -c 1024;abort01}            notrun		NA } 
-       { accept01     	     {accept01}                     	 notrun		UCLINUX } 
-       { access01     	     {access01}                     	 notrun		UCLINUX } 
-       { access02     	     {access02}                     	 notrun		UCLINUX } 
-       { access03     	     {access03}                     	 notrun		NA } 
-       { access04     	     {access04}                     	 notrun		UCLINUX } 
-       { access05     	     {access05}                     	 notrun		UCLINUX } 
-       { acct01     	     {acct01}                     	 notrun		NA } 
-       { acct02     	     {acct02}                     	 notrun		NA } 
-       { adjtimex01     	     {adjtimex01}                     	 notrun		UCLINUX } 
-       { adjtimex02     	     {adjtimex02}                     	 notrun		UCLINUX } 
-       { alarm01     	     {alarm01}                     	 notrun		UCLINUX } 
-       { alarm02     	     {alarm02}                     	 notrun		UCLINUX } 
-       { alarm03     	     {alarm03}                     	 notrun		UCLINUX } 
-       { alarm04     	     {alarm04}                     	 notrun		UCLINUX } 
-       { alarm05     	     {alarm05}                     	 notrun		UCLINUX } 
-       { alarm06     	     {alarm06}                     	 notrun		UCLINUX } 
-       { alarm07     	     {alarm07}                     	 notrun		UCLINUX } 
-       { asyncio02     	     {asyncio02}                     	 notrun		UCLINUX } 
-       { bind01     	     {bind01}                     	 notrun		UCLINUX } 
-       { bind02     	     {bind02}                     	 notrun		UCLINUX } 
-       { brk01     	     {brk01}                     	 notrun		NA } 
-       { capget01     	     {capget01}                     	 notrun		UCLINUX } 
-       { capget02     	     {capget02}                     	 notrun		UCLINUX } 
-       { capset01     	     {capset01}                     	 notrun		UCLINUX } 
-       { capset02     	     {capset02}                     	 notrun		UCLINUX } 
-       { chdir01     	     {chdir01}                     	 notrun		UCLINUX } 
-       { chdir01A     	     {symlink01 -T chdir01}                     	 notrun		UCLINUX } 
-       { chdir02     	     {chdir02}                     	 notrun		UCLINUX } 
-       { chdir03     	     {chdir03}                     	 notrun		UCLINUX } 
-       { chdir04     	     {chdir04}                     	 notrun		UCLINUX } 
-       { chmod01     	     {chmod01}                     	 notrun		UCLINUX } 
-       { chmod01A     	     {symlink01 -T chmod01}                     	 notrun		UCLINUX } 
-       { chmod02     	     {chmod02}                     	 notrun		UCLINUX } 
-       { chmod03     	     {chmod03}                     	 notrun		UCLINUX } 
-       { chmod04     	     {chmod04}                     	 notrun		UCLINUX } 
-       { chmod05     	     {cp -p /bin/change_owner /tmp;chmod05 }                     	 notrun		UCLINUX } 
-       { chmod06     	     {cp -p /bin/change_owner /tmp;chmod06}                     	 notrun		NA } 
-       { chmod07     	     {chmod07}                     	 notrun		UCLINUX } 
-       { chown01     	     {chown01}                     	 notrun		UCLINUX } 
-       { chown02     	     {chown02}                     	 notrun		UCLINUX } 
-       { chown03     	     {export change_owner=/bin/change_owner;chown03}                     	 notrun		UCLINUX } 
-       { chown04     	     {cp -p /bin/change_owner /tmp;chown04}                     	 notrun		NA } 
-       { chown05     	     {chown05}                     	 notrun		UCLINUX } 
-}
-
 
 #                user friendly name          command             status
 #                ==================          =======             ======
-set result_matrix {   
-       { abort01     	     {ulimit -c 1024;abort01}            notrun		NA } 
-       { accept01     	     {accept01}                     	 notrun		UCLINUX } 
-       { access01     	     {access01}                     	 notrun		UCLINUX } 
-       { access02     	     {access02}                     	 notrun		UCLINUX } 
-       { access03     	     {access03}                     	 notrun		NA } 
-       { access04     	     {access04}                     	 notrun		UCLINUX } 
-       { access05     	     {access05}                     	 notrun		UCLINUX } 
-       { acct01     	     {acct01}                     	 notrun		NA } 
-       { acct02     	     {acct02}                     	 notrun		NA } 
-       { adjtimex01     	     {adjtimex01}                     	 notrun		UCLINUX } 
-       { adjtimex02     	     {adjtimex02}                     	 notrun		UCLINUX } 
-       { alarm01     	     {alarm01}                     	 notrun		UCLINUX } 
-       { alarm02     	     {alarm02}                     	 notrun		UCLINUX } 
-       { alarm03     	     {alarm03}                     	 notrun		UCLINUX } 
-       { alarm05     	     {alarm05}                     	 notrun		UCLINUX } 
-       { alarm06     	     {alarm06}                     	 notrun		UCLINUX } 
-       { alarm07     	     {alarm07}                     	 notrun		UCLINUX } 
-       { asyncio02     	     {asyncio02}                     	 notrun		UCLINUX } 
-       { bind01     	     {bind01}                     	 notrun		UCLINUX } 
-       { bind02     	     {bind02}                     	 notrun		UCLINUX } 
-       { brk01     	     {brk01}                     	 notrun		NA } 
-       { capget01     	     {capget01}                     	 notrun		UCLINUX } 
-       { capget02     	     {capget02}                     	 notrun		UCLINUX } 
-       { capset01     	     {modprobe capability;capset01}                     	 notrun		UCLINUX } 
-       { capset02     	     {capset02}                     	 notrun		UCLINUX } 
-       { chdir01     	     {chdir01}                     	 notrun		UCLINUX } 
-       { chdir01A     	     {symlink01 -T chdir01}                     	 notrun		UCLINUX } 
-       { chdir02     	     {chdir02}                     	 notrun		UCLINUX } 
-       { chdir03     	     {chdir03}                     	 notrun		UCLINUX } 
-       { chdir04     	     {chdir04}                     	 notrun		UCLINUX } 
-       { chmod01     	     {chmod01}                     	 notrun		UCLINUX } 
-       { chmod01A     	     {symlink01 -T chmod01}                     	 notrun		UCLINUX } 
-       { chmod02     	     {chmod02}                     	 notrun		UCLINUX } 
-       { chmod03     	     {chmod03}                     	 notrun		UCLINUX } 
-       { chmod04     	     {chmod04}                     	 notrun		UCLINUX } 
-       { chmod05     	     {cp -p /bin/change_owner /tmp;chmod05 }                     	 notrun		UCLINUX } 
-       { chmod06     	     {cp -p /bin/change_owner /tmp;chmod06}                     	 notrun		NA } 
-       { chmod07     	     {chmod07}                     	 notrun		UCLINUX } 
-       { chown01     	     {chown01}                     	 notrun		UCLINUX } 
-       { chown02     	     {chown02}                     	 notrun		UCLINUX } 
-       { chown03     	     {export change_owner=/bin/change_owner;chown03}                     	 notrun		UCLINUX } 
-       { chown04     	     {cp -p /bin/change_owner /tmp;chown04}                     	 notrun		NA } 
-       { chown05     	     {chown05}                     	 notrun		UCLINUX } 
-       { chroot01     	     {chroot01}                     	 notrun		UCLINUX } 
-       { chroot02     	     {chroot02}                     	 notrun		UCLINUX } 
-       { chroot03     	     {chroot03}                     	 notrun		UCLINUX } 
-       { chroot04     	     {chroot04}                     	 notrun		UCLINUX } 
-       { clone01     	     {clone01}                     	 notrun		UCLINUX } 
-       { clone02     	     {clone02}                     	 notrun		UCLINUX } 
-       { clone03     	     {clone03}                     	 notrun		UCLINUX } 
-       { clone04     	     {clone04}                     	 notrun		UCLINUX } 
-       { clone05     	     {clone05}                     	 notrun		UCLINUX } 
-       { clone06     	     {clone06}                     	 notrun		UCLINUX } 
-       { clone07     	     {clone07}                     	 notrun		UCLINUX } 
-       { close01     	     {close01}                     	 notrun		UCLINUX } 
-       { close02     	     {close02}                     	 notrun		UCLINUX } 
-       { close08     	     {close08}                     	 notrun		UCLINUX } 
-       { confstr01     	     {confstr01}                     	 notrun		UCLINUX } 
-       { connect01     	     {connect01}                     	 notrun		UCLINUX } 
-       { creat01     	     {creat01}                     	 notrun		UCLINUX } 
-       { creat03     	     {creat03}                     	 notrun		UCLINUX } 
-       { creat04     	     {creat04}                     	 notrun		UCLINUX } 
-       { creat05     	     {creat05}                     	 notrun		UCLINUX } 
-       { creat06     	     {creat06}                     	 notrun		UCLINUX } 
-       { creat07     	     {creat07 -F /bin/test1}                     	 notrun		NA } 
-       { creat08     	     {creat08}                     	 notrun		UCLINUX } 
-       { creat09     	     {creat09}                     	 notrun		UCLINUX } 
-       { dup01     	     {dup01}                     	 notrun		UCLINUX } 
-       { dup02     	     {dup02}                     	 notrun		UCLINUX } 
-       { dup03     	     {dup03}                     	 notrun		UCLINUX } 
-       { dup04     	     {dup04}                     	 notrun		UCLINUX } 
-       { dup05     	     {dup05}                     	 notrun		UCLINUX } 
-       { dup06     	     {dup06}                     	 notrun		UCLINUX } 
-       { dup07     	     {dup07}                     	 notrun		UCLINUX } 
-       { dup201     	     {dup201}                     	 notrun		UCLINUX } 
-       { dup202     	     {dup202}                     	 notrun		UCLINUX } 
-       { dup203     	     {dup203}                     	 notrun		UCLINUX } 
-       { dup204     	     {dup204}                     	 notrun		UCLINUX } 
-       { dup205     	     {dup205}                     	 notrun		UCLINUX } 
-       { execl01     	     {execl01}                     	 notrun		UCLINUX } 
-       { execle01     	     {execle01}                     	 notrun		UCLINUX } 
-       { execlp01     	     {execlp01}                     	 notrun		UCLINUX } 
-       { execv01     	     {execv01}                     	 notrun		UCLINUX } 
-       { execve01     	     {execve01}                     	 notrun		UCLINUX } 
-       { execve02     	     {execve02 -F /bin/test3}                     	 notrun		UCLINUX } 
-       { execve03     	     {execve03}                     	 notrun		NA } 
-       { execve04     	     {cp -f /bin/test3 /tmp; execve04 -F test3}                     	 notrun		NA } 
-       { execve05     	     {execve05 -F /bin/test3}                     	 notrun		UCLINUX } 
-       { execve06     	     {execve06 20 /bin/execve06 /bin/execve06 4}                     	 notrun		UCLINUX } 
-       { execvp01     	     {execvp01}                     	 notrun		UCLINUX } 
-       { exit01     	     {exit01}                     	 notrun		UCLINUX } 
-       { exit02     	     {exit02}                     	 notrun		UCLINUX } 
-       { faccessat01     	     {faccessat01}                     	 notrun		UCLINUX } 
-       { posix_fadvise01     	     {posix_fadvise01}                     	 notrun		UCLINUX } 
-       { posix_fadvise01_64     	     {posix_fadvise01_64}                     	 notrun		UCLINUX } 
-       { posix_fadvise02     	     {posix_fadvise02}                     	 notrun		UCLINUX } 
-       { posix_fadvise02_64     	     {posix_fadvise02_64}                     	 notrun		UCLINUX } 
-       { posix_fadvise03     	     {posix_fadvise03}                     	 notrun		UCLINUX } 
-       { posix_fadvise03_64     	     {posix_fadvise03_64}                     	 notrun		UCLINUX } 
-       { posix_fadvise04     	     {posix_fadvise04}                     	 notrun		UCLINUX } 
-       { posix_fadvise04_64     	     {posix_fadvise04_64}                     	 notrun		UCLINUX } 
-       { fchdir01     	     {fchdir01}                     	 notrun		UCLINUX } 
-       { fchdir02     	     {fchdir02}                     	 notrun		UCLINUX } 
-       { fchdir03     	     {fchdir03}                     	 notrun		UCLINUX } 
-       { fchmod01     	     {fchmod01}                     	 notrun		UCLINUX } 
-       { fchmod02     	     {fchmod02}                     	 notrun		UCLINUX } 
-       { fchmod03     	     {fchmod03}                     	 notrun		UCLINUX } 
-       { fchmod04     	     {fchmod04}                     	 notrun		UCLINUX } 
-       { fchmod05     	     {cp -p /bin/change_owner /tmp;fchmod05 }                     	 notrun		UCLINUX } 
-       { fchmod06     	     {cp -p /bin/change_owner /tmp;fchmod06}                     	 notrun		UCLINUX } 
-       { fchmod07     	     {fchmod07}                     	 notrun		UCLINUX } 
-       { fchmodat01     	     {fchmodat01}                     	 notrun		UCLINUX } 
-       { fchown01     	     {fchown01}                     	 notrun		UCLINUX } 
-       { fchown02     	     {fchown02}                     	 notrun		UCLINUX } 
-       { fchown03     	     {cp -p /bin/change_owner /tmp;fchown03}                     	 notrun		UCLINUX } 
-       { fchown04     	     {export change_owner=/bin/change_owner;fchown04}                     	 notrun		UCLINUX } 
-       { fchown05     	     {fchown05}                     	 notrun		UCLINUX } 
-       { fchownat01     	     {fchownat01}                     	 notrun		UCLINUX } 
-       { fcntl01     	     {fcntl01}                     	 notrun		UCLINUX } 
-       { fcntl02     	     {fcntl02}                     	 notrun		UCLINUX } 
-       { fcntl03     	     {fcntl03}                     	 notrun		UCLINUX } 
-       { fcntl04     	     {fcntl04}                     	 notrun		UCLINUX } 
-       { fcntl05     	     {fcntl05}                     	 notrun		UCLINUX } 
-       { fcntl06     	     {fcntl06}                     	 notrun		UCLINUX } 
-       { fcntl07     	     {fcntl07}                     	 notrun		UCLINUX } 
-       { fcntl07B     	     {fcntl07B}                     	 notrun		UCLINUX } 
-       { fcntl08     	     {fcntl08}                     	 notrun		UCLINUX } 
-       { fcntl09     	     {fcntl09}                     	 notrun		UCLINUX } 
-       { fcntl10     	     {fcntl10}                     	 notrun		UCLINUX } 
-       { fcntl11     	     {fcntl11}                     	 notrun		UCLINUX } 
-       { fcntl12     	     {fcntl12}                     	 notrun		UCLINUX } 
-       { fcntl13     	     {fcntl13}                     	 notrun		UCLINUX } 
-       { fcntl14     	     {fcntl14}                     	 notrun		UCLINUX } 
-       { fcntl15     	     {fcntl15}                     	 notrun		UCLINUX } 
-       { fcntl17     	     {fcntl17}                     	 notrun		UCLINUX } 
-       { fcntl18     	     {fcntl18}                     	 notrun		UCLINUX } 
-       { fcntl19     	     {fcntl19}                     	 notrun		UCLINUX } 
-       { fcntl20     	     {fcntl20}                     	 notrun		UCLINUX } 
-       { fcntl21     	     {fcntl21}                     	 notrun		UCLINUX } 
-       { fcntl22     	     {fcntl22}                     	 notrun		UCLINUX } 
-       { fcntl23     	     {fcntl23}                     	 notrun		UCLINUX } 
-       { fcntl24     	     {fcntl24}                     	 notrun		UCLINUX } 
-       { fcntl25     	     {fcntl25}                     	 notrun		UCLINUX } 
-       { fcntl26     	     {fcntl26}                     	 notrun		UCLINUX } 
-       { fdatasync01     	     {fdatasync01}                     	 notrun		UCLINUX } 
-       { fdatasync02     	     {fdatasync02}                     	 notrun		UCLINUX } 
-       { flock01     	     {flock01}                     	 notrun		UCLINUX } 
-       { flock02     	     {flock02}                     	 notrun		UCLINUX } 
-       { flock03     	     {flock03}                     	 notrun		UCLINUX } 
-       { flock04     	     {flock04}                     	 notrun		UCLINUX } 
-       { flock05     	     {flock05}                     	 notrun		UCLINUX } 
-       { flock06     	     {flock06}                     	 notrun		UCLINUX } 
-       { fmtmsg01     	     {fmtmsg01}                     	 notrun		NA } 
-       { fork01     	     {fork01}                     	 notrun		NA } 
-       { fork02     	     {fork02}                     	 notrun		NA } 
-       { fork03     	     {fork03}                     	 notrun		NA } 
-       { fork04     	     {fork04}                     	 notrun		NA } 
-       { fork05     	     {fork05}                     	 notrun		NA } 
-       { fork06     	     {fork06}                     	 notrun		NA } 
-       { fork07     	     {fork07}                     	 notrun		NA } 
-       { fork08     	     {fork08}                     	 notrun		NA } 
-       { fork09     	     {fork09}                     	 notrun		NA } 
-       { fork10     	     {fork10}                     	 notrun		NA } 
-       { fork11     	     {fork11}                     	 notrun		NA } 
-       { fpathconf01     	     {fpathconf01}                     	 notrun		UCLINUX } 
-       { fstat01     	     {fstat01}                     	 notrun		UCLINUX } 
-       { fstat02     	     {fstat02}                     	 notrun		UCLINUX } 
-       { fstat03     	     {fstat03}                     	 notrun		UCLINUX } 
-       { fstat04     	     {fstat04}                     	 notrun		UCLINUX } 
-       { fstat05     	     {fstat05}                     	 notrun		NA } 
-       { fstatfs01     	     {fstatfs01}                     	 notrun		UCLINUX } 
-       { fstatfs02     	     {fstatfs02}                     	 notrun		UCLINUX } 
-       { fsync01     	     {fsync01}                     	 notrun		UCLINUX } 
-       { fsync02     	     {fsync02}                     	 notrun		UCLINUX } 
-       { fsync03     	     {fsync03}                     	 notrun		UCLINUX } 
-       { ftruncate01     	     {ftruncate01}                     	 notrun		UCLINUX } 
-       { ftruncate02     	     {ftruncate02}                     	 notrun		UCLINUX } 
-       { ftruncate03     	     {ftruncate03}                     	 notrun		UCLINUX } 
-       { ftruncate04     	     {ftruncate04}                     	 notrun		NA } 
-       { futimesat01     	     {futimesat01}                     	 notrun		UCLINUX } 
-       { getcontext01     	     {getcontext01}                     	 notrun		NA } 
-       { getcwd01     	     {getcwd01}                     	 notrun		UCLINUX } 
-       { getcwd02     	     {getcwd02}                     	 notrun		UCLINUX } 
-       { getcwd03     	     {getcwd03}                     	 notrun		UCLINUX } 
-       { getdents01     	     {getdents01}                     	 notrun		UCLINUX } 
-       { getdents02     	     {getdents02}                     	 notrun		NA } 
-       { getdents03     	     {getdents03}                     	 notrun		NA } 
-       { getdents04     	     {getdents04}                     	 notrun		NA } 
-       { getdomainname01     	     {getdomainname01}                     	 notrun		UCLINUX } 
-       { getdtablesize01     	     {getdtablesize01}                     	 notrun		UCLINUX } 
-       { getegid01     	     {getegid01}                     	 notrun		UCLINUX } 
-       { geteuid01     	     {geteuid01}                     	 notrun		UCLINUX } 
-       { getgid01     	     {getgid01}                     	 notrun		UCLINUX } 
-       { getgid02     	     {getgid02}                     	 notrun		UCLINUX } 
-       { getgid03     	     {getgid03}                     	 notrun		UCLINUX } 
-       { getgroups01     	     {getgroups01}                     	 notrun		UCLINUX } 
-       { getgroups02     	     {getgroups02}                     	 notrun		UCLINUX } 
-       { getgroups03     	     {getgroups03}                     	 notrun		UCLINUX } 
-       { getgroups04     	     {getgroups04}                     	 notrun		UCLINUX } 
-       { gethostid01     	     {gethostid01}                     	 notrun		UCLINUX } 
-       { gethostname01     	     {gethostname01}                     	 notrun		UCLINUX } 
-       { getitimer01     	     {getitimer01}                     	 notrun		UCLINUX } 
-       { getitimer02     	     {getitimer02}                     	 notrun		NA } 
-       { getitimer03     	     {getitimer03}                     	 notrun		UCLINUX } 
-       { getpagesize01     	     {getpagesize01}                     	 notrun		UCLINUX } 
-       { getpeername01     	     {getpeername01}                     	 notrun		UCLINUX } 
-       { getpgid01     	     {getpgid01}                     	 notrun		UCLINUX } 
-       { getpgid02     	     {getpgid02}                     	 notrun		UCLINUX } 
-       { getpgrp01     	     {getpgrp01}                     	 notrun		UCLINUX } 
-       { getpid01     	     {getpid01}                     	 notrun		UCLINUX } 
-       { getpid02     	     {getpid02}                     	 notrun		UCLINUX } 
-       { getppid01     	     {getppid01}                     	 notrun		UCLINUX } 
-       { getppid02     	     {getppid02}                     	 notrun		UCLINUX } 
-       { getpriority01     	     {getpriority01}                     	 notrun		UCLINUX } 
-       { getpriority02     	     {getpriority02}                     	 notrun		UCLINUX } 
-       { getresgid01     	     {getresgid01}                     	 notrun		UCLINUX } 
-       { getresgid02     	     {getresgid02}                     	 notrun		UCLINUX } 
-       { getresgid03     	     {getresgid03}                     	 notrun		UCLINUX } 
-       { getresuid01     	     {getresuid01}                     	 notrun		UCLINUX } 
-       { getresuid02     	     {getresuid02}                     	 notrun		UCLINUX } 
-       { getresuid03     	     {getresuid03}                     	 notrun		UCLINUX } 
-       { getrlimit01     	     {getrlimit01}                     	 notrun		UCLINUX } 
-       { getrlimit02     	     {getrlimit02}                     	 notrun		UCLINUX } 
-       { getrusage01     	     {getrusage01}                     	 notrun		UCLINUX } 
-       { getrusage02     	     {getrusage02}                     	 notrun		UCLINUX } 
-       { getsid01     	     {getsid01}                     	 notrun		UCLINUX } 
-       { getsid02     	     {getsid02}                     	 notrun		UCLINUX } 
-       { getsockname01     	     {getsockname01}                     	 notrun		UCLINUX } 
-       { getsockopt01     	     {getsockopt01}                     	 notrun		UCLINUX } 
-       { gettimeofday01     	     {gettimeofday01}                     	 notrun		UCLINUX } 
-       { gettimeofday02     	     {gettimeofday02}                     	 notrun		UCLINUX } 
-       { getuid01     	     {getuid01}                     	 notrun		UCLINUX } 
-       { getuid02     	     {getuid02}                     	 notrun		UCLINUX } 
-       { getuid03     	     {getuid03}                     	 notrun		UCLINUX } 
-       { ioperm01     	     {ioperm01}                     	 notrun		UCLINUX } 
-       { ioperm02     	     {ioperm02}                     	 notrun		UCLINUX } 
-       { iopl01     	     {iopl01}                     	 notrun		UCLINUX } 
-       { iopl02     	     {iopl02}                     	 notrun		UCLINUX } 
-       { inotify01     	     {inotify01}                     	 notrun		UCLINUX } 
-       { inotify02     	     {inotify02}                     	 notrun		UCLINUX } 
-       { kill01     	     {kill01}                     	 notrun		UCLINUX } 
-       { kill02     	     {kill02}                     	 notrun		UCLINUX } 
-       { kill03     	     {kill03}                     	 notrun		UCLINUX } 
-       { kill04     	     {kill04}                     	 notrun		UCLINUX } 
-       { kill05     	     {kill05}                     	 notrun		UCLINUX } 
-       { kill06     	     {kill06}                     	 notrun		UCLINUX } 
-       { kill07     	     {kill07}                     	 notrun		UCLINUX } 
-       { kill08     	     {kill08}                     	 notrun		UCLINUX } 
-       { kill09     	     {kill09}                     	 notrun		UCLINUX } 
-       { kill10     	     {kill10}                     	 notrun		UCLINUX } 
-       { kill11     	     {ulimit -c 1024;kill11}                     	 notrun		NA } 
-       { kill12     	     {kill12}                     	 notrun		UCLINUX } 
-       { lchown01     	     {lchown01}                     	 notrun		NA } 
-       { lchown02     	     {cp -p /bin/create_link /tmp; lchown02}                     	 notrun		NA } 
-       { link01     	     {symlink01 -T link01}                     	 notrun		NA } 
-       { link02     	     {link02}                     	 notrun		UCLINUX } 
-       { link03     	     {link03}                     	 notrun		UCLINUX } 
-       { link04     	     {link04}                     	 notrun		UCLINUX } 
-       { link05     	     {link05}                     	 notrun		UCLINUX } 
-       { link06     	     {link06}                     	 notrun		UCLINUX } 
-       { link07     	     {link07}                     	 notrun		UCLINUX } 
-       { linkat01     	     {linkat01}                     	 notrun		UCLINUX } 
-       { listen01     	     {listen01}                     	 notrun		UCLINUX } 
-       { llseek01     	     {llseek01}                     	 notrun		UCLINUX } 
-       { llseek02     	     {llseek02}                     	 notrun		UCLINUX } 
-       { lseek01     	     {lseek01}                     	 notrun		UCLINUX } 
-       { lseek02     	     {lseek02}                     	 notrun		UCLINUX } 
-       { lseek03     	     {lseek03}                     	 notrun		UCLINUX } 
-       { lseek04     	     {lseek04}                     	 notrun		UCLINUX } 
-       { lseek05     	     {lseek05}                     	 notrun		UCLINUX } 
-       { lseek06     	     {lseek06}                     	 notrun		UCLINUX } 
-       { lseek07     	     {lseek07}                     	 notrun		UCLINUX } 
-       { lseek08     	     {lseek08}                     	 notrun		UCLINUX } 
-       { lseek09     	     {lseek09}                     	 notrun		UCLINUX } 
-       { lseek10     	     {lseek10}                     	 notrun		UCLINUX } 
-       { lstat01A     	     {symlink01 -T lstat01}                     	 notrun		UCLINUX } 
-       { lstat01     	     {lstat01}                     	 notrun		UCLINUX } 
-       { lstat02     	     {lstat02}                     	 notrun		UCLINUX } 
-       { lstat03     	     {lstat03}                     	 notrun		UCLINUX } 
-       { mallopt01     	     {mallopt01}                     	 notrun		NA } 
-       { memset01     	     {memset01}                     	 notrun		UCLINUX } 
-       { memcmp01     	     {memcmp01}                     	 notrun		UCLINUX } 
-       { memcpy01     	     {memcpy01}                     	 notrun		UCLINUX } 
-       { mlockall01     	     {mlockall01}                     	 notrun		NA } 
-       { mlockall02     	     {mlockall02}                     	 notrun		NA } 
-       { mlockall03     	     {mlockall03}                     	 notrun		NA } 
-       { mkdir01     	     {mkdir01}                     	 notrun		NA } 
-       { mkdir02     	     {mkdir02}                     	 notrun		UCLINUX } 
-       { mkdir03     	     {mkdir03}                     	 notrun		UCLINUX } 
-       { mkdir04     	     {mkdir04}                     	 notrun		UCLINUX } 
-       { mkdir05     	     {mkdir05}                     	 notrun		UCLINUX } 
-       { mkdir05A     	     {symlink01 -T mkdir05}                     	 notrun		UCLINUX } 
-       { mkdir08     	     {mkdir08}                     	 notrun		UCLINUX } 
-       { mkdir09     	     {mkdir09}                     	 notrun		UCLINUX } 
-       { mkdirat01     	     {mkdir01}                     	 notrun		NA } 
-       { mknod01     	     {mknod01}                     	 notrun		UCLINUX } 
-       { mknod02     	     {mknod02}                     	 notrun		UCLINUX } 
-       { mknod03     	     {mknod03}                     	 notrun		UCLINUX } 
-       { mknod04     	     {mknod04}                     	 notrun		UCLINUX } 
-       { mknod05     	     {mknod05}                     	 notrun		UCLINUX } 
-       { mknod06     	     {mknod06}                     	 notrun		UCLINUX } 
-       { mknod07     	     {mknod07}                     	 notrun		UCLINUX } 
-       { mknod08     	     {mknod08}                     	 notrun		UCLINUX } 
-       { mknod09     	     {mknod09}                     	 notrun		UCLINUX } 
-       { mknodat01     	     {mknodat01}                     	 notrun		UCLINUX } 
-       { mlock01     	     {mlock01}                     	 notrun		NA } 
-       { mlock02     	     {mlock02}                     	 notrun		NA } 
-       { qmm01     	     {mmap001 -m 1}                     	 notrun		NA } 
-       { mmap01     	     {mmap01}                     	 notrun		NA } 
-       { mmap02     	     {mmap02}                     	 notrun		NA } 
-       { mmap03     	     {mmap03}                     	 notrun		NA } 
-       { mmap04     	     {mmap04}                     	 notrun		NA } 
-       { mmap05     	     {mmap05}                     	 notrun		NA } 
-       { mmap06     	     {mmap06}                     	 notrun		NA } 
-       { mmap07     	     {mmap07}                     	 notrun		NA } 
-       { mmap08     	     {mmap08}                     	 notrun		NA } 
-       { mmap09     	     {mmap09}                     	 notrun		NA } 
-       { modify_ldt01     	     {modify_ldt01}                     	 notrun		NA } 
-       { modify_ldt02     	     {modify_ldt02}                     	 notrun		NA } 
-       { mprotect01     	     {mprotect01}                     	 notrun		NA } 
-       { mprotect02     	     {mprotect02}                     	 notrun		NA } 
-       { mprotect03     	     {mprotect03}                     	 notrun		NA } 
-       { mremap01     	     {mremap01}                     	 notrun		NA } 
-       { mremap02     	     {mremap02}                     	 notrun		NA } 
-       { mremap03     	     {mremap03}                     	 notrun		NA } 
-       { mremap04     	     {mremap04}                     	 notrun		NA } 
-       { msgctl01     	     {msgctl01}                     	 notrun		UCLINUX } 
-       { msgctl02     	     {msgctl02}                     	 notrun		UCLINUX } 
-       { msgctl03     	     {msgctl03}                     	 notrun		UCLINUX } 
-       { msgctl04     	     {msgctl04}                     	 notrun		UCLINUX } 
-       { msgctl05     	     {msgctl05}                     	 notrun		UCLINUX } 
-       { msgctl06     	     {msgctl06}                     	 notrun		UCLINUX } 
-       { msgctl07     	     {msgctl07}                     	 notrun		UCLINUX } 
-       { msgctl08     	     {msgctl08}                     	 notrun		NA } 
-       { msgctl09     	     {msgctl09}                     	 notrun		NA } 
-       { msgget01     	     {msgget01}                     	 notrun		UCLINUX } 
-       { msgget02     	     {msgget02}                     	 notrun		UCLINUX } 
-       { msgget03     	     {msgget03}                     	 notrun		UCLINUX } 
-       { msgget04     	     {msgget04}                     	 notrun		UCLINUX } 
-       { msgrcv01     	     {msgrcv01}                     	 notrun		UCLINUX } 
-       { msgrcv02     	     {msgrcv02}                     	 notrun		UCLINUX } 
-       { msgrcv03     	     {msgrcv03}                     	 notrun		UCLINUX } 
-       { msgrcv04     	     {msgrcv04}                     	 notrun		UCLINUX } 
-       { msgrcv05     	     {msgrcv05}                     	 notrun		UCLINUX } 
-       { msgrcv06     	     {msgrcv06}                     	 notrun		UCLINUX } 
-       { msgsnd01     	     {msgsnd01}                     	 notrun		UCLINUX } 
-       { msgsnd02     	     {msgsnd02}                     	 notrun		UCLINUX } 
-       { msgsnd03     	     {msgsnd03}                     	 notrun		UCLINUX } 
-       { msgsnd04     	     {msgsnd04}                     	 notrun		UCLINUX } 
-       { msgsnd05     	     {msgsnd05}                     	 notrun		UCLINUX } 
-       { msgsnd06     	     {msgsnd06}                     	 notrun		UCLINUX } 
-       { msync01     	     {msync01}                     	 notrun		NA } 
-       { msync02     	     {msync02}                     	 notrun		NA } 
-       { msync03     	     {msync03}                     	 notrun		NA } 
-       { msync04     	     {msync04}                     	 notrun		NA } 
-       { msync05     	     {msync05}                     	 notrun		NA } 
-       { munlock01     	     {munlock01}                     	 notrun		UCLINUX } 
-       { munlock02     	     {munlock02}                     	 notrun		NA } 
-       { munlockall01     	     {munlockall01}                     	 notrun		NA } 
-       { munlockall02     	     {munlockall02}                     	 notrun		NA } 
-       { munmap01     	     {munmap01}                     	 notrun		UCLINUX } 
-       { munmap02     	     {munmap02}                     	 notrun		NA } 
-       { munmap03     	     {munmap03}                     	 notrun		UCLINUX } 
-       { nanosleep01     	     {nanosleep01}                     	 notrun		UCLINUX } 
-       { nanosleep02     	     {nanosleep02}                     	 notrun		UCLINUX } 
-       { nanosleep03     	     {nanosleep03}                     	 notrun		UCLINUX } 
-       { nanosleep04     	     {nanosleep04}                     	 notrun		UCLINUX } 
-       { nftw01     	     {nftw01}                     	 notrun		NA } 
-       { nftw6401     	     {nftw6401}                     	 notrun		NA } 
-       { nice01     	     {nice01}                     	 notrun		UCLINUX } 
-       { nice02     	     {nice02}                     	 notrun		UCLINUX } 
-       { nice03     	     {nice03}                     	 notrun		UCLINUX } 
-       { nice04     	     {nice04}                     	 notrun		UCLINUX } 
-       { nice05     	     {nice05}                     	 notrun		UCLINUX } 
-       { open01     	     {open01}                     	 notrun		UCLINUX } 
-       { open01A     	     {symlink01 -T open01}                     	 notrun		UCLINUX } 
-       { open02     	     {open02}                     	 notrun		UCLINUX } 
-       { open03     	     {open03}                     	 notrun		UCLINUX } 
-       { open04     	     {open04}                     	 notrun		UCLINUX } 
-       { open05     	     {open05}                     	 notrun		UCLINUX } 
-       { open06     	     {open06}                     	 notrun		UCLINUX } 
-       { open07     	     {open07}                     	 notrun		UCLINUX } 
-       { open08     	     {open08}                     	 notrun		UCLINUX } 
-       { open09     	     {open09}                     	 notrun		UCLINUX } 
-       { open10     	     {open10}                     	 notrun		UCLINUX } 
-       { openat01     	     {openat01}                     	 notrun		UCLINUX } 
-       { mincore01     	     {mincore01}                     	 notrun		NA } 
-       { madvise01     	     {madvise01}                     	 notrun		NA } 
-       { madvise02     	     {madvise02}                     	 notrun		NA } 
-       { pathconf01     	     {pathconf01}                     	 notrun		UCLINUX } 
-       { pause01     	     {pause01}                     	 notrun		UCLINUX } 
-       { pause02     	     {pause02}                     	 notrun		UCLINUX } 
-       { pause03     	     {pause03}                     	 notrun		UCLINUX } 
-       { pipe01     	     {pipe01}                     	 notrun		UCLINUX } 
-       { pipe02     	     {pipe02}                     	 notrun		UCLINUX } 
-       { pipe03     	     {pipe03}                     	 notrun		UCLINUX } 
-       { pipe04     	     {pipe04}                     	 notrun		UCLINUX } 
-       { pipe05     	     {pipe05}                     	 notrun		UCLINUX } 
-       { pipe06     	     {pipe06}                     	 notrun		UCLINUX } 
-       { pipe07     	     {pipe07}                     	 notrun		UCLINUX } 
-       { pipe08     	     {pipe08}                     	 notrun		UCLINUX } 
-       { pipe09     	     {pipe09}                     	 notrun		UCLINUX } 
-       { pipe10     	     {pipe10}                     	 notrun		UCLINUX } 
-       { pipe11     	     {pipe11}                     	 notrun		UCLINUX } 
-       { poll01     	     {poll01}                     	 notrun		UCLINUX } 
-       { prctl01     	     {prctl01}                     	 notrun		UCLINUX } 
-       { prctl02     	     {prctl02}                     	 notrun		UCLINUX } 
-       { pread01     	     {pread01}                     	 notrun		UCLINUX } 
-       { pread01_64     	     {pread01_64}                     	 notrun		UCLINUX } 
-       { pread02     	     {pread02}                     	 notrun		UCLINUX } 
-       { pread02_64     	     {pread02_64}                     	 notrun		UCLINUX } 
-       { pread03     	     {pread03}                     	 notrun		UCLINUX } 
-       { pread03_64     	     {pread03_64}                     	 notrun		UCLINUX } 
-       { profil01     	     {profil01}                     	 notrun		NA } 
-       { pselect01     	     {pselect01}                     	 notrun		UCLINUX } 
-       { ptrace01     	     {ptrace01}                     	 notrun		UCLINUX } 
-       { ptrace02     	     {ptrace02}                     	 notrun		UCLINUX } 
-       { ptrace03     	     {ptrace03}                     	 notrun		UCLINUX } 
-       { pwrite01     	     {pwrite01}                     	 notrun		UCLINUX } 
-       { pwrite01_64     	     {pwrite01_64}                     	 notrun		UCLINUX } 
-       { pwrite02     	     {pwrite02}                     	 notrun		UCLINUX } 
-       { pwrite02_64     	     {pwrite02_64}                     	 notrun		UCLINUX } 
-       { pwrite03     	     {pwrite03}                     	 notrun		NA } 
-       { pwrite03_64     	     {pwrite03_64}                     	 notrun		NA } 
-       { pwrite04     	     {pwrite04}                     	 notrun		UCLINUX } 
-       { pwrite04_64     	     {pwrite04_64}                     	 notrun		UCLINUX } 
-       { read01     	     {read01}                     	 notrun		UCLINUX } 
-       { read02     	     {read02}                     	 notrun		UCLINUX } 
-       { read03     	     {read03}                     	 notrun		UCLINUX } 
-       { read04     	     {read04}                     	 notrun		UCLINUX } 
-       { readdir01     	     {readdir01}                     	 notrun		UCLINUX } 
-       { readdir02     	     {readdir02}                     	 notrun		UCLINUX } 
-       { readlink01A     	     {symlink01 -T readlink01}                     	 notrun		UCLINUX } 
-       { readlink01     	     {readlink01}                     	 notrun		UCLINUX } 
-       { readlink02     	     {readlink02}                     	 notrun		UCLINUX } 
-       { readlink03     	     {readlink03}                     	 notrun		UCLINUX } 
-       { readlink04     	     {cp -f /bin/creat_slink /tmp; readlink04}                     	 notrun		UCLINUX } 
-       { readlinkat01     	     {readlinkat01}                     	 notrun		UCLINUX } 
-       { readv01     	     {readv01}                     	 notrun		NA } 
-       { readv02     	     {readv02}                     	 notrun		UCLINUX } 
-       { readv03     	     {readv03}                     	 notrun		UCLINUX } 
-       { reboot01     	     {reboot01}                     	 notrun		UCLINUX } 
-       { reboot02     	     {reboot02}                     	 notrun		UCLINUX } 
-       { recv01     	     {recv01}                     	 notrun		UCLINUX } 
-       { recvfrom01     	     {recvfrom01}                     	 notrun		UCLINUX } 
-       { recvmsg01     	     {recvmsg01}                     	 notrun		UCLINUX } 
-       { rename01     	     {rename01}                     	 notrun		UCLINUX } 
-       { rename01A     	     {symlink01 -T rename01}                     	 notrun		UCLINUX } 
-       { rename02     	     {rename02}                     	 notrun		UCLINUX } 
-       { rename03     	     {rename03}                     	 notrun		UCLINUX } 
-       { rename04     	     {rename04}                     	 notrun		UCLINUX } 
-       { rename05     	     {rename05}                     	 notrun		UCLINUX } 
-       { rename06     	     {rename06}                     	 notrun		UCLINUX } 
-       { rename07     	     {rename07}                     	 notrun		UCLINUX } 
-       { rename08     	     {rename08}                     	 notrun		UCLINUX } 
-       { rename09     	     {rename09}                     	 notrun		UCLINUX } 
-       { rename10     	     {rename10}                     	 notrun		UCLINUX } 
-       { rename12     	     {rename12}                     	 notrun		UCLINUX } 
-       { rename13     	     {rename13}                     	 notrun		UCLINUX } 
-       { rename14     	     {rename14}                     	 notrun		UCLINUX } 
-       { renameat01     	     {renameat01}                     	 notrun		UCLINUX } 
-       { rmdir01     	     {rmdir01}                     	 notrun		UCLINUX } 
-       { rmdir02     	     {rmdir02}                     	 notrun		UCLINUX } 
-       { rmdir03     	     {rmdir03}                     	 notrun		UCLINUX } 
-       { rmdir03A     	     {symlink01 -T rmdir03}                     	 notrun		UCLINUX } 
-       { rmdir04     	     {rmdir04}                     	 notrun		UCLINUX } 
-       { rmdir05     	     {rmdir05}                     	 notrun		UCLINUX } 
-       { sbrk01     	     {sbrk01}                     	 notrun		NA } 
-       { sched_get_priority_max01     	     {sched_get_priority_max01}                     	 notrun		UCLINUX } 
-       { sched_get_priority_max02     	     {sched_get_priority_max02}                     	 notrun		UCLINUX } 
-       { sched_get_priority_min01     	     {sched_get_priority_min01}                     	 notrun		UCLINUX } 
-       { sched_get_priority_min02     	     {sched_get_priority_min02}                     	 notrun		UCLINUX } 
-       { sched_getparam01     	     {sched_getparam01}                     	 notrun		UCLINUX } 
-       { sched_getparam02     	     {sched_getparam02}                     	 notrun		UCLINUX } 
-       { sched_getparam03     	     {sched_getparam03}                     	 notrun		UCLINUX } 
-       { sched_rr_get_interval01     	     {sched_rr_get_interval01}                     	 notrun		UCLINUX } 
-       { sched_rr_get_interval02     	     {sched_rr_get_interval02}                     	 notrun		UCLINUX } 
-       { sched_rr_get_interval03     	     {sched_rr_get_interval03}                     	 notrun		UCLINUX } 
-       { sched_setparam01     	     {sched_setparam01}                     	 notrun		UCLINUX } 
-       { sched_setparam02     	     {sched_setparam02}                     	 notrun		UCLINUX } 
-       { sched_setparam03     	     {sched_setparam03}                     	 notrun		UCLINUX } 
-       { sched_setparam04     	     {sched_setparam04}                     	 notrun		UCLINUX } 
-       { sched_setparam05     	     {sched_setparam05}                     	 notrun		UCLINUX } 
-       { sched_getscheduler01     	     {sched_getscheduler01}                     	 notrun		UCLINUX } 
-       { sched_getscheduler02     	     {sched_getscheduler02}                     	 notrun		UCLINUX } 
-       { sched_setscheduler01     	     {sched_setscheduler01}                     	 notrun		UCLINUX } 
-       { sched_setscheduler02     	     {sched_setscheduler02}                     	 notrun		UCLINUX } 
-       { sched_yield01     	     {sched_yield01}                     	 notrun		UCLINUX } 
-       { select01     	     {select01}                     	 notrun		UCLINUX } 
-       { select02     	     {select02}                     	 notrun		UCLINUX } 
-       { select03     	     {select03}                     	 notrun		UCLINUX } 
-       { semctl01     	     {semctl01}                     	 notrun		UCLINUX } 
-       { semctl02     	     {semctl02}                     	 notrun		UCLINUX } 
-       { semctl03     	     {semctl03}                     	 notrun		UCLINUX } 
-       { semctl04     	     {semctl04}                     	 notrun		UCLINUX } 
-       { semctl05     	     {semctl05}                     	 notrun		UCLINUX } 
-       { semctl06     	     {semctl06}                     	 notrun		UCLINUX } 
-       { semctl07     	     {semctl07}                     	 notrun		UCLINUX } 
-       { semget01     	     {semget01}                     	 notrun		UCLINUX } 
-       { semget02     	     {semget02}                     	 notrun		UCLINUX } 
-       { semget03     	     {semget03}                     	 notrun		UCLINUX } 
-       { semget04     	     {semget04}                     	 notrun		NA } 
-       { semget05     	     {semget05}                     	 notrun		UCLINUX } 
-       { semget06     	     {semget06}                     	 notrun		UCLINUX } 
-       { semop01     	     {semop01}                     	 notrun		UCLINUX } 
-       { semop02     	     {semop02}                     	 notrun		UCLINUX } 
-       { semop03     	     {semop03}                     	 notrun		UCLINUX } 
-       { semop04     	     {semop04}                     	 notrun		UCLINUX } 
-       { semop05     	     {semop05}                     	 notrun		UCLINUX } 
-       { send01     	     {send01}                     	 notrun		UCLINUX } 
-       { sendfile02     	     {sendfile02}                     	 notrun		UCLINUX } 
-       { sendfile03     	     {sendfile03}                     	 notrun		UCLINUX } 
-       { sendmsg01     	     {sendmsg01}                     	 notrun		UCLINUX } 
-       { sendto01     	     {sendto01}                     	 notrun		UCLINUX } 
-       { setdomainname01    	     {	setdomainname01}                     	 notrun		UCLINUX } 
-       { setdomainname02    	     {	setdomainname02}                     	 notrun		UCLINUX } 
-       { setdomainname03    	     {	setdomainname03}                     	 notrun		UCLINUX } 
-       { setfsgid01     	     {setfsgid01}                     	 notrun		UCLINUX } 
-       { setfsgid02     	     {setfsgid02}                     	 notrun		UCLINUX } 
-       { setfsgid03     	     {setfsgid03}                     	 notrun		UCLINUX } 
-       { setfsuid01     	     {setfsuid01}                     	 notrun		UCLINUX } 
-       { setfsuid02     	     {setfsuid02}                     	 notrun		UCLINUX } 
-       { setfsuid03     	     {setfsuid03}                     	 notrun		UCLINUX } 
-       { setgid01     	     {setgid01}                     	 notrun		UCLINUX } 
-       { setgid02     	     {setgid02}                     	 notrun		UCLINUX } 
-       { setgid03     	     {setgid03}                     	 notrun		UCLINUX } 
-       { setegid01     	     {setegid01}                     	 notrun		UCLINUX } 
-       { setgroups01     	     {setgroups01}                     	 notrun		UCLINUX } 
-       { setgroups02     	     {setgroups02}                     	 notrun		UCLINUX } 
-       { setgroups03     	     {setgroups03}                     	 notrun		UCLINUX } 
-       { setgroups04     	     {setgroups04}                     	 notrun		NA } 
-       { sethostname01     	     {sethostname01}                     	 notrun		UCLINUX } 
-       { sethostname02     	     {sethostname02}                     	 notrun		UCLINUX } 
-       { sethostname03     	     {sethostname03}                     	 notrun		UCLINUX } 
-       { setitimer01     	     {setitimer01}                     	 notrun		UCLINUX } 
-       { setitimer02     	     {setitimer02}                     	 notrun		NA } 
-       { setitimer03     	     {setitimer03}                     	 notrun		UCLINUX } 
-       { setpgid01     	     {setpgid01}                     	 notrun		UCLINUX } 
-       { setpgid02     	     {setpgid02}                     	 notrun		UCLINUX } 
-       { setpgid03     	     {setpgid03}                     	 notrun		UCLINUX } 
-       { setpgrp01     	     {setpgrp01}                     	 notrun		UCLINUX } 
-       { setpgrp02     	     {setpgrp02}                     	 notrun		UCLINUX } 
-       { setpriority01     	     {setpriority01}                     	 notrun		UCLINUX } 
-       { setpriority02     	     {setpriority02}                     	 notrun		UCLINUX } 
-       { setpriority03     	     {setpriority03}                     	 notrun		UCLINUX } 
-       { setpriority04     	     {setpriority04}                     	 notrun		UCLINUX } 
-       { setpriority05     	     {setpriority05}                     	 notrun		UCLINUX } 
-       { setregid01     	     {setregid01}                     	 notrun		UCLINUX } 
-       { setregid02     	     {setregid02}                     	 notrun		UCLINUX } 
-       { setregid03     	     {setregid03}                     	 notrun		UCLINUX } 
-       { setregid04     	     {setregid04}                     	 notrun		UCLINUX } 
-       { setresgid01     	     {setresgid01}                     	 notrun		UCLINUX } 
-       { setresgid02     	     {setresgid02}                     	 notrun		UCLINUX } 
-       { setresgid03     	     {setresgid03}                     	 notrun		UCLINUX } 
-       { setresuid01     	     {setresuid01}                     	 notrun		UCLINUX } 
-       { setresuid02     	     {setresuid02}                     	 notrun		UCLINUX } 
-       { setresuid03     	     {setresuid03}                     	 notrun		UCLINUX } 
-       { setreuid01     	     {setreuid01}                     	 notrun		UCLINUX } 
-       { setreuid02     	     {setreuid02}                     	 notrun		UCLINUX } 
-       { setreuid03     	     {setreuid03}                     	 notrun		UCLINUX } 
-       { setreuid04     	     {setreuid04}                     	 notrun		UCLINUX } 
-       { setreuid05     	     {setreuid05}                     	 notrun		UCLINUX } 
-       { setreuid06     	     {setreuid06}                     	 notrun		UCLINUX } 
-       { setrlimit01     	     {setrlimit01}                     	 notrun		UCLINUX } 
-       { setrlimit02     	     {setrlimit02}                     	 notrun		UCLINUX } 
-       { setrlimit03     	     {setrlimit03}                     	 notrun		UCLINUX } 
-       { setsid01     	     {setsid01}                     	 notrun		UCLINUX } 
-       { setsockopt01     	     {setsockopt01}                     	 notrun		UCLINUX } 
-       { settimeofday01     	     {settimeofday01}                     	 notrun		NA } 
-       { settimeofday02     	     {settimeofday02}                     	 notrun		NA } 
-       { setuid01     	     {setuid01}                     	 notrun		UCLINUX } 
-       { setuid02     	     {setuid02}                     	 notrun		UCLINUX } 
-       { setuid03     	     {setuid03}                     	 notrun		UCLINUX } 
-       { shmat01     	     {shmat01}                     	 notrun		NA } 
-       { shmat02     	     {shmat02}                     	 notrun		UCLINUX } 
-       { shmat03     	     {shmat03}                     	 notrun		UCLINUX } 
-       { shmctl01     	     {shmctl01}                     	 notrun		UCLINUX } 
-       { shmctl02     	     {shmctl02}                     	 notrun		UCLINUX } 
-       { shmctl03     	     {shmctl03}                     	 notrun		UCLINUX } 
-       { shmctl04     	     {shmctl04}                     	 notrun		UCLINUX } 
-       { shmdt01     	     {shmdt01}                     	 notrun		NA } 
-       { shmdt02     	     {shmdt02}                     	 notrun		UCLINUX } 
-       { shmget01     	     {shmget01}                     	 notrun		UCLINUX } 
-       { shmget02     	     {shmget02}                     	 notrun		UCLINUX } 
-       { shmget03     	     {shmget03}                     	 notrun		UCLINUX } 
-       { shmget04     	     {shmget04}                     	 notrun		UCLINUX } 
-       { shmget05     	     {shmget05}                     	 notrun		UCLINUX } 
-       { sigaction01     	     {sigaction01}                     	 notrun		UCLINUX } 
-       { sigaction02     	     {sigaction02}                     	 notrun		UCLINUX } 
-       { sigaltstack01     	     {sigaltstack01}                     	 notrun		NA } 
-       { sigaltstack02     	     {sigaltstack03}                     	 notrun		NA } 
-       { sighold02     	     {sighold02}                     	 notrun		UCLINUX } 
-       { signal01     	     {signal01}                     	 notrun		UCLINUX } 
-       { signal02     	     {signal02}                     	 notrun		UCLINUX } 
-       { signal03     	     {signal03}                     	 notrun		UCLINUX } 
-       { signal04     	     {signal04}                     	 notrun		UCLINUX } 
-       { signal05     	     {signal05}                     	 notrun		UCLINUX } 
-       { sigpending02     	     {sigpending02}                     	 notrun		UCLINUX } 
-       { sigprocmask01     	     {sigprocmask01}                     	 notrun		UCLINUX } 
-       { sigrelse01     	     {sigrelse01}                     	 notrun		UCLINUX } 
-       { sigsuspend01     	     {sigsuspend01}                     	 notrun		UCLINUX } 
-       { socket01     	     {socket01}                     	 notrun		UCLINUX } 
-       { socketcall01     	     {socketcall01}                     	 notrun		UCLINUX } 
-       { socketcall02     	     {socketcall02}                     	 notrun		UCLINUX } 
-       { socketcall03     	     {socketcall03}                     	 notrun		UCLINUX } 
-       { socketcall04     	     {socketcall04}                     	 notrun		UCLINUX } 
-       { socketpair01     	     {socketpair01}                     	 notrun		UCLINUX } 
-       { sockioctl01     	     {sockioctl01}                     	 notrun		UCLINUX } 
-       { splice01     	     {splice01}                     	 notrun		NA } 
-       { tee01     	     {tee01}                     	 notrun		NA } 
-       { stat01     	     {stat01}                     	 notrun		UCLINUX } 
-       { stat02     	     {stat02}                     	 notrun		UCLINUX } 
-       { stat03     	     {stat03}                     	 notrun		UCLINUX } 
-       { stat04     	     {symlink01 -T stat04}                     	 notrun		NA } 
-       { stat05     	     {stat05}                     	 notrun		UCLINUX } 
-       { stat06     	     {stat06}                     	 notrun		UCLINUX } 
-       { statfs01     	     {statfs01}                     	 notrun		UCLINUX } 
-       { statfs02     	     {statfs02}                     	 notrun		UCLINUX } 
-       { statfs03     	     {statfs03}                     	 notrun		UCLINUX } 
-       { statvfs01     	     {statvfs01}                     	 notrun		UCLINUX } 
-       { string01     	     {string01}                     	 notrun		UCLINUX } 
-       { swapoff01     	     {swapoff01}                     	 notrun		NA } 
-       { swapoff02     	     {swapoff02}                     	 notrun		NA } 
-       { swapon01     	     {swapon01}                     	 notrun		NA } 
-       { swapon02     	     {swapon02}                     	 notrun		NA } 
-       { swapon03     	     {swapon03}                     	 notrun		NA } 
-       { symlink01     	     {symlink01}                     	 notrun		UCLINUX } 
-       { symlink02     	     {symlink02}                     	 notrun		UCLINUX } 
-       { symlink03     	     {symlink03}                     	 notrun		UCLINUX } 
-       { symlink04     	     {symlink04}                     	 notrun		UCLINUX } 
-       { symlink05     	     {symlink05}                     	 notrun		UCLINUX } 
-       { symlinkat01     	     {symlinkat01}                     	 notrun		UCLINUX } 
-       { sync01     	     {sync01}                     	 notrun		UCLINUX } 
-       { sync02     	     {sync02}                     	 notrun		UCLINUX } 
-       { syscall01     	     {syscall01}                     	 notrun		UCLINUX } 
-       { sysconf01     	     {sysconf01}                     	 notrun		UCLINUX } 
-       { sysctl01     	     {sysctl01}                     	 notrun		NA } 
-       { sysctl03     	     {sysctl03}                     	 notrun		NA } 
-       { sysctl04     	     {sysctl04}                     	 notrun		NA } 
-       { sysctl05     	     {sysctl05}                     	 notrun		NA } 
-       { sysfs01     	     {sysfs01}                     	 notrun		NA } 
-       { sysfs02     	     {sysfs02}                     	 notrun		NA } 
-       { sysfs03     	     {sysfs03}                     	 notrun		NA } 
-       { sysfs04     	     {sysfs04}                     	 notrun		NA } 
-       { sysfs05     	     {sysfs05}                     	 notrun		NA } 
-       { sysfs06     	     {sysfs06}                     	 notrun		NA } 
-       { sysinfo01     	     {sysinfo01}                     	 notrun		UCLINUX } 
-       { sysinfo02     	     {sysinfo02}                     	 notrun		NA } 
-       { syslog01     	     {syslog01}                     	 notrun		NA } 
-       { syslog02     	     {syslog02}                     	 notrun		NA } 
-       { syslog03     	     {syslog03}                     	 notrun		NA } 
-       { syslog04     	     {syslog04}                     	 notrun		NA } 
-       { syslog05     	     {syslog05}                     	 notrun		NA } 
-       { syslog06     	     {syslog06}                     	 notrun		NA } 
-       { syslog07     	     {syslog07}                     	 notrun		NA } 
-       { syslog08     	     {syslog08}                     	 notrun		NA } 
-       { syslog09     	     {syslog09}                     	 notrun		NA } 
-       { syslog10     	     {syslog10}                     	 notrun		NA } 
-       { syslog11     	     {syslog11}                     	 notrun		NA } 
-       { syslog12     	     {syslog12}                     	 notrun		NA } 
-       { times01     	     {times01}                     	 notrun		UCLINUX } 
-       { times02     	     {times02}                     	 notrun		NA } 
-       { times03     	     {times03}                     	 notrun		UCLINUX } 
-       { truncate01     	     {truncate01}                     	 notrun		UCLINUX } 
-       { truncate02     	     {truncate02}                     	 notrun		UCLINUX } 
-       { truncate03     	     {truncate03}                     	 notrun		UCLINUX } 
-       { truncate04     	     {truncate04}                     	 notrun		UCLINUX } 
-       { umask01     	     {umask01}                     	 notrun		UCLINUX } 
-       { umask02     	     {umask02}                     	 notrun		UCLINUX } 
-       { umask03     	     {umask03}                     	 notrun		UCLINUX } 
-       { uname01     	     {uname01}                     	 notrun		UCLINUX } 
-       { uname02     	     {uname02}                     	 notrun		NA } 
-       { uname03     	     {uname03}                     	 notrun		UCLINUX } 
-       { unlink01     	     {symlink01 -T unlink01}                     	 notrun		NA } 
-       { unlink05     	     {unlink05}                     	 notrun		UCLINUX } 
-       { unlink06     	     {unlink06}                     	 notrun		UCLINUX } 
-       { unlink07     	     {unlink07}                     	 notrun		UCLINUX } 
-       { unlink08     	     {unlink08}                     	 notrun		UCLINUX } 
-       { unlinkat01     	     {unlinkat01}                     	 notrun		UCLINUX } 
-       { ustat01     	     {ustat01}                     	 notrun		UCLINUX } 
-       { ustat02     	     {ustat02}                     	 notrun		UCLINUX } 
-       { utime01     	     {utime01}                     	 notrun		UCLINUX } 
-       { utime01A     	     {symlink01 -T utime01}                     	 notrun		UCLINUX } 
-       { utime02     	     {utime02}                     	 notrun		UCLINUX } 
-       { utime03     	     {utime03}                     	 notrun		UCLINUX } 
-       { utime04     	     {utime04}                     	 notrun		UCLINUX } 
-       { utime05     	     {utime05}                     	 notrun		UCLINUX } 
-       { utime06     	     {utime06}                     	 notrun		UCLINUX } 
-       { vfork01     	     {vfork01}                     	 notrun		UCLINUX } 
-       { vfork02     	     {vfork02}                     	 notrun		UCLINUX } 
-       { vhangup01     	     {vhangup01}                     	 notrun		UCLINUX } 
-       { vhangup02     	     {vhangup02}                     	 notrun		UCLINUX } 
-       { vmsplice01     	     {vmsplice01}                     	 notrun		NA } 
-       { wait02     	     {wait02}                     	 notrun		UCLINUX } 
-       { wait401     	     {wait401}                     	 notrun		UCLINUX } 
-       { wait402     	     {wait402}                     	 notrun		UCLINUX } 
-       { waitpid01     	     {waitpid01}                     	 notrun		UCLINUX } 
-       { waitpid02     	     {waitpid02}                     	 notrun		UCLINUX } 
-       { waitpid03     	     {waitpid03}                     	 notrun		UCLINUX } 
-       { waitpid04     	     {waitpid04}                     	 notrun		UCLINUX } 
-       { waitpid05     	     {waitpid05}                     	 notrun		UCLINUX } 
-       { waitpid06     	     {waitpid06}                     	 notrun		UCLINUX } 
-       { waitpid07     	     {waitpid07}                     	 notrun		UCLINUX } 
-       { waitpid08     	     {waitpid08}                     	 notrun		UCLINUX } 
-       { waitpid09     	     {waitpid09}                     	 notrun		UCLINUX } 
-       { waitpid10     	     {waitpid10 5}                     	 notrun		UCLINUX } 
-       { waitpid11     	     {waitpid11}                     	 notrun		UCLINUX } 
-       { waitpid12     	     {waitpid12}                     	 notrun		UCLINUX } 
-       { waitpid13     	     {waitpid13}                     	 notrun		UCLINUX } 
-       { write01     	     {write01}                     	 notrun		UCLINUX } 
-       { write02     	     {write02}                     	 notrun		UCLINUX } 
-       { write03     	     {write03}                     	 notrun		NA } 
-       { write04     	     {write04}                     	 notrun		UCLINUX } 
-       { write05     	     {write05}                     	 notrun		UCLINUX } 
-       { writev01     	     {writev01}                     	 notrun		NA } 
-       { writev02     	     {writev02}                     	 notrun		NA } 
-       { writev03     	     {writev03}                     	 notrun		NA } 
-       { writev04     	     {writev04}                     	 notrun		NA } 
-       { writev05     	     {writev05}                     	 notrun		NA } 
-       { writev06     	     {writev06}                     	 notrun		NA } 
+set result_matrix {
+       { abort01     	     {ulimit -c 1024;abort01}            notrun		NA }
+       { accept01     	     {accept01}                     	 notrun		UCLINUX }
+       { access01     	     {access01}                     	 notrun		UCLINUX }
+       { access02     	     {access02}                     	 notrun		UCLINUX }
+       { access03     	     {access03}                     	 notrun		NA }
+       { access04     	     {access04}                     	 notrun		UCLINUX }
+       { access05     	     {access05}                     	 notrun		UCLINUX }
+       { acct01     	     {acct01}                     	 notrun		NA }
+       { acct02     	     {acct02}                     	 notrun		NA }
+       { adjtimex01          {adjtimex01}                     	 notrun		UCLINUX }
+       { adjtimex02          {adjtimex02}                     	 notrun		UCLINUX }
+       { alarm01     	     {alarm01}                     	 notrun		UCLINUX }
+       { alarm02     	     {alarm02}                     	 notrun		UCLINUX }
+       { alarm03     	     {alarm03}                     	 notrun		UCLINUX }
+       { alarm05     	     {alarm05}                     	 notrun		UCLINUX }
+       { alarm06     	     {alarm06}                     	 notrun		UCLINUX }
+       { alarm07     	     {alarm07}                     	 notrun		UCLINUX }
+       { asyncio02     	     {asyncio02}                     	 notrun		UCLINUX }
+       { bind01     	     {bind01}                     	 notrun		UCLINUX }
+       { bind02     	     {bind02}                     	 notrun		UCLINUX }
+       { brk01     	     {brk01}                     	 notrun		NA }
+       { capget01     	     {capget01}                     	 notrun		UCLINUX }
+       { capget02     	     {capget02}                     	 notrun		UCLINUX }
+       { capset01     	     {modprobe capability;capset01}      notrun		UCLINUX }
+       { capset02     	     {capset02}                     	 notrun		UCLINUX }
+       { chdir01     	     {chdir01}                     	 notrun		UCLINUX }
+       { chdir01A     	     {symlink01 -T chdir01}              notrun		UCLINUX }
+       { chdir02     	     {chdir02}                     	 notrun		UCLINUX }
+       { chdir03     	     {chdir03}                     	 notrun		UCLINUX }
+       { chdir04     	     {chdir04}                     	 notrun		UCLINUX }
+       { chmod01     	     {chmod01}                     	 notrun		UCLINUX }
+       { chmod01A     	     {symlink01 -T chmod01}              notrun		UCLINUX }
+       { chmod02     	     {chmod02}                     	 notrun		UCLINUX }
+       { chmod03     	     {chmod03}                     	 notrun		UCLINUX }
+       { chmod04     	     {chmod04}                     	 notrun		UCLINUX }
+       { chmod05     	     {cp -p /bin/change_owner /tmp;chmod05 }            notrun		UCLINUX }
+       { chmod06     	     {cp -p /bin/change_owner /tmp;chmod06}             notrun		NA }
+       { chmod07     	     {chmod07}                     	 notrun		UCLINUX }
+       { chown01     	     {chown01}                     	 notrun		UCLINUX }
+       { chown02     	     {chown02}                     	 notrun		UCLINUX }
+       { chown03     	     {export change_owner=/bin/change_owner;chown03}    notrun		UCLINUX }
+       { chown04     	     {cp -p /bin/change_owner /tmp;chown04}             notrun		NA }
+       { chown05     	     {chown05}                     	 notrun		UCLINUX }
+       { chroot01     	     {chroot01}                     	 notrun		UCLINUX }
+       { chroot02     	     {chroot02}                     	 notrun		UCLINUX }
+       { chroot03     	     {chroot03}                     	 notrun		UCLINUX }
+       { chroot04     	     {chroot04}                     	 notrun		UCLINUX }
+       { clone01     	     {clone01}                     	 notrun		UCLINUX }
+       { clone02     	     {clone02}                     	 notrun		UCLINUX }
+       { clone03     	     {clone03}                     	 notrun		UCLINUX }
+       { clone04     	     {clone04}                     	 notrun		UCLINUX }
+       { clone05     	     {clone05}                     	 notrun		UCLINUX }
+       { clone06     	     {clone06}                     	 notrun		UCLINUX }
+       { clone07     	     {clone07}                     	 notrun		UCLINUX }
+       { close01     	     {close01}                     	 notrun		UCLINUX }
+       { close02     	     {close02}                     	 notrun		UCLINUX }
+       { close08     	     {close08}                     	 notrun		UCLINUX }
+       { confstr01     	     {confstr01}                     	 notrun		UCLINUX }
+       { connect01     	     {connect01}                     	 notrun		UCLINUX }
+       { creat01     	     {creat01}                     	 notrun		UCLINUX }
+       { creat03     	     {creat03}                     	 notrun		UCLINUX }
+       { creat04     	     {creat04}                     	 notrun		UCLINUX }
+       { creat05     	     {creat05}                     	 notrun		UCLINUX }
+       { creat06     	     {creat06}                     	 notrun		UCLINUX }
+       { creat07     	     {creat07 -F /bin/test1}             notrun		NA }
+       { creat08     	     {creat08}                     	 notrun		UCLINUX }
+       { creat09     	     {creat09}                     	 notrun		UCLINUX }
+       { dup01     	     {dup01}                     	 notrun		UCLINUX }
+       { dup02     	     {dup02}                     	 notrun		UCLINUX }
+       { dup03     	     {dup03}                     	 notrun		UCLINUX }
+       { dup04     	     {dup04}                     	 notrun		UCLINUX }
+       { dup05     	     {dup05}                     	 notrun		UCLINUX }
+       { dup06     	     {dup06}                     	 notrun		UCLINUX }
+       { dup07     	     {dup07}                     	 notrun		UCLINUX }
+       { dup201     	     {dup201}                     	 notrun		UCLINUX }
+       { dup202     	     {dup202}                     	 notrun		UCLINUX }
+       { dup203     	     {dup203}                     	 notrun		UCLINUX }
+       { dup204     	     {dup204}                     	 notrun		UCLINUX }
+       { dup205     	     {dup205}                     	 notrun		UCLINUX }
+       { eventfd01     	     {eventfd01}                     	 notrun		UCLINUX }
+       { execl01     	     {execl01}                     	 notrun		UCLINUX }
+       { execle01     	     {execle01}                     	 notrun		UCLINUX }
+       { execlp01     	     {execlp01}                     	 notrun		UCLINUX }
+       { execv01     	     {execv01}                     	 notrun		UCLINUX }
+       { execve01     	     {execve01}                     	 notrun		UCLINUX }
+       { execve02     	     {execve02 -F /bin/test3}            notrun		UCLINUX }
+       { execve03     	     {execve03}                     	 notrun		NA }
+       { execve05     	     {execve05 -F /bin/test3}            notrun		UCLINUX }
+       { execve06     	     {execve06 20 /bin/execve06 /bin/execve06 4}        notrun		UCLINUX }
+       { execvp01     	     {execvp01}                     	 notrun		UCLINUX }
+       { exit01     	     {exit01}                     	 notrun		UCLINUX }
+       { exit02     	     {exit02}                     	 notrun		UCLINUX }
+       { faccessat01         {faccessat01}                       notrun		UCLINUX }
+       { posix_fadvise01     {posix_fadvise01}                   notrun		UCLINUX }
+       { posix_fadvise01_64  {posix_fadvise01_64}                notrun		UCLINUX }
+       { posix_fadvise02     {posix_fadvise02}                   notrun		UCLINUX }
+       { posix_fadvise02_64  {posix_fadvise02_64}                notrun		UCLINUX }
+       { posix_fadvise03     {posix_fadvise03}                   notrun		UCLINUX }
+       { posix_fadvise03_64  {posix_fadvise03_64}                notrun		UCLINUX }
+       { posix_fadvise04     {posix_fadvise04}                   notrun		UCLINUX }
+       { posix_fadvise04_64  {posix_fadvise04_64}                notrun		UCLINUX }
+       { fchdir01     	     {fchdir01}                     	 notrun		UCLINUX }
+       { fchdir02     	     {fchdir02}                     	 notrun		UCLINUX }
+       { fchdir03     	     {fchdir03}                     	 notrun		UCLINUX }
+       { fchmod01     	     {fchmod01}                     	 notrun		UCLINUX }
+       { fchmod02     	     {fchmod02}                     	 notrun		UCLINUX }
+       { fchmod03     	     {fchmod03}                     	 notrun		UCLINUX }
+       { fchmod04     	     {fchmod04}                     	 notrun		UCLINUX }
+       { fchmod05     	     {cp -p /bin/change_owner /tmp;fchmod05 }           notrun		UCLINUX }
+       { fchmod06     	     {cp -p /bin/change_owner /tmp;fchmod06}            notrun		UCLINUX }
+       { fchmod07     	     {fchmod07}                     	 notrun		UCLINUX }
+       { fchmodat01          {fchmodat01}                     	 notrun		UCLINUX }
+       { fchown01     	     {fchown01}                     	 notrun		UCLINUX }
+       { fchown02     	     {fchown02}                     	 notrun		UCLINUX }
+       { fchown03     	     {cp -p /bin/change_owner /tmp;fchown03}            notrun		UCLINUX }
+       { fchown04     	     {export change_owner=/bin/change_owner;fchown04}   notrun		UCLINUX }
+       { fchown05     	     {fchown05}                     	 notrun		UCLINUX }
+       { fchownat01          {fchownat01}                     	 notrun		UCLINUX }
+       { fcntl01     	     {fcntl01}                     	 notrun		UCLINUX }
+       { fcntl02     	     {fcntl02}                     	 notrun		UCLINUX }
+       { fcntl03     	     {fcntl03}                     	 notrun		UCLINUX }
+       { fcntl04     	     {fcntl04}                     	 notrun		UCLINUX }
+       { fcntl05     	     {fcntl05}                     	 notrun		UCLINUX }
+       { fcntl06     	     {fcntl06}                     	 notrun		UCLINUX }
+       { fcntl07     	     {fcntl07}                     	 notrun		UCLINUX }
+       { fcntl07B     	     {fcntl07B}                     	 notrun		UCLINUX }
+       { fcntl08     	     {fcntl08}                     	 notrun		UCLINUX }
+       { fcntl09     	     {fcntl09}                     	 notrun		UCLINUX }
+       { fcntl10     	     {fcntl10}                     	 notrun		UCLINUX }
+       { fcntl11     	     {fcntl11}                     	 notrun		UCLINUX }
+       { fcntl12     	     {fcntl12}                     	 notrun		UCLINUX }
+       { fcntl13     	     {fcntl13}                     	 notrun		UCLINUX }
+       { fcntl14     	     {fcntl14}                     	 notrun		UCLINUX }
+       { fcntl15     	     {fcntl15}                     	 notrun		UCLINUX }
+       { fcntl17     	     {fcntl17}                     	 notrun		UCLINUX }
+       { fcntl18     	     {fcntl18}                     	 notrun		UCLINUX }
+       { fcntl19     	     {fcntl19}                     	 notrun		UCLINUX }
+       { fcntl20     	     {fcntl20}                     	 notrun		UCLINUX }
+       { fcntl21     	     {fcntl21}                     	 notrun		UCLINUX }
+       { fcntl22     	     {fcntl22}                     	 notrun		UCLINUX }
+       { fcntl23     	     {fcntl23}                     	 notrun		UCLINUX }
+       { fcntl24     	     {fcntl24}                     	 notrun		UCLINUX }
+       { fcntl25     	     {fcntl25}                     	 notrun		UCLINUX }
+       { fcntl26     	     {fcntl26}                     	 notrun		UCLINUX }
+       { fdatasync01         {fdatasync01}                     	 notrun		UCLINUX }
+       { fdatasync02         {fdatasync02}                     	 notrun		UCLINUX }
+       { flock01     	     {flock01}                     	 notrun		UCLINUX }
+       { flock02     	     {flock02}                     	 notrun		UCLINUX }
+       { flock03     	     {flock03}                     	 notrun		UCLINUX }
+       { flock04     	     {flock04}                     	 notrun		UCLINUX }
+       { flock05     	     {flock05}                     	 notrun		UCLINUX }
+       { flock06     	     {flock06}                     	 notrun		UCLINUX }
+       { fmtmsg01     	     {fmtmsg01}                     	 notrun		NA }
+       { fork01     	     {fork01}                     	 notrun		NA }
+       { fork02     	     {fork02}                     	 notrun		NA }
+       { fork03     	     {fork03}                     	 notrun		NA }
+       { fork04     	     {fork04}                     	 notrun		NA }
+       { fork05     	     {fork05}                     	 notrun		NA }
+       { fork06     	     {fork06}                     	 notrun		NA }
+       { fork07     	     {fork07}                     	 notrun		NA }
+       { fork08     	     {fork08}                     	 notrun		NA }
+       { fork09     	     {fork09}                     	 notrun		NA }
+       { fork10     	     {fork10}                     	 notrun		NA }
+       { fork11     	     {fork11}                     	 notrun		NA }
+       { fpathconf01         {fpathconf01}                     	 notrun		UCLINUX }
+       { fstat01     	     {fstat01}                     	 notrun		UCLINUX }
+       { fstat02     	     {fstat02}                     	 notrun		UCLINUX }
+       { fstat03     	     {fstat03}                     	 notrun		UCLINUX }
+       { fstat04     	     {fstat04}                     	 notrun		UCLINUX }
+       { fstat05     	     {fstat05}                     	 notrun		NA }
+       { fstatfs01     	     {fstatfs01}                     	 notrun		UCLINUX }
+       { fstatfs02     	     {fstatfs02}                     	 notrun		UCLINUX }
+       { fsync01     	     {fsync01}                     	 notrun		UCLINUX }
+       { fsync02     	     {fsync02}                     	 notrun		UCLINUX }
+       { fsync03     	     {fsync03}                     	 notrun		UCLINUX }
+       { ftruncate01         {ftruncate01}                     	 notrun		UCLINUX }
+       { ftruncate02         {ftruncate02}                     	 notrun		UCLINUX }
+       { ftruncate03         {ftruncate03}                     	 notrun		UCLINUX }
+       { ftruncate04         {ftruncate04}                     	 notrun		NA }
+       { futimesat01         {futimesat01}                     	 notrun		UCLINUX }
+       { getcontext01        {getcontext01}                      notrun		NA }
+       { getcwd01     	     {getcwd01}                     	 notrun		UCLINUX }
+       { getcwd02     	     {getcwd02}                     	 notrun		UCLINUX }
+       { getcwd03     	     {getcwd03}                     	 notrun		UCLINUX }
+       { getdents01          {getdents01}                     	 notrun		UCLINUX }
+       { getdents02          {getdents02}                     	 notrun		NA }
+       { getdents03          {getdents03}                     	 notrun		NA }
+       { getdents04          {getdents04}                     	 notrun		NA }
+       { getdomainname01     {getdomainname01}                   notrun		UCLINUX }
+       { getdtablesize01     {getdtablesize01}                   notrun		UCLINUX }
+       { getegid01     	     {getegid01}                     	 notrun		UCLINUX }
+       { geteuid01     	     {geteuid01}                     	 notrun		UCLINUX }
+       { getgid01     	     {getgid01}                     	 notrun		UCLINUX }
+       { getgid02     	     {getgid02}                     	 notrun		UCLINUX }
+       { getgid03     	     {getgid03}                     	 notrun		UCLINUX }
+       { getgroups01         {getgroups01}                     	 notrun		UCLINUX }
+       { getgroups02         {getgroups02}                     	 notrun		UCLINUX }
+       { getgroups03         {getgroups03}                     	 notrun		UCLINUX }
+       { getgroups04         {getgroups04}                     	 notrun		UCLINUX }
+       { gethostid01         {gethostid01}                     	 notrun		UCLINUX }
+       { gethostname01       {gethostname01}                     notrun		UCLINUX }
+       { getitimer01         {getitimer01}                     	 notrun		UCLINUX }
+       { getitimer02         {getitimer02}                     	 notrun		NA }
+       { getitimer03         {getitimer03}                     	 notrun		UCLINUX }
+       { getpagesize01       {getpagesize01}                     notrun		UCLINUX }
+       { getpeername01       {getpeername01}                     notrun		UCLINUX }
+       { getpgid01     	     {getpgid01}                     	 notrun		UCLINUX }
+       { getpgid02     	     {getpgid02}                     	 notrun		UCLINUX }
+       { getpgrp01     	     {getpgrp01}                     	 notrun		UCLINUX }
+       { getpid01     	     {getpid01}                     	 notrun		UCLINUX }
+       { getpid02     	     {getpid02}                     	 notrun		UCLINUX }
+       { getppid01     	     {getppid01}                     	 notrun		UCLINUX }
+       { getppid02     	     {getppid02}                     	 notrun		UCLINUX }
+       { getpriority01       {getpriority01}                     notrun		UCLINUX }
+       { getpriority02       {getpriority02}                     notrun		UCLINUX }
+       { getresgid01         {getresgid01}                     	 notrun		UCLINUX }
+       { getresgid02         {getresgid02}                     	 notrun		UCLINUX }
+       { getresgid03         {getresgid03}                     	 notrun		UCLINUX }
+       { getresuid01         {getresuid01}                     	 notrun		UCLINUX }
+       { getresuid02         {getresuid02}                     	 notrun		UCLINUX }
+       { getresuid03         {getresuid03}                     	 notrun		UCLINUX }
+       { getrlimit01         {getrlimit01}                     	 notrun		UCLINUX }
+       { getrlimit02         {getrlimit02}                     	 notrun		UCLINUX }
+       { getrusage01         {getrusage01}                     	 notrun		UCLINUX }
+       { getrusage02         {getrusage02}                     	 notrun		UCLINUX }
+       { getsid01     	     {getsid01}                     	 notrun		UCLINUX }
+       { getsid02     	     {getsid02}                     	 notrun		UCLINUX }
+       { getsockname01       {getsockname01}                     notrun		UCLINUX }
+       { getsockopt01        {getsockopt01}                      notrun		UCLINUX }
+       { gettimeofday01      {gettimeofday01}                    notrun		UCLINUX }
+       { gettimeofday02      {gettimeofday02}                    notrun		UCLINUX }
+       { getuid01     	     {getuid01}                     	 notrun		UCLINUX }
+       { getuid02     	     {getuid02}                     	 notrun		UCLINUX }
+       { getuid03     	     {getuid03}                     	 notrun		UCLINUX }
+       { ioperm01     	     {ioperm01}                     	 notrun		UCLINUX }
+       { ioperm02     	     {ioperm02}                     	 notrun		UCLINUX }
+       { iopl01     	     {iopl01}                     	 notrun		UCLINUX }
+       { iopl02     	     {iopl02}                     	 notrun		UCLINUX }
+       { inotify01     	     {inotify01}                     	 notrun		UCLINUX }
+       { inotify02     	     {inotify02}                     	 notrun		UCLINUX }
+       { kill01     	     {kill01}                     	 notrun		UCLINUX }
+       { kill02     	     {kill02}                     	 notrun		UCLINUX }
+       { kill03     	     {kill03}                     	 notrun		UCLINUX }
+       { kill04     	     {kill04}                     	 notrun		UCLINUX }
+       { kill05     	     {chmod +x /bin/kill05; kill05}      notrun		UCLINUX }
+       { kill06     	     {kill06}                     	 notrun		UCLINUX }
+       { kill07     	     {kill07}                     	 notrun		UCLINUX }
+       { kill08     	     {kill08}                     	 notrun		UCLINUX }
+       { kill09     	     {kill09}                     	 notrun		UCLINUX }
+       { kill11     	     {ulimit -c 1024;kill11}             notrun		NA }
+       { kill12     	     {kill12}                     	 notrun		UCLINUX }
+       { lchown01     	     {lchown01}                     	 notrun		NA }
+       { lchown02     	     {cp -p /bin/create_link /tmp; lchown02}            notrun		NA }
+       { link01     	     {symlink01 -T link01}               notrun		NA }
+       { link02     	     {link02}                     	 notrun		UCLINUX }
+       { link03     	     {link03}                     	 notrun		UCLINUX }
+       { link04     	     {link04}                     	 notrun		UCLINUX }
+       { link05     	     {link05}                     	 notrun		UCLINUX }
+       { link06     	     {link06}                     	 notrun		UCLINUX }
+       { link07     	     {link07}                     	 notrun		UCLINUX }
+       { linkat01     	     {linkat01}                     	 notrun		UCLINUX }
+       { listen01     	     {listen01}                     	 notrun		UCLINUX }
+       { llseek01     	     {llseek01}                     	 notrun		UCLINUX }
+       { llseek02     	     {llseek02}                     	 notrun		UCLINUX }
+       { lseek01     	     {lseek01}                     	 notrun		UCLINUX }
+       { lseek02     	     {lseek02}                     	 notrun		UCLINUX }
+       { lseek03     	     {lseek03}                     	 notrun		UCLINUX }
+       { lseek04     	     {lseek04}                     	 notrun		UCLINUX }
+       { lseek05     	     {lseek05}                     	 notrun		UCLINUX }
+       { lseek06     	     {lseek06}                     	 notrun		UCLINUX }
+       { lseek07     	     {lseek07}                     	 notrun		UCLINUX }
+       { lseek08     	     {lseek08}                     	 notrun		UCLINUX }
+       { lseek09     	     {lseek09}                     	 notrun		UCLINUX }
+       { lseek10     	     {lseek10}                     	 notrun		UCLINUX }
+       { lstat01A     	     {symlink01 -T lstat01}              notrun		UCLINUX }
+       { lstat01     	     {lstat01}                     	 notrun		UCLINUX }
+       { lstat02     	     {lstat02}                     	 notrun		UCLINUX }
+       { lstat03     	     {lstat03}                     	 notrun		UCLINUX }
+       { mallopt01     	     {mallopt01}                     	 notrun		NA }
+       { memset01     	     {memset01}                     	 notrun		UCLINUX }
+       { memcmp01     	     {memcmp01}                     	 notrun		UCLINUX }
+       { memcpy01     	     {memcpy01}                     	 notrun		UCLINUX }
+       { mlockall01          {mlockall01}                     	 notrun		NA }
+       { mlockall02          {mlockall02}                     	 notrun		NA }
+       { mlockall03          {mlockall03}                     	 notrun		NA }
+       { mkdir01     	     {mkdir01}                     	 notrun		NA }
+       { mkdir02     	     {mkdir02}                     	 notrun		UCLINUX }
+       { mkdir03     	     {mkdir03}                     	 notrun		UCLINUX }
+       { mkdir04     	     {mkdir04}                     	 notrun		UCLINUX }
+       { mkdir05     	     {mkdir05}                     	 notrun		UCLINUX }
+       { mkdir05A     	     {symlink01 -T mkdir05}                     	 notrun		UCLINUX }
+       { mkdir08     	     {mkdir08}                     	 notrun		UCLINUX }
+       { mkdir09     	     {mkdir09}                     	 notrun		UCLINUX }
+       { mkdirat01     	     {mkdir01}                     	 notrun		NA }
+       { mknod01     	     {mknod01}                     	 notrun		UCLINUX }
+       { mknod02     	     {mknod02}                     	 notrun		UCLINUX }
+       { mknod03     	     {mknod03}                     	 notrun		UCLINUX }
+       { mknod04     	     {mknod04}                     	 notrun		UCLINUX }
+       { mknod05     	     {mknod05}                     	 notrun		UCLINUX }
+       { mknod06     	     {mknod06}                     	 notrun		UCLINUX }
+       { mknod07     	     {mknod07}                     	 notrun		UCLINUX }
+       { mknod08     	     {mknod08}                     	 notrun		UCLINUX }
+       { mknod09     	     {mknod09}                     	 notrun		UCLINUX }
+       { mknodat01     	     {mknodat01}                     	 notrun		UCLINUX }
+       { mlock01     	     {mlock01}                     	 notrun		NA }
+       { mlock02     	     {mlock02}                     	 notrun		NA }
+       { qmm01     	     {mmap001 -m 1}                     	 notrun		NA }
+       { mmap01     	     {mmap01}                     	 notrun		NA }
+       { mmap02     	     {mmap02}                     	 notrun		NA }
+       { mmap03     	     {mmap03}                     	 notrun		NA }
+       { mmap04     	     {mmap04}                     	 notrun		NA }
+       { mmap05     	     {mmap05}                     	 notrun		NA }
+       { mmap06     	     {mmap06}                     	 notrun		NA }
+       { mmap07     	     {mmap07}                     	 notrun		NA }
+       { mmap08     	     {mmap08}                     	 notrun		NA }
+       { mmap09     	     {mmap09}                     	 notrun		NA }
+       { modify_ldt01        {modify_ldt01}                      notrun		NA }
+       { modify_ldt02        {modify_ldt02}                      notrun		NA }
+       { mount01             {mount01 -D /dev/sdb1}              notrun		UCLINUX }
+       { mount02             {mount02 -D /dev/sdb1}              notrun		UCLINUX }
+       { mount03             {mount03 -D /dev/sdb1}              notrun		UCLINUX }
+       { mount04             {mount04 -D /dev/sdb1}              notrun		UCLINUX }
+       { mprotect01          {mprotect01}                     	 notrun		NA }
+       { mprotect02          {mprotect02}                     	 notrun		NA }
+       { mprotect03          {mprotect03}                     	 notrun		NA }
+       { mremap01     	     {mremap01}                     	 notrun		NA }
+       { mremap02     	     {mremap02}                     	 notrun		NA }
+       { mremap03     	     {mremap03}                     	 notrun		NA }
+       { mremap04     	     {mremap04}                     	 notrun		NA }
+       { msgctl01     	     {msgctl01}                     	 notrun		UCLINUX }
+       { msgctl02     	     {msgctl02}                     	 notrun		UCLINUX }
+       { msgctl03     	     {msgctl03}                     	 notrun		UCLINUX }
+       { msgctl04     	     {msgctl04}                     	 notrun		UCLINUX }
+       { msgctl05     	     {msgctl05}                     	 notrun		UCLINUX }
+       { msgctl06     	     {msgctl06}                     	 notrun		UCLINUX }
+       { msgctl07     	     {msgctl07}                     	 notrun		UCLINUX }
+       { msgctl08     	     {msgctl08}                     	 notrun		NA }
+       { msgctl09     	     {msgctl09}                     	 notrun		NA }
+       { msgget01     	     {msgget01}                     	 notrun		UCLINUX }
+       { msgget02     	     {msgget02}                     	 notrun		UCLINUX }
+       { msgget03     	     {msgget03}                     	 notrun		UCLINUX }
+       { msgget04     	     {msgget04}                     	 notrun		UCLINUX }
+       { msgrcv01     	     {msgrcv01}                     	 notrun		UCLINUX }
+       { msgrcv02     	     {msgrcv02}                     	 notrun		UCLINUX }
+       { msgrcv03     	     {msgrcv03}                     	 notrun		UCLINUX }
+       { msgrcv04     	     {msgrcv04}                     	 notrun		UCLINUX }
+       { msgrcv05     	     {msgrcv05}                     	 notrun		UCLINUX }
+       { msgrcv06     	     {msgrcv06}                     	 notrun		UCLINUX }
+       { msgsnd01     	     {msgsnd01}                     	 notrun		UCLINUX }
+       { msgsnd02     	     {msgsnd02}                     	 notrun		UCLINUX }
+       { msgsnd03     	     {msgsnd03}                     	 notrun		UCLINUX }
+       { msgsnd04     	     {msgsnd04}                     	 notrun		UCLINUX }
+       { msgsnd05     	     {msgsnd05}                     	 notrun		UCLINUX }
+       { msgsnd06     	     {msgsnd06}                     	 notrun		UCLINUX }
+       { msync01     	     {msync01}                     	 notrun		NA }
+       { msync02     	     {msync02}                     	 notrun		NA }
+       { msync03     	     {msync03}                     	 notrun		NA }
+       { msync04     	     {msync04}                     	 notrun		NA }
+       { msync05     	     {msync05}                     	 notrun		NA }
+       { munlock01     	     {munlock01}                     	 notrun		UCLINUX }
+       { munlock02     	     {munlock02}                     	 notrun		NA }
+       { munlockall01        {munlockall01}                    	 notrun		NA }
+       { munlockall02        {munlockall02}                      notrun		NA }
+       { munmap01     	     {munmap01}                     	 notrun		UCLINUX }
+       { munmap02     	     {munmap02}                     	 notrun		NA }
+       { munmap03     	     {munmap03}                     	 notrun		UCLINUX }
+       { nanosleep01         {nanosleep01}                     	 notrun		UCLINUX }
+       { nanosleep02         {nanosleep02}                     	 notrun		UCLINUX }
+       { nanosleep03         {nanosleep03}                     	 notrun		UCLINUX }
+       { nanosleep04         {nanosleep04}                     	 notrun		UCLINUX }
+       { nftw01     	     {nftw01}                     	 notrun		NA }
+       { nftw6401     	     {nftw6401}                     	 notrun		NA }
+       { nice01     	     {nice01}                     	 notrun		UCLINUX }
+       { nice02     	     {nice02}                     	 notrun		UCLINUX }
+       { nice03     	     {nice03}                     	 notrun		UCLINUX }
+       { nice04     	     {nice04}                     	 notrun		UCLINUX }
+       { nice05     	     {nice05}                     	 notrun		UCLINUX }
+       { open01     	     {open01}                     	 notrun		UCLINUX }
+       { open01A     	     {symlink01 -T open01}                     	 notrun		UCLINUX }
+       { open02     	     {open02}                     	 notrun		UCLINUX }
+       { open03     	     {open03}                     	 notrun		UCLINUX }
+       { open04     	     {open04}                     	 notrun		UCLINUX }
+       { open05     	     {open05}                     	 notrun		UCLINUX }
+       { open06     	     {open06}                     	 notrun		UCLINUX }
+       { open07     	     {open07}                     	 notrun		UCLINUX }
+       { open08     	     {open08}                     	 notrun		UCLINUX }
+       { open09     	     {open09}                     	 notrun		UCLINUX }
+       { open10     	     {open10}                     	 notrun		UCLINUX }
+       { openat01     	     {openat01}                     	 notrun		UCLINUX }
+       { mincore01     	     {mincore01}                     	 notrun		NA }
+       { madvise01     	     {madvise01}                     	 notrun		NA }
+       { madvise02     	     {madvise02}                     	 notrun		NA }
+       { pathconf01          {pathconf01}                     	 notrun		UCLINUX }
+       { pause01     	     {pause01}                     	 notrun		UCLINUX }
+       { pause02     	     {pause02}                     	 notrun		UCLINUX }
+       { pause03     	     {pause03}                     	 notrun		UCLINUX }
+       { pipe01     	     {pipe01}                     	 notrun		UCLINUX }
+       { pipe02     	     {pipe02}                     	 notrun		UCLINUX }
+       { pipe03     	     {pipe03}                     	 notrun		UCLINUX }
+       { pipe04     	     {pipe04}                     	 notrun		UCLINUX }
+       { pipe05     	     {pipe05}                     	 notrun		UCLINUX }
+       { pipe06     	     {pipe06}                     	 notrun		UCLINUX }
+       { pipe07     	     {pipe07}                     	 notrun		UCLINUX }
+       { pipe08     	     {pipe08}                     	 notrun		UCLINUX }
+       { pipe09     	     {pipe09}                     	 notrun		UCLINUX }
+       { pipe10     	     {pipe10}                     	 notrun		UCLINUX }
+       { pipe11     	     {pipe11}                     	 notrun		UCLINUX }
+       { poll01     	     {poll01}                     	 notrun		UCLINUX }
+       { prctl01     	     {prctl01}                     	 notrun		UCLINUX }
+       { prctl02     	     {prctl02}                     	 notrun		UCLINUX }
+       { pread01     	     {pread01}                     	 notrun		UCLINUX }
+       { pread01_64          {pread01_64}                     	 notrun		UCLINUX }
+       { pread02     	     {pread02}                     	 notrun		UCLINUX }
+       { pread02_64          {pread02_64}                     	 notrun		UCLINUX }
+       { pread03     	     {pread03}                     	 notrun		UCLINUX }
+       { pread03_64          {pread03_64}                     	 notrun		UCLINUX }
+       { profil01     	     {profil01}                     	 notrun		NA }
+       { pselect01     	     {pselect01}                     	 notrun		UCLINUX }
+       { ptrace01     	     {ptrace01}                     	 notrun		UCLINUX }
+       { ptrace02     	     {ptrace02}                     	 notrun		UCLINUX }
+       { ptrace03     	     {ptrace03}                     	 notrun		UCLINUX }
+       { pwrite01     	     {pwrite01}                     	 notrun		UCLINUX }
+       { pwrite01_64         {pwrite01_64}                     	 notrun		UCLINUX }
+       { pwrite02     	     {pwrite02}                     	 notrun		UCLINUX }
+       { pwrite02_64         {pwrite02_64}                     	 notrun		UCLINUX }
+       { pwrite03     	     {pwrite03}                     	 notrun		NA }
+       { pwrite03_64         {pwrite03_64}                     	 notrun		NA }
+       { pwrite04     	     {pwrite04}                     	 notrun		UCLINUX }
+       { pwrite04_64         {pwrite04_64}                     	 notrun		UCLINUX }
+       { read01     	     {read01}                     	 notrun		UCLINUX }
+       { read02     	     {read02}                     	 notrun		UCLINUX }
+       { read03     	     {read03}                     	 notrun		UCLINUX }
+       { read04     	     {read04}                     	 notrun		UCLINUX }
+       { readdir01     	     {readdir01}                     	 notrun		UCLINUX }
+       { readdir02     	     {readdir02}                     	 notrun		UCLINUX }
+       { readlink01A         {symlink01 -T readlink01}                     	notrun		UCLINUX }
+       { readlink01          {readlink01}                     	 notrun		UCLINUX }
+       { readlink02          {readlink02}                     	 notrun		UCLINUX }
+       { readlink03          {readlink03}                     	 notrun		UCLINUX }
+       { readlink04          {cp -f /bin/creat_slink /tmp; readlink04}          notrun		UCLINUX }
+       { readlinkat01        {readlinkat01}                      notrun		UCLINUX }
+       { readv01     	     {readv01}                     	 notrun		NA }
+       { readv02     	     {readv02}                     	 notrun		UCLINUX }
+       { readv03     	     {readv03}                     	 notrun		UCLINUX }
+       { reboot01     	     {reboot01}                     	 notrun		UCLINUX }
+       { reboot02     	     {reboot02}                     	 notrun		UCLINUX }
+       { recv01     	     {recv01}                     	 notrun		UCLINUX }
+       { recvfrom01          {recvfrom01}                     	 notrun		UCLINUX }
+       { recvmsg01     	     {recvmsg01}                     	 notrun		UCLINUX }
+       { rename01     	     {rename01}                     	 notrun		UCLINUX }
+       { rename01A     	     {symlink01 -T rename01}             notrun		UCLINUX }
+       { rename02     	     {rename02}                     	 notrun		UCLINUX }
+       { rename03     	     {rename03}                     	 notrun		UCLINUX }
+       { rename04     	     {rename04}                     	 notrun		UCLINUX }
+       { rename05     	     {rename05}                     	 notrun		UCLINUX }
+       { rename06     	     {rename06}                     	 notrun		UCLINUX }
+       { rename07     	     {rename07}                     	 notrun		UCLINUX }
+       { rename08     	     {rename08}                     	 notrun		UCLINUX }
+       { rename09     	     {rename09}                     	 notrun		UCLINUX }
+       { rename10     	     {rename10}                     	 notrun		UCLINUX }
+       { rename12     	     {rename12}                     	 notrun		UCLINUX }
+       { rename13     	     {rename13}                     	 notrun		UCLINUX }
+       { rename14     	     {rename14}                     	 notrun		UCLINUX }
+       { renameat01          {renameat01}                     	 notrun		UCLINUX }
+       { rmdir01     	     {rmdir01}                     	 notrun		UCLINUX }
+       { rmdir02     	     {rmdir02}                     	 notrun		UCLINUX }
+       { rmdir03     	     {rmdir03}                     	 notrun		UCLINUX }
+       { rmdir03A     	     {symlink01 -T rmdir03}              notrun		UCLINUX }
+       { rmdir04     	     {rmdir04}                     	 notrun		UCLINUX }
+       { rmdir05     	     {rmdir05}                     	 notrun		UCLINUX }
+       { sbrk01     	     {sbrk01}                     	 notrun		NA }
+       { sched_get_priority_max01     	     {sched_get_priority_max01}         notrun		UCLINUX }
+       { sched_get_priority_max02     	     {sched_get_priority_max02}         notrun		UCLINUX }
+       { sched_get_priority_min01     	     {sched_get_priority_min01}         notrun		UCLINUX }
+       { sched_get_priority_min02     	     {sched_get_priority_min02}         notrun		UCLINUX }
+       { sched_getparam01    {sched_getparam01}                  notrun		UCLINUX }
+       { sched_getparam02    {sched_getparam02}                  notrun		UCLINUX }
+       { sched_getparam03    {sched_getparam03}                  notrun		UCLINUX }
+       { sched_rr_get_interval01     	     {sched_rr_get_interval01}          notrun		UCLINUX }
+       { sched_rr_get_interval02     	     {sched_rr_get_interval02}          notrun		UCLINUX }
+       { sched_rr_get_interval03     	     {sched_rr_get_interval03}          notrun		UCLINUX }
+       { sched_setparam01    {sched_setparam01}                  notrun		UCLINUX }
+       { sched_setparam02    {sched_setparam02}                  notrun		UCLINUX }
+       { sched_setparam03    {sched_setparam03}                  notrun		UCLINUX }
+       { sched_setparam04    {sched_setparam04}                  notrun		UCLINUX }
+       { sched_setparam05    {sched_setparam05}                  notrun		UCLINUX }
+       { sched_getscheduler01     	     {sched_getscheduler01}             notrun		UCLINUX }
+       { sched_getscheduler02     	     {sched_getscheduler02}             notrun		UCLINUX }
+       { sched_setscheduler01     	     {sched_setscheduler01}             notrun		UCLINUX }
+       { sched_setscheduler02     	     {sched_setscheduler02}             notrun		UCLINUX }
+       { sched_yield01       {sched_yield01}                     notrun		UCLINUX }
+       { select01     	     {select01}                     	 notrun		UCLINUX }
+       { select02     	     {select02}                     	 notrun		UCLINUX }
+       { select03     	     {select03}                     	 notrun		UCLINUX }
+       { semctl01     	     {semctl01}                     	 notrun		UCLINUX }
+       { semctl02     	     {semctl02}                     	 notrun		UCLINUX }
+       { semctl03     	     {semctl03}                     	 notrun		UCLINUX }
+       { semctl04     	     {semctl04}                     	 notrun		UCLINUX }
+       { semctl05     	     {semctl05}                     	 notrun		UCLINUX }
+       { semctl06     	     {semctl06}                     	 notrun		UCLINUX }
+       { semctl07     	     {semctl07}                     	 notrun		UCLINUX }
+       { semget01     	     {semget01}                     	 notrun		UCLINUX }
+       { semget02     	     {semget02}                     	 notrun		UCLINUX }
+       { semget03     	     {semget03}                     	 notrun		UCLINUX }
+       { semget04     	     {semget04}                     	 notrun		NA }
+       { semget05     	     {semget05}                     	 notrun		UCLINUX }
+       { semget06     	     {semget06}                     	 notrun		UCLINUX }
+       { semop01     	     {semop01}                     	 notrun		UCLINUX }
+       { semop02     	     {semop02}                     	 notrun		UCLINUX }
+       { semop03     	     {semop03}                     	 notrun		UCLINUX }
+       { semop04     	     {semop04}                     	 notrun		UCLINUX }
+       { semop05     	     {semop05}                     	 notrun		UCLINUX }
+       { send01     	     {send01}                     	 notrun		UCLINUX }
+       { sendfile02          {sendfile02}                     	 notrun		UCLINUX }
+       { sendfile03          {sendfile03}                     	 notrun		UCLINUX }
+       { sendmsg01     	     {sendmsg01}                     	 notrun		UCLINUX }
+       { sendto01     	     {sendto01}                     	 notrun		UCLINUX }
+       { setdomainname01     {setdomainname01}                   notrun		UCLINUX }
+       { setdomainname02     {setdomainname02}                   notrun		UCLINUX }
+       { setdomainname03     {setdomainname03}                   notrun		UCLINUX }
+       { setfsgid01    	     {setfsgid01}                     	 notrun		UCLINUX }
+       { setfsgid02          {setfsgid02}                     	 notrun		UCLINUX }
+       { setfsgid03          {setfsgid03}                     	 notrun		UCLINUX }
+       { setfsuid01          {setfsuid01}                     	 notrun		UCLINUX }
+       { setfsuid02          {setfsuid02}                     	 notrun		UCLINUX }
+       { setfsuid03          {setfsuid03}                     	 notrun		UCLINUX }
+       { setgid01     	     {setgid01}                     	 notrun		UCLINUX }
+       { setgid02     	     {setgid02}                     	 notrun		UCLINUX }
+       { setgid03     	     {setgid03}                     	 notrun		UCLINUX }
+       { setegid01     	     {setegid01}                     	 notrun		UCLINUX }
+       { setgroups01         {setgroups01}                     	 notrun		UCLINUX }
+       { setgroups02         {setgroups02}                     	 notrun		UCLINUX }
+       { setgroups03         {setgroups03}                     	 notrun		UCLINUX }
+       { setgroups04         {setgroups04}                     	 notrun		NA }
+       { sethostname01       {sethostname01}                     notrun		UCLINUX }
+       { sethostname02       {sethostname02}                     notrun		UCLINUX }
+       { sethostname03       {sethostname03}                     notrun		UCLINUX }
+       { setitimer01         {setitimer01}                     	 notrun		UCLINUX }
+       { setitimer02         {setitimer02}                     	 notrun		NA }
+       { setitimer03         {setitimer03}                     	 notrun		UCLINUX }
+       { setpgid01     	     {setpgid01}                     	 notrun		UCLINUX }
+       { setpgid02     	     {setpgid02}                     	 notrun		UCLINUX }
+       { setpgid03     	     {setpgid03}                     	 notrun		UCLINUX }
+       { setpgrp01     	     {setpgrp01}                     	 notrun		UCLINUX }
+       { setpgrp02     	     {setpgrp02}                     	 notrun		UCLINUX }
+       { setpriority01       {setpriority01}                     notrun		UCLINUX }
+       { setpriority02       {setpriority02}                     notrun		UCLINUX }
+       { setpriority03       {setpriority03}                     notrun		UCLINUX }
+       { setpriority04       {setpriority04}                     notrun		UCLINUX }
+       { setpriority05       {setpriority05}                     notrun		UCLINUX }
+       { setregid01          {setregid01}                     	 notrun		UCLINUX }
+       { setregid02          {setregid02}                     	 notrun		UCLINUX }
+       { setregid03          {setregid03}                     	 notrun		UCLINUX }
+       { setregid04          {setregid04}                     	 notrun		UCLINUX }
+       { setresgid01         {setresgid01}                     	 notrun		UCLINUX }
+       { setresgid02         {setresgid02}                     	 notrun		UCLINUX }
+       { setresgid03         {setresgid03}                     	 notrun		UCLINUX }
+       { setresuid01         {setresuid01}                     	 notrun		UCLINUX }
+       { setresuid02         {setresuid02}                     	 notrun		UCLINUX }
+       { setresuid03         {setresuid03}                     	 notrun		UCLINUX }
+       { setreuid01          {setreuid01}                     	 notrun		UCLINUX }
+       { setreuid02          {setreuid02}                     	 notrun		UCLINUX }
+       { setreuid03          {setreuid03}                     	 notrun		UCLINUX }
+       { setreuid04          {setreuid04}                     	 notrun		UCLINUX }
+       { setreuid05          {setreuid05}                     	 notrun		UCLINUX }
+       { setreuid06          {setreuid06}                     	 notrun		UCLINUX }
+       { setrlimit01         {setrlimit01}                     	 notrun		UCLINUX }
+       { setrlimit02         {setrlimit02}                     	 notrun		UCLINUX }
+       { setrlimit03         {setrlimit03}                     	 notrun		UCLINUX }
+       { setsid01     	     {setsid01}                     	 notrun		UCLINUX }
+       { setsockopt01        {setsockopt01}                      notrun		UCLINUX }
+       { settimeofday01      {settimeofday01}                    notrun		NA }
+       { settimeofday02      {settimeofday02}                    notrun		NA }
+       { setuid01     	     {setuid01}                     	 notrun		UCLINUX }
+       { setuid02     	     {setuid02}                     	 notrun		UCLINUX }
+       { setuid03     	     {setuid03}                     	 notrun		UCLINUX }
+       { shmat01     	     {shmat01}                     	 notrun		NA }
+       { shmat02     	     {shmat02}                     	 notrun		UCLINUX }
+       { shmat03     	     {shmat03}                     	 notrun		UCLINUX }
+       { shmctl01     	     {shmctl01}                     	 notrun		UCLINUX }
+       { shmctl02     	     {shmctl02}                     	 notrun		UCLINUX }
+       { shmctl03     	     {shmctl03}                     	 notrun		UCLINUX }
+       { shmctl04     	     {shmctl04}                     	 notrun		UCLINUX }
+       { shmdt01     	     {shmdt01}                     	 notrun		NA }
+       { shmdt02     	     {shmdt02}                     	 notrun		UCLINUX }
+       { shmget01     	     {shmget01}                     	 notrun		UCLINUX }
+       { shmget02     	     {shmget02}                     	 notrun		UCLINUX }
+       { shmget03     	     {shmget03}                     	 notrun		UCLINUX }
+       { shmget04     	     {shmget04}                     	 notrun		UCLINUX }
+       { shmget05     	     {shmget05}                     	 notrun		UCLINUX }
+       { sigaction01         {sigaction01}                     	 notrun		UCLINUX }
+       { sigaction02         {sigaction02}                     	 notrun		UCLINUX }
+       { sigaltstack01       {sigaltstack01}                     notrun		NA }
+       { sigaltstack02       {sigaltstack03}                     notrun		NA }
+       { sighold02     	     {sighold02}                     	 notrun		UCLINUX }
+       { signal01     	     {signal01}                     	 notrun		UCLINUX }
+       { signal02     	     {signal02}                     	 notrun		UCLINUX }
+       { signal03     	     {signal03}                     	 notrun		UCLINUX }
+       { signal04     	     {signal04}                     	 notrun		UCLINUX }
+       { signal05     	     {signal05}                     	 notrun		UCLINUX }
+       { sigpending02        {sigpending02}                      notrun		UCLINUX }
+       { sigprocmask01       {sigprocmask01}                     notrun		UCLINUX }
+       { sigrelse01          {sigrelse01}                     	 notrun		UCLINUX }
+       { sigsuspend01        {sigsuspend01}                      notrun		UCLINUX }
+       { socket01     	     {socket01}                     	 notrun		UCLINUX }
+       { socketcall01        {socketcall01}                    	 notrun		UCLINUX }
+       { socketcall02        {socketcall02}                    	 notrun		UCLINUX }
+       { socketcall03        {socketcall03}                    	 notrun		UCLINUX }
+       { socketcall04        {socketcall04}                    	 notrun		UCLINUX }
+       { socketpair01        {socketpair01}                    	 notrun		UCLINUX }
+       { sockioctl01         {sockioctl01}                     	 notrun		UCLINUX }
+       { splice01     	     {splice01}                     	 notrun		NA }
+       { stat01     	     {stat01}                     	 notrun		UCLINUX }
+       { stat02     	     {stat02}                     	 notrun		UCLINUX }
+       { stat03     	     {stat03}                     	 notrun		UCLINUX }
+       { stat04     	     {symlink01 -T stat04}               notrun		NA }
+       { stat05     	     {stat05}                     	 notrun		UCLINUX }
+       { stat06     	     {stat06}                     	 notrun		UCLINUX }
+       { statfs01     	     {statfs01}                     	 notrun		UCLINUX }
+       { statfs02     	     {statfs02}                     	 notrun		UCLINUX }
+       { statfs03     	     {statfs03}                     	 notrun		UCLINUX }
+       { statvfs01     	     {statvfs01}                     	 notrun		UCLINUX }
+       { string01     	     {string01}                     	 notrun		UCLINUX }
+       { swapoff01     	     {swapoff01}                     	 notrun		NA }
+       { swapoff02     	     {swapoff02}                     	 notrun		NA }
+       { swapon01     	     {swapon01}                     	 notrun		NA }
+       { swapon02     	     {swapon02}                     	 notrun		NA }
+       { swapon03     	     {swapon03}                     	 notrun		NA }
+       { symlink01     	     {symlink01}                     	 notrun		UCLINUX }
+       { symlink02     	     {symlink02}                     	 notrun		UCLINUX }
+       { symlink03     	     {symlink03}                     	 notrun		UCLINUX }
+       { symlink04     	     {symlink04}                     	 notrun		UCLINUX }
+       { symlink05     	     {symlink05}                     	 notrun		UCLINUX }
+       { symlinkat01         {symlinkat01}                     	 notrun		UCLINUX }
+       { sync01     	     {sync01}                     	 notrun		UCLINUX }
+       { sync02     	     {sync02}                     	 notrun		UCLINUX }
+       { syscall01     	     {syscall01}                     	 notrun		UCLINUX }
+       { sysconf01     	     {sysconf01}                     	 notrun		UCLINUX }
+       { sysctl01     	     {sysctl01}                     	 notrun		NA }
+       { sysctl03     	     {sysctl03}                     	 notrun		NA }
+       { sysctl04     	     {sysctl04}                     	 notrun		NA }
+       { sysctl05     	     {sysctl05}                     	 notrun		NA }
+       { sysfs01     	     {sysfs01}                     	 notrun		NA }
+       { sysfs02     	     {sysfs02}                     	 notrun		NA }
+       { sysfs03     	     {sysfs03}                     	 notrun		NA }
+       { sysfs04     	     {sysfs04}                     	 notrun		NA }
+       { sysfs05     	     {sysfs05}                     	 notrun		NA }
+       { sysfs06     	     {sysfs06}                     	 notrun		NA }
+       { sysinfo01     	     {sysinfo01}                     	 notrun		UCLINUX }
+       { sysinfo02     	     {sysinfo02}                     	 notrun		NA }
+       { syslog01     	     {syslog01}                     	 notrun		NA }
+       { syslog02     	     {syslog02}                     	 notrun		NA }
+       { syslog03     	     {syslog03}                     	 notrun		NA }
+       { syslog04     	     {syslog04}                     	 notrun		NA }
+       { syslog05     	     {syslog05}                     	 notrun		NA }
+       { syslog06     	     {syslog06}                     	 notrun		NA }
+       { syslog07     	     {syslog07}                     	 notrun		NA }
+       { syslog08     	     {syslog08}                     	 notrun		NA }
+       { syslog09     	     {syslog09}                     	 notrun		NA }
+       { syslog10     	     {syslog10}                     	 notrun		NA }
+       { syslog11     	     {syslog11}                     	 notrun		NA }
+       { syslog12     	     {syslog12}                     	 notrun		NA }
+       { tee01     	     {tee01}                     	 notrun		NA }
+       { timerfd01     	     {timerfd01}                     	 notrun		UCLINUX }
+       { times01     	     {times01}                     	 notrun		UCLINUX }
+       { times02     	     {times02}                     	 notrun		NA }
+       { times03     	     {times03}                     	 notrun		UCLINUX }
+       { truncate01    	     {truncate01}                     	 notrun		UCLINUX }
+       { truncate02    	     {truncate02}                     	 notrun		UCLINUX }
+       { truncate03    	     {truncate03}                     	 notrun		UCLINUX }
+       { truncate04    	     {truncate04}                     	 notrun		UCLINUX }
+       { umask01     	     {umask01}                     	 notrun		UCLINUX }
+       { umask02     	     {umask02}                     	 notrun		UCLINUX }
+       { umask03     	     {umask03}                     	 notrun		UCLINUX }
+       { umount01            {umount01 -D /dev/sdb1}             notrun		UCLINUX }
+       { umount02            {umount02 -D /dev/sdb1}             notrun		UCLINUX }
+       { umount03            {umount03 -D /dev/sdb1}             notrun		UCLINUX }
+       { uname01     	     {uname01}                     	 notrun		UCLINUX }
+       { uname02     	     {uname02}                     	 notrun		NA }
+       { uname03     	     {uname03}                     	 notrun		UCLINUX }
+       { unlink01     	     {symlink01 -T unlink01}             notrun		NA }
+       { unlink05     	     {unlink05}                     	 notrun		UCLINUX }
+       { unlink06     	     {unlink06}                     	 notrun		UCLINUX }
+       { unlink07     	     {unlink07}                     	 notrun		UCLINUX }
+       { unlink08     	     {unlink08}                     	 notrun		UCLINUX }
+       { unlinkat01    	     {unlinkat01}                     	 notrun		UCLINUX }
+       { ustat01     	     {ustat01}                     	 notrun		UCLINUX }
+       { ustat02     	     {ustat02}                     	 notrun		UCLINUX }
+       { utime01     	     {utime01}                     	 notrun		UCLINUX }
+       { utime01A     	     {symlink01 -T utime01}              notrun		UCLINUX }
+       { utime02     	     {utime02}                     	 notrun		UCLINUX }
+       { utime03     	     {utime03}                     	 notrun		UCLINUX }
+       { utime04     	     {utime04}                     	 notrun		UCLINUX }
+       { utime05     	     {utime05}                     	 notrun		UCLINUX }
+       { utime06     	     {utime06}                     	 notrun		UCLINUX }
+       { vfork01     	     {vfork01}                     	 notrun		UCLINUX }
+       { vfork02     	     {vfork02}                     	 notrun		UCLINUX }
+       { vhangup01     	     {vhangup01}                     	 notrun		UCLINUX }
+       { vhangup02     	     {vhangup02}                     	 notrun		UCLINUX }
+       { vmsplice01          {vmsplice01}                     	 notrun		NA }
+       { wait02     	     {wait02}                     	 notrun		UCLINUX }
+       { wait401     	     {wait401}                     	 notrun		UCLINUX }
+       { wait402     	     {wait402}                     	 notrun		UCLINUX }
+       { waitpid01     	     {waitpid01}                     	 notrun		UCLINUX }
+       { waitpid02     	     {waitpid02}                     	 notrun		UCLINUX }
+       { waitpid03     	     {waitpid03}                     	 notrun		UCLINUX }
+       { waitpid04     	     {waitpid04}                     	 notrun		UCLINUX }
+       { waitpid05     	     {waitpid05}                     	 notrun		UCLINUX }
+       { waitpid06     	     {waitpid06}                     	 notrun		UCLINUX }
+       { waitpid07     	     {waitpid07}                     	 notrun		UCLINUX }
+       { waitpid08     	     {waitpid08}                     	 notrun		UCLINUX }
+       { waitpid09     	     {waitpid09}                     	 notrun		UCLINUX }
+       { waitpid10     	     {waitpid10 5}                     	 notrun		UCLINUX }
+       { waitpid11     	     {waitpid11}                     	 notrun		UCLINUX }
+       { waitpid12     	     {waitpid12}                     	 notrun		UCLINUX }
+       { waitpid13     	     {waitpid13}                     	 notrun		UCLINUX }
+       { write01     	     {write01}                     	 notrun		UCLINUX }
+       { write02     	     {write02}                     	 notrun		UCLINUX }
+       { write03     	     {write03}                     	 notrun		NA }
+       { write04     	     {write04}                     	 notrun		UCLINUX }
+       { write05     	     {write05}                     	 notrun		UCLINUX }
+       { writev01     	     {writev01}                     	 notrun		NA }
+       { writev02     	     {writev02}                     	 notrun		NA }
+       { writev03     	     {writev03}                     	 notrun		NA }
+       { writev04     	     {writev04}                     	 notrun		NA }
+       { writev05     	     {writev05}                     	 notrun		NA }
+       { writev06     	     {writev06}                     	 notrun		NA }
 }
 
 
@@ -2065,6 +2058,7 @@ puts "\nStart to build ltp...\n"
 #exec $LTP_SCRIPT_DIR/build_ltp.sh 10.99.22.20
 if [ catch {exec ./build_ltp.sh $cvs_server_addr > build_ltp_log} ] {
     send_log "\nfail to build ltp source\n"
+    send_user "$errorInfo\n"
     exit
 }
 
@@ -2296,8 +2290,8 @@ for {set i 0} {$i < 50} {incr i} {
             incr successful_boots
             break
          }
-	 
-	   -re $kernel_prompt {
+
+         -re $kernel_prompt {
             report "successful boot attempt"
             incr successful_boots
             break
@@ -2380,24 +2374,34 @@ test_cleanup
 # Before going on, many of the tests require some setup.
 #
 # Add network configuration.
-sleep 2
-set timeout 2
+set timeout 30
+expect -nocase -re "up.*full"
+
+set timeout 5
 send -s "ifconfig eth0 $ipaddr up\r"
 expect  -re $kernel_prompt
-#sleep 5
- 
+
 step "additional setup for tests"
-catch {exec rcp $LTP_SCRIPT_DIR/config/passwd root@$ipaddr:/etc}
-#sleep 2
+if [ catch {exec rcp $LTP_SCRIPT_DIR/config/passwd root@$ipaddr:/etc} ] {
+    send_user "$errorInfo\n"
+}
 step "copy /etc/passwd"
-catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc}
-#sleep 2
+if [ catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc} ] {
+    send_user "$errorInfo\n"
+}
 step "copy /etc/group"
-#sleep 5
-catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
-catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin}
-catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin}
-catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
+if [ catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin} ] {
+    send_user "$errorInfo\n"
+}
+if [ catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin} ] {
+    send_user "$errorInfo\n"
+}
+if [ catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin} ] {
+    send_user "$errorInfo\n"
+}
+if [ catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin} ] {
+    send_user "$errorInfo\n"
+}
 
 send "export PATH=\$PATH:/bin\r"
 expect "/bin>"
@@ -2414,7 +2418,7 @@ expect "/bin>"
 #while 1 {
 #   expect {
 #
-#      "No such file or directory" { 
+#      "No such file or directory" {
 #         set flag 1
 #      }
 #
@@ -2447,11 +2451,11 @@ expect "/bin>"
 #      # puts "2222222"
 #       break
 #       }
-#      
+#
 #
 #      timeout {
 #          report "timeout during chmod 777 /tmp"
-#         
+#
 #          break
 #      }
 #   }
@@ -2476,8 +2480,7 @@ step "begin test"
 for {set i 0} {$i < [llength $result_matrix]} {incr i} {
    # get the next row of the matrix
    set x [lindex $result_matrix $i]
-  
-   
+
    # execute the command associated with that row: element 1
    #sleep 2
    sleep .5
@@ -2599,7 +2602,7 @@ while {$phase < 4} {
             if {$result == $LTP_PASS} {
                puts -nonewline "[lindex $x 0]  "
             }
- 
+
             incr line_print_counter
             if {$line_print_counter > 6} {
                puts ""
