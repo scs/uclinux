@@ -1,20 +1,6 @@
-#Index: testcases/kernel/syscalls/mmap/Makefile
-#===================================================================
-#--- testcases/kernel/syscalls/mmap/Makefile	(revision 126)
-#+++ testcases/kernel/syscalls/mmap/Makefile	(working copy)
-#@@ -23,7 +23,8 @@
-# #TARGETS = $(patsubst %.c,%,$(SRCS))
-# 
-# ifeq (UCLINUX, $(findstring UCLINUX, $(CFLAGS)))
-#-TARGETS = $(patsubst mmap01,,$(patsubst mmap001,,$(patsubst %.c,%,$(SRCS))))
-#+#TARGETS = $(patsubst mmap01,,$(patsubst mmap001,,$(patsubst %.c,%,$(SRCS))))
-#+TARGETS = $(patsubst mmap001,,$(patsubst %.c,%,$(SRCS)))
-# else
-# TARGETS = $(patsubst %.c,%,$(SRCS))
-# endif
 Index: testcases/kernel/syscalls/mmap/mmap03.c
 ===================================================================
---- testcases/kernel/syscalls/mmap/mmap03.c	(revision 153)
+--- testcases/kernel/syscalls/mmap/mmap03.c	(revision 159)
 +++ testcases/kernel/syscalls/mmap/mmap03.c	(working copy)
 @@ -172,7 +172,7 @@
  					 "Functionality of mmap() successful");
@@ -27,18 +13,18 @@ Index: testcases/kernel/syscalls/mmap/mmap03.c
                          } else {
 Index: testcases/kernel/Makefile
 ===================================================================
---- testcases/kernel/Makefile	(revision 153)
+--- testcases/kernel/Makefile	(revision 159)
 +++ testcases/kernel/Makefile	(working copy)
 @@ -1,5 +1,5 @@
- SUBDIRS = numa containers include fs io ipc mem pty sched security syscalls
--UCLINUX_SUBDIRS = syscalls
-+UCLINUX_SUBDIRS = mem syscalls
+ SUBDIRS = power_management numa containers controllers connectors include fs io ipc mem pty sched security syscalls timers
+-UCLINUX_SUBDIRS = include syscalls
++UCLINUX_SUBDIRS = mem include syscalls
  
  all:
  	@set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
 Index: testcases/kernel/mem/mtest06/Makefile
 ===================================================================
---- testcases/kernel/mem/mtest06/Makefile	(revision 153)
+--- testcases/kernel/mem/mtest06/Makefile	(revision 159)
 +++ testcases/kernel/mem/mtest06/Makefile	(working copy)
 @@ -2,8 +2,13 @@
  CPPFLAGS += -I../../../../include
@@ -62,7 +48,7 @@ Index: testcases/kernel/mem/mtest06/Makefile
 +	rm -f $(TARGETS) *.gdb
 Index: testcases/kernel/mem/Makefile
 ===================================================================
---- testcases/kernel/mem/Makefile	(revision 153)
+--- testcases/kernel/mem/Makefile	(revision 159)
 +++ testcases/kernel/mem/Makefile	(working copy)
 @@ -1,4 +1,11 @@
 +DEBUG_CFLAGS=-O
