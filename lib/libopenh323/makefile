@@ -24,7 +24,7 @@ CXX                             += $(LIBOPENH323_INCLUDE_DIRS)
 
 .PHONY: romfs clean distclean
 
-all: Makefile
+all:: Makefile
 	$(MAKE) -f Makefile opt
 
 Makefile:
@@ -35,12 +35,13 @@ ifneq ($(MAKECMDGOALS),distclean)
 	$(MAKE) -f Makefile $@
 endif
 
+sinclude openh323u.mak
 romfs:
-	$(ROMFSINST) lib/libh323_linux_arm_n.so.1.19.0 /lib/libh323_linux_arm_n.so.1.19.0
+	$(ROMFSINST) lib/$(OH323_FILE).1.19.0 /lib/$(OH323_FILE).1.19.0
 
 
 distclean:
-clean:
+clean::
 	$(MAKE) -f Makefile $@
 	-rm -f Makefile
 	-rm -rf lib/
