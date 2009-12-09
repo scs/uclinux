@@ -642,12 +642,10 @@ BOOL Q931::Encode(PBYTEArray & data) const
   return data.SetSize(offset);
 }
 
-typedef long _Ios_Fmtflags;
-
 void Q931::PrintOn(ostream & strm) const
 {
   int indent = strm.precision() + 2;
-  _Ios_Fmtflags flags = strm.flags();
+  std::_Ios_Fmtflags flags = strm.flags();
 
   strm << "{\n"
        << setw(indent+24) << "protocolDiscriminator = " << protocolDiscriminator << '\n'
