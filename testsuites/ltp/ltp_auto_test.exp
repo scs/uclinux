@@ -29,7 +29,7 @@
 proc usage {} {
    global argv0
 
-   send_error "\nUsage:  $argv0  /dev/port  \[various options]\n"
+   send_error "\nUsage:  $argv0  board_type /dev/port  \[various options]\n"
    send_error "Options:  --stability      run stability test\n"
    send_error "          --net-hosts      run network hosts test\n"
    send_error "          --reboots        run repeated reboots test\n"
@@ -2094,13 +2094,13 @@ cd $LTP_SCRIPT_DIR
 
 
 set argc [llength $argv]
-if { $argc < 1} {
+if { $argc < 2} {
    usage
 }
 # grab the user selections.
-set ttydev         [lindex $argv 0]
+set ttydev         [lindex $argv 1]
 
-for {set i 1} {$i < $argc} {incr i} {
+for {set i 2} {$i < $argc} {incr i} {
 
    switch -exact -- [lindex $argv $i] \
       "--stability" {

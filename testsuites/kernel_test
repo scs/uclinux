@@ -1724,7 +1724,7 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
     # do if build uclinux-dist succeed
     echo "build_ltp_kernel.exp done"
     sleep 30
-    ./ltp_auto_test.exp /dev/ttyS0 2 > /dev/null 2>&1
+    ./ltp_auto_test.exp $BOARD_TYPE /dev/ttyS0 2 > /dev/null 2>&1
     echo "ltp_auto_test.exp done"
     ./ltp_compare_results_all.sh config/summary.base $UCLINUX_DIST_TESTSUITES/ltp/test/logs/summary.new >> ltp_test_log
     #./ltp_decide_standard.pl config/summary.base $UCLINUX_DIST_TESTSUITES/ltp/test/logs/summary.new
