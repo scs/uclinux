@@ -1272,7 +1272,7 @@ PObject * PASN_BitString::Clone() const
 void PASN_BitString::PrintOn(ostream & strm) const
 {
   int indent = strm.precision() + 2;
-  _Ios_Fmtflags flags = strm.flags();
+  std::_Ios_Fmtflags flags = strm.flags();
 
   if (totalBits > 128)
     strm << "Hex {\n"
@@ -1433,7 +1433,7 @@ PObject * PASN_OctetString::Clone() const
 void PASN_OctetString::PrintOn(ostream & strm) const
 {
   int indent = strm.precision() + 2;
-  _Ios_Fmtflags flags = strm.flags();
+  std::_Ios_Fmtflags flags = strm.flags();
 
   strm << ' ' << value.GetSize() << " octets {\n"
        << hex << setfill('0') << resetiosflags(ios::floatfield)
