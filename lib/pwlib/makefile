@@ -29,11 +29,13 @@ ifneq ($(MAKECMDGOALS),distclean)
 	$(MAKE) -f Makefile $@
 endif
 
+PWLIBDIR = .
+sinclude make/unix.mak
 romfs:
-	$(ROMFSINST) lib/libpt_linux_arm_r.so.1.10.3 /lib/libpt_linux_arm_r.so.1.10.3
+	$(ROMFSINST) lib/$(PTLIB_FILE).1.10.3 /lib/$(PTLIB_FILE).1.10.3
 
 distclean:
-clean:
+clean::
 	-$(MAKE) -f Makefile $@
 	-rm -f a.out
 	-rm -f Makefile
