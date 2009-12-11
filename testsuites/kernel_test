@@ -621,7 +621,7 @@ do
       cp $UCLINUX_DIST_PATH/images/vmImage $THIS_LOG/vmImage.${AUTO_TESTCASE[$i]}
   fi
 
-  if [ ${AUTO_TESTCASE[$i]} == "msh" ] || [ ${AUTO_TESTCASE[$i]} == "l1_app" ] || [ ${AUTO_TESTCASE[$i]} == "pthread" ] || [ ${AUTO_TESTCASE[$i]} == "sqlite" ]; then
+  if [ ${AUTO_TESTCASE[$i]} == "msh" ] || [ ${AUTO_TESTCASE[$i]} == "l1_app" ] || [ ${AUTO_TESTCASE[$i]} == "pthread" ] || [ ${AUTO_TESTCASE[$i]} == "sqlite" ] || [ ${AUTO_TESTCASE[$i]} == "dmacopy" ] ; then
   rm -rf $UCLINUX_DIST_PATH/user/busybox
   cd $UCLINUX_DIST_PATH/user 
   cp -a  $UCLINUX_DIST_PATH_BAK/user/busybox  .
