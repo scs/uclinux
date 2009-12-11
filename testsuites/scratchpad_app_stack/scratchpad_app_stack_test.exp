@@ -116,6 +116,11 @@ while 1 {
          case_fail $case_num
       }
 
+      -re "TEST PASS.*$kernel_prompt" {
+         case_pass $case_num
+         break
+      }
+
       eof {
          break
       }
