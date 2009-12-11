@@ -52,6 +52,10 @@ while 1 {
             send "y\r"
         }
 
+        -re "Enable timerfd\\\(\\\) system call.*TIMERFD.*\\\[.*]" {
+            send "y\r"
+        }
+
         -re "Write through \\\(BFIN_WT\\\).*choice\\\[1-2\\\]:" {
             send "$wt_wb\r"
         }
