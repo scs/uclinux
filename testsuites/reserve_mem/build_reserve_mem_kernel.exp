@@ -22,9 +22,6 @@ spawn make config
 while 1 {
    expect {
    
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
            -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
              send "y\r"
       }
