@@ -915,6 +915,7 @@ proc run_LTP_test { filename command torun mode} {
    }
    if { $filename == "mount03" } {
       catch {exec rcp $LTP_TESTCASES_DIR/setuid_test root@$ipaddr:/}
+      catch {exec rcp $LTP_TESTCASES_DIR/setuid_test root@$ipaddr:/bin}
    }
    if { $filename == "readlink01A" } {
       catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
