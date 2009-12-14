@@ -30,9 +30,10 @@ set mmc_dev_part mmcblk0p
 set mmc_dev1 mmcblk0p1
 set mmc_dev2 mmcblk0p2
 
-sleep 5
+sleep 10
 
 send "mkdir /mnt/mmc\r"
+expect -re $kernel_prompt
 
 incr case_num
 set timeout 5
@@ -234,10 +235,11 @@ while 1 {
 }
 
 source ../reboot_kernel.exp
-sleep 5
+sleep 10
 
 send "mkdir /mnt/mmc1\r"
 send "mkdir /mnt/mmc2\r"
+expect -re $kernel_prompt
 
 incr case_num
 set timeout 5
@@ -602,7 +604,7 @@ while 1 {
 }
 
 source ../reboot_kernel.exp
-sleep 5
+sleep 10
 
 incr case_num
 set timeout 5
@@ -648,7 +650,7 @@ while 1 {
 
 step "TEST - Use MMC/SD as root FS"
 source ../reboot_kernel.exp
-sleep 5
+sleep 10
 
 incr case_num
 set timeout 5
