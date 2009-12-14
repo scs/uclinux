@@ -32,9 +32,11 @@ send "ifconfig eth0 $targetip\n"
 expect -re $kernel_prompt
 expect -re "Up.*Full"
 
+set timeout 60
 send_user "exec $uclinux_path/testsuites/g729/cp_g729.sh\n"
 if [ catch { exec $uclinux_path/testsuites/g729/cp_g729.sh } ] {
     send_user "FAIL: copy test_data to test folder\n"
+    send_user "$errorInfo\n"
     case_fail $case_num
 } else {
     send_user "PASS: copy test_data to test folder\n"
@@ -43,6 +45,7 @@ if [ catch { exec $uclinux_path/testsuites/g729/cp_g729.sh } ] {
 send_user "rcp -r $uclinux_path/testsuites/g729/g729/test_data root@$targetip:/var\n"
 if [ catch { exec rcp -r $uclinux_path/testsuites/g729/g729/test_data root@$targetip:/var } ] {
     send_user "FAIL: copy test_data folder to target board\n"
+    send_user "$errorInfo\n"
     case_fail $case_num
 } else {
     send_user "PASS: copy test_data folder to target board\n"
@@ -51,6 +54,7 @@ if [ catch { exec rcp -r $uclinux_path/testsuites/g729/g729/test_data root@$targ
 send_user "rcp $uclinux_path/lib/libbfgdots/g729/test/alltests.sh root@$targetip:/var\n"
 if [ catch { exec rcp $uclinux_path/lib/libbfgdots/g729/test/alltests.sh root@$targetip:/var } ] {
     send_user "FAIL: copy test scripts to target board\n"
+    send_user "$errorInfo\n"
     case_fail $case_num
 } else {
     send_user "PASS: copy test scripts to target board\n"
@@ -59,6 +63,7 @@ if [ catch { exec rcp $uclinux_path/lib/libbfgdots/g729/test/alltests.sh root@$t
 send_user "rcp $uclinux_path/lib/libbfgdots/g729/src.fdpic/libg729ab.so root@$targetip:/lib\n"
 if [ catch { exec rcp $uclinux_path/lib/libbfgdots/g729/src.fdpic/libg729ab.so root@$targetip:/lib } ] {
     send_user "FAIL: copy g729 lib to target board\n"
+    send_user "$errorInfo\n"
     case_fail $case_num
 } else {
     send_user "PASS: copy g729 lib to target board\n"
@@ -68,6 +73,7 @@ foreach element $TEST_PROG {
     send_user "rcp $uclinux_path/lib/libbfgdots/g729/test/$element root@$targetip:/var\n"
     if [ catch { exec rcp $uclinux_path/lib/libbfgdots/g729/test/$element root@$targetip:/var } ] {
         send_user "FAIL: copy $element to target board\n"
+        send_user "$errorInfo\n"
         case_fail $case_num
     } else {
         send_user "PASS: copy $element to target board\n"

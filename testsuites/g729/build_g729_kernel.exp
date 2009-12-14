@@ -95,6 +95,10 @@ while 1 {
             send "N\r"
         }
 
+        -re "Use L1 memory for rx\\\/tx packets.*BFIN_MAC_USE_L1.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "Build libbfgdots.*LIB_LIBBFGDOTS.*\\\[.*]" {
             send "Y\r"
         }
