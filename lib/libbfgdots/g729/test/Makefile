@@ -42,7 +42,7 @@ g729ab_testfdpic.o: g729ab_test.c ../include/g729ab_codec.h
 
 g729ab_testfdpic: g729ab_testfdpic.o ../src.fdpic/libg729ab.a
 	$(FDPIC_CC) -o $@ $^ $(LDLIBS) -Wl,-data-in-l1 -pie -Wl,-sep-code \
-              -Wl,-code-in-l1 -Wl,-z -Wl,now
+              -Wl,-code-in-l1 -Wl,-z -Wl,now -shared-libgcc
 
 # FDPIC test program - dlopen-ed shared lib version
 
