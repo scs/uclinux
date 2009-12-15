@@ -15,7 +15,6 @@ set timeout 300
 spawn make config
 while 1 {
     expect {
-
         -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
             send "y\r"
         }
