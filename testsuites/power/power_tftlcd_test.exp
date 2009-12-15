@@ -270,9 +270,9 @@ while 1 {
         -re "(kill:|Usage:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             case_fail $case_num
         }
-        -re "Terminated" {
-            send "\r"
-            expect -re $kernel_prompt
+        -re $kernel_prompt {
+            send "ps\r"
+            expect -re "Terminated.*$kernel_prompt"
             case_pass $case_num
             break
         }
