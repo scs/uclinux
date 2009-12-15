@@ -10,7 +10,7 @@ send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
 
-proc spectrum_analysis { file_suffix sample_freq } {
+proc spectrum_analysis { file_suffix sample_freq freq_range_up freq_range_down } {
     global case_num
     global result
     global output_dir
@@ -39,9 +39,9 @@ proc spectrum_analysis { file_suffix sample_freq } {
 #power at the sample freqency should be big enough
     incr case_num
     set timeout 10
-    send "grep \"^$sample_freq\..*\[\[:space:]]\[1-9]\[0-9]\\{4,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
+    send "grep \"^$sample_freq\..*\[\[:space:]]\[1-9]\[0-9]\\{3,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
     expect ">"
-    send "grep -c \"^$sample_freq\..*\[\[:space:]]\[1-9]\[0-9]\\{4,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
+    send "grep -c \"^$sample_freq\..*\[\[:space:]]\[1-9]\[0-9]\\{3,\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
     while 1 {
         expect {
             -re "\r\n0\r\n.*>" {
@@ -49,7 +49,7 @@ proc spectrum_analysis { file_suffix sample_freq } {
                 send_user "low power at freqency $sample_freq\n"
                 return
             }
-            -re "\r\n\[1-5]\r\n.*>" {
+            -re "\r\n\[1-9]\[0-9]*\r\n.*>" {
                 case_pass $case_num
                 break
             }
@@ -61,14 +61,13 @@ proc spectrum_analysis { file_suffix sample_freq } {
         }
     }
 
-#power at othe freqency should be small enough
-#If the power of other freqency is more than 10% of the sample frequency, case should fail.
+#make sure power is near sample freqency
     incr case_num
     set timeout 10
-    send "grep -c \"\[\[:space:]]\[5-9]\[0-9]\\{3\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat\r"
+    send "grep \"\[\[:space:]]\[1-9]\[0-9]\\{3\\}\.\[0-9]\\{6,\\}\" $file_suffix.dft.dat | grep -v \"^$freq_range_up.\\\.\" | grep -cv \"^$freq_range_down.\\\.\"\r"
     while 1 {
         expect {
-            -re "\r\n(\[1-9])+(\[0-9])?\r\n.*>" {
+            -re "\r\n\[1-9]\[0-9]*\r\n.*>" {
                 lappend result "FAIL"
                 send_user "too much power at unwanted freqency\n"
                 return
@@ -131,6 +130,7 @@ if { $file_num == 0 } {
 incr case_num
 if [ catch {exec make clean -C snd2fftw/src/} ] {
     send_user "FAIL: Make clean of snd2fftw/src\n"
+    send_user "$errorInfo\n"
     case_fail $case_num
 } else {
     send_user "PASS: Make clean of snd2fftw/src\n"
@@ -138,6 +138,7 @@ if [ catch {exec make clean -C snd2fftw/src/} ] {
 
 if [ catch {exec make -C snd2fftw/src/} ] {
     send_user "FAIL: Make snd2fftw/src\n"
+    send_user "$errorInfo\n"
     case_fail $case_num
 } else {
     send_user "PASS: Make snd2fftw/src\n"
@@ -197,9 +198,11 @@ for {set count 0} {$count < $file_num} {incr count} {
     sleep 2
     set file_suffix [lindex [lindex $file_info $count] 0]
     set sample_freq [lindex [lindex $file_info $count] 1]
+    set freq_range_up [ expr $sample_freq / 10 ]
+    set freq_range_down [ expr $freq_range_up - 1 ]
 
     step "Spectrum test with $file_suffix.wav, frequency $sample_freq"
-    spectrum_analysis $file_suffix $sample_freq
+    spectrum_analysis $file_suffix $sample_freq $freq_range_up $freq_range_down
     send_user "\nThis round of test [lindex $result $count]\n"
 }
 

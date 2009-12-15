@@ -37,7 +37,7 @@ proc rec_at_pc { freq magnitude } {
             }
             timeout {
                 send "\3"
-                expect $kernel_prompt
+                expect -re $kernel_prompt
                 case_fail $case_num
             }
         }
@@ -49,7 +49,7 @@ proc rec_at_pc { freq magnitude } {
 
     incr case_num
     set timeout 10
-    send "arecord -t wav -c 1 -f S16_LE -r 44100 -d 5 $output_dir/${freq}Hz_44100Hz_16bit_05sec_PC.wav\n"
+    send "arecord -t wav -c 1 -f S16_LE -r 44100 -d 5 $output_dir/${freq}Hz_BFIN2PC.wav\n"
     while 1 {
         expect {
             -re "Signed 16 bit Little Endian, Rate 44100 Hz, Mono.*>" {
@@ -58,7 +58,7 @@ proc rec_at_pc { freq magnitude } {
             }
             timeout {
                 send "\3"
-                expect $kernel_prompt
+                expect ">"
                 case_fail $case_num
             }
         }
@@ -84,7 +84,7 @@ proc rec_at_pc { freq magnitude } {
     }
 }
 
-proc rec_from_pc { freq } {
+proc rec_from_pc { freq magnitude } {
     global case_num
     global kermit_spawn_id
     global host_spawn_id
@@ -92,21 +92,21 @@ proc rec_from_pc { freq } {
     global targetip
     global output_dir
 
-#In PC, play sample sound to target board.
+#Generate sine wave at $freq with magnitude of $magnitude on PC.
     set spawn_id $host_spawn_id
 
     incr case_num
     set timeout 10
-    send "aplay snd2fftw/samples/${freq}Hz_44100Hz_16bit_05sec.wav\n"
+    send "tone -s -m $magnitude $freq\n"
     while 1 {
         expect {
-            -re "Signed 16 bit Little Endian, Rate 44100 Hz, Mono" {
+            -re "TONE: generating sine wave at (\[0-9])+ Hz" {
                 case_pass $case_num
                 break
             }
             timeout {
                 send "\3"
-                expect $kernel_prompt
+                expect ">"
                 case_fail $case_num
             }
         }
@@ -117,7 +117,7 @@ proc rec_from_pc { freq } {
 
     incr case_num
     set timeout 10
-    send "arecord -t wav -c 1 -f S16_LE -r 44100 -d 5 ${freq}Hz_44100Hz_16bit_05sec_BFIN.wav\n"
+    send "arecord -t wav -c 1 -f S16_LE -r 44100 -d 5 ${freq}Hz_PC2BFIN.wav\n"
     while 1 {
         expect {
             -re "Signed 16 bit Little Endian, Rate 44100 Hz, Mono.*$kernel_prompt" {
@@ -126,12 +126,11 @@ proc rec_from_pc { freq } {
             }
             timeout {
                 send "\3"
-                expect $kernel_prompt
+                expect -re $kernel_prompt
                 case_fail $case_num
             }
         }
     }
-
 
 #Stop playing sound on PC.
     set spawn_id $host_spawn_id
@@ -152,7 +151,7 @@ proc rec_from_pc { freq } {
     }
 
     incr case_num
-    if [ catch {exec rcp root@$targetip:/${freq}Hz_44100Hz_16bit_05sec_BFIN.wav $output_dir} ] {
+    if [ catch {exec rcp root@$targetip:/${freq}Hz_PC2BFIN.wav $output_dir} ] {
         send_user "FAIL: copy recorded file to PC\n"
         case_fail $case_num
     } else {
@@ -179,6 +178,7 @@ expect ">"
 
 if [ catch {exec rm -fr $output_dir} ] {
     send_user "FAIL: Remove the old DIRECTORY\n"
+    send_user "$errorInfo\n"
 } else {
     send_user "PASS: Remove the old DIRECTORY\n"
 }
@@ -186,23 +186,24 @@ if [ catch {exec rm -fr $output_dir} ] {
 incr case_num
 if [ catch {exec mkdir -p $output_dir} ] {
     send_user "FAIL: Create the DIRECTORY\n"
+    send_user "$errorInfo\n"
     case_fail $case_num
 } else {
     send_user "PASS: Create the DIRECTORY\n"
     case_pass $case_num
 }
 
-rec_at_pc 100   125
-rec_at_pc 250   125
-rec_at_pc 440   125
-rec_at_pc 1000  125
-rec_at_pc 10000 125
+rec_at_pc 100   255
+rec_at_pc 250   255
+rec_at_pc 440   255
+rec_at_pc 1000  255
+rec_at_pc 10000 255
 
-rec_from_pc 100
-rec_from_pc 250
-rec_from_pc 440
-rec_from_pc 1000
-rec_from_pc 10000
+rec_from_pc 100   255
+rec_from_pc 250   255
+rec_from_pc 440   255
+rec_from_pc 1000  255
+rec_from_pc 10000 255
 
 send_log "\n$TITLE ............\[PASS\]\n"
 
