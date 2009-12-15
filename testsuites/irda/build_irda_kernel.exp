@@ -25,7 +25,6 @@ spawn make config
 #Config serial port first
 while 1 {
     expect {
-
         -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
             send "y\r"
         }
@@ -102,10 +101,6 @@ spawn make config
 #Config SIR now
 while 1 {
     expect {
-        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-            send "$expect_out(1,string)\r"
-        }
-
         -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
             send "y\r"
         }
