@@ -33,6 +33,10 @@ while 1 {
             send "y\r"
         }
 
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
+        }
+
         "\\\(*) \\\[*]" {
             sleep .1
             send "\r"

@@ -63,6 +63,10 @@ while 1 {
             }
         }
 
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
+        }
+
         "\\\(*) \\\[*]" {
             sleep .01
             send "\r"
@@ -97,6 +101,10 @@ while 1 {
 
         -re "MTD-based ROM file system support.*ROMFS_MTD_FS.*\\\[.*]" {
             send "Y\r"
+        }
+
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
         }
 
         "\\\(*) \\\[*]" {

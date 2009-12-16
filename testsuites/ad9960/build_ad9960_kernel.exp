@@ -57,6 +57,10 @@ while 1 {
         -nocase -re  " \\\(.*\\\) \\\[\[^\r]*] (\[ymn])" {
         }
 
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
+        }
+
         "\\\(*) \\\[*]" {
             sleep .1
             send "\r"

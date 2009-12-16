@@ -79,6 +79,10 @@ while 1 {
             }
         }
 
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
+        }
+
         "\\\(*) \\\[*]" {
             sleep .01
             send "\r"
@@ -119,6 +123,10 @@ while 1 {
 
         -re "OProfile system profiling.*OPROFILE.*\\\[.*]" {
             send "Y\r"
+        }
+
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
         }
 
         "\\\(*) \\\[*]" {

@@ -17,6 +17,10 @@ spawn make config
 
 while 1 {
     expect {
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
+        }
+
         "\\\(*) \\\[*]" {
             send "\r"
         }
@@ -63,6 +67,10 @@ while 1 {
 
         -re "netperf test tool.*USER_NETPERF_TEST.*\\\[.*]" {
             send -s "Y\r"
+        }
+
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
         }
 
         "\\\(*) \\\[*]" {

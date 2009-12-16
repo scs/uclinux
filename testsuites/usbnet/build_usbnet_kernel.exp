@@ -50,6 +50,10 @@ while 1 {
             send "Y\r"
         }
 
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
+        }
+
         "\\\(*) \\\[*]" {
             sleep .01
             send "\r"
@@ -100,6 +104,10 @@ while 1 {
 
         -re "RNDIS support.*USB_ETH_RNDIS.*\\\[.*]" {
             send "Y\r"
+        }
+
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
         }
 
         "\\\(*) \\\[*]" {

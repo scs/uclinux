@@ -131,6 +131,10 @@ while 1 {
             send  "N\r"
         }
 
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
+        }
+
         "\\\(*) \\\[*]" {
             sleep .01
             send "\r"
@@ -191,6 +195,10 @@ while 1 {
                 }
             }
             set timeout 50
+        }
+
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
         }
 
         "\\\(*) \\\[*]" {

@@ -20,6 +20,10 @@ spawn make config
 while 1 {
     expect {
 
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
+        }
+
         "\\\(*) \\\[*]" {
             send "\r"
         }
@@ -62,6 +66,10 @@ while 1 {
 
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "N\r"
+        }
+
+        -nocase -re "\\\[\[ymn](\\\/\\\?)?] \[ymn]\r" {
+            continue
         }
 
         "\\\(*) \\\[*]" {
