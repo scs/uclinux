@@ -44,7 +44,7 @@ while 1 {
 }
    
 #expect -re $uboot_prompt
-set timeout 10
+set timeout 20
 send -s "tftpboot 0x1000000 $boot_image\r"
 while 1 {
    expect {
