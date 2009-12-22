@@ -68,8 +68,8 @@ typedef struct {
      Cursor              NullCursor;
 } XWindow;
 
-Bool dfb_x11_open_window ( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWidth, int iHeight, DFBSurfacePixelFormat format );
-void dfb_x11_close_window( DFBX11 *x11, XWindow* pXW );
+Bool dfb_x11_open_window ( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWidth, int iHeight, DFBSurfacePixelFormat format ) D_HIDDEN;
+void dfb_x11_close_window( DFBX11 *x11, XWindow* pXW ) D_HIDDEN;
 
 
 

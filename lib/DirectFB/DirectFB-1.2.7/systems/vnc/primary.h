@@ -34,8 +34,8 @@
 #include <core/layers.h>
 #include <core/screens.h>
 
-extern ScreenFuncs       vncPrimaryScreenFuncs;
-extern DisplayLayerFuncs vncPrimaryLayerFuncs;
+extern ScreenFuncs       vncPrimaryScreenFuncs D_HIDDEN;
+extern DisplayLayerFuncs vncPrimaryLayerFuncs D_HIDDEN;
 
 FusionCallHandlerResult
 dfb_vnc_call_handler( int           caller,
@@ -43,7 +43,7 @@ dfb_vnc_call_handler( int           caller,
                       void         *call_ptr,
                       void         *ctx,
                       unsigned int  serial,
-                      int          *ret_val );
+                      int          *ret_val ) D_HIDDEN;
 
 #endif
 

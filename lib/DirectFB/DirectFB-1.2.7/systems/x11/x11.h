@@ -97,14 +97,14 @@ typedef enum {
 
 
 
-DFBResult dfb_x11_create_window_handler ( DFBX11 *x11, CoreLayerRegionConfig *config );
-DFBResult dfb_x11_destroy_window_handler( DFBX11 *x11 );
+DFBResult dfb_x11_create_window_handler ( DFBX11 *x11, CoreLayerRegionConfig *config ) D_HIDDEN;
+DFBResult dfb_x11_destroy_window_handler( DFBX11 *x11 ) D_HIDDEN;
 
-DFBResult dfb_x11_update_screen_handler ( DFBX11 *x11, UpdateScreenData *data );
-DFBResult dfb_x11_set_palette_handler   ( DFBX11 *x11, CorePalette *palette );
+DFBResult dfb_x11_update_screen_handler ( DFBX11 *x11, UpdateScreenData *data ) D_HIDDEN;
+DFBResult dfb_x11_set_palette_handler   ( DFBX11 *x11, CorePalette *palette ) D_HIDDEN;
 
-DFBResult dfb_x11_image_init_handler    ( DFBX11 *x11, x11Image *image );
-DFBResult dfb_x11_image_destroy_handler ( DFBX11 *x11, x11Image *image );
+DFBResult dfb_x11_image_init_handler    ( DFBX11 *x11, x11Image *image ) D_HIDDEN;
+DFBResult dfb_x11_image_destroy_handler ( DFBX11 *x11, x11Image *image ) D_HIDDEN;
 
 
 #endif //__X11SYSTEM__X11_H__

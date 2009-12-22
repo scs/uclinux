@@ -1,0 +1,391 @@
+Index: lib/direct/util.h
+===================================================================
+--- lib/direct/util.h	(revision 9285)
++++ lib/direct/util.h	(working copy)
+@@ -88,6 +88,7 @@
+ #define D_CONST_FUNC
+ #endif
+ 
++#define D_HIDDEN                   __attribute__ ((visibility ("hidden")))
+ 
+ #define D_BITn32(f)  (((f) & 0x00000001) ?  0 : \
+                       ((f) & 0x00000002) ?  1 : \
+Index: systems/sdl/sdl.h
+===================================================================
+--- systems/sdl/sdl.h	(revision 9285)
++++ systems/sdl/sdl.h	(working copy)
+@@ -59,12 +59,12 @@
+      SDL_Surface          *screen;
+ } DFBSDL;
+ 
+-extern DFBSDL  *dfb_sdl;
+-extern CoreDFB *dfb_sdl_core;
++extern DFBSDL  *dfb_sdl D_HIDDEN;
++extern CoreDFB *dfb_sdl_core D_HIDDEN;
+ 
+-DFBResult dfb_sdl_set_video_mode( CoreDFB *core, CoreSurfaceConfig *config );
+-DFBResult dfb_sdl_update_screen( CoreDFB *core, DFBRegion *region );
+-DFBResult dfb_sdl_set_palette( CorePalette *palette );
++DFBResult dfb_sdl_set_video_mode( CoreDFB *core, CoreSurfaceConfig *config ) D_HIDDEN;
++DFBResult dfb_sdl_update_screen( CoreDFB *core, DFBRegion *region ) D_HIDDEN;
++DFBResult dfb_sdl_set_palette( CorePalette *palette ) D_HIDDEN;
+ 
+ #endif
+ 
+Index: systems/sdl/primary.h
+===================================================================
+--- systems/sdl/primary.h	(revision 9285)
++++ systems/sdl/primary.h	(working copy)
+@@ -34,8 +34,8 @@
+ #include <core/layers.h>
+ #include <core/screens.h>
+ 
+-extern ScreenFuncs       sdlPrimaryScreenFuncs;
+-extern DisplayLayerFuncs sdlPrimaryLayerFuncs;
++extern ScreenFuncs       sdlPrimaryScreenFuncs D_HIDDEN;
++extern DisplayLayerFuncs sdlPrimaryLayerFuncs D_HIDDEN;
+ 
+ FusionCallHandlerResult
+ dfb_sdl_call_handler( int           caller,
+@@ -43,7 +43,7 @@
+                       void         *call_ptr,
+                       void         *ctx,
+                       unsigned int  serial,
+-                      int          *ret_val );
++                      int          *ret_val ) D_HIDDEN;
+ 
+ #endif
+ 
+Index: systems/fbdev/vt.h
+===================================================================
+--- systems/fbdev/vt.h	(revision 9285)
++++ systems/fbdev/vt.h	(working copy)
+@@ -61,17 +61,17 @@
+ /*
+  * allocates and switches to a new virtual terminal
+  */
+-DFBResult dfb_vt_initialize( void );
+-DFBResult dfb_vt_join( void );
++DFBResult dfb_vt_initialize( void ) D_HIDDEN;
++DFBResult dfb_vt_join( void ) D_HIDDEN;
+ 
+ /*
+  * deallocates virtual terminal
+  */
+-DFBResult dfb_vt_shutdown( bool emergency );
+-DFBResult dfb_vt_leave( bool emergency );
++DFBResult dfb_vt_shutdown( bool emergency ) D_HIDDEN;
++DFBResult dfb_vt_leave( bool emergency ) D_HIDDEN;
+ 
+-DFBResult dfb_vt_detach( bool force );
++DFBResult dfb_vt_detach( bool force ) D_HIDDEN;
+ 
+-bool dfb_vt_switch( int num );
++bool dfb_vt_switch( int num ) D_HIDDEN;
+ 
+ #endif
+Index: systems/fbdev/surfacemanager.h
+===================================================================
+--- systems/fbdev/surfacemanager.h	(revision 9285)
++++ systems/fbdev/surfacemanager.h	(working copy)
+@@ -80,16 +80,16 @@
+ 
+ DFBResult dfb_surfacemanager_create ( CoreDFB             *core,
+                                       unsigned int         length,
+-                                      SurfaceManager     **ret_manager );
++                                      SurfaceManager     **ret_manager ) D_HIDDEN;
+ 
+-void      dfb_surfacemanager_destroy( SurfaceManager      *manager );
++void      dfb_surfacemanager_destroy( SurfaceManager      *manager ) D_HIDDEN;
+ 
+ /*
+  * adjust the offset within the framebuffer for surface storage,
+  * needs to be called after a resolution switch
+  */
+ DFBResult dfb_surfacemanager_adjust_heap_offset( SurfaceManager *manager,
+-                                                 int             offset );
++                                                 int             offset ) D_HIDDEN;
+ 
+ /*
+  * finds and allocates one for the surface or fails,
+@@ -100,18 +100,18 @@
+                                        SurfaceManager         *manager,
+                                        CoreSurfaceBuffer      *buffer,
+                                        CoreSurfaceAllocation  *allocation,
+-                                       Chunk                 **ret_chunk );
++                                       Chunk                 **ret_chunk ) D_HIDDEN;
+ 
+ DFBResult dfb_surfacemanager_displace( CoreDFB           *core,
+                                        SurfaceManager    *manager,
+-                                       CoreSurfaceBuffer *buffer );
++                                       CoreSurfaceBuffer *buffer ) D_HIDDEN;
+ 
+ /*
+  * sets the video health to CSH_INVALID frees the chunk and
+  * notifies the listeners
+  */
+ DFBResult dfb_surfacemanager_deallocate( SurfaceManager *manager,
+-                                         Chunk          *chunk );
++                                         Chunk          *chunk ) D_HIDDEN;
+ 
+ #endif
+ 
+Index: systems/fbdev/agp.h
+===================================================================
+--- systems/fbdev/agp.h	(revision 9285)
++++ systems/fbdev/agp.h	(working copy)
+@@ -43,11 +43,11 @@
+ } AGPDevice;
+ 
+ 
+-DFBResult dfb_agp_initialize( void );
+-DFBResult dfb_agp_shutdown( void );
++DFBResult dfb_agp_initialize( void ) D_HIDDEN;
++DFBResult dfb_agp_shutdown( void ) D_HIDDEN;
+ 
+-DFBResult dfb_agp_join( void );
+-DFBResult dfb_agp_leave( void );
++DFBResult dfb_agp_join( void ) D_HIDDEN;
++DFBResult dfb_agp_leave( void ) D_HIDDEN;
+ 
+ #endif /* __AGP_H__ */
+ 
+Index: systems/vnc/primary.h
+===================================================================
+--- systems/vnc/primary.h	(revision 9285)
++++ systems/vnc/primary.h	(working copy)
+@@ -34,8 +34,8 @@
+ #include <core/layers.h>
+ #include <core/screens.h>
+ 
+-extern ScreenFuncs       vncPrimaryScreenFuncs;
+-extern DisplayLayerFuncs vncPrimaryLayerFuncs;
++extern ScreenFuncs       vncPrimaryScreenFuncs D_HIDDEN;
++extern DisplayLayerFuncs vncPrimaryLayerFuncs D_HIDDEN;
+ 
+ FusionCallHandlerResult
+ dfb_vnc_call_handler( int           caller,
+@@ -43,7 +43,7 @@
+                       void         *call_ptr,
+                       void         *ctx,
+                       unsigned int  serial,
+-                      int          *ret_val );
++                      int          *ret_val ) D_HIDDEN;
+ 
+ #endif
+ 
+Index: systems/osx/primary.h
+===================================================================
+--- systems/osx/primary.h	(revision 9285)
++++ systems/osx/primary.h	(working copy)
+@@ -34,8 +34,8 @@
+ #include <core/layers.h>
+ #include <core/screens.h>
+ 
+-extern ScreenFuncs       osxPrimaryScreenFuncs;
+-extern DisplayLayerFuncs osxPrimaryLayerFuncs;
++extern ScreenFuncs       osxPrimaryScreenFuncs D_HIDDEN;
++extern DisplayLayerFuncs osxPrimaryLayerFuncs D_HIDDEN;
+ 
+ FusionCallHandlerResult
+ dfb_osx_call_handler( int           caller,
+@@ -43,7 +43,7 @@
+                       void         *call_ptr,
+                       void         *ctx,
+                       unsigned int  serial,
+-                      int          *ret_val )
++                      int          *ret_val ) D_HIDDEN;
+ 
+ #endif
+ 
+Index: systems/x11/xwindow.h
+===================================================================
+--- systems/x11/xwindow.h	(revision 9285)
++++ systems/x11/xwindow.h	(working copy)
+@@ -68,8 +68,8 @@
+      Cursor              NullCursor;
+ } XWindow;
+ 
+-Bool dfb_x11_open_window ( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWidth, int iHeight, DFBSurfacePixelFormat format );
+-void dfb_x11_close_window( DFBX11 *x11, XWindow* pXW );
++Bool dfb_x11_open_window ( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWidth, int iHeight, DFBSurfacePixelFormat format ) D_HIDDEN;
++void dfb_x11_close_window( DFBX11 *x11, XWindow* pXW ) D_HIDDEN;
+ 
+ 
+ 
+Index: systems/x11/vpsmem_surface_pool.h
+===================================================================
+--- systems/x11/vpsmem_surface_pool.h	(revision 9285)
++++ systems/x11/vpsmem_surface_pool.h	(working copy)
+@@ -31,7 +31,7 @@
+ 
+ #include <core/surface_pool.h>
+ 
+-extern const SurfacePoolFuncs vpsmemSurfacePoolFuncs;
++extern const SurfacePoolFuncs vpsmemSurfacePoolFuncs D_HIDDEN;
+ 
+ #endif
+ 
+Index: systems/x11/x11.h
+===================================================================
+--- systems/x11/x11.h	(revision 9285)
++++ systems/x11/x11.h	(working copy)
+@@ -97,14 +97,14 @@
+ 
+ 
+ 
+-DFBResult dfb_x11_create_window_handler ( DFBX11 *x11, CoreLayerRegionConfig *config );
+-DFBResult dfb_x11_destroy_window_handler( DFBX11 *x11 );
++DFBResult dfb_x11_create_window_handler ( DFBX11 *x11, CoreLayerRegionConfig *config ) D_HIDDEN;
++DFBResult dfb_x11_destroy_window_handler( DFBX11 *x11 ) D_HIDDEN;
+ 
+-DFBResult dfb_x11_update_screen_handler ( DFBX11 *x11, UpdateScreenData *data );
+-DFBResult dfb_x11_set_palette_handler   ( DFBX11 *x11, CorePalette *palette );
++DFBResult dfb_x11_update_screen_handler ( DFBX11 *x11, UpdateScreenData *data ) D_HIDDEN;
++DFBResult dfb_x11_set_palette_handler   ( DFBX11 *x11, CorePalette *palette ) D_HIDDEN;
+ 
+-DFBResult dfb_x11_image_init_handler    ( DFBX11 *x11, x11Image *image );
+-DFBResult dfb_x11_image_destroy_handler ( DFBX11 *x11, x11Image *image );
++DFBResult dfb_x11_image_init_handler    ( DFBX11 *x11, x11Image *image ) D_HIDDEN;
++DFBResult dfb_x11_image_destroy_handler ( DFBX11 *x11, x11Image *image ) D_HIDDEN;
+ 
+ 
+ #endif //__X11SYSTEM__X11_H__
+Index: systems/x11/x11_surface_pool.h
+===================================================================
+--- systems/x11/x11_surface_pool.h	(revision 9285)
++++ systems/x11/x11_surface_pool.h	(working copy)
+@@ -33,7 +33,7 @@
+ 
+ #include "x11image.h"
+ 
+-extern const SurfacePoolFuncs x11SurfacePoolFuncs;
++extern const SurfacePoolFuncs x11SurfacePoolFuncs D_HIDDEN;
+ 
+ typedef struct {
+      bool      real;
+Index: systems/x11/x11image.h
+===================================================================
+--- systems/x11/x11image.h	(revision 9285)
++++ systems/x11/x11image.h	(working copy)
+@@ -61,13 +61,13 @@
+                            x11Image              *image,
+                            int                    width,
+                            int                    height,
+-                           DFBSurfacePixelFormat  format );
++                           DFBSurfacePixelFormat  format ) D_HIDDEN;
+ 
+ DFBResult x11ImageDestroy( DFBX11                *x11,
+-                           x11Image              *image );
++                           x11Image              *image ) D_HIDDEN;
+ 
+ DFBResult x11ImageAttach ( x11Image              *image,
+-                           void                 **ret_addr );
++                           void                 **ret_addr ) D_HIDDEN;
+ 
+ #endif /* __X11SYSTEM__X11IMAGE_H__ */
+ 
+Index: systems/x11/surfacemanager.h
+===================================================================
+--- systems/x11/surfacemanager.h	(revision 9285)
++++ systems/x11/surfacemanager.h	(working copy)
+@@ -80,9 +80,9 @@
+ 
+ DFBResult dfb_surfacemanager_create ( CoreDFB             *core,
+                                       unsigned int         length,
+-                                      SurfaceManager     **ret_manager );
++                                      SurfaceManager     **ret_manager ) D_HIDDEN;
+ 
+-void      dfb_surfacemanager_destroy( SurfaceManager      *manager );
++void      dfb_surfacemanager_destroy( SurfaceManager      *manager ) D_HIDDEN;
+ 
+ /*
+  * finds and allocates one for the surface or fails,
+@@ -93,18 +93,18 @@
+                                        SurfaceManager         *manager,
+                                        CoreSurfaceBuffer      *buffer,
+                                        CoreSurfaceAllocation  *allocation,
+-                                       Chunk                 **ret_chunk );
++                                       Chunk                 **ret_chunk ) D_HIDDEN;
+ 
+ DFBResult dfb_surfacemanager_displace( CoreDFB           *core,
+                                        SurfaceManager    *manager,
+-                                       CoreSurfaceBuffer *buffer );
++                                       CoreSurfaceBuffer *buffer ) D_HIDDEN;
+ 
+ /*
+  * sets the video health to CSH_INVALID frees the chunk and
+  * notifies the listeners
+  */
+ DFBResult dfb_surfacemanager_deallocate( SurfaceManager *manager,
+-                                         Chunk          *chunk );
++                                         Chunk          *chunk ) D_HIDDEN;
+ 
+ #endif
+ 
+Index: systems/x11/primary.h
+===================================================================
+--- systems/x11/primary.h	(revision 9285)
++++ systems/x11/primary.h	(working copy)
+@@ -32,8 +32,8 @@
+ #include <core/layers.h>
+ #include <core/screens.h>
+ 
+-extern ScreenFuncs       x11PrimaryScreenFuncs;
+-extern DisplayLayerFuncs x11PrimaryLayerFuncs;
++extern ScreenFuncs       x11PrimaryScreenFuncs D_HIDDEN;
++extern DisplayLayerFuncs x11PrimaryLayerFuncs D_HIDDEN;
+ 
+ #endif // __X11__PRIMARY_H__
+ 
+Index: systems/devmem/devmem.h
+===================================================================
+--- systems/devmem/devmem.h	(revision 9285)
++++ systems/devmem/devmem.h	(working copy)
+@@ -38,7 +38,7 @@
+ 
+ #define DEV_MEM     "/dev/mem"
+ 
+-extern const SurfacePoolFuncs devmemSurfacePoolFuncs;
++extern const SurfacePoolFuncs devmemSurfacePoolFuncs D_HIDDEN;
+ 
+ 
+ typedef struct {
+Index: systems/devmem/surfacemanager.h
+===================================================================
+--- systems/devmem/surfacemanager.h	(revision 9285)
++++ systems/devmem/surfacemanager.h	(working copy)
+@@ -80,9 +80,9 @@
+ 
+ DFBResult dfb_surfacemanager_create ( CoreDFB             *core,
+                                       unsigned int         length,
+-                                      SurfaceManager     **ret_manager );
++                                      SurfaceManager     **ret_manager ) D_HIDDEN;
+ 
+-void      dfb_surfacemanager_destroy( SurfaceManager      *manager );
++void      dfb_surfacemanager_destroy( SurfaceManager      *manager ) D_HIDDEN;
+ 
+ /*
+  * finds and allocates one for the surface or fails,
+@@ -93,18 +93,18 @@
+                                        SurfaceManager         *manager,
+                                        CoreSurfaceBuffer      *buffer,
+                                        CoreSurfaceAllocation  *allocation,
+-                                       Chunk                 **ret_chunk );
++                                       Chunk                 **ret_chunk ) D_HIDDEN;
+ 
+ DFBResult dfb_surfacemanager_displace( CoreDFB           *core,
+                                        SurfaceManager    *manager,
+-                                       CoreSurfaceBuffer *buffer );
++                                       CoreSurfaceBuffer *buffer ) D_HIDDEN;
+ 
+ /*
+  * sets the video health to CSH_INVALID frees the chunk and
+  * notifies the listeners
+  */
+ DFBResult dfb_surfacemanager_deallocate( SurfaceManager *manager,
+-                                         Chunk          *chunk );
++                                         Chunk          *chunk ) D_HIDDEN;
+ 
+ #endif
+ 

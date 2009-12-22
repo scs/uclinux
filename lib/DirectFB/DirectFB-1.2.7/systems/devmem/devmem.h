@@ -38,7 +38,7 @@
 
 #define DEV_MEM     "/dev/mem"
 
-extern const SurfacePoolFuncs devmemSurfacePoolFuncs;
+extern const SurfacePoolFuncs devmemSurfacePoolFuncs D_HIDDEN;
 
 
 typedef struct {

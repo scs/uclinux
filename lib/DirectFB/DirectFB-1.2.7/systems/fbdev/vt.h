@@ -61,17 +61,17 @@ typedef struct {
 /*
  * allocates and switches to a new virtual terminal
  */
-DFBResult dfb_vt_initialize( void );
-DFBResult dfb_vt_join( void );
+DFBResult dfb_vt_initialize( void ) D_HIDDEN;
+DFBResult dfb_vt_join( void ) D_HIDDEN;
 
 /*
  * deallocates virtual terminal
  */
-DFBResult dfb_vt_shutdown( bool emergency );
-DFBResult dfb_vt_leave( bool emergency );
+DFBResult dfb_vt_shutdown( bool emergency ) D_HIDDEN;
+DFBResult dfb_vt_leave( bool emergency ) D_HIDDEN;
 
-DFBResult dfb_vt_detach( bool force );
+DFBResult dfb_vt_detach( bool force ) D_HIDDEN;
 
-bool dfb_vt_switch( int num );
+bool dfb_vt_switch( int num ) D_HIDDEN;
 
 #endif

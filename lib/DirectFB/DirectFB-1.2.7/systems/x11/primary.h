@@ -32,8 +32,8 @@
 #include <core/layers.h>
 #include <core/screens.h>
 
-extern ScreenFuncs       x11PrimaryScreenFuncs;
-extern DisplayLayerFuncs x11PrimaryLayerFuncs;
+extern ScreenFuncs       x11PrimaryScreenFuncs D_HIDDEN;
+extern DisplayLayerFuncs x11PrimaryLayerFuncs D_HIDDEN;
 
 #endif // __X11__PRIMARY_H__
 

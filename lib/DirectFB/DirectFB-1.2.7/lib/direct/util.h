@@ -88,6 +88,7 @@
 #define D_CONST_FUNC
 #endif
 
+#define D_HIDDEN                   __attribute__ ((visibility ("hidden")))
 
 #define D_BITn32(f)  (((f) & 0x00000001) ?  0 : \
                       ((f) & 0x00000002) ?  1 : \

@@ -80,9 +80,9 @@ struct _SurfaceManager {
 
 DFBResult dfb_surfacemanager_create ( CoreDFB             *core,
                                       unsigned int         length,
-                                      SurfaceManager     **ret_manager );
+                                      SurfaceManager     **ret_manager ) D_HIDDEN;
 
-void      dfb_surfacemanager_destroy( SurfaceManager      *manager );
+void      dfb_surfacemanager_destroy( SurfaceManager      *manager ) D_HIDDEN;
 
 /*
  * finds and allocates one for the surface or fails,
@@ -93,18 +93,18 @@ DFBResult dfb_surfacemanager_allocate( CoreDFB                *core,
                                        SurfaceManager         *manager,
                                        CoreSurfaceBuffer      *buffer,
                                        CoreSurfaceAllocation  *allocation,
-                                       Chunk                 **ret_chunk );
+                                       Chunk                 **ret_chunk ) D_HIDDEN;
 
 DFBResult dfb_surfacemanager_displace( CoreDFB           *core,
                                        SurfaceManager    *manager,
-                                       CoreSurfaceBuffer *buffer );
+                                       CoreSurfaceBuffer *buffer ) D_HIDDEN;
 
 /*
  * sets the video health to CSH_INVALID frees the chunk and
  * notifies the listeners
  */
 DFBResult dfb_surfacemanager_deallocate( SurfaceManager *manager,
-                                         Chunk          *chunk );
+                                         Chunk          *chunk ) D_HIDDEN;
 
 #endif
 

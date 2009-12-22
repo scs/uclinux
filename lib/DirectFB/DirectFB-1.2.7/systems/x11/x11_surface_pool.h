@@ -33,7 +33,7 @@
 
 #include "x11image.h"
 
-extern const SurfacePoolFuncs x11SurfacePoolFuncs;
+extern const SurfacePoolFuncs x11SurfacePoolFuncs D_HIDDEN;
 
 typedef struct {
      bool      real;

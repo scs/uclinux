@@ -61,13 +61,13 @@ DFBResult x11ImageInit   ( DFBX11                *x11,
                            x11Image              *image,
                            int                    width,
                            int                    height,
-                           DFBSurfacePixelFormat  format );
+                           DFBSurfacePixelFormat  format ) D_HIDDEN;
 
 DFBResult x11ImageDestroy( DFBX11                *x11,
-                           x11Image              *image );
+                           x11Image              *image ) D_HIDDEN;
 
 DFBResult x11ImageAttach ( x11Image              *image,
-                           void                 **ret_addr );
+                           void                 **ret_addr ) D_HIDDEN;
 
 #endif /* __X11SYSTEM__X11IMAGE_H__ */
 

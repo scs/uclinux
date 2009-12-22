@@ -34,8 +34,8 @@
 #include <core/layers.h>
 #include <core/screens.h>
 
-extern ScreenFuncs       osxPrimaryScreenFuncs;
-extern DisplayLayerFuncs osxPrimaryLayerFuncs;
+extern ScreenFuncs       osxPrimaryScreenFuncs D_HIDDEN;
+extern DisplayLayerFuncs osxPrimaryLayerFuncs D_HIDDEN;
 
 FusionCallHandlerResult
 dfb_osx_call_handler( int           caller,
@@ -43,7 +43,7 @@ dfb_osx_call_handler( int           caller,
                       void         *call_ptr,
                       void         *ctx,
                       unsigned int  serial,
-                      int          *ret_val )
+                      int          *ret_val ) D_HIDDEN;
 
 #endif
 

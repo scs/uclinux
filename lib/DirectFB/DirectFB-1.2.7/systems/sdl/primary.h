@@ -34,8 +34,8 @@
 #include <core/layers.h>
 #include <core/screens.h>
 
-extern ScreenFuncs       sdlPrimaryScreenFuncs;
-extern DisplayLayerFuncs sdlPrimaryLayerFuncs;
+extern ScreenFuncs       sdlPrimaryScreenFuncs D_HIDDEN;
+extern DisplayLayerFuncs sdlPrimaryLayerFuncs D_HIDDEN;
 
 FusionCallHandlerResult
 dfb_sdl_call_handler( int           caller,
@@ -43,7 +43,7 @@ dfb_sdl_call_handler( int           caller,
                       void         *call_ptr,
                       void         *ctx,
                       unsigned int  serial,
-                      int          *ret_val );
+                      int          *ret_val ) D_HIDDEN;
 
 #endif
 

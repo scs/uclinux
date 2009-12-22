@@ -31,7 +31,7 @@
 
 #include <core/surface_pool.h>
 
-extern const SurfacePoolFuncs vpsmemSurfacePoolFuncs;
+extern const SurfacePoolFuncs vpsmemSurfacePoolFuncs D_HIDDEN;
 
 #endif
 

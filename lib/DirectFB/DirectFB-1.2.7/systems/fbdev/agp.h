@@ -43,11 +43,11 @@ typedef struct {
 } AGPDevice;
 
 
-DFBResult dfb_agp_initialize( void );
-DFBResult dfb_agp_shutdown( void );
+DFBResult dfb_agp_initialize( void ) D_HIDDEN;
+DFBResult dfb_agp_shutdown( void ) D_HIDDEN;
 
-DFBResult dfb_agp_join( void );
-DFBResult dfb_agp_leave( void );
+DFBResult dfb_agp_join( void ) D_HIDDEN;
+DFBResult dfb_agp_leave( void ) D_HIDDEN;
 
 #endif /* __AGP_H__ */
 

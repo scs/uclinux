@@ -59,12 +59,12 @@ typedef struct {
      SDL_Surface          *screen;
 } DFBSDL;
 
-extern DFBSDL  *dfb_sdl;
-extern CoreDFB *dfb_sdl_core;
+extern DFBSDL  *dfb_sdl D_HIDDEN;
+extern CoreDFB *dfb_sdl_core D_HIDDEN;
 
-DFBResult dfb_sdl_set_video_mode( CoreDFB *core, CoreSurfaceConfig *config );
-DFBResult dfb_sdl_update_screen( CoreDFB *core, DFBRegion *region );
-DFBResult dfb_sdl_set_palette( CorePalette *palette );
+DFBResult dfb_sdl_set_video_mode( CoreDFB *core, CoreSurfaceConfig *config ) D_HIDDEN;
+DFBResult dfb_sdl_update_screen( CoreDFB *core, DFBRegion *region ) D_HIDDEN;
+DFBResult dfb_sdl_set_palette( CorePalette *palette ) D_HIDDEN;
 
 #endif
 
