@@ -76,6 +76,8 @@ No   Fixed Bugs
 5628 g729 test crashed on bf548/bf527 with gcc 4.3 toolchain
 5775 RESOURCE_LABEL_SIZE in bfin_gpio.c is 16, but “Blackfin-GPIOlib” is longer (with tailing \0)
 5522 Lib DirectFB-1.4.0 crashes when run DirectFB demo on SVN trunk
+4735 unaligned accesses in qt webkit
+5452 qt application fails to run on bf537-stamp
 
 Known Issues
 A full list of known issues of 2009R1.1 release can be found at: 
