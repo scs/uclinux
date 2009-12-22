@@ -131,6 +131,15 @@ while 1 {
         }
 }
 
+send -s "stty -F $ttyBFdev -a\r"
+while 1 {
+        expect {
+                -re  "$kernel_prompt" { break  }
+                timeout {
+                     send_user "Failed to set uart speed.\n"
+                     exit }
+        }
+}
 send -s "cat $ttyBFdev > $target_file \r"
 while 1 {
         expect {
@@ -181,6 +190,17 @@ expect {
 }
 }
 
+while 1 {
+send -s "stty -F $ttydev_for_testcase_use -a \r"
+expect {
+        -re  "speed.*$sh_prompt" {
+          break }
+         timeout {
+          puts " set $ttydev_for_testcase_use failed...\n"
+          break
+         }
+}
+}
 set spawn_id $target_id
 set timeout 5
 sleep 3
