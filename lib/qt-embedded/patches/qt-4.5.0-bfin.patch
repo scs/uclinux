@@ -67,6 +67,27 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +# undef MAP_SHARED
 +# define MAP_SHARED MAP_PRIVATE
 +#endif
+--- a/src/gui/painting/qblendfunctions.cpp
++++ b/src/gui/painting/qblendfunctions.cpp
+@@ -335,7 +335,7 @@
+         const uchar *src = srcPixels + y * sbpl;
+         const uchar *srcEnd = src + srcOffset;
+         while (src < srcEnd) {
+-#if defined(QT_ARCH_ARM) || defined(QT_ARCH_POWERPC) || (defined(QT_ARCH_WINDOWSCE) && !defined(_X86_))
++#if defined(QT_ARCH_BFIN) || defined(QT_ARCH_ARM) || defined(QT_ARCH_POWERPC) || (defined(QT_ARCH_WINDOWSCE) && !defined(_X86_))
+             // non-16-bit aligned memory access is not possible on PowerPC &
+             // ARM <v6 (QT_ARCH_ARMV6)
+             quint16 spix = (quint16(src[2])<<8) + src[1];
+--- a/src/corelib/global/qglobal.h
++++ b/src/corelib/global/qglobal.h
+@@ -1000,7 +1000,7 @@
+ 
+ typedef int QNoImplicitBoolCast;
+ 
+-#if defined(QT_ARCH_ARM) || defined(QT_ARCH_ARMV6) || defined(QT_ARCH_AVR32) || (defined(QT_ARCH_MIPS) && (defined(Q_WS_QWS) || defined(Q_OS_WINCE))) || defined(QT_ARCH_SH) || defined(QT_ARCH_SH4A)
++#if defined(QT_ARCH_ARM) || defined(QT_ARCH_ARMV6) || defined(QT_ARCH_AVR32) || (defined(QT_ARCH_MIPS) && (defined(Q_WS_QWS) || defined(Q_OS_WINCE))) || defined(QT_ARCH_SH) || defined(QT_ARCH_SH4A) || defined(QT_ARCH_BFIN)
+ #define QT_NO_FPU
+ #endif
 --- a/src/corelib/io/qfilesystemwatcher_inotify.cpp
 +++ b/src/corelib/io/qfilesystemwatcher_inotify.cpp
 @@ -106,6 +106,10 @@
