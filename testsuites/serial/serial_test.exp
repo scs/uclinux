@@ -21,7 +21,7 @@ source ../reboot_kernel.exp
 
 step "Start $TITLE"
 set target_id $spawn_id
-set ttyflags "-icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl min 1 time 0"
+set ttyflags "-icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl -parenb -parodd cs8 hupcl -cstopb cread clocal -crtscts min 1 time 0"
 
 set case_num 0
 

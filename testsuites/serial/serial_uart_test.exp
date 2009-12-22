@@ -67,7 +67,7 @@ send_log "\nStarting test for UART ...\n"
 set TITLE [title "$argv0"]
 append TITLE " ($port_type)"
 
-set ttyflags "-icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl min 1 time 0"
+set ttyflags "-icrnl -ixon igncr -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoke -hupcl -echoctl -parenb -parodd cs8 hupcl -cstopb cread clocal -crtscts min 1 time 0"
 set bits_number 8
 set target_file aaa
 set host_file bbb
