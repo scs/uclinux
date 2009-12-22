@@ -1,6 +1,6 @@
 Release Notes for Blackfin Linux Distribution 2009R1.1
 Version: 2009R1.1 
-Date: Dec. 16, 2009 
+Date: Dec. 22, 2009 
 The latest version of this document can always be found here: http://docs.blackfin.uclinux.org/doku.php?id=release_notes 
 
 Development Environments
@@ -75,6 +75,7 @@ No   Fixed Bugs
 5756 romfs target fails for lib/libopenh323
 5628 g729 test crashed on bf548/bf527 with gcc 4.3 toolchain
 5775 RESOURCE_LABEL_SIZE in bfin_gpio.c is 16, but “Blackfin-GPIOlib” is longer (with tailing \0)
+5522 Lib DirectFB-1.4.0 crashes when run DirectFB demo on SVN trunk
 
 Known Issues
 A full list of known issues of 2009R1.1 release can be found at: 
