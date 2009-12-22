@@ -54,8 +54,8 @@ while 1 {
         }
 
        "\\\(*) \\\[*]" {
-             sleep .03
 	     send "\r"
+             sleep .03
       }
 
       -re "\[cC]hoice\\\[.*]:" {
