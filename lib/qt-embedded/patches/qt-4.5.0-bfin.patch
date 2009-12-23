@@ -88,6 +88,7 @@ http://trolltech.com/developer/task-tracker/index_html?id=239094&method=entry
 +#if defined(QT_ARCH_ARM) || defined(QT_ARCH_ARMV6) || defined(QT_ARCH_AVR32) || (defined(QT_ARCH_MIPS) && (defined(Q_WS_QWS) || defined(Q_OS_WINCE))) || defined(QT_ARCH_SH) || defined(QT_ARCH_SH4A) || defined(QT_ARCH_BFIN)
  #define QT_NO_FPU
  #endif
+
 --- a/src/corelib/io/qfilesystemwatcher_inotify.cpp
 +++ b/src/corelib/io/qfilesystemwatcher_inotify.cpp
 @@ -106,6 +106,10 @@
