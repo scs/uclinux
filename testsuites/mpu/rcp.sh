@@ -6,7 +6,7 @@ mpu_dir=$PWD
 ltp_ver=ltp-full-20081130
 ltp_src_dir=$mpu_dir/$ltp_ver
 ltp_testcases_dir=$ltp_src_dir/testcases/bin
-cvs_server_addr=10.99.22.20
+cvs_server_addr=10.99.29.20
 
 
 #Check out ltp source from svn server

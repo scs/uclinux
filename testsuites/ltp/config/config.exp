@@ -9,7 +9,7 @@
 
 set ipaddr			"10.100.4.50"
 set serverip			"10.100.4.174"
-set cvs_server_addr		"10.99.22.20"
+set cvs_server_addr		"10.99.29.20"
 
 set TFTP_LOAD_ADDR		"0x1000000"
 set SERIAL_PORT_BAUD_RATE	"57600"

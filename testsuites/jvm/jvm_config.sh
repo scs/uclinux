@@ -82,7 +82,7 @@ export PATH=$PATH:/opt/kaffe/bin
 #
 cd $cur_path
 rm -rf blkbfin-apps
-cvs -d :pserver:anonymous@10.99.22.20:/cvsroot/uclinux533 co -A -P blkbfin-apps/kaffe
+cvs -d :pserver:anonymous@10.99.29.20:/cvsroot/uclinux533 co -A -P blkbfin-apps/kaffe
 if [ $? -ne 0 ]
 then
 	echo "Error: Check out from CVS failed."
