@@ -30,15 +30,23 @@ while 1 {
             send "y\r"
         }
 
-        -re "NFS file system support.*\\\[.*]" {
+       -re "Network File Systems.*NETWORK_FILESYSTEMS.*\\\[.*]" {
             send -s "Y\r"
         }
 
-        -re "Provide NFSv3 client support.*\\\[.*]" {
+       -re "NFS client support.*NFS_FS.*\\\[.*]" {
             send -s "Y\r"
         }
 
-        -re "portmap.*USER_PORTMAP_PORTMAP.*\\\[.*]" {
+       -re "NFS client support for NFS version 3.*NFS_V3.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+       -re "portmap.*USER_PORTMAP_PORTMAP.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+       -re "pmap_set.*USER_PORTMAP_PMAP_SET.*\\\[.*]" {
             send -s "Y\r"
         }
 
