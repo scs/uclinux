@@ -876,6 +876,15 @@ proc run_LTP_test { filename command torun mode} {
        }
    }
 
+#don't run case shmget03 on bf533-ezkit because of insufficient memory
+   if { $filename == "semget03" } {
+       if { $board_type == "BF533-EZKIT" } {
+           set result_flag $LTP_NA
+           step "Test NA on uClinux"
+           return $result_flag
+       }
+   }
+
    if { $filename == "munlock01" || $filename == "semget05"} {
        force_reboot
    }
