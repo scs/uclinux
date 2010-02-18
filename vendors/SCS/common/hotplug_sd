@@ -1,0 +1,19 @@
+#!/bin/msh
+
+# Dieses Hotplug-Script wird von mdev aufgerufen
+# (siehe /etc/mdev.conf) und ist fuer das Mounten und
+# Unmounten der SD-Karte zustaendig.
+
+SD_MPOINT=/mnt/sdcard
+
+case "$ACTION" in
+        add|"")
+                mkdir -p $SD_MPOINT
+                mount -t auto $MDEV $SD_MPOINT
+                ;;
+        remove)
+                umount $SD_MPOINT
+                rmdir $SD_MPOINT
+                ;;
+esac
+

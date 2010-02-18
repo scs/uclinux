@@ -1,0 +1,2 @@
+eval `fw_printenv "serverip" 2> /dev/null`
+export "serverip"

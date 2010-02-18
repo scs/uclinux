@@ -1,0 +1,176 @@
+hostname leanxcam
+mount -t proc proc /proc
+mount -t ramfs ramfs /var
+mount -t sysfs sysfs /sys
+mount -t devpts devpts /dev/pts
+[ -d /proc/bus/usb ] && mount -t usbfs usbfs /proc/bus/usb
+[ -d /sys/kernel/debug ] && mount -t debugfs debugfs /sys/kernel/debug
+[ -d /proc/sys/fs/binfmt_misc ] && mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+[ -d /sys/kernel/security ] && mount -t securityfs securityfs /sys/kernel/security
+grep -qs nfsd /proc/filesystems && mount -t nfsd nfsd /proc/fs/nfsd
+if [ -e /bin/mdev ]; then
+	echo /bin/mdev 2> /dev/null > /proc/sys/kernel/hotplug
+	/bin/mdev -s 2> /dev/null
+fi
+mkdir /var/tmp /var/log /var/run /var/lock
+
+# Create meaningful soft links for /dev/mtd* 
+ln -sfn /dev/mtd1 /dev/uboot
+ln -sfn /dev/mtd2 /dev/env_uboot
+ln -sfn /dev/mtd3 /dev/env_uboot_r
+ln -sfn /dev/mtd4 /dev/linux
+ln -sfn /dev/mtd5 /dev/calib
+
+# Mount the application flash to /mnt/app
+echo "Mounting Application Flash..."
+mkdir /mnt/app
+mount -t jffs2 /dev/mtdblock6 /mnt/app
+
+echo "Loading Memory DMA kernel module..."
+insmod /lib/modules/`uname -r`/bfdma.ko
+
+################################################################################
+
+# Binds the root's home directory to a directory on the application flash
+if [ -d "/mnt/app" ]; then
+	echo "Replacing /root with a symlink pointing to /mnt/app."
+	rm -rf /root && ln -s /mnt/app /root && mkdir -p /root/.ssh
+fi
+
+# Prohibit password login if "no-root-login" is set in the u-boot environment
+if fw_printenv "no-root-login" > /dev/null 2>&1; then
+	sed -ri "s/^root:[^:]:/root:x:/" /etc/passwd
+fi
+
+#disable kernel message "task boa blocked for more than 120 seconds" which appears 120 seconds after boot
+echo 0 > /proc/sys/kernel/hung_task_timeout_secs
+
+# Read network configurations from the U-Boot environment variables ...
+for i in ipaddr netmask gatewayip serverip ethaddr runscript fallback_disabled fallback_timeout ntpserver; do
+	eval `fw_printenv "$i" 2> /dev/null`
+done
+
+# ... and do some sanity checking on them.
+echo "$fallback_timeout" | grep -qE '^[0-9]+$' || fallback_timeout=15
+
+if echo "$ethaddr:" | grep -qvE '^([0-9a-f]{2}:){6}$'; then
+	first_time_boot=1
+	ethaddr='00:20:e3:23:00:00'
+fi
+
+if echo "$ipaddr" | grep -qiE '^dhcp$'; then
+	ipaddr='dhcp'
+else
+	echo "$ipaddr." | grep -qE '^([0-9]{1,3}.){4}$' || fallback_boot=1
+	echo "$netmask." | grep -qE '^([0-9]{1,3}.){4}$' || fallback_boot=1
+fi
+
+# Bring up the interface
+ifconfig eth0 hw ether "$ethaddr"
+ifconfig eth0 up
+
+# Check whether we have link.
+if [ ! "$first_time_boot" ] && [ ! "$fallback_boot" ] && [ ! "$fallback_disabled" ]; then
+	sleep 2 # /sys/class/net/eth0/operstate says up for a second or two even if it isn't
+	#NOTE: /sys/class/net/eth0/operstate outputs unknown with new uclinux, so we take ifconfig
+	
+	fallback_boot=1
+	timeout=$fallback_timeout
+	while [ "$timeout" -gt 0 ]; do
+		if [ "`ifconfig | grep RUNNING`" != '' ]; then
+			fallback_boot=
+			break
+		fi
+		
+		echo "Waiting for carrier on eth0: $timeout s"
+		timeout=`expr "$timeout" - 1`
+		sleep 1
+	done
+fi
+
+if [ ! "$fallback_boot" ] && [ ! "$first_time_boot" ]; then
+	# Check wether we should do DHCP.
+	if [ "$ipaddr" == 'dhcp' ]; then
+		dhcpcd eth0 &
+		
+		fallback_boot=1
+		timeout=$fallback_timeout
+		while [ "$timeout" -gt 0 ]; do
+			if [ -e '/etc/dhcpc/dhcpcd-eth0.info' ]; then
+				fallback_boot=
+				break
+			fi
+			
+			echo "Waiting for an IP address over DHCP: $timeout s"
+			timeout=`expr "$timeout" - 1`
+			sleep 1
+		done
+		
+		# Because the damn DHCP client deactivates the interface after a minute.
+		if [ "$fallback_boot" ]; then
+			killall -9 dhcpcd
+		else
+			[ "$ntpserver" ] || ntpserver=`grep -E '^NTP=' < /etc/dhcpc/dhcpcd-eth0.info | cut -d '=' -f '2-'`
+		fi
+	fi
+fi
+
+# Set default network configurations if we're in first time or fallback boot.
+if [ "$fallback_boot" ] || [ "$first_time_boot" ]; then
+	# Default configuration. Used if everything else fails.
+	ipaddr='192.168.1.10'
+	netmask='255.255.255.0'
+	gatewayip='192.168.1.1'
+	serverip='192.168.1.2'
+	ethaddr='00:20:e3:23:00:00'
+	runscript=
+fi
+
+# Setup IP configuration when not using DHCP.
+if [ "$ipaddr" != 'dhcp' ]; then
+	ifconfig eth0 "$ipaddr" netmask "$netmask"
+	
+	if echo "$gatewayip." | grep -qE '^([0-9]{1,3}.){4}$'; then
+		route add -net default gw "$gatewayip"
+	fi
+fi
+
+# Check if we're doing a first time or a fallback or normal boot.
+if [ "$first_time_boot" ]; then
+	echo "ethaddr not defined in U-Boot environment: Going into first time boot mode."
+	
+	tftp "$serverip" -g -r "runinit.sh" -l "/tmp/runinit.sh"
+	[ -e "/tmp/runinit.sh" ] && chmod +x "/tmp/runinit.sh" && "/tmp/runinit.sh"
+elif [ "$fallback_boot" ] && [ ! "$fallback_disabled" ]; then
+	echo "The device has been booted in fallback mode with default network configurations."
+	echo "The device will automatically reboot in 10 minutes."
+	
+	sh -c 'sleep 600; reboot' &
+else
+	if [ "$ntpserver" ] && [ "$ntpserver" != "none" ]; then
+		echo "Synchronizing time with NTP server $ntpserver ..."
+		ntpdate -t "$fallback_timeout" "$ntpserver"
+	fi
+	
+	cat /etc/motd
+	
+	# Launch user specific application script
+	if [ "$runscript" ]; then
+		runfolder="/"
+		
+		if echo "$runscript" | grep -qv "^/"; then
+			runscript="/mnt/app/$runscript"
+			runfolder="/mnt/app"
+		fi
+		
+		if [ -f "$runscript" ] && [ -x "$runscript" ]; then
+			echo "Executing $runscript ..."
+			(cd "$runfolder"; "$runscript" &)
+		else
+			echo "Cannot run runscript: $runscript"
+		fi
+	fi
+fi
+
+# For good measure.
+exit 0
