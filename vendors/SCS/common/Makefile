@@ -9,7 +9,7 @@ include $(CONFIG_CONFIG)
 ROMFS_DIRS = bin etc etc/boa etc/dhcpc home lib mnt proc sys usr var root home tmp var/run var/lib/misc home/httpd home/httpd/cgi-bin var/log/boa
 
 ETC_FILES = TZ boa.conf filesystems fstab fw_env.config group host.conf hosts inetd.conf inittab issue mdev.conf motd mime.types modprobe.conf passwd profile protocols rc services hotplug_sd
-BIN_FILES = maintenance netviewd fw_printenv fw_setenv tftp-get xxd
+BIN_FILES = maintenance netviewd fw_printenv fw_setenv tftp-get
 
 # Blocks must be a multiple of 1024
 BLOCKS   = 8192
