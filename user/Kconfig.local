@@ -3,6 +3,8 @@
 
 menu "Blackfin test programs"
 
+config USER_IMGUPD_IMGUPD
+	bool "Image Update program"
 config USER_BLACKFIN_RTC
 	bool "RTC test program"
 config USER_BLACKFIN_DPMC
