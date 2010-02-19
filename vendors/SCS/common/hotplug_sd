@@ -1,15 +1,22 @@
 #!/bin/msh
 
-# Dieses Hotplug-Script wird von mdev aufgerufen
-# (siehe /etc/mdev.conf) und ist fuer das Mounten und
-# Unmounten der SD-Karte zustaendig.
+# this hotplug-script is called by mdev
+# (see /etc/mdev.conf) and is responsible
+# for mounting the sc-card
 
 SD_MPOINT=/mnt/sdcard
+
+#Mount with sync option if required to make sure we don't have data loss on umount
+sd_mount_opt=""
+eval `fw_printenv "sd_mount_opt" 2> /dev/null`
+if [ "$sd_mount_opt" != "async" ]; then
+	sd_mount_opt="sync"
+fi
 
 case "$ACTION" in
         add|"")
                 mkdir -p $SD_MPOINT
-                mount -t auto $MDEV $SD_MPOINT
+                mount -t auto -o $sd_mount_opt $MDEV $SD_MPOINT
                 ;;
         remove)
                 umount $SD_MPOINT
