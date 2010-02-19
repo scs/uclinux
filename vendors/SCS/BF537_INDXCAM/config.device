@@ -85,8 +85,8 @@ CONFIG_DEFAULTS_SCS=y
 #
 # Select the Product you wish to target
 #
-#CONFIG_DEFAULTS_SCS_BF537_LEANXCAM is not set
 CONFIG_DEFAULTS_SCS_BF537_INDXCAM=y
+# CONFIG_DEFAULTS_SCS_BF537_LEANXCAM is not set
 
 #
 # Kernel/Library/Defaults Selection
