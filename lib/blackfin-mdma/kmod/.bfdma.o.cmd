@@ -1,0 +1,1 @@
+cmd_/home/oscar/data/new_uclinux/uclinux-dist/lib/blackfin-mdma/kmod/bfdma.o := bfin-uclinux-ld    -r -o /home/oscar/data/new_uclinux/uclinux-dist/lib/blackfin-mdma/kmod/bfdma.o /home/oscar/data/new_uclinux/uclinux-dist/lib/blackfin-mdma/kmod/bfdma_main.o /home/oscar/data/new_uclinux/uclinux-dist/lib/blackfin-mdma/kmod/bfdma_ex.o 

@@ -42,6 +42,9 @@ dir_3_$(CONFIG_LIB_TIFF)             += libtiff
 dir_3_$(CONFIG_LIB_TREMOR)           += tremor
 dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
 
+dir_3_$(CONFIG_USER_MDMA_TESTS)      += blackfin-mdma
+dir_3_$(CONFIG_USER_MDMA_KO)         += blackfin-mdma
+
 dir_4_$(CONFIG_LIB_BOOST)            += boost           # requires zlib(3) bzip2(3)
 dir_4_$(CONFIG_LIB_FREETYPE)         += freetype        # requires zlib(3)
 dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip       # requires osip2(2)

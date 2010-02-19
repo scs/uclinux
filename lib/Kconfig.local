@@ -149,6 +149,13 @@ config LIB_MEDIASTREAMER
 	bool "Build mediastreamer"
 	select LIB_ORTP
 	select LIB_SPEEX
+	
+config USER_MDMA_KO
+	bool "Build mdma"
+
+config USER_MDMA_TESTS
+	depends on USER_MDMA_KO
+	bool "Build mdma test apps"
 
 config LIB_MPFR
 	bool "Build mpfr"
