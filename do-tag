@@ -1,0 +1,162 @@
+#! /usr/bin/env bash
+# This script is used to tag the working directory including adjustment of version #defines.
+
+# Information about adapting this script:
+#
+#	This script reads the version string form the command line, parses is and calls the function 'update_files' with the version string, the major and minor version, patch and release candidate number as arguments. The function should update all files that hold this information for the application and put theire pathes on standard out. This script then commits these files and makes a tag according to the version string.
+#
+# 	The version argument is parsed according to the following EBNF expression:
+#		
+#		version := "v" <major> : non-negative-number "." <minor> : non-negative-number [ "-p" <patch> : positive-number ] [ "-RC" <rc> : positive-number ]
+#			non-negative-number := "0" | positive-number
+#			positive-number := ( digit { digit } ) ^ ( "0" ? )
+#			digit := "0" .. "9"
+#	
+#		Or this regular expression:
+#			v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-p([1-9][0-9]*))?(-RC([1-9][0-9]*))?
+
+# Known bugs:
+#	- If no files are changed by the update_files function and no release note has been added then staged files are commited instead of an empty commit.
+#	- Only files that are allready present in the HEAD's tree can be updated by the update_files function.
+
+print() { echo "$1" >&2; }
+inform() { print "$0: $1"; }
+warn() { print "Warning: $1"; }
+error() { inform "Error: $1"; }
+fail() { [ "$1" ] && error "$1"; exit 1; }
+
+usage() {
+	cat << EOF
+Usage:
+    do-tag --help
+    do-tag <version>
+EOF
+[ "$1" ] && fail "$1"
+}
+
+help() {
+	usage
+	cat << 'EOF'
+
+Where:
+    --help: Print this help.
+    <version>: v<major>.<minor>[-<patch>][-RC<rc>]
+    <major>: Major version number.
+    <minor>: Minor version number.
+    <patch>: Optional patch number.
+    <rc>: Optional release candidate number.
+
+Notes:
+    This script replaces the defines holding the version information, makes a
+    commit with the file and tags the commit with a  tag name of the following
+    form:
+    
+        "release/v" <major> "." <minor> [ "-p" <patch> ]
+        | "beta/v" <major> "." <minor> [ "-p" <patch> ] "-RC" <rc>
+    
+    This scripts maintains a 'HISTORY' file in the root tree. For every non-RC
+    version it asks the user to enter a release note via the $EDITOR environment
+    variable or the core.editor git configuration and prepends the release note to the 'HISTORY' file.
+EOF
+}
+
+update_files() {
+	VERSION_STRING=$1
+	VERSION_MAJOR=$2
+	VERSION_MINOR=$3
+	VERSION_PATCH=$4
+	VERSION_RC=$5
+	
+	# This adjusts the CONFIG_LOCALVERSION line in each file in the vendors/SCS folder named "config.linux-2.6.x".
+	# Make sure that CONFIG_USER_BUSYBOX_HAVE_DOT_CONFIG=y is set in the "config.vendor-2.6.x" respective folder.
+	find "vendors/SCS" -type "f" -name "config.linux-2.6.x" | while IFS= read i; do
+		sed -ri -e "s/(CONFIG_LOCALVERSION=\")[^\"]*(\")/\1-Git_$VERSION_STRING\2/" "$i"
+		echo "$i"
+	done
+}
+
+OPT_MAINTAIN_HISTORY_FILE=1
+
+[ "$1" == "--help" ] && { help; exit; }
+
+[ "$1" ] && ARG_VERSION=$1 || usage "Version specification missing!"
+[ "$2" ] && usage "Too many arguments!"
+
+VERSION_PARSER="v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-p([1-9][0-9]*))?(-RC([1-9][0-9]*))?"
+echo "$ARG_VERSION" | grep -qxE "$VERSION_PARSER" || fail "Invalid version specification: $ARG_VERSION"
+VERSION_PARSED=$(echo "$ARG_VERSION" | sed -r "s/$VERSION_PARSER/\1 \2 \4 \6/")
+
+VERSION_MAJOR=$(echo "$VERSION_PARSED" | cut -d " " -f 1)
+VERSION_MINOR=$(echo "$VERSION_PARSED" | cut -d " " -f 2)
+VERSION_PATCH=$(echo "$VERSION_PARSED" | cut -d " " -f 3)
+VERSION_RC=$(echo "$VERSION_PARSED" | cut -d " " -f 4)
+
+[ "$VERSION_PATCH" ] || VERSION_PATCH=0
+[ "$VERSION_RC" ] || VERSION_RC=0
+
+[ $VERSION_RC -eq 0 ] && TAG_NAME="release/$ARG_VERSION" || TAG_NAME="beta/$ARG_VERSION"
+git tag -l | grep -qxF "$TAG_NAME" && fail "Tag $TAG_NAME already exists"
+
+update_files "$ARG_VERSION" "$VERSION_MAJOR" "$VERSION_MINOR" "$VERSION_PATCH" "$VERSION_RC" | {
+	while IFS= read i; do
+		UPDATED_FILES=("${UPDATED_FILES[@]}" "$i")
+	done
+	
+	if [ $VERSION_RC -eq 0 ]; then
+		RELEASE_NOTE="+ Release $ARG_VERSION"
+		
+		if [ "$OPT_MAINTAIN_HISTORY_FILE" ]; then
+			VERSIONS_FILE="HISTORY"
+			TEMP_FILE="HISTORY.add"
+			
+			[ "$EDITOR" ] || EDITOR=$(git config "core.editor")
+			[ "$EDITOR" ] || fail "\$EDITOR is not set. Please set the EDITOR environment variable to input the release notes."
+			
+			if ! [ -e "$TEMP_FILE" ]; then
+				NEWEST_RELEASE=$(git tag | grep -E "release/.*" | while IFS= read i; do echo "$(git rev-list "$i..HEAD" | wc -l | grep -oE "[0-9]+") $i"; done | sort -n | head -n 1 | cut -d " " -f 2-)
+				
+				cat << EOF >> "$TEMP_FILE"
+$RELEASE_NOTE
+
+
+# Please enter your release note above under the line with the version
+# information. This message without the commented text will be included as the
+# commit message for this release and added to the '$VERSIONS_FILE' file.
+
+# To abort the commit, empty this file before exiting your editor.
+EOF
+				if [ "$NEWEST_RELEASE" ]; then
+					cat << EOF >> "$TEMP_FILE"
+
+# Changes since the last release, $NEWEST_RELEASE:
+#
+EOF
+					git diff --stat | sed -r "s/^/#/" >> "$TEMP_FILE"
+				fi
+			fi
+			
+			$EDITOR "$TEMP_FILE"
+			
+			RELEASE_NOTE=$(grep -vE "^ *#" < "$TEMP_FILE")
+			if ! [ "$(echo "$RELEASE_NOTE" | sed -r "s/\t/ /g" | grep -vE "^ *(#.*)?$")" ]; then
+				rm -f "$TEMP_FILE"
+				fail "Commit aborted due to empty commit message."
+			fi
+			
+			echo "$RELEASE_NOTE" > "$VERSIONS_FILE"
+			if git show "HEAD:$VERSIONS_FILE" > /dev/null 2>&1; then
+				echo -e '\n' >> $VERSIONS_FILE
+				git show "HEAD:$VERSIONS_FILE" >> $VERSIONS_FILE
+			fi
+			
+			git add "$VERSIONS_FILE" || exit $?
+			UPDATED_FILES=("${UPDATED_FILES[@]}" "$VERSIONS_FILE")
+		fi
+	else
+		RELEASE_NOTE="+ Beta version $ARG_VERSION"
+	fi
+	
+	git commit --allow-empty -m "$RELEASE_NOTE" "${UPDATED_FILES[@]}" || exit $?
+	git tag "$TAG_NAME" || exit $?
+	[ -e "$TEMP_FILE" ] && rm -f "$TEMP_FILE"
+} || exit $?
