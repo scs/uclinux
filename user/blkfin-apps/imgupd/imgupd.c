@@ -13,7 +13,6 @@
 #define TEMP_FILE_LOCATION "/tmp/"
 #define U_BOOT_PARTITION "/dev/uboot"
 #define LINUX_PARTITION "/dev/linux"
-#define CALIBRATION_PARTITION "/dev/calib"
 
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
@@ -92,23 +91,17 @@ int main(int argc, char** argv)
     case 0xFFA00000:
       printf("Magic word of U-Boot image found\n");
       printf("Copying to %s...\n", U_BOOT_PARTITION);
-      sprintf(sTemp, "cp %s%s %s\n", sTempFileLocation, sImgName, U_BOOT_PARTITION); 
+      sprintf(sTemp, "cp %s%s `readlink -f %s`\n", sTempFileLocation, sImgName, U_BOOT_PARTITION); 
       ret = system(sTemp);
       goto cleanup;
       break;
     case 0x56190527:
       printf("Magic word of OS image found!\n");
       printf("Copying to %s...\n", LINUX_PARTITION);
-      sprintf(sTemp, "cp %s%s %s\n", sTempFileLocation, sImgName, LINUX_PARTITION); 
+      sprintf(sTemp, "cp %s%s `readlink -f %s`\n", sTempFileLocation, sImgName, LINUX_PARTITION); 
       ret = system(sTemp);
       goto cleanup;
       break;
-    case 0x012345678:
-      printf("Magic word of Sensor Calibration image found!\n");
-      printf("Copying to %s...\n", CALIBRATION_PARTITION);
-      sprintf(sTemp, "cp %s%s %s\n", sTempFileLocation, sImgName, CALIBRATION_PARTITION);
-      ret = system(sTemp);
-      goto cleanup;
     default:
       printf("Image not recognized!\n");
       goto cleanup;
