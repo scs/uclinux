@@ -19,12 +19,11 @@ ln -sfn /dev/mtd1 /dev/uboot
 ln -sfn /dev/mtd2 /dev/env_uboot
 ln -sfn /dev/mtd3 /dev/env_uboot_r
 ln -sfn /dev/mtd4 /dev/linux
-ln -sfn /dev/mtd5 /dev/calib
 
 # Mount the application flash to /mnt/app
 echo "Mounting Application Flash..."
 mkdir /mnt/app
-mount -t jffs2 /dev/mtdblock6 /mnt/app
+mount -t jffs2 /dev/mtdblock5 /mnt/app
 
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
