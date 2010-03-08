@@ -2,7 +2,7 @@
 
 # this hotplug-script is called by mdev
 # (see /etc/mdev.conf) and is responsible
-# for mounting the sc-card
+# for mounting the sd-card
 
 SD_MPOINT=/mnt/sdcard
 
