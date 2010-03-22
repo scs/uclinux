@@ -646,11 +646,12 @@ int init_cgi(request * req)
 
     default:
         /* parent */
+        /*
         waitpid(child_pid, &child_status, 0);
            if (WEXITSTATUS(child_status) != 0) {
                  perror("child process exit abnormally.");
            }
-
+*/
         /* if here, fork was successful */
         if (verbose_cgi_logs) {
             log_error_time();
