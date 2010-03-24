@@ -342,6 +342,7 @@ static void free_request(request * req)
     } else {
         log_access(req);
     }
+    
 
     if (req->mmap_entry_var)
         release_mmap(req->mmap_entry_var);
@@ -349,6 +350,19 @@ static void free_request(request * req)
         munmap(req->data_mem, req->filesize);
 
     if (req->data_fd) {
+	  /* cgi process could still be running -> read cgi output until it terminates. ignore output
+	     we can't just wait for the process to terminate, because that could lead to a deadlock */
+    	  char buffer[1024];
+    	  int bytes_read;
+    	  while((bytes_read = read(req->data_fd, buffer, 1024)) != 0) {
+    		  if(bytes_read==-1 && errno!=EINTR && errno!=EWOULDBLOCK && errno!=EAGAIN) 
+    			  break;
+    	  }
+	  int child_status;
+	  if(req->cgi_child_pid)
+	  	waitpid(req->cgi_child_pid, &child_status, 0); //now we HAVE to wait before we close the pipe!
+	  req->cgi_child_pid=0;
+	  
         close(req->data_fd);
         BOA_FD_CLR(req, req->data_fd, BOA_READ);
     }

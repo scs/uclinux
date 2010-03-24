@@ -149,6 +149,7 @@ struct request {                /* pending requests */
 
     /* CGI vars */
     int cgi_env_index;          /* index into array */
+    int cgi_child_pid;		  /* cgi process id */
 
     /* Agent and referer for logfiles */
     char *header_host;

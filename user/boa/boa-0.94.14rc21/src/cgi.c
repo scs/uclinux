@@ -646,12 +646,16 @@ int init_cgi(request * req)
 
     default:
         /* parent */
+        //don't wait: leads to a deadlock when cgi writes too much output
         /*
         waitpid(child_pid, &child_status, 0);
            if (WEXITSTATUS(child_status) != 0) {
                  perror("child process exit abnormally.");
            }
 */
+	  req->cgi_child_pid=child_pid;
+
+	  
         /* if here, fork was successful */
         if (verbose_cgi_logs) {
             log_error_time();
