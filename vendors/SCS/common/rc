@@ -52,7 +52,7 @@ done
 # ... and do some sanity checking on them.
 echo "$fallback_timeout" | grep -qE '^[0-9]+$' || fallback_timeout=15
 
-if echo "$ethaddr:" | grep -qvE '^([0-9a-f]{2}:){6}$'; then
+if echo "$ethaddr:" | grep -qvE '^([0-9a-fA-F]{2}:){6}$'; then
 	first_time_boot=1
 	ethaddr='00:20:e3:23:00:00'
 fi
