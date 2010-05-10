@@ -36,10 +36,10 @@ done
 
 if [ "$OPT_PLATFORM" == "leanXcam" ]; then
 	make distclean
-	make SCS/BF537_LEANXCAM_config
+	make SCS/BF537_LEANXCAM_defconfig
 elif [ "$OPT_PLATFORM" == "indXcam" ]; then
 	make distclean
-	make SCS/BF537_INDXCAM_config
+	make SCS/BF537_INDXCAM_defconfig
 else
 	fail "Unknown platform: $OPT_PLATFORM"
 fi
