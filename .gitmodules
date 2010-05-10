@@ -1,0 +1,3 @@
+[submodule "linux-2.6.x"]
+	path = linux-2.6.x
+	url = ssh://lemon.scs.ch/git/lcv/system/linux-2.6.x.git
