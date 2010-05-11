@@ -1,3 +1,8 @@
++ Release v2.0-p2
++ rc script fix: MAC address can contain big letters
++ Added kernel as .gitmodule
+
+
 + Release v2.0-p1
 
 Webserver Boa supports cgi streaming of large files
