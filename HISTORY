@@ -1,3 +1,7 @@
++ Release v2.0-p3
+! Fixed mt9v032 video driver not invalidating cache correctly
+
+
 + Release v2.0-p2
 + rc script fix: MAC address can contain big letters
 + Added kernel as .gitmodule
