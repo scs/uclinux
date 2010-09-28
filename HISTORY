@@ -1,3 +1,8 @@
++ Release v2.1
++ Added support for network logging controlled by syslog_ipaddr and syslog_file
+! Avoid inetd being started twice
+
+
 + Release v2.0-p4
 
 ! Fix corrupted image data on next image if cached frame buffer overwritten on previous frame
