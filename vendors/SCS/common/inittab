@@ -1,4 +1,3 @@
-slog:unknown:/sbin/syslogd -n -b 1 -s 128 -O /var/log/log
 klog:unknown:/sbin/klogd -n
 http:unknown:/bin/boa -f /etc/boa.conf
 intd:unknown:/bin/inetd
