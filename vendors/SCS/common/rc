@@ -45,7 +45,7 @@ fi
 echo 0 > /proc/sys/kernel/hung_task_timeout_secs
 
 # Read network configurations from the U-Boot environment variables ...
-for i in ipaddr netmask gatewayip serverip ethaddr runscript fallback_disabled fallback_timeout ntpserver; do
+for i in ipaddr netmask gatewayip serverip ethaddr runscript fallback_disabled fallback_timeout ntpserver syslog_file syslog_ipaddr; do
 	eval `fw_printenv "$i" 2> /dev/null`
 done
 
@@ -170,6 +170,24 @@ else
 		fi
 	fi
 fi
+
+# Setup syslog, log to a custom file or do network logging if needed
+if [ ! "$syslog_file" ] || echo "$syslog_file" | grep -qvE "^/.+"; then
+	syslog_file="/var/log/log"
+	echo "No or faulty 'syslog_file', using /var/log/log to log"
+fi
+
+syslog_command="/sbin/syslogd -b 1 -s 128 -O ""$syslog_file"
+
+if [ "$syslog_ipaddr" ]; then
+	if echo "$syslog_ipaddr" | grep -qE '([0-9]{1,3}\.){3}([0-9]{1,3})(:[0-9]+)?$'; then
+		syslog_command="$syslog_command"" -L -R ""$syslog_ipaddr"
+	else
+		echo "Invalid 'syslog_ipaddr', not logging to network!"
+	fi
+fi
+
+$syslog_command	 
 
 # For good measure.
 exit 0
