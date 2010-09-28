@@ -22,4 +22,4 @@ clean:
 
 romfs:
 	$(ROMFSINST) /sbin/$(EXEC)
-	$(ROMFSINST) -a "inetd:unknown:/sbin/inetd" /etc/inittab
+	#$(ROMFSINST) -a "inetd:unknown:/sbin/inetd" /etc/inittab # Not needed: this is manually added to inittab from SCS

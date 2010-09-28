@@ -34,8 +34,8 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_INIT_INIT /bin/$(EXEC1)
 	$(ROMFSINST) -e CONFIG_USER_INIT_INIT -e CONFIG_USER_FACTORY_FACTTEST \
 			-a "facttest:unknown:/bin/facttest" /etc/inittab
-	$(ROMFSINST) -e CONFIG_USER_INIT_INIT -e CONFIG_USER_BUSYBOX_SYSLOGD \
-			-a "slog:unknown:${BINDIR}/syslogd -n" /etc/inittab
+	#$(ROMFSINST) -e CONFIG_USER_INIT_INIT -e CONFIG_USER_BUSYBOX_SYSLOGD \
+	#		-a "slog:unknown:${BINDIR}/syslogd -n" /etc/inittab # Not needed: this is manually added to inittab from SCS
 	$(ROMFSINST) -e CONFIG_USER_INIT_INIT -e CONFIG_USER_BUSYBOX_KLOGD \
 			-a "klog:unknown:${BINDIR}/klogd -n" /etc/inittab
 
