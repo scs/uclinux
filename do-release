@@ -1,6 +1,7 @@
 #! /usr/bin/env bash
 # do-release
 # This script is used to bring the working directory into a shape where it can be released as a tar Archive.
+# WARNING: Everything git-related is deleted from the currend directory!
 
 set -e -o pipefail
 
@@ -16,8 +17,8 @@ USAGE='Usage: do-release'
 
 [ "$1" ] && usage 'No arguments required.'
 
-find . -name '.gitignore' -or -name '.cdtproject' -or -name '.project' -or -name '.gitmodules' | while IFS= read i; do
-	rm -f "$i"
+find . -name '.gitignore' -or -name '.cdtproject' -or -name '.project' -or -name '.gitmodules' -or -name '.git' | while IFS= read i; do
+	rm -rf "$i"
 done
 	
 rm -f 'do-build' 'do-release' 'do-tag' 'prune_dirs'
