@@ -174,8 +174,11 @@ fi
 # Setup syslog, log to a custom file or do network logging if needed
 if [ ! "$syslog_file" ] || echo "$syslog_file" | grep -qvE "^/.+"; then
 	syslog_file="/var/log/log"
-	echo "No or faulty 'syslog_file', using /var/log/log to log"
+	echo "No (or invalid) 'syslog_file', using /var/log/log to log"
 fi
+
+# Create the folder for the logfile, if needed
+mkdir -p `dirname $syslog_file`
 
 syslog_command="/sbin/syslogd -b 1 -s 128 -O ""$syslog_file"
 
