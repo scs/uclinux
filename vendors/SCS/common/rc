@@ -129,7 +129,7 @@ fi
 if [ "$ipaddr" != 'dhcp' ]; then
 	ifconfig eth0 "$ipaddr" netmask "$netmask"
 	
-	if echo "$gatewayip." | grep -qE '^([0-9]{1,3}\.){4}$'/gr; then
+	if echo "$gatewayip." | grep -qE '^([0-9]{1,3}\.){4}$'; then
 		route add -net default gw "$gatewayip"
 	fi
 fi
