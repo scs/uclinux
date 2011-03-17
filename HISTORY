@@ -1,3 +1,7 @@
++ Release v2.1-p1
+  Fix parsing of gatewayip address environment variable.
+
+
 + Release v2.1
 + Added support for network logging controlled by syslog_ipaddr and syslog_file
 ! Avoid inetd being started twice
