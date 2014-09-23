@@ -48,17 +48,12 @@ const struct dhcp_option dhcp_options[] = {
 #endif
 	/* MSIE's "Web Proxy Autodiscovery Protocol" support */
 	{ OPTION_STRING                           , 0xfc }, /* wpad               */
-	
-	/* --- GLP TSM OPTIONS (added 2014-09-22) --- */
-	{ OPTION_IP                   | OPTION_REQ, 0xe0 }, /* tsm-server-ip, code 224, ip-address */
-	{ OPTION_U16                  | OPTION_REQ, 0xe1 }, /* tsm-server-gc-port, code 225, unsigned integer 16  */
-	{ OPTION_U16                  | OPTION_REQ, 0xe2 }, /* tsm-server-mc-port, code 226, unsigned integer 16 */	
 
 	/* Options below have no match in dhcp_option_strings[],
 	 * are not passed to dhcpc scripts, and cannot be specified
 	 * with "option XXX YYY" syntax in dhcpd config file. */
+
 	{ OPTION_U16                              , 0x39 }, /* DHCP_MAX_SIZE      */
-		
 	{ } /* zeroed terminating entry */
 };
 
@@ -102,10 +97,6 @@ const char dhcp_option_strings[] ALIGN1 =
 #endif
 	/* MSIE's "Web Proxy Autodiscovery Protocol" support */
 	"wpad" "\0"
-	/* --- GLP TSM OPTIONS (added 2014-09-22) --- */
-	"tsmserverip" "\0"        /* tsm-server-ip      */
-	"tsmservergcport" "\0"    /* tsm-server-gc-port */
-	"tsmservermcport" "\0"    /* tsm-server-mc-port */
 	;
 
 
